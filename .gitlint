@@ -1,0 +1,17 @@
+[general]
+contrib=contrib-title-conventional-commits
+ignore=body-is-missing
+ignore-stdin=true
+
+[title-max-length]
+line-length=50
+
+[title-must-not-contain-word]
+words=wip,WIP
+
+[body-max-line-length]
+line-length=72
+
+[contrib-title-conventional-commits]
+types = build,chore,ci,docs,feat,fix,style,refactor,perf,test
+
