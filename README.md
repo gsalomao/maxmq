@@ -1,6 +1,7 @@
 ![MaxMQ logo](docs/assets/logo.png)
 
 # MaxMQ
+[![build](https://github.com/gsalomao/maxmq/actions/workflows/build.yml/badge.svg)](https://github.com/gsalomao/maxmq/actions/workflows/build.yml)
 [![license](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 MaxMQ is an open-source, cloud-native, highly available and highly scalable
