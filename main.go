@@ -16,8 +16,18 @@
 
 package main
 
-import "fmt"
+import (
+	"github.com/gsalomao/maxmq/logger"
+)
 
 func main() {
-	fmt.Println("Hello world!")
+	logger := logger.New()
+
+	logger.Trace().Msg("This is a trace")
+	logger.Debug().Msg("This is a debug")
+	logger.Info().Msg("This is an info")
+	logger.Warn().Msg("This is a warning")
+	logger.Error().Msg("This is an error")
+
+	logger.Fatal().Str("str", "val").Bool("bool", true).Int("int", 1).Msg("Bye")
 }
