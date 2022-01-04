@@ -33,3 +33,6 @@ go.work
 # IDEs
 .vscode
 .idea
+
+# Others
+maxmq.conf

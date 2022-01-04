@@ -39,55 +39,55 @@ all: help
 
 ## Build
 build: ## Build application
-	@echo "--> Building application..."
+	@echo "==> Building application..."
 	@mkdir -p ${BUILD_PATH}
 	@$(GOBUILD) -o ${BUILD_PATH}/$(NAME) main.go
-	@echo "--> Building application... done"
+	@echo "==> Building application... done"
 
 clean: ## Clean build folder
-	@echo "--> Cleaning build folder..."
+	@echo "==> Cleaning build folder..."
 	@$(GOCLEAN)
 	@rm -rf ${BUILD_PATH}
-	@echo "--> Cleaning build folder... done"
+	@echo "==> Cleaning build folder... done"
 
 ## Test
 unit: ## Run unit tests
-	@echo "--> Running unit tests..."
+	@echo "==> Running unit tests..."
 	@$(GOTEST) -v ./...
-	@echo "--> Running unit tests... done"
+	@echo "==> Running unit tests... done"
 
 coverage: ## Run unit tests with coverage report
-	@echo "--> Running unit tests..."
+	@echo "==> Running unit tests..."
 	@rm -rf ${COVERAGE_PATH}
 	@mkdir -p ${COVERAGE_PATH}
 	@$(GOTEST) -cover -covermode=count \
 		-coverprofile=$(COVERAGE_PATH)/profile.cov ./...
-	@echo "--> Running unit tests... done"
+	@echo "==> Running unit tests... done"
 
-	@echo "--> Generating coverage report..."
+	@echo "==> Generating coverage report..."
 	@$(GOCMD) tool cover -func $(COVERAGE_PATH)/profile.cov
-	@echo "--> Generating coverage report... done"
+	@echo "==> Generating coverage report... done"
 
 ## Analyze
 vet: ## Examine source code
-	@echo "--> Examining source code..."
+	@echo "==> Examining source code..."
 	@$(GOVET) ./...
-	@echo "--> Examining source code... done"
+	@echo "==> Examining source code... done"
 
 fmt: ## Format source code
-	@echo "--> Formatting source code..."
+	@echo "==> Formatting source code..."
 	@$(GOFMT) ./...
-	@echo "--> Formatting source code... done"
+	@echo "==> Formatting source code... done"
 
 lint: ## Lint source code
-	@echo "--> Linting source code..."
+	@echo "==> Linting source code..."
 	@$(GOLINT) ./...
-	@echo "--> Linting source code... done"
+	@echo "==> Linting source code... done"
 
 imports: ## Update Go import lines
-	@echo "--> Updating Go imports..."
+	@echo "==> Updating Go imports..."
 	@$(GOIMPORTS) -l -w .
-	@echo "--> Updating Go imports... done"
+	@echo "==> Updating Go imports... done"
 
 check: vet lint ## Check source code
 

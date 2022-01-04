@@ -17,17 +17,27 @@
 package main
 
 import (
+	"github.com/gsalomao/maxmq/config"
 	"github.com/gsalomao/maxmq/logger"
 )
 
 func main() {
-	logger := logger.New()
+	log := logger.New()
 
-	logger.Trace().Msg("This is a trace")
-	logger.Debug().Msg("This is a debug")
-	logger.Info().Msg("This is an info")
-	logger.Warn().Msg("This is a warning")
-	logger.Error().Msg("This is an error")
+	if err := config.ReadConfigFile(); err != nil {
+		log.Warn().Msg(err.Error())
+	}
 
-	logger.Fatal().Str("str", "val").Bool("bool", true).Int("int", 1).Msg("Bye")
+	conf, err := config.LoadConfig()
+
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to load the configuration")
+	}
+
+	logger.SetSeverityLevel(conf.LogLevel)
+	log.Info().Msg("Configuration loaded with success")
+
+	log.Debug().
+		Str("LogLevel", conf.LogLevel).
+		Msg("Using configuration")
 }
