@@ -17,8 +17,8 @@
 package main
 
 import (
-	"github.com/gsalomao/maxmq/config"
-	"github.com/gsalomao/maxmq/logger"
+	"github.com/gsalomao/maxmq/pkg/config"
+	"github.com/gsalomao/maxmq/pkg/logger"
 )
 
 func main() {
