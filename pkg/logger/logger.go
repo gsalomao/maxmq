@@ -61,7 +61,7 @@ func New() Logger {
 		}
 
 		t := time.UnixMicro(v)
-		return colorize(white, t.Format("2006-01-02 15:04:05.000000Z07:00"))
+		return colorize(white, t.Format("2006-01-02 15:04:05.000000 -0700"))
 	}
 	output.FormatLevel = func(i interface{}) string {
 		var color string

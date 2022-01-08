@@ -14,18 +14,29 @@
  * limitations under the License.
  */
 
-package main
+package broker
 
 import (
-	"os"
-
-	"github.com/gsalomao/maxmq/pkg/cli"
+	"github.com/gsalomao/maxmq/pkg/config"
+	"github.com/gsalomao/maxmq/pkg/logger"
 )
 
-func main() {
-	cli := cli.New()
-	err := cli.Run()
-	if err != nil {
-		os.Exit(1)
-	}
+// Broker represents the message broker.
+type Broker struct {
+	conf config.Config
+	log  *logger.Logger
+}
+
+// New creates a new broker.
+func New(c config.Config, l *logger.Logger) (Broker, error) {
+	return Broker{
+		conf: c,
+		log:  l,
+	}, nil
+}
+
+// Start starts the broker.
+func (b Broker) Start() error {
+	b.log.Info().Msg("Starting MaxMQ broker")
+	return nil
 }

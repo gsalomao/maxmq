@@ -13,81 +13,92 @@
 # limitations under the License.
 
 # Project parameters
-NAME=maxmq
-BUILD_PATH=bin
-COVERAGE_PATH=coverage
+NAME			= maxmq
+BUILD_PATH		= bin
+COVERAGE_PATH	= coverage
 
 # Go commands
-GOCMD=go
-GOBUILD=$(GOCMD) build
-GOCLEAN=$(GOCMD) clean
-GOTEST=$(GOCMD) test
-GOVET=$(GOCMD) vet
-GOFMT=$(GOCMD) fmt
-GOLINT=golangci-lint run
-GOIMPORTS=goimports
+GOCMD		= go
+GOBUILD		= $(GOCMD) build
+GOCLEAN		= $(GOCMD) clean
+GOTEST		= $(GOCMD) test
+GOVET		= $(GOCMD) vet
+GOFMT		= $(GOCMD) fmt
+GOLINT		= golangci-lint run
+GOIMPORTS	= goimports
 
+# Colors
 GREEN  := $(shell tput -Txterm setaf 2)
 YELLOW := $(shell tput -Txterm setaf 3)
 WHITE  := $(shell tput -Txterm setaf 7)
 CYAN   := $(shell tput -Txterm setaf 6)
 RESET  := $(shell tput -Txterm sgr0)
+BOLD	= \033[0;1m
+CYAN	= \033[0;36m
+NOCOLOR	= \033[0m
+
+# Build parameters
+VERSION = $(shell git describe --tags --always --dirty)
 
 .PHONY: all build coverage
 
 all: help
 
+LDFLAGS ="\
+	-X 'github.com/gsalomao/maxmq/pkg/cli.version=${VERSION}' \
+"
+
 ## Build
 build: ## Build application
-	@echo "==> Building application..."
+	$(call print_task,"Building application")
 	@mkdir -p ${BUILD_PATH}
-	@$(GOBUILD) -o ${BUILD_PATH}/$(NAME) main.go
-	@echo "==> Building application... done"
+	@$(GOBUILD) -o ${BUILD_PATH}/$(NAME) -ldflags ${LDFLAGS} main.go
+	$(call print_task_result,"Building application","done")
 
 clean: ## Clean build folder
-	@echo "==> Cleaning build folder..."
+	$(call print_task,"Cleaning build folder")
 	@$(GOCLEAN)
 	@rm -rf ${BUILD_PATH}
-	@echo "==> Cleaning build folder... done"
+	$(call print_task_result,"Cleaning build folder","done")
 
 ## Test
 unit: ## Run unit tests
-	@echo "==> Running unit tests..."
+	$(call print_task,"Running unit tests")
 	@$(GOTEST) -v ./...
-	@echo "==> Running unit tests... done"
+	$(call print_task_result,"Running unit tests","done")
 
 coverage: ## Run unit tests with coverage report
-	@echo "==> Running unit tests..."
+	$(call print_task,"Running unit tests")
 	@rm -rf ${COVERAGE_PATH}
 	@mkdir -p ${COVERAGE_PATH}
 	@$(GOTEST) -cover -covermode=count \
 		-coverprofile=$(COVERAGE_PATH)/profile.cov ./...
-	@echo "==> Running unit tests... done"
+	$(call print_task_result,"Running unit tests","done")
 
-	@echo "==> Generating coverage report..."
+	$(call print_task,"Generating coverage report")
 	@$(GOCMD) tool cover -func $(COVERAGE_PATH)/profile.cov
-	@echo "==> Generating coverage report... done"
+	$(call print_task_result,"Generating coverage report","done")
 
 ## Analyze
 vet: ## Examine source code
-	@echo "==> Examining source code..."
+	$(call print_task,"Examining source code")
 	@$(GOVET) ./...
-	@echo "==> Examining source code... done"
+	$(call print_task_result,"Examining source code","done")
 
 fmt: ## Format source code
-	@echo "==> Formatting source code..."
+	$(call print_task,"Formatting source code")
 	@$(GOFMT) ./...
-	@echo "==> Formatting source code... done"
+	$(call print_task_result,"Formatting source code","done")
 
 lint: ## Lint source code
-	@echo "==> Linting source code..."
+	$(call print_task,"Linting source code")
 	@$(GOLINT) ./...
-	@echo "==> Linting source code... done"
+	$(call print_task_result,"Linting source code","done")
 
 imports: ## Update Go import lines
-	@echo "==> Updating Go imports..."
+	$(call print_task,"Updating Go imports")
 	@$(GOIMPORTS) -l -w .
-	@echo "==> Updating Go imports... done"
+	$(call print_task_result,"Updating Go imports","done")
 
 check: vet lint ## Check source code
 
@@ -104,3 +115,11 @@ help: ## Show this help
 				printf "  ${CYAN}%s:${RESET}\n", substr($$1,4)\
 			} \
 		}' $(MAKEFILE_LIST)
+
+define print_task
+	@echo "${CYAN}==>${BOLD} $(1)...${NOCOLOR}"
+endef
+
+define print_task_result
+	@echo "${CYAN}==>${NOCOLOR} $(1)... $(2)"
+endef
