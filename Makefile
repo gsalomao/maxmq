@@ -26,6 +26,7 @@ GOVET		= $(GOCMD) vet
 GOFMT		= $(GOCMD) fmt
 GOLINT		= golangci-lint run
 GOIMPORTS	= goimports
+GOCYCLO		= gocyclo
 
 # Colors
 GREEN  := $(shell tput -Txterm setaf 2)
@@ -62,18 +63,18 @@ clean: ## Clean build folder
 	$(call print_task_result,"Cleaning build folder","done")
 
 ## Test
-unit: ## Run unit tests
-	$(call print_task,"Running unit tests")
+test: ## Run tests
+	$(call print_task,"Running tests")
 	@$(GOTEST) -v ./...
-	$(call print_task_result,"Running unit tests","done")
+	$(call print_task_result,"Running tests","done")
 
-coverage: ## Run unit tests with coverage report
-	$(call print_task,"Running unit tests")
+coverage: ## Run tests with coverage report
+	$(call print_task,"Running tests")
 	@rm -rf ${COVERAGE_PATH}
 	@mkdir -p ${COVERAGE_PATH}
 	@$(GOTEST) -cover -covermode=count \
 		-coverprofile=$(COVERAGE_PATH)/profile.cov ./...
-	$(call print_task_result,"Running unit tests","done")
+	$(call print_task_result,"Running tests","done")
 
 	$(call print_task,"Generating coverage report")
 	@$(GOCMD) tool cover -func $(COVERAGE_PATH)/profile.cov
@@ -100,7 +101,12 @@ imports: ## Update Go import lines
 	@$(GOIMPORTS) -l -w .
 	$(call print_task_result,"Updating Go imports","done")
 
-check: vet lint ## Check source code
+complexity: ## Calculates cyclomatic complexities
+	$(call print_task,"Calculating cyclomatic complexities")
+	@$(GOCYCLO) -over 10 -avg .
+	$(call print_task_result,"Calculating cyclomatic complexities","done")
+
+check: vet lint complexity ## Check source code
 
 ## Help
 help: ## Show this help
