@@ -19,7 +19,7 @@ package logger
 import (
 	"errors"
 	"fmt"
-	"os"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -31,7 +31,7 @@ import (
 // an io.Writer.
 type Logger = zerolog.Logger
 
-var (
+const (
 	reset  = "\x1b[0m"
 	red    = "\x1b[31m"
 	green  = "\x1b[32m"
@@ -43,62 +43,50 @@ var (
 	gray   = "\x1b[90m"
 )
 
-// init sets up the logging package in order to generate the logs correctly.
+var levelColor = map[string]string{
+	"TRACE": gray,
+	"DEBUG": blue,
+	"INFO":  green,
+	"WARN":  yellow,
+	"ERROR": red,
+	"FATAL": bgRed,
+}
+
+var levelCode = map[string]zerolog.Level{
+	"trace":   zerolog.TraceLevel,
+	"TRACE":   zerolog.TraceLevel,
+	"debug":   zerolog.DebugLevel,
+	"DEBUG":   zerolog.DebugLevel,
+	"info":    zerolog.InfoLevel,
+	"INFO":    zerolog.InfoLevel,
+	"warn":    zerolog.WarnLevel,
+	"WARN":    zerolog.WarnLevel,
+	"warning": zerolog.WarnLevel,
+	"WARNING": zerolog.WarnLevel,
+	"error":   zerolog.ErrorLevel,
+	"ERROR":   zerolog.ErrorLevel,
+	"fatal":   zerolog.FatalLevel,
+	"FATAL":   zerolog.FatalLevel,
+}
+
 func init() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMicro
 }
 
 // New creates a new logger object.
-func New() Logger {
-	output := zerolog.ConsoleWriter{
-		Out:        os.Stdout,
+func New(out io.Writer) Logger {
+	output := &zerolog.ConsoleWriter{
+		Out:        out,
 		TimeFormat: time.RFC3339Nano,
 	}
-	output.FormatTimestamp = func(i interface{}) string {
-		v, err := strconv.ParseInt(fmt.Sprintf("%v", i), 10, 64)
-		if err != nil {
-			return ""
-		}
 
-		t := time.UnixMicro(v)
-		return colorize(white, t.Format("2006-01-02 15:04:05.000000 -0700"))
-	}
-	output.FormatLevel = func(i interface{}) string {
-		var color string
-
-		switch i {
-		case "trace":
-			color = gray
-		case "debug":
-			color = blue
-		case "info":
-			color = green
-		case "warn":
-			color = yellow
-		case "error":
-			color = red
-		case "fatal":
-			color = bgRed
-		}
-
-		return fmt.Sprintf("| %-14s |",
-			colorize(color, strings.ToUpper(fmt.Sprintf("%s", i))))
-	}
-	output.FormatMessage = func(i interface{}) string {
-		return colorize(cyan, fmt.Sprintf("%s", i))
-	}
-	output.FormatFieldName = func(i interface{}) string {
-		return colorize(gray, fmt.Sprintf("%s=", i))
-	}
-	output.FormatFieldValue = func(i interface{}) string {
-		return colorize(gray, fmt.Sprintf("%s", i))
-	}
-	output.FormatErrFieldName = func(i interface{}) string {
-		return colorize(gray, fmt.Sprintf("%s=", i))
-	}
-	output.FormatErrFieldValue = func(i interface{}) string {
-		return colorize(gray, fmt.Sprintf("%s", i))
-	}
+	output.FormatTimestamp = formatTimestamp
+	output.FormatLevel = formatLevel
+	output.FormatMessage = formatMessage
+	output.FormatFieldName = formatFieldName
+	output.FormatFieldValue = formatFieldValue
+	output.FormatErrFieldName = formatFieldName
+	output.FormatErrFieldValue = formatFieldValue
 
 	return zerolog.New(output).
 		With().
@@ -108,30 +96,40 @@ func New() Logger {
 
 // SetSeverityLevel sets the minimal severity level which the logs will be
 // produced.
-func SetSeverityLevel(level string) {
-	switch level {
-	case "trace", "TRACE":
-		zerolog.SetGlobalLevel(zerolog.TraceLevel)
-	case "debug", "DEBUG":
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	case "info", "INFO":
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	case "warn", "WARN":
-		zerolog.SetGlobalLevel(zerolog.WarnLevel)
-	case "error", "ERROR":
-		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
-	case "panic", "PANIC":
-		zerolog.SetGlobalLevel(zerolog.PanicLevel)
-	default:
-		panic(errors.New("invalid log level"))
+func SetSeverityLevel(level string) error {
+	l, ok := levelCode[level]
+	if !ok {
+		return errors.New("invalid log level")
 	}
+
+	zerolog.SetGlobalLevel(l)
+	return nil
 }
 
-// colorize sets the msg in a given color.
-func colorize(color, msg string) string {
-	if color != "" {
-		return color + msg + reset
-	}
+func formatTimestamp(i interface{}) string {
+	v, _ := strconv.ParseInt(fmt.Sprintf("%v", i), 10, 64)
+	t := time.UnixMicro(v)
+	return colorize(white, t.Format("2006-01-02 15:04:05.000000 -0700"))
+}
 
-	return msg
+func formatLevel(i interface{}) string {
+	level := strings.ToUpper(fmt.Sprintf("%s", i))
+	color := levelColor[level]
+	return fmt.Sprintf("| %-14s |", colorize(color, level))
+}
+
+func formatMessage(i interface{}) string {
+	return colorize(cyan, fmt.Sprintf("%s", i))
+}
+
+func formatFieldName(i interface{}) string {
+	return colorize(gray, fmt.Sprintf("%s=", i))
+}
+
+func formatFieldValue(i interface{}) string {
+	return colorize(gray, fmt.Sprintf("%s", i))
+}
+
+func colorize(color, msg string) string {
+	return color + msg + reset
 }

@@ -14,18 +14,23 @@
  * limitations under the License.
  */
 
-package main
+package config_test
 
 import (
-	"os"
+	"testing"
 
-	"github.com/gsalomao/maxmq/pkg/cli"
+	"github.com/gsalomao/maxmq/pkg/config"
+	"github.com/stretchr/testify/assert"
 )
 
-func main() {
-	cli := cli.New(os.Stdout, os.Args[1:])
-	err := cli.Run()
-	if err != nil {
-		os.Exit(1)
-	}
+func TestConfig_ReadConfigFile(t *testing.T) {
+	err := config.ReadConfigFile()
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Config File \"maxmq.conf\" Not Found")
+}
+
+func TestConfig_LoadConfig(t *testing.T) {
+	conf, err := config.LoadConfig()
+	assert.Nil(t, err)
+	assert.Equal(t, conf.LogLevel, "info")
 }

@@ -17,21 +17,22 @@
 package broker
 
 import (
-	"github.com/gsalomao/maxmq/pkg/config"
+	"context"
+
 	"github.com/gsalomao/maxmq/pkg/logger"
 )
 
 // Broker represents the message broker.
 type Broker struct {
-	conf config.Config
-	log  *logger.Logger
+	ctx context.Context
+	log *logger.Logger
 }
 
 // New creates a new broker.
-func New(c config.Config, l *logger.Logger) (Broker, error) {
+func New(ctx context.Context, log *logger.Logger) (Broker, error) {
 	return Broker{
-		conf: c,
-		log:  l,
+		ctx: ctx,
+		log: log,
 	}, nil
 }
 

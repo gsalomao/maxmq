@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 
-package command
+package cli
 
 import (
+	"context"
+	"os"
+
 	"github.com/dimiro1/banner"
 	"github.com/gsalomao/maxmq/pkg/broker"
 	"github.com/gsalomao/maxmq/pkg/config"
@@ -25,48 +28,59 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var template = `{{ .Title "MaxMQ" "" 0 }}
+var bannerTemplate = `{{ .Title "MaxMQ" "" 0 }}
 {{ .AnsiColor.BrightCyan }}  A Cloud-Native Message Broker for IoT
 {{ .AnsiColor.Default }}
 `
 
 // NewCommandStart creates a command to start the message broker.
-func NewCommandStart() *cobra.Command {
+func newCommandStart() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "start",
 		Short: "Start broker",
 		Long:  "Start the execution of the MaxMQ broker",
-		Run: func(_ *cobra.Command, _ []string) {
-			startBroker()
+		RunE: func(_ *cobra.Command, _ []string) error {
+			banner.InitString(colorable.NewColorableStdout(), true, true,
+				bannerTemplate)
+
+			log := logger.New(os.Stdout)
+			err := startBroker(&log)
+			return err
 		},
 	}
 
 	return cmd
 }
 
-func startBroker() {
-	banner.InitString(colorable.NewColorableStdout(), true, true, template)
-	log := logger.New()
-
-	if err := config.ReadConfigFile(); err != nil {
-		log.Warn().Msg(err.Error())
-	}
-
-	conf, err := config.LoadConfig()
+func startBroker(log *logger.Logger) error {
+	conf, err := loadConfig(log)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to load the configuration")
+		log.Fatal().Msg(err.Error())
 	}
 
-	logger.SetSeverityLevel(conf.LogLevel)
+	err = logger.SetSeverityLevel(conf.LogLevel)
+	if err != nil {
+		log.Fatal().Msg(err.Error())
+	}
+
 	log.Info().Msg("Configuration loaded with success")
 
-	b, err := broker.New(conf, &log)
+	ctx := context.Background()
+
+	b, err := broker.New(ctx, log)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to create broker")
+		log.Fatal().Msg(err.Error())
 	}
 
 	err = b.Start()
+	return err
+}
+
+func loadConfig(log *logger.Logger) (config.Config, error) {
+	err := config.ReadConfigFile()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to start broker")
+		log.Warn().Msg(err.Error())
 	}
+
+	return config.LoadConfig()
 }

@@ -14,18 +14,28 @@
  * limitations under the License.
  */
 
-package main
+package broker_test
 
 import (
-	"os"
+	"bytes"
+	"context"
+	"testing"
 
-	"github.com/gsalomao/maxmq/pkg/cli"
+	"github.com/gsalomao/maxmq/pkg/broker"
+	"github.com/gsalomao/maxmq/pkg/logger"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func main() {
-	cli := cli.New(os.Stdout, os.Args[1:])
-	err := cli.Run()
-	if err != nil {
-		os.Exit(1)
-	}
+func TestBroker_Start(t *testing.T) {
+	out := bytes.NewBufferString("")
+	log := logger.New(out)
+	ctx := context.Background()
+
+	b, err := broker.New(ctx, &log)
+	require.Nil(t, err)
+
+	err = b.Start()
+	assert.Nil(t, err)
+	assert.Contains(t, out.String(), "Starting MaxMQ broker")
 }

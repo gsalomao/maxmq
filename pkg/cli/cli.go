@@ -18,8 +18,8 @@ package cli
 
 import (
 	"fmt"
+	"io"
 
-	"github.com/gsalomao/maxmq/pkg/cli/command"
 	"github.com/spf13/cobra"
 )
 
@@ -29,10 +29,10 @@ type CLI struct {
 }
 
 // version represents the application version and it's updated at build time.
-var version = ""
+var version = "0.0.0"
 
 // New creates an instance of the command line interface.
-func New() CLI {
+func New(out io.Writer, args []string) CLI {
 	cli := CLI{
 		rootCmd: &cobra.Command{
 			Use:     "maxmq",
@@ -46,6 +46,8 @@ and High Availability.
 
 	cli.rootCmd.CompletionOptions.DisableDefaultCmd = true
 	cli.rootCmd.SetVersionTemplate(fmt.Sprintf("MaxMQ version %v\n", version))
+	cli.rootCmd.SetArgs(args)
+	cli.rootCmd.SetOut(out)
 	cli.registerCommands()
 
 	return cli
@@ -58,5 +60,5 @@ func (c CLI) Run() error {
 
 // registerCommands adds chield commands to the root command.
 func (c *CLI) registerCommands() {
-	c.rootCmd.AddCommand(command.NewCommandStart())
+	c.rootCmd.AddCommand(newCommandStart())
 }

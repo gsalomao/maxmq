@@ -46,11 +46,7 @@ func ReadConfigFile() error {
 		viper.AddConfigPath(root)
 	}
 
-	if err := viper.ReadInConfig(); err != nil {
-		return err
-	}
-
-	return nil
+	return viper.ReadInConfig()
 }
 
 // LoadConfig loads the configuration from the conf file, environment variables,

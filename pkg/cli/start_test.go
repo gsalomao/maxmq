@@ -14,18 +14,22 @@
  * limitations under the License.
  */
 
-package main
+package cli
 
 import (
-	"os"
+	"bytes"
+	"testing"
 
-	"github.com/gsalomao/maxmq/pkg/cli"
+	"github.com/gsalomao/maxmq/pkg/logger"
+	"github.com/stretchr/testify/assert"
 )
 
-func main() {
-	cli := cli.New(os.Stdout, os.Args[1:])
-	err := cli.Run()
-	if err != nil {
-		os.Exit(1)
-	}
+func TestCLI_Start_startBroker(t *testing.T) {
+	out := bytes.NewBufferString("")
+	log := logger.New(out)
+
+	err := startBroker(&log)
+	assert.Nil(t, err)
+	assert.Contains(t, out.String(), "Config File \"maxmq.conf\" Not Found")
+	assert.Contains(t, out.String(), "Starting MaxMQ broker")
 }

@@ -72,12 +72,12 @@ coverage: ## Run tests with coverage report
 	$(call print_task,"Running tests")
 	@rm -rf ${COVERAGE_PATH}
 	@mkdir -p ${COVERAGE_PATH}
-	@$(GOTEST) -cover -covermode=count \
-		-coverprofile=$(COVERAGE_PATH)/profile.cov ./...
+	@$(GOTEST) -cover -covermode=atomic -race \
+		-coverprofile=$(COVERAGE_PATH)/coverage.out ./...
 	$(call print_task_result,"Running tests","done")
 
 	$(call print_task,"Generating coverage report")
-	@$(GOCMD) tool cover -func $(COVERAGE_PATH)/profile.cov
+	@$(GOCMD) tool cover -func $(COVERAGE_PATH)/coverage.out
 	$(call print_task_result,"Generating coverage report","done")
 
 ## Analyze
