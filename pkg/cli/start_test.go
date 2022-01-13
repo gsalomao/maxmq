@@ -28,8 +28,7 @@ func TestCLI_Start_startBroker(t *testing.T) {
 	out := bytes.NewBufferString("")
 	log := logger.New(out)
 
-	err := startBroker(&log)
-	assert.Nil(t, err)
+	startBroker(&log)
 	assert.Contains(t, out.String(), "Config File \"maxmq.conf\" Not Found")
-	assert.Contains(t, out.String(), "Starting MaxMQ broker")
+	assert.Contains(t, out.String(), "Starting")
 }

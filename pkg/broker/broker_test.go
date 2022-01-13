@@ -19,6 +19,7 @@ package broker_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/gsalomao/maxmq/pkg/broker"
@@ -26,6 +27,29 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+type listenerStub struct {
+	stop    chan bool
+	running chan bool
+	err     error
+}
+
+func newListenerStub() *listenerStub {
+	return &listenerStub{
+		stop:    make(chan bool),
+		running: make(chan bool),
+	}
+}
+
+func (l *listenerStub) Run() error {
+	l.running <- true
+	<-l.stop
+	return l.err
+}
+
+func (l *listenerStub) Stop() {
+	l.stop <- true
+}
 
 func TestBroker_Start(t *testing.T) {
 	out := bytes.NewBufferString("")
@@ -35,7 +59,78 @@ func TestBroker_Start(t *testing.T) {
 	b, err := broker.New(ctx, &log)
 	require.Nil(t, err)
 
+	l := newListenerStub()
+	b.AddListener(l)
+
 	err = b.Start()
 	assert.Nil(t, err)
-	assert.Contains(t, out.String(), "Starting MaxMQ broker")
+	assert.Contains(t, out.String(), "Broker started with success")
+}
+
+func TestBroker_StartWithNoListener(t *testing.T) {
+	out := bytes.NewBufferString("")
+	log := logger.New(out)
+	ctx := context.Background()
+
+	b, err := broker.New(ctx, &log)
+	require.Nil(t, err)
+
+	err = b.Start()
+	assert.NotNil(t, err)
+	assert.Equal(t, err.Error(), "no available listener")
+}
+
+func TestBroker_Stop(t *testing.T) {
+	out := bytes.NewBufferString("")
+	log := logger.New(out)
+	ctx := context.Background()
+
+	b, err := broker.New(ctx, &log)
+	require.Nil(t, err)
+
+	l := newListenerStub()
+	b.AddListener(l)
+
+	err = b.Start()
+	require.Nil(t, err)
+
+	done := make(chan bool)
+	go func() {
+		err = b.Wait()
+		done <- true
+	}()
+
+	<-l.running
+	b.Stop()
+
+	<-done
+	assert.Nil(t, err)
+}
+
+func TestBroker_ListenerError(t *testing.T) {
+	out := bytes.NewBufferString("")
+	log := logger.New(out)
+	ctx := context.Background()
+
+	b, err := broker.New(ctx, &log)
+	require.Nil(t, err)
+
+	l := newListenerStub()
+	b.AddListener(l)
+
+	err = b.Start()
+	require.Nil(t, err)
+
+	done := make(chan bool)
+	go func() {
+		err = b.Wait()
+		done <- true
+	}()
+
+	<-l.running
+	l.err = errors.New("any failure")
+	b.Stop()
+
+	<-done
+	assert.NotNil(t, err)
 }

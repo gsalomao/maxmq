@@ -18,7 +18,10 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/dimiro1/banner"
 	"github.com/gsalomao/maxmq/pkg/broker"
@@ -39,28 +42,27 @@ func newCommandStart() *cobra.Command {
 		Use:   "start",
 		Short: "Start broker",
 		Long:  "Start the execution of the MaxMQ broker",
-		RunE: func(_ *cobra.Command, _ []string) error {
+		Run: func(_ *cobra.Command, _ []string) {
 			banner.InitString(colorable.NewColorableStdout(), true, true,
 				bannerTemplate)
 
 			log := logger.New(os.Stdout)
-			err := startBroker(&log)
-			return err
+			startBroker(&log)
 		},
 	}
 
 	return cmd
 }
 
-func startBroker(log *logger.Logger) error {
+func startBroker(log *logger.Logger) {
 	conf, err := loadConfig(log)
 	if err != nil {
-		log.Fatal().Msg(err.Error())
+		log.Fatal().Msg("Failed to load configuration: " + err.Error())
 	}
 
 	err = logger.SetSeverityLevel(conf.LogLevel)
 	if err != nil {
-		log.Fatal().Msg(err.Error())
+		log.Fatal().Msg("Failed to set log severity: " + err.Error())
 	}
 
 	log.Info().Msg("Configuration loaded with success")
@@ -73,7 +75,15 @@ func startBroker(log *logger.Logger) error {
 	}
 
 	err = b.Start()
-	return err
+	if err != nil {
+		log.Error().Msg("Failed to start broker: " + err.Error())
+	}
+
+	go waitOSSignals(&b)
+	err = b.Wait()
+	if err != nil {
+		log.Error().Msg(err.Error())
+	}
 }
 
 func loadConfig(log *logger.Logger) (config.Config, error) {
@@ -83,4 +93,17 @@ func loadConfig(log *logger.Logger) (config.Config, error) {
 	}
 
 	return config.LoadConfig()
+}
+
+func waitOSSignals(b *broker.Broker) {
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	for {
+		<-stop
+
+		// Generates a new line to improve logging
+		fmt.Println("")
+		b.Stop()
+	}
 }
