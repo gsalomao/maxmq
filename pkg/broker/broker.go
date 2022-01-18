@@ -26,11 +26,11 @@ import (
 
 // Listener is a network interface for stream-oriented protocols.
 type Listener interface {
-	// Run executes the listener.
-	// It blocks until the listener stops.
+	// Run runs the listener.
+	// It must block until the listener stops.
 	Run() error
 
-	// Stop stops the listener unblocking the call of the Run().
+	// Stop stops the listener unblocking the Run function.
 	Stop()
 }
 
@@ -72,7 +72,6 @@ func (b *Broker) Start() error {
 			err := l.Run()
 			if err != nil {
 				b.err = err
-				return
 			}
 		}(l)
 	}

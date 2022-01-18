@@ -19,6 +19,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -27,6 +28,7 @@ import (
 	"github.com/gsalomao/maxmq/pkg/broker"
 	"github.com/gsalomao/maxmq/pkg/config"
 	"github.com/gsalomao/maxmq/pkg/logger"
+	"github.com/gsalomao/maxmq/pkg/mqtt"
 	"github.com/mattn/go-colorable"
 	"github.com/spf13/cobra"
 )
@@ -47,14 +49,30 @@ func newCommandStart() *cobra.Command {
 				bannerTemplate)
 
 			log := logger.New(os.Stdout)
-			startBroker(&log)
+			cm := mqtt.NewConnectionManager(&log)
+			tcp, err := net.Listen("tcp", ":1883")
+			if err != nil {
+				log.Fatal().Msg("Failed to create TCP listener: " + err.Error())
+			}
+
+			mqtt, err := mqtt.NewListener(
+				mqtt.WithConnectionHandler(&cm),
+				mqtt.WithTCPListener(tcp),
+				mqtt.WithLogger(&log),
+			)
+			if err != nil {
+				log.Fatal().Msg("Failed to create MQTT listener: " +
+					err.Error())
+			}
+
+			startBroker(mqtt, &log)
 		},
 	}
 
 	return cmd
 }
 
-func startBroker(log *logger.Logger) {
+func startBroker(lsn broker.Listener, log *logger.Logger) {
 	conf, err := loadConfig(log)
 	if err != nil {
 		log.Fatal().Msg("Failed to load configuration: " + err.Error())
@@ -66,21 +84,22 @@ func startBroker(log *logger.Logger) {
 	}
 
 	log.Info().Msg("Configuration loaded with success")
-
 	ctx := context.Background()
 
-	b, err := broker.New(ctx, log)
+	brk, err := broker.New(ctx, log)
 	if err != nil {
 		log.Fatal().Msg(err.Error())
 	}
 
-	err = b.Start()
+	brk.AddListener(lsn)
+
+	err = brk.Start()
 	if err != nil {
 		log.Error().Msg("Failed to start broker: " + err.Error())
 	}
 
-	go waitOSSignals(&b)
-	err = b.Wait()
+	go waitOSSignals(&brk)
+	err = brk.Wait()
 	if err != nil {
 		log.Error().Msg(err.Error())
 	}
@@ -95,15 +114,15 @@ func loadConfig(log *logger.Logger) (config.Config, error) {
 	return config.LoadConfig()
 }
 
-func waitOSSignals(b *broker.Broker) {
+func waitOSSignals(brk *broker.Broker) {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
 	for {
 		<-stop
 
-		// Generates a new line to improve logging
+		// Generates a new line to split the logs
 		fmt.Println("")
-		b.Stop()
+		brk.Stop()
 	}
 }

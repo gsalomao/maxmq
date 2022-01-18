@@ -14,22 +14,24 @@
  * limitations under the License.
  */
 
-package cli
+package mocks
 
 import (
-	"testing"
+	"net"
 
-	"github.com/gsalomao/maxmq/mocks"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
-func TestCLI_Start_startBroker(t *testing.T) {
-	logStub := mocks.NewLoggerStub()
+// ConnectionHandlerMock is responsible to mock the mqtt.ConnectionHandler.
+type ConnectionHandlerMock struct {
+	mock.Mock
+}
 
-	mockListener := &mocks.ListenerMock{}
-	mockListener.On("Run").Return(nil)
+// Handle handles the new opened TCP connection.
+func (m *ConnectionHandlerMock) Handle(conn net.Conn) {
+	ret := m.Called(conn)
 
-	startBroker(mockListener, logStub.Logger())
-	assert.Contains(t, logStub.String(), "Config File \"maxmq.conf\" Not Found")
-	assert.Contains(t, logStub.String(), "Starting")
+	if fn, ok := ret.Get(0).(func()); ok {
+		fn()
+	}
 }

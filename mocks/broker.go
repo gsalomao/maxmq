@@ -14,22 +14,26 @@
  * limitations under the License.
  */
 
-package cli
+package mocks
 
-import (
-	"testing"
+import "github.com/stretchr/testify/mock"
 
-	"github.com/gsalomao/maxmq/mocks"
-	"github.com/stretchr/testify/assert"
-)
+// ListenerMock is responsible to mock the mqtt.Listener.
+type ListenerMock struct {
+	mock.Mock
+}
 
-func TestCLI_Start_startBroker(t *testing.T) {
-	logStub := mocks.NewLoggerStub()
+// Run runs the listener.
+func (l *ListenerMock) Run() error {
+	ret := l.Called()
+	if err, ok := ret.Get(0).(error); ok {
+		return err
+	}
 
-	mockListener := &mocks.ListenerMock{}
-	mockListener.On("Run").Return(nil)
+	return nil
+}
 
-	startBroker(mockListener, logStub.Logger())
-	assert.Contains(t, logStub.String(), "Config File \"maxmq.conf\" Not Found")
-	assert.Contains(t, logStub.String(), "Starting")
+// Stop stops the listener unblocking the Run function.
+func (l *ListenerMock) Stop() {
+	l.Called()
 }
