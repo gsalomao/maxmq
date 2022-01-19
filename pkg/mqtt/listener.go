@@ -28,6 +28,7 @@ import (
 // and v5.0 specifications.
 type Listener struct {
 	log         *logger.Logger
+	conf        *Configuration
 	listener    net.Listener
 	connHandler ConnectionHandler
 	running     bool
@@ -44,6 +45,9 @@ func NewListener(opts ...OptionsFn) (*Listener, error) {
 
 	if mqtt.log == nil {
 		return nil, errors.New("missing logger")
+	}
+	if mqtt.conf == nil {
+		return nil, errors.New("missing configuration")
 	}
 	if mqtt.listener == nil {
 		return nil, errors.New("missing TCP listener")

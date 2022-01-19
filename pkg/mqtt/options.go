@@ -25,6 +25,13 @@ import (
 // OptionsFn represents a function which sets an option in the MQTT Listener.
 type OptionsFn func(mqtt *Listener)
 
+// WithConfiguration sets the MQTT configuration into the MQTT listener.
+func WithConfiguration(cf Configuration) OptionsFn {
+	return func(mqtt *Listener) {
+		mqtt.conf = &cf
+	}
+}
+
 // WithTCPListener sets the given TCP Listener into the MQTT listener.
 func WithTCPListener(lst net.Listener) OptionsFn {
 	return func(mqtt *Listener) {

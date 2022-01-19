@@ -14,21 +14,8 @@
  * limitations under the License.
  */
 
-package cli
+package mqtt
 
-import (
-	"testing"
-
-	"github.com/gsalomao/maxmq/mocks"
-	"github.com/stretchr/testify/assert"
-)
-
-func TestCLI_Start_startBroker(t *testing.T) {
-	logStub := mocks.NewLoggerStub()
-
-	mockListener := &mocks.ListenerMock{}
-	mockListener.On("Run").Return(nil)
-
-	startBroker(mockListener, logStub.Logger())
-	assert.Contains(t, logStub.String(), "Starting broker")
+// Configuration holds the MQTT runtime configuration.
+type Configuration struct {
 }

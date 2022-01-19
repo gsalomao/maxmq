@@ -18,7 +18,6 @@ package broker_test
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"testing"
 
@@ -54,9 +53,8 @@ func (l *listenerStub) Stop() {
 func TestBroker_Start(t *testing.T) {
 	out := bytes.NewBufferString("")
 	log := logger.New(out)
-	ctx := context.Background()
 
-	b, err := broker.New(ctx, &log)
+	b, err := broker.New(&log)
 	require.Nil(t, err)
 
 	l := newListenerStub()
@@ -70,9 +68,8 @@ func TestBroker_Start(t *testing.T) {
 func TestBroker_StartWithNoListener(t *testing.T) {
 	out := bytes.NewBufferString("")
 	log := logger.New(out)
-	ctx := context.Background()
 
-	b, err := broker.New(ctx, &log)
+	b, err := broker.New(&log)
 	require.Nil(t, err)
 
 	err = b.Start()
@@ -83,9 +80,8 @@ func TestBroker_StartWithNoListener(t *testing.T) {
 func TestBroker_Stop(t *testing.T) {
 	out := bytes.NewBufferString("")
 	log := logger.New(out)
-	ctx := context.Background()
 
-	b, err := broker.New(ctx, &log)
+	b, err := broker.New(&log)
 	require.Nil(t, err)
 
 	l := newListenerStub()
@@ -110,9 +106,8 @@ func TestBroker_Stop(t *testing.T) {
 func TestBroker_ListenerError(t *testing.T) {
 	out := bytes.NewBufferString("")
 	log := logger.New(out)
-	ctx := context.Background()
 
-	b, err := broker.New(ctx, &log)
+	b, err := broker.New(&log)
 	require.Nil(t, err)
 
 	l := newListenerStub()

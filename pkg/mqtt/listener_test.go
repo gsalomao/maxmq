@@ -29,11 +29,27 @@ import (
 )
 
 func TestListener_NewListener(t *testing.T) {
+	t.Run("MissingConfiguration", func(t *testing.T) {
+		logStub := mocks.NewLoggerStub()
+		mockListener := mocks.NetListenerMock{}
+		mockConnHandler := mocks.ConnectionHandlerMock{}
+
+		_, err := mqtt.NewListener(
+			mqtt.WithTCPListener(&mockListener),
+			mqtt.WithConnectionHandler(&mockConnHandler),
+			mqtt.WithLogger(logStub.Logger()),
+		)
+
+		assert.NotNil(t, err)
+		assert.Equal(t, "missing configuration", err.Error())
+	})
+
 	t.Run("MissingLogger", func(t *testing.T) {
 		mockListener := mocks.NetListenerMock{}
 		mockConnHandler := mocks.ConnectionHandlerMock{}
 
 		_, err := mqtt.NewListener(
+			mqtt.WithConfiguration(mqtt.Configuration{}),
 			mqtt.WithTCPListener(&mockListener),
 			mqtt.WithConnectionHandler(&mockConnHandler),
 		)
@@ -47,6 +63,7 @@ func TestListener_NewListener(t *testing.T) {
 		mockConnHandler := mocks.ConnectionHandlerMock{}
 
 		_, err := mqtt.NewListener(
+			mqtt.WithConfiguration(mqtt.Configuration{}),
 			mqtt.WithConnectionHandler(&mockConnHandler),
 			mqtt.WithLogger(logStub.Logger()),
 		)
@@ -60,6 +77,7 @@ func TestListener_NewListener(t *testing.T) {
 		mockListener := mocks.NetListenerMock{}
 
 		_, err := mqtt.NewListener(
+			mqtt.WithConfiguration(mqtt.Configuration{}),
 			mqtt.WithTCPListener(&mockListener),
 			mqtt.WithLogger(logStub.Logger()),
 		)
@@ -89,6 +107,7 @@ func TestListener_RunAndStop(t *testing.T) {
 	})
 
 	mqtt, err := mqtt.NewListener(
+		mqtt.WithConfiguration(mqtt.Configuration{}),
 		mqtt.WithTCPListener(&mockListener),
 		mqtt.WithConnectionHandler(&mockConnHandler),
 		mqtt.WithLogger(logStub.Logger()),
@@ -130,6 +149,7 @@ func TestListener_Run_AcceptError(t *testing.T) {
 	})
 
 	mqtt, err := mqtt.NewListener(
+		mqtt.WithConfiguration(mqtt.Configuration{}),
 		mqtt.WithTCPListener(&mockListener),
 		mqtt.WithConnectionHandler(&mockConnHandler),
 		mqtt.WithLogger(logStub.Logger()),
@@ -180,6 +200,7 @@ func TestListener_Run_AcceptSuccess(t *testing.T) {
 	})
 
 	mqtt, err := mqtt.NewListener(
+		mqtt.WithConfiguration(mqtt.Configuration{}),
 		mqtt.WithTCPListener(&mockListener),
 		mqtt.WithConnectionHandler(&mockConnHandler),
 		mqtt.WithLogger(logStub.Logger()),

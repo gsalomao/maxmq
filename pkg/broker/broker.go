@@ -17,7 +17,6 @@
 package broker
 
 import (
-	"context"
 	"errors"
 	"sync"
 
@@ -36,7 +35,6 @@ type Listener interface {
 
 // Broker represents the message broker.
 type Broker struct {
-	ctx       context.Context
 	log       *logger.Logger
 	wg        sync.WaitGroup
 	listeners []Listener
@@ -44,9 +42,8 @@ type Broker struct {
 }
 
 // New creates a new broker.
-func New(ctx context.Context, log *logger.Logger) (Broker, error) {
+func New(log *logger.Logger) (Broker, error) {
 	return Broker{
-		ctx: ctx,
 		log: log,
 	}, nil
 }

@@ -17,7 +17,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"os"
@@ -49,6 +48,18 @@ func newCommandStart() *cobra.Command {
 				bannerTemplate)
 
 			log := logger.New(os.Stdout)
+			conf, err := loadConfig(&log)
+			if err != nil {
+				log.Fatal().Msg("Failed to load configuration: " + err.Error())
+			}
+
+			err = logger.SetSeverityLevel(conf.LogLevel)
+			if err != nil {
+				log.Fatal().Msg("Failed to set log severity: " + err.Error())
+			}
+
+			log.Info().Msg("Configuration loaded with success")
+
 			cm := mqtt.NewConnectionManager(&log)
 			tcp, err := net.Listen("tcp", ":1883")
 			if err != nil {
@@ -56,6 +67,7 @@ func newCommandStart() *cobra.Command {
 			}
 
 			mqtt, err := mqtt.NewListener(
+				mqtt.WithConfiguration(mqtt.Configuration{}),
 				mqtt.WithConnectionHandler(&cm),
 				mqtt.WithTCPListener(tcp),
 				mqtt.WithLogger(&log),
@@ -73,20 +85,7 @@ func newCommandStart() *cobra.Command {
 }
 
 func startBroker(lsn broker.Listener, log *logger.Logger) {
-	conf, err := loadConfig(log)
-	if err != nil {
-		log.Fatal().Msg("Failed to load configuration: " + err.Error())
-	}
-
-	err = logger.SetSeverityLevel(conf.LogLevel)
-	if err != nil {
-		log.Fatal().Msg("Failed to set log severity: " + err.Error())
-	}
-
-	log.Info().Msg("Configuration loaded with success")
-	ctx := context.Background()
-
-	brk, err := broker.New(ctx, log)
+	brk, err := broker.New(log)
 	if err != nil {
 		log.Fatal().Msg(err.Error())
 	}
