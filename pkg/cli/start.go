@@ -64,12 +64,14 @@ func newCommandStart() *cobra.Command {
 			}
 
 			log.Info().Msg("Configuration loaded with success")
-			cm := mqtt.NewConnectionManager(&log)
+			mqttConf := mqtt.Configuration{
+				TCPAddress:     conf.MQTTTCPAddress,
+				ConnectTimeout: conf.MQTTConnectTimeout,
+			}
 
+			cm := mqtt.NewConnectionManager(mqttConf, &log)
 			mqtt, err := mqtt.NewListener(
-				mqtt.WithConfiguration(mqtt.Configuration{
-					TCPAddress: conf.MQTTTCPAddress,
-				}),
+				mqtt.WithConfiguration(mqttConf),
 				mqtt.WithConnectionHandler(&cm),
 				mqtt.WithLogger(&log),
 			)

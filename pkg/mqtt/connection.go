@@ -18,6 +18,7 @@ package mqtt
 
 import (
 	"net"
+	"time"
 
 	"github.com/gsalomao/maxmq/pkg/logger"
 )
@@ -31,22 +32,32 @@ type ConnectionHandler interface {
 
 // ConnectionManager manages the opened connections.
 type ConnectionManager struct {
-	log *logger.Logger
+	log  *logger.Logger
+	conf Configuration
+}
+
+type connection struct {
+	tcp net.Conn
 }
 
 // NewConnectionManager creates a new ConnectionManager.
-func NewConnectionManager(l *logger.Logger) ConnectionManager {
+func NewConnectionManager(
+	cf Configuration,
+	lg *logger.Logger,
+) ConnectionManager {
 	return ConnectionManager{
-		log: l,
+		conf: cf,
+		log:  lg,
 	}
 }
 
 // Handle handles the new opened TCP connection.
-func (cm *ConnectionManager) Handle(conn net.Conn) {
-	defer cm.Close(conn)
+func (cm *ConnectionManager) Handle(tcp net.Conn) {
+	conn := connection{
+		tcp: tcp,
+	}
 
-	cm.log.Debug().Msg("Handling connection from " +
-		conn.RemoteAddr().String())
+	go cm.handleConnection(conn)
 }
 
 // Close closes the given TCP connection.
@@ -58,4 +69,38 @@ func (cm *ConnectionManager) Close(conn net.Conn) {
 	addr := conn.RemoteAddr().String()
 	conn.Close()
 	cm.log.Debug().Msg("Connection with " + addr + " was closed")
+}
+
+func (cm *ConnectionManager) handleConnection(conn connection) {
+	defer cm.Close(conn.tcp)
+
+	cm.log.Debug().Msg("Handling connection from " +
+		conn.tcp.RemoteAddr().String())
+
+	deadline := time.Now().
+		Add(time.Duration(cm.conf.ConnectTimeout) * time.Second)
+
+	buf := make([]byte, 1)
+
+	for {
+		err := conn.tcp.SetReadDeadline(deadline)
+		if err != nil {
+			cm.log.Error().Msg("Failed to set read deadline: " +
+				err.Error())
+			break
+		}
+
+		_, err = conn.tcp.Read(buf)
+		if err != nil {
+			if time.Now().After(deadline) {
+				cm.log.Debug().Msg(
+					"Timeout - No CONNECT Packet received from " +
+						conn.tcp.RemoteAddr().String())
+				break
+			}
+
+			cm.log.Warn().Msg("Failed to read data: " + err.Error())
+			continue
+		}
+	}
 }

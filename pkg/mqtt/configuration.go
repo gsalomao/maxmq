@@ -20,4 +20,8 @@ package mqtt
 type Configuration struct {
 	// TCP address (<IP>:<port>) that the MQTT listener will bind to.
 	TCPAddress string
+
+	// The amount of time, in seconds, the MQTT listener waits for the CONNECT
+	// Packet.
+	ConnectTimeout int
 }
