@@ -27,6 +27,9 @@ import (
 type Config struct {
 	// Minimal severity level of the logs. (default: info)
 	LogLevel string `mapstructure:"log_level"`
+
+	// TCP address (<IP>:<port>) that the MQTT listener will bind to.
+	MQTTTCPAddress string `mapstructure:"mqtt_tcp_address"`
 }
 
 // ReadConfigFile reads the configuration file.
@@ -54,14 +57,20 @@ func ReadConfigFile() error {
 //
 // Note: The ReadConfigFile must be called before in order to load the
 // configuration from the conf file.
-func LoadConfig() (c Config, err error) {
+func LoadConfig() (Config, error) {
+	viper.SetEnvPrefix("MAXMQ")
 	viper.AutomaticEnv()
 
+	// Bind environment variables
+	_ = viper.BindEnv("log_level")
+	_ = viper.BindEnv("mqtt_tcp_address")
+
 	// Set the default values
-	c = Config{
-		LogLevel: "info",
+	c := Config{
+		LogLevel:       "info",
+		MQTTTCPAddress: ":1883",
 	}
 
-	err = viper.Unmarshal(&c)
-	return
+	err := viper.Unmarshal(&c)
+	return c, err
 }

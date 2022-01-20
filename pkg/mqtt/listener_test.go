@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-package mqtt_test
+package mqtt
 
 import (
-	"errors"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/gsalomao/maxmq/mocks"
-	"github.com/gsalomao/maxmq/pkg/mqtt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -31,59 +30,55 @@ import (
 func TestListener_NewListener(t *testing.T) {
 	t.Run("MissingConfiguration", func(t *testing.T) {
 		logStub := mocks.NewLoggerStub()
-		mockListener := mocks.NetListenerMock{}
 		mockConnHandler := mocks.ConnectionHandlerMock{}
 
-		_, err := mqtt.NewListener(
-			mqtt.WithTCPListener(&mockListener),
-			mqtt.WithConnectionHandler(&mockConnHandler),
-			mqtt.WithLogger(logStub.Logger()),
+		_, err := NewListener(
+			WithConnectionHandler(&mockConnHandler),
+			WithLogger(logStub.Logger()),
 		)
 
-		assert.NotNil(t, err)
+		require.NotNil(t, err)
 		assert.Equal(t, "missing configuration", err.Error())
 	})
 
 	t.Run("MissingLogger", func(t *testing.T) {
-		mockListener := mocks.NetListenerMock{}
 		mockConnHandler := mocks.ConnectionHandlerMock{}
 
-		_, err := mqtt.NewListener(
-			mqtt.WithConfiguration(mqtt.Configuration{}),
-			mqtt.WithTCPListener(&mockListener),
-			mqtt.WithConnectionHandler(&mockConnHandler),
+		_, err := NewListener(
+			WithConfiguration(Configuration{}),
+			WithConnectionHandler(&mockConnHandler),
 		)
 
-		assert.NotNil(t, err)
+		require.NotNil(t, err)
 		assert.Equal(t, "missing logger", err.Error())
-	})
-
-	t.Run("MissingTCPListener", func(t *testing.T) {
-		logStub := mocks.NewLoggerStub()
-		mockConnHandler := mocks.ConnectionHandlerMock{}
-
-		_, err := mqtt.NewListener(
-			mqtt.WithConfiguration(mqtt.Configuration{}),
-			mqtt.WithConnectionHandler(&mockConnHandler),
-			mqtt.WithLogger(logStub.Logger()),
-		)
-
-		assert.NotNil(t, err)
-		assert.Equal(t, "missing TCP listener", err.Error())
 	})
 
 	t.Run("MissingConnectionHandler", func(t *testing.T) {
 		logStub := mocks.NewLoggerStub()
-		mockListener := mocks.NetListenerMock{}
 
-		_, err := mqtt.NewListener(
-			mqtt.WithConfiguration(mqtt.Configuration{}),
-			mqtt.WithTCPListener(&mockListener),
-			mqtt.WithLogger(logStub.Logger()),
+		_, err := NewListener(
+			WithConfiguration(Configuration{}),
+			WithLogger(logStub.Logger()),
 		)
 
-		assert.NotNil(t, err)
+		require.NotNil(t, err)
 		assert.Equal(t, "missing connection handler", err.Error())
+	})
+
+	t.Run("InvalidTCPAddress", func(t *testing.T) {
+		mockConnHandler := mocks.ConnectionHandlerMock{}
+		logStub := mocks.NewLoggerStub()
+
+		_, err := NewListener(
+			WithConfiguration(Configuration{
+				TCPAddress: ":1",
+			}),
+			WithConnectionHandler(&mockConnHandler),
+			WithLogger(logStub.Logger()),
+		)
+
+		require.NotNil(t, err)
+		assert.Contains(t, err.Error(), "bind: permission denied")
 	})
 }
 
@@ -91,26 +86,12 @@ func TestListener_RunAndStop(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	mockConnHandler := mocks.ConnectionHandlerMock{}
 
-	accepting := make(chan bool)
-	stopped := make(chan bool)
-
-	mockListener := mocks.NetListenerMock{}
-	mockListener.On("Addr").Return(&net.TCPAddr{})
-	mockListener.On("Accept").Return(func() (net.Conn, error) {
-		accepting <- true
-		<-stopped
-		return &net.TCPConn{}, errors.New("interface closed")
-	})
-	mockListener.On("Close").Return(func() error {
-		stopped <- true
-		return nil
-	})
-
-	mqtt, err := mqtt.NewListener(
-		mqtt.WithConfiguration(mqtt.Configuration{}),
-		mqtt.WithTCPListener(&mockListener),
-		mqtt.WithConnectionHandler(&mockConnHandler),
-		mqtt.WithLogger(logStub.Logger()),
+	mqtt, err := NewListener(
+		WithConfiguration(Configuration{
+			TCPAddress: ":1883",
+		}),
+		WithConnectionHandler(&mockConnHandler),
+		WithLogger(logStub.Logger()),
 	)
 	require.Nil(t, err)
 
@@ -120,8 +101,8 @@ func TestListener_RunAndStop(t *testing.T) {
 		done <- true
 	}()
 
-	<-accepting
-	assert.Contains(t, logStub.String(), "MQTT listening on")
+	<-time.After(time.Millisecond)
+	assert.Contains(t, logStub.String(), "MQTT listening on [::]:1883")
 	mqtt.Stop()
 
 	<-done
@@ -129,82 +110,22 @@ func TestListener_RunAndStop(t *testing.T) {
 	assert.Contains(t, logStub.String(), "MQTT listener stopped with success")
 }
 
-func TestListener_Run_AcceptError(t *testing.T) {
+func TestListener_Run_Accept(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	mockConnHandler := mocks.ConnectionHandlerMock{}
-
-	accepted := make(chan bool, 1)
-	acceptCnt := 0
-
-	mockListener := mocks.NetListenerMock{}
-	mockListener.On("Addr").Return(&net.TCPAddr{})
-	mockListener.On("Accept").Return(func() (net.Conn, error) {
-		accepted <- true
-		acceptCnt++
-		return &net.TCPConn{}, errors.New("failed to open connection")
-	})
-	mockListener.On("Close").Return(func() error {
-		<-accepted
-		return nil
-	})
-
-	mqtt, err := mqtt.NewListener(
-		mqtt.WithConfiguration(mqtt.Configuration{}),
-		mqtt.WithTCPListener(&mockListener),
-		mqtt.WithConnectionHandler(&mockConnHandler),
-		mqtt.WithLogger(logStub.Logger()),
-	)
-
-	done := make(chan bool)
-	go func() {
-		err = mqtt.Run()
-		done <- true
-	}()
-
-	<-accepted
-	mqtt.Stop()
-
-	<-done
-	assert.Nil(t, err)
-	assert.Contains(t, logStub.String(), "MQTT failed to accept TCP connection")
-	assert.Greater(t, acceptCnt, 1)
-}
-
-func TestListener_Run_AcceptSuccess(t *testing.T) {
-	logStub := mocks.NewLoggerStub()
-
-	accepted := make(chan bool)
-	stopped := make(chan bool)
-
-	mockConn := mocks.NetConnMock{}
-	mockConn.On("RemoteAddr").Return(&net.IPAddr{IP: net.IPv4zero})
 
 	handled := make(chan bool)
 	mockConnHandler := mocks.ConnectionHandlerMock{}
 	mockConnHandler.On("Handle", mock.Anything).
 		Return(func() { handled <- true })
 
-	mockListener := mocks.NetListenerMock{}
-	mockListener.On("Addr").Return(&net.TCPAddr{})
-	mockListener.On("Accept").Return(func() (net.Conn, error) {
-		accepted <- true
-		return &mockConn, nil
-	}).Once()
-	mockListener.On("Accept").Return(func() (net.Conn, error) {
-		<-stopped
-		return &net.TCPConn{}, errors.New("interface closed")
-	})
-	mockListener.On("Close").Return(func() error {
-		stopped <- true
-		return nil
-	})
-
-	mqtt, err := mqtt.NewListener(
-		mqtt.WithConfiguration(mqtt.Configuration{}),
-		mqtt.WithTCPListener(&mockListener),
-		mqtt.WithConnectionHandler(&mockConnHandler),
-		mqtt.WithLogger(logStub.Logger()),
+	mqtt, err := NewListener(
+		WithConfiguration(Configuration{
+			TCPAddress: ":1883",
+		}),
+		WithConnectionHandler(&mockConnHandler),
+		WithLogger(logStub.Logger()),
 	)
+	require.Nil(t, err)
 
 	done := make(chan bool)
 	go func() {
@@ -212,9 +133,41 @@ func TestListener_Run_AcceptSuccess(t *testing.T) {
 		done <- true
 	}()
 
-	<-accepted
+	<-time.After(time.Millisecond)
+	conn, err := net.Dial("tcp", ":1883")
+	require.Nil(t, err)
+	defer conn.Close()
+
 	<-handled
 	mqtt.Stop()
 	<-done
 	assert.Nil(t, err)
+}
+
+func TestListener_AcceptError(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+	mockConnHandler := mocks.ConnectionHandlerMock{}
+
+	mqtt, err := NewListener(
+		WithConfiguration(Configuration{
+			TCPAddress: ":1883",
+		}),
+		WithConnectionHandler(&mockConnHandler),
+		WithLogger(logStub.Logger()),
+	)
+	require.Nil(t, err)
+
+	done := make(chan bool)
+	go func() {
+		err = mqtt.Run()
+		done <- true
+	}()
+
+	<-time.After(time.Millisecond)
+	mqtt.tcp.Close()
+	mqtt.Stop()
+
+	<-done
+	assert.Nil(t, err)
+	assert.Contains(t, logStub.String(), "MQTT failed to accept TCP connection")
 }

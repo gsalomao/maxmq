@@ -18,7 +18,6 @@ package cli
 
 import (
 	"fmt"
-	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -48,7 +47,9 @@ func newCommandStart() *cobra.Command {
 				bannerTemplate)
 
 			log := logger.New(os.Stdout)
-			conf, err := loadConfig(&log)
+
+			errRC := config.ReadConfigFile()
+			conf, err := config.LoadConfig()
 			if err != nil {
 				log.Fatal().Msg("Failed to load configuration: " + err.Error())
 			}
@@ -58,18 +59,18 @@ func newCommandStart() *cobra.Command {
 				log.Fatal().Msg("Failed to set log severity: " + err.Error())
 			}
 
-			log.Info().Msg("Configuration loaded with success")
-
-			cm := mqtt.NewConnectionManager(&log)
-			tcp, err := net.Listen("tcp", ":1883")
-			if err != nil {
-				log.Fatal().Msg("Failed to create TCP listener: " + err.Error())
+			if errRC != nil {
+				log.Debug().Msg(errRC.Error())
 			}
 
+			log.Info().Msg("Configuration loaded with success")
+			cm := mqtt.NewConnectionManager(&log)
+
 			mqtt, err := mqtt.NewListener(
-				mqtt.WithConfiguration(mqtt.Configuration{}),
+				mqtt.WithConfiguration(mqtt.Configuration{
+					TCPAddress: conf.MQTTTCPAddress,
+				}),
 				mqtt.WithConnectionHandler(&cm),
-				mqtt.WithTCPListener(tcp),
 				mqtt.WithLogger(&log),
 			)
 			if err != nil {
@@ -102,15 +103,6 @@ func startBroker(lsn broker.Listener, log *logger.Logger) {
 	if err != nil {
 		log.Error().Msg(err.Error())
 	}
-}
-
-func loadConfig(log *logger.Logger) (config.Config, error) {
-	err := config.ReadConfigFile()
-	if err != nil {
-		log.Warn().Msg(err.Error())
-	}
-
-	return config.LoadConfig()
 }
 
 func waitOSSignals(brk *broker.Broker) {

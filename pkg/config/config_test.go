@@ -32,5 +32,6 @@ func TestConfig_ReadConfigFile(t *testing.T) {
 func TestConfig_LoadConfig(t *testing.T) {
 	conf, err := config.LoadConfig()
 	assert.Nil(t, err)
-	assert.Equal(t, conf.LogLevel, "info")
+	assert.Equal(t, "info", conf.LogLevel)
+	assert.Equal(t, ":1883", conf.MQTTTCPAddress)
 }

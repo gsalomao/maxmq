@@ -29,7 +29,7 @@ import (
 type Listener struct {
 	log         *logger.Logger
 	conf        *Configuration
-	listener    net.Listener
+	tcp         net.Listener
 	connHandler ConnectionHandler
 	running     bool
 	mtx         sync.Mutex
@@ -49,11 +49,14 @@ func NewListener(opts ...OptionsFn) (*Listener, error) {
 	if mqtt.conf == nil {
 		return nil, errors.New("missing configuration")
 	}
-	if mqtt.listener == nil {
-		return nil, errors.New("missing TCP listener")
-	}
 	if mqtt.connHandler == nil {
 		return nil, errors.New("missing connection handler")
+	}
+
+	tcp, err := net.Listen("tcp", mqtt.conf.TCPAddress)
+	mqtt.tcp = tcp
+	if err != nil {
+		return nil, err
 	}
 
 	return mqtt, nil
@@ -63,11 +66,11 @@ func NewListener(opts ...OptionsFn) (*Listener, error) {
 // Once called, it blocks waiting for connections until it's stopped by the
 // Stop function.
 func (mqtt *Listener) Run() error {
-	mqtt.log.Info().Msg("MQTT listening on " + mqtt.listener.Addr().String())
+	mqtt.log.Info().Msg("MQTT listening on " + mqtt.tcp.Addr().String())
 	mqtt.setRunningState(true)
 
 	for {
-		conn, err := mqtt.listener.Accept()
+		conn, err := mqtt.tcp.Accept()
 		if err != nil {
 			if !mqtt.isRunning() {
 				break
@@ -94,7 +97,7 @@ func (mqtt *Listener) Stop() {
 	mqtt.log.Debug().Msg("Stopping MQTT listener")
 
 	mqtt.setRunningState(false)
-	mqtt.listener.Close()
+	mqtt.tcp.Close()
 }
 
 func (mqtt *Listener) setRunningState(st bool) {

@@ -18,4 +18,6 @@ package mqtt
 
 // Configuration holds the MQTT runtime configuration.
 type Configuration struct {
+	// TCP address (<IP>:<port>) that the MQTT listener will bind to.
+	TCPAddress string
 }

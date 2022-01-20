@@ -23,39 +23,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// NetListenerMock is responsible to mock the net.Listener.
-type NetListenerMock struct {
-	mock.Mock
-}
-
-// Accept waits for and returns the next connection to the listener.
-func (l *NetListenerMock) Accept() (conn net.Conn, err error) {
-	ret := l.Called()
-
-	if fn, ok := ret.Get(0).(func() (net.Conn, error)); ok {
-		conn, err = fn()
-	}
-
-	return
-}
-
-// Close closes the listener.
-func (l *NetListenerMock) Close() error {
-	ret := l.Called()
-
-	if fn, ok := ret.Get(0).(func() error); ok {
-		return fn()
-	}
-
-	return nil
-}
-
-// Addr returns the listener's network address.
-func (l *NetListenerMock) Addr() net.Addr {
-	ret := l.Called()
-	return ret.Get(0).(net.Addr)
-}
-
 // NetConnMock is responsible to mock the net.Conn.
 type NetConnMock struct {
 	mock.Mock

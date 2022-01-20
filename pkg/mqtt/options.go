@@ -17,8 +17,6 @@
 package mqtt
 
 import (
-	"net"
-
 	"github.com/gsalomao/maxmq/pkg/logger"
 )
 
@@ -29,13 +27,6 @@ type OptionsFn func(mqtt *Listener)
 func WithConfiguration(cf Configuration) OptionsFn {
 	return func(mqtt *Listener) {
 		mqtt.conf = &cf
-	}
-}
-
-// WithTCPListener sets the given TCP Listener into the MQTT listener.
-func WithTCPListener(lst net.Listener) OptionsFn {
-	return func(mqtt *Listener) {
-		mqtt.listener = lst
 	}
 }
 
