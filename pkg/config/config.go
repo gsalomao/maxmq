@@ -25,11 +25,15 @@ import (
 
 // Config holds all the application configuration.
 type Config struct {
-	// Minimal severity level of the logs. (default: info)
+	// Minimal severity level of the logs.
 	LogLevel string `mapstructure:"log_level"`
 
 	// TCP address (<IP>:<port>) that the MQTT listener will bind to.
 	MQTTTCPAddress string `mapstructure:"mqtt_tcp_address"`
+
+	// The amount of time, in seconds, the MQTT listener waits for the CONNECT
+	// Packet.
+	MQTTConnectTimeout int `mapstructure:"mqtt_connect_timeout"`
 }
 
 // ReadConfigFile reads the configuration file.
@@ -64,11 +68,13 @@ func LoadConfig() (Config, error) {
 	// Bind environment variables
 	_ = viper.BindEnv("log_level")
 	_ = viper.BindEnv("mqtt_tcp_address")
+	_ = viper.BindEnv("mqtt_connect_timeout")
 
 	// Set the default values
 	c := Config{
-		LogLevel:       "info",
-		MQTTTCPAddress: ":1883",
+		LogLevel:           "info",
+		MQTTTCPAddress:     ":1883",
+		MQTTConnectTimeout: 5,
 	}
 
 	err := viper.Unmarshal(&c)

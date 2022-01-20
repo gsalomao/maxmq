@@ -34,4 +34,5 @@ func TestConfig_LoadConfig(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "info", conf.LogLevel)
 	assert.Equal(t, ":1883", conf.MQTTTCPAddress)
+	assert.Equal(t, 5, conf.MQTTConnectTimeout)
 }
