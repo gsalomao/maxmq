@@ -1,0 +1,149 @@
+# Copyright 2022 The MaxMQ Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#--------------------------------------
+# Based on:
+# https://opensource.creativecommons.org/contributing-code/repo-labels
+#
+# Run it using:
+#   github-label-sync --access-token <token> --labels .github/labels.yaml <repo>
+#--------------------------------------
+
+#
+# Priority
+#
+- name: "🟥 priority: critical"
+  color: "b60205"
+  aliases: []
+  description: Must be fixed ASAP
+
+- name: "🟧 priority: high"
+  color: "ff9f1c"
+  aliases: []
+  description: Stalls work on the project or its dependents
+
+- name: "🟨 priority: medium"
+  color: "ffcc00"
+  aliases: []
+  description: Not blocking but should be fixed soon
+
+- name: "🟩 priority: low"
+  color: "cfda2c"
+  aliases: []
+  description: Low priority and doesn't need to be rushed
+
+#
+# Status
+#
+- name: "🏁 status: ready"
+  color: "cccccc"
+  aliases: []
+  description: Ready for work
+
+- name: "🚧 status: blocked"
+  color: "999999"
+  aliases: []
+  description: Blocked & therefore, not ready for work
+
+- name: "🧹 status: not ready"
+  color: "666666"
+  aliases: []
+  description: Needs more details before it can be worked on
+
+- name: "⛔️ status: discarded"
+  color: "eeeeee"
+  aliases: []
+  description: Will not be worked on
+
+- name: "⛔️ status: invalid"
+  color: "eeeeee"
+  aliases: []
+  description: Inappropriate or invalid
+
+- name: "🖇️ status: duplicate"
+  color: "eeeeee"
+  aliases: []
+  description: Indicates similar issues, pull requests, or discussions
+
+#
+# Goal
+#
+- name: "🌟 goal: feature"
+  color: "ffffff"
+  aliases: []
+  description: Addition of new feature
+
+- name: "✨ goal: improvement"
+  color: "ffffff"
+  aliases: []
+  description: Improvement to an existing feature
+
+- name: "🛠 goal: fix"
+  color: "ffffff"
+  aliases: []
+  description: Bug fix
+
+#
+# Aspect
+#
+- name: "📕️ aspect: docs"
+  color: "04338c"
+  aliases: []
+  description: Concerns the documentation in the repository
+
+- name: "💻 aspect: code"
+  color: "04338c"
+  aliases: []
+  description: Concerns the software code in the repository
+
+- name: "🕹 aspect: interface"
+  color: "04338c"
+  aliases: []
+  description: Concerns end-users' experience with the software
+
+- name: "🤖 aspect: dx"
+  color: "04338c"
+  aliases: []
+  description: Concerns developers' experience with the codebase
+
+#
+# Talk
+#
+- name: "❓ talk: question"
+  color: "f9bbe5"
+  aliases: []
+  description: Can be resolved with an answer
+
+- name: "💬 talk: discussion"
+  color: "f9bbe5"
+  aliases: []
+  description: Open for discussions and feedback
+
+- name: "💡️ talk: suggestion"
+  color: "f9bbe5"
+  aliases: []
+  description: Any suggestion
+
+#
+# Miscellaneous
+#
+- name: "good first issue"
+  color: "7f0799"
+  aliases: []
+  description: New-contributor friendly
+
+- name: "help wanted"
+  color: "7f0799"
+  aliases: []
+  description: Open to participation from the community
