@@ -88,14 +88,10 @@ func newCommandStart() *cobra.Command {
 }
 
 func startBroker(lsn broker.Listener, log *logger.Logger) {
-	brk, err := broker.New(log)
-	if err != nil {
-		log.Fatal().Msg(err.Error())
-	}
-
+	brk := broker.New(log)
 	brk.AddListener(lsn)
 
-	err = brk.Start()
+	err := brk.Start()
 	if err != nil {
 		log.Error().Msg("Failed to start broker: " + err.Error())
 	}
@@ -103,7 +99,7 @@ func startBroker(lsn broker.Listener, log *logger.Logger) {
 	go waitOSSignals(&brk)
 	err = brk.Wait()
 	if err != nil {
-		log.Error().Msg(err.Error())
+		log.Error().Msg("Broker stopped with error: " + err.Error())
 	}
 }
 

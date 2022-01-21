@@ -54,13 +54,11 @@ func TestBroker_Start(t *testing.T) {
 	out := bytes.NewBufferString("")
 	log := logger.New(out)
 
-	b, err := broker.New(&log)
-	require.Nil(t, err)
-
+	b := broker.New(&log)
 	l := newListenerStub()
 	b.AddListener(l)
 
-	err = b.Start()
+	err := b.Start()
 	assert.Nil(t, err)
 	assert.Contains(t, out.String(), "Broker started with success")
 }
@@ -69,10 +67,9 @@ func TestBroker_StartWithNoListener(t *testing.T) {
 	out := bytes.NewBufferString("")
 	log := logger.New(out)
 
-	b, err := broker.New(&log)
-	require.Nil(t, err)
+	b := broker.New(&log)
 
-	err = b.Start()
+	err := b.Start()
 	assert.NotNil(t, err)
 	assert.Equal(t, err.Error(), "no available listener")
 }
@@ -81,13 +78,11 @@ func TestBroker_Stop(t *testing.T) {
 	out := bytes.NewBufferString("")
 	log := logger.New(out)
 
-	b, err := broker.New(&log)
-	require.Nil(t, err)
-
+	b := broker.New(&log)
 	l := newListenerStub()
 	b.AddListener(l)
 
-	err = b.Start()
+	err := b.Start()
 	require.Nil(t, err)
 
 	done := make(chan bool)
@@ -107,13 +102,11 @@ func TestBroker_ListenerError(t *testing.T) {
 	out := bytes.NewBufferString("")
 	log := logger.New(out)
 
-	b, err := broker.New(&log)
-	require.Nil(t, err)
-
+	b := broker.New(&log)
 	l := newListenerStub()
 	b.AddListener(l)
 
-	err = b.Start()
+	err := b.Start()
 	require.Nil(t, err)
 
 	done := make(chan bool)

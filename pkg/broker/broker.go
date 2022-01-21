@@ -42,10 +42,10 @@ type Broker struct {
 }
 
 // New creates a new broker.
-func New(log *logger.Logger) (Broker, error) {
+func New(log *logger.Logger) Broker {
 	return Broker{
 		log: log,
-	}, nil
+	}
 }
 
 // AddListener adds a listener to the broker.
