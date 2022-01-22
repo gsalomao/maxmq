@@ -14,19 +14,8 @@
 
 # Project parameters
 NAME			= maxmq
-BUILD_PATH		= bin
-COVERAGE_PATH	= coverage
-
-# Go commands
-GOCMD		= go
-GOBUILD		= $(GOCMD) build
-GOCLEAN		= $(GOCMD) clean
-GOTEST		= $(GOCMD) test
-GOVET		= $(GOCMD) vet
-GOFMT		= $(GOCMD) fmt
-GOLINT		= golangci-lint run
-GOIMPORTS	= goimports
-GOCYCLO		= gocyclo
+BUILD_DIR		= bin
+COVERAGE_DIR	= coverage
 
 # Colors
 GREEN  := $(shell tput -Txterm setaf 2)
@@ -52,58 +41,71 @@ LDFLAGS ="\
 ## Build
 build: ## Build application
 	$(call print_task,"Building application")
-	@mkdir -p ${BUILD_PATH}
-	@$(GOBUILD) -o ${BUILD_PATH}/$(NAME) -ldflags ${LDFLAGS} main.go
+	@mkdir -p ${BUILD_DIR}
+	@go build -o ${BUILD_DIR}/$(NAME) -ldflags ${LDFLAGS} main.go
 	$(call print_task_result,"Building application","done")
 
 clean: ## Clean build folder
 	$(call print_task,"Cleaning build folder")
-	@$(GOCLEAN)
-	@rm -rf ${BUILD_PATH}
+	@go clean
+	@rm -rf ${BUILD_DIR}
 	$(call print_task_result,"Cleaning build folder","done")
+
+## Run
+start: ## Start broker
+	$(call print_task,"Starting broker")
+	@$(BUILD_DIR)/$(NAME) start
+
+start-dev: ## Start broker in development mode
+	$(call print_task,"Starting broker in development mode")
+	@watcher start
 
 ## Test
 test: ## Run tests
 	$(call print_task,"Running tests")
-	@$(GOTEST) -v ./...
+	@go test -v ./...
 	$(call print_task_result,"Running tests","done")
+
+test-dev: ## Run tests in development mode
+	$(call print_task,"Running tests in development mode")
+	@looper
 
 coverage: ## Run tests with coverage report
 	$(call print_task,"Running tests")
-	@rm -rf ${COVERAGE_PATH}
-	@mkdir -p ${COVERAGE_PATH}
-	@$(GOTEST) -cover -covermode=atomic -race \
-		-coverprofile=$(COVERAGE_PATH)/coverage.out ./...
+	@rm -rf ${COVERAGE_DIR}
+	@mkdir -p ${COVERAGE_DIR}
+	@go test -cover -covermode=atomic -race \
+		-coverprofile=$(COVERAGE_DIR)/coverage.out ./...
 	$(call print_task_result,"Running tests","done")
 
 	$(call print_task,"Generating coverage report")
-	@$(GOCMD) tool cover -func $(COVERAGE_PATH)/coverage.out
+	@go tool cover -func $(COVERAGE_DIR)/coverage.out
 	$(call print_task_result,"Generating coverage report","done")
 
 ## Analyze
 vet: ## Examine source code
 	$(call print_task,"Examining source code")
-	@$(GOVET) ./...
+	@go vet ./...
 	$(call print_task_result,"Examining source code","done")
 
 fmt: ## Format source code
 	$(call print_task,"Formatting source code")
-	@$(GOFMT) ./...
+	@go fmt ./...
 	$(call print_task_result,"Formatting source code","done")
 
 lint: ## Lint source code
 	$(call print_task,"Linting source code")
-	@$(GOLINT) ./...
+	@golangci-lint run ./...
 	$(call print_task_result,"Linting source code","done")
 
 imports: ## Update Go import lines
 	$(call print_task,"Updating Go imports")
-	@$(GOIMPORTS) -l -w .
+	@goimports -l -w .
 	$(call print_task_result,"Updating Go imports","done")
 
 complexity: ## Calculates cyclomatic complexities
 	$(call print_task,"Calculating cyclomatic complexities")
-	@$(GOCYCLO) -over 10 -avg .
+	@gocyclo -over 10 -avg .
 	$(call print_task_result,"Calculating cyclomatic complexities","done")
 
 check: vet lint complexity ## Check source code
