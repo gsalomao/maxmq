@@ -1,13 +1,10 @@
-![MaxMQ logo](docs/assets/logo.png)
-
 # MaxMQ
 [![build](https://github.com/gsalomao/maxmq/actions/workflows/build.yml/badge.svg)](https://github.com/gsalomao/maxmq/actions/workflows/build.yml)
 [![codecov](https://codecov.io/gh/gsalomao/maxmq/branch/master/graph/badge.svg?token=FUXEU188HA)](https://codecov.io/gh/gsalomao/maxmq)
 [![license](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-MaxMQ is an open-source, cloud-native, highly available and highly scalable
-message broker for IoT, compliant with the MQTT v3.0, v3.1.1 and v5.0
-specification.
+MaxMQ is a cloud-native and highly scalable message broker for IoT, compliant
+with the MQTT 3.1, 3.1.1 and 5.0 specification.
 
 #### What is MQTT?
 MQTT stands for MQ Telemetry Transport. It is a publish/subscribe, extremely
@@ -17,7 +14,7 @@ low-bandwidth, high-latency or unreliable networks.
 
 ### Features
 Some of the features you get with MaxMQ are:
-- [ ] MQTT V3.1 / V3.1.1 and V5.0 protocol specification support
+- [ ] MQTT 3.1, 3.1.1 and 5.0 protocol specification support
 	* QoS0, QoS1, QoS2 message support
 	* Persistent and offline message support
 	* Retained message support
@@ -25,7 +22,6 @@ Some of the features you get with MaxMQ are:
 - [ ] Standard TCP
 - [ ] MQTT over WebSocket
 - [ ] SSL / TLS
-- [ ] Trie-based Subscription model
 - [ ] `$SYS` support
 - [ ] User name and password authentication
 - [ ] Access control (ACL) based on client ID or user name
@@ -36,10 +32,9 @@ Some of the features you get with MaxMQ are:
 
 ### Roadmap
 Some of the features that are in the roadmap:
-- [ ] LDAP authentication
-- [ ] Redis, MySQL, PostgreSQL, MongoDB, HTTP authentication
 - [ ] Connection rate limit
 - [ ] Message rate limit
+- [ ] Redis, MySQL, PostgreSQL, MongoDB, HTTP authentication
 - [ ] MQTT bridge support
 - [ ] MQTT-SN protocol support
 - [ ] CoAP protocol support
