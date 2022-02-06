@@ -21,49 +21,28 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/gsalomao/maxmq/mocks"
 	"github.com/gsalomao/maxmq/pkg/broker"
 	"github.com/gsalomao/maxmq/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type listenerStub struct {
-	stop    chan bool
-	running chan bool
-	err     error
-}
-
-func newListenerStub() *listenerStub {
-	return &listenerStub{
-		stop:    make(chan bool),
-		running: make(chan bool),
-	}
-}
-
-func (l *listenerStub) Run() error {
-	l.running <- true
-	<-l.stop
-	return l.err
-}
-
-func (l *listenerStub) Stop() {
-	l.stop <- true
-}
-
 func TestBroker_Start(t *testing.T) {
 	out := bytes.NewBufferString("")
 	log := logger.New(out)
-
 	b := broker.New(&log)
-	l := newListenerStub()
-	b.AddListener(l)
+
+	mockRunner := mocks.NewRunnerMock()
+	mockRunner.On("Run")
+	b.AddRunner(mockRunner)
 
 	err := b.Start()
 	assert.Nil(t, err)
 	assert.Contains(t, out.String(), "Broker started with success")
 }
 
-func TestBroker_StartWithNoListener(t *testing.T) {
+func TestBroker_StartWithNoRunner(t *testing.T) {
 	out := bytes.NewBufferString("")
 	log := logger.New(out)
 
@@ -71,16 +50,18 @@ func TestBroker_StartWithNoListener(t *testing.T) {
 
 	err := b.Start()
 	assert.NotNil(t, err)
-	assert.Equal(t, err.Error(), "no available listener")
+	assert.Equal(t, err.Error(), "no available runner")
 }
 
 func TestBroker_Stop(t *testing.T) {
 	out := bytes.NewBufferString("")
 	log := logger.New(out)
-
 	b := broker.New(&log)
-	l := newListenerStub()
-	b.AddListener(l)
+
+	mockRunner := mocks.NewRunnerMock()
+	mockRunner.On("Run")
+	mockRunner.On("Stop")
+	b.AddRunner(mockRunner)
 
 	err := b.Start()
 	require.Nil(t, err)
@@ -91,20 +72,22 @@ func TestBroker_Stop(t *testing.T) {
 		done <- true
 	}()
 
-	<-l.running
+	<-mockRunner.RunningCh
 	b.Stop()
 
 	<-done
 	assert.Nil(t, err)
 }
 
-func TestBroker_ListenerError(t *testing.T) {
+func TestBroker_RunnerError(t *testing.T) {
 	out := bytes.NewBufferString("")
 	log := logger.New(out)
-
 	b := broker.New(&log)
-	l := newListenerStub()
-	b.AddListener(l)
+
+	mockRunner := mocks.NewRunnerMock()
+	mockRunner.On("Run")
+	mockRunner.On("Stop")
+	b.AddRunner(mockRunner)
 
 	err := b.Start()
 	require.Nil(t, err)
@@ -115,8 +98,8 @@ func TestBroker_ListenerError(t *testing.T) {
 		done <- true
 	}()
 
-	<-l.running
-	l.err = errors.New("any failure")
+	<-mockRunner.RunningCh
+	mockRunner.Err = errors.New("any failure")
 	b.Stop()
 
 	<-done

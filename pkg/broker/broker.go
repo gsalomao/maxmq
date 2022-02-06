@@ -23,22 +23,21 @@ import (
 	"github.com/gsalomao/maxmq/pkg/logger"
 )
 
-// Listener is a network interface for stream-oriented protocols.
-type Listener interface {
-	// Run runs the listener.
-	// It must block until the listener stops.
+// Runner is a network interface for stream-oriented protocols.
+type Runner interface {
+	// Run runs the runner and must block until the runner stops.
 	Run() error
 
-	// Stop stops the listener unblocking the Run function.
+	// Stop stops the runner unblocking the Run function.
 	Stop()
 }
 
 // Broker represents the message broker.
 type Broker struct {
-	log       *logger.Logger
-	wg        sync.WaitGroup
-	listeners []Listener
-	err       error
+	log     *logger.Logger
+	wg      sync.WaitGroup
+	runners []Runner
+	err     error
 }
 
 // New creates a new broker.
@@ -48,42 +47,42 @@ func New(log *logger.Logger) Broker {
 	}
 }
 
-// AddListener adds a listener to the broker.
-func (b *Broker) AddListener(l Listener) {
-	b.listeners = append(b.listeners, l)
+// AddRunner adds a runner to the broker.
+func (b *Broker) AddRunner(r Runner) {
+	b.runners = append(b.runners, r)
 }
 
-// Start starts the broker running all listeners.
+// Start starts the broker running all runners.
 func (b *Broker) Start() error {
 	b.log.Info().Msg("Starting broker")
 
-	if len(b.listeners) == 0 {
-		return errors.New("no available listener")
+	if len(b.runners) == 0 {
+		return errors.New("no available runner")
 	}
 
-	for _, l := range b.listeners {
+	for _, r := range b.runners {
 		b.wg.Add(1)
-		go func(l Listener) {
+		go func(r Runner) {
 			defer b.wg.Done()
 
-			err := l.Run()
+			err := r.Run()
 			if err != nil {
 				b.err = err
 			}
-		}(l)
+		}(r)
 	}
 
 	b.log.Info().Msg("Broker started with success")
 	return nil
 }
 
-// Stop stops the broker stopping all listeners.
+// Stop stops the broker stopping all runners.
 func (b *Broker) Stop() {
 	b.log.Info().Msg("Stoping broker")
 	b.wg.Add(1)
 
-	for _, l := range b.listeners {
-		l.Stop()
+	for _, r := range b.runners {
+		r.Stop()
 	}
 
 	b.log.Info().Msg("Broker stopped with success")

@@ -27,7 +27,7 @@ import (
 )
 
 // ConnectionHandler is responsible for handle the connection that has been
-// opened by the MQTT listener.
+// opened by the MQTT runner.
 type ConnectionHandler interface {
 	// Handle handles the opened TCP connection.
 	Handle(tcpConn net.Conn)

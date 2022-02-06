@@ -27,12 +27,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestListener_NewListener(t *testing.T) {
+func TestRunner_NewRunner(t *testing.T) {
 	t.Run("MissingConfiguration", func(t *testing.T) {
 		logStub := mocks.NewLoggerStub()
 		mockConnHandler := mocks.ConnectionHandlerMock{}
 
-		_, err := NewListener(
+		_, err := NewRunner(
 			WithConnectionHandler(&mockConnHandler),
 			WithLogger(logStub.Logger()),
 		)
@@ -44,7 +44,7 @@ func TestListener_NewListener(t *testing.T) {
 	t.Run("MissingLogger", func(t *testing.T) {
 		mockConnHandler := mocks.ConnectionHandlerMock{}
 
-		_, err := NewListener(
+		_, err := NewRunner(
 			WithConfiguration(Configuration{}),
 			WithConnectionHandler(&mockConnHandler),
 		)
@@ -56,7 +56,7 @@ func TestListener_NewListener(t *testing.T) {
 	t.Run("MissingConnectionHandler", func(t *testing.T) {
 		logStub := mocks.NewLoggerStub()
 
-		_, err := NewListener(
+		_, err := NewRunner(
 			WithConfiguration(Configuration{}),
 			WithLogger(logStub.Logger()),
 		)
@@ -69,7 +69,7 @@ func TestListener_NewListener(t *testing.T) {
 		mockConnHandler := mocks.ConnectionHandlerMock{}
 		logStub := mocks.NewLoggerStub()
 
-		_, err := NewListener(
+		_, err := NewRunner(
 			WithConfiguration(Configuration{
 				TCPAddress: ":1",
 			}),
@@ -82,11 +82,11 @@ func TestListener_NewListener(t *testing.T) {
 	})
 }
 
-func TestListener_RunAndStop(t *testing.T) {
+func TestRunner_RunAndStop(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	mockConnHandler := mocks.ConnectionHandlerMock{}
 
-	mqtt, err := NewListener(
+	mqtt, err := NewRunner(
 		WithConfiguration(Configuration{
 			TCPAddress: ":1883",
 		}),
@@ -107,10 +107,10 @@ func TestListener_RunAndStop(t *testing.T) {
 
 	<-done
 	assert.Nil(t, err)
-	assert.Contains(t, logStub.String(), "Listener stopped with success")
+	assert.Contains(t, logStub.String(), "Runner stopped with success")
 }
 
-func TestListener_Run_Accept(t *testing.T) {
+func TestRunner_Run_Accept(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 
 	handled := make(chan bool)
@@ -118,7 +118,7 @@ func TestListener_Run_Accept(t *testing.T) {
 	mockConnHandler.On("Handle", mock.Anything).
 		Return(func() { handled <- true })
 
-	mqtt, err := NewListener(
+	mqtt, err := NewRunner(
 		WithConfiguration(Configuration{
 			TCPAddress: ":1883",
 		}),
@@ -144,11 +144,11 @@ func TestListener_Run_Accept(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestListener_AcceptError(t *testing.T) {
+func TestRunner_AcceptError(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	mockConnHandler := mocks.ConnectionHandlerMock{}
 
-	mqtt, err := NewListener(
+	mqtt, err := NewRunner(
 		WithConfiguration(Configuration{
 			TCPAddress: ":1883",
 		}),

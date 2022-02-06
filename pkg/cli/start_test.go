@@ -23,12 +23,23 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCLI_Start_startBroker(t *testing.T) {
+func TestCLI_StartBroker(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 
-	mockListener := &mocks.ListenerMock{}
-	mockListener.On("Run").Return(nil)
+	mockRunner := mocks.NewRunnerMock()
+	mockRunner.On("Run")
 
-	startBroker(mockListener, logStub.Logger())
-	assert.Contains(t, logStub.String(), "Starting broker")
+	done := make(chan bool)
+	go func() {
+		defer func() {
+			done <- true
+		}()
+
+		startBroker(mockRunner, logStub.Logger())
+		assert.Contains(t, logStub.String(), "Starting broker")
+	}()
+
+	<-mockRunner.RunningCh
+	mockRunner.StopCh <- true
+	<-done
 }

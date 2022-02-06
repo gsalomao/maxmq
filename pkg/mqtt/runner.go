@@ -24,9 +24,9 @@ import (
 	"github.com/gsalomao/maxmq/pkg/logger"
 )
 
-// Listener is responsible to implement the MQTT protocol conform the v3.1.1
+// Runner is responsible to implement the MQTT protocol conform the v3.1.1
 // and v5.0 specifications.
-type Listener struct {
+type Runner struct {
 	log         *logger.Logger
 	conf        *Configuration
 	tcpLsn      net.Listener
@@ -35,9 +35,9 @@ type Listener struct {
 	mtx         sync.Mutex
 }
 
-// NewListener creates a new MQTT listener with the given options.
-func NewListener(opts ...OptionsFn) (*Listener, error) {
-	mqtt := &Listener{}
+// NewRunner creates a new MQTT Runner with the given options.
+func NewRunner(opts ...OptionsFn) (*Runner, error) {
+	mqtt := &Runner{}
 
 	for _, fn := range opts {
 		fn(mqtt)
@@ -62,10 +62,10 @@ func NewListener(opts ...OptionsFn) (*Listener, error) {
 	return mqtt, nil
 }
 
-// Run starts the execution of the MQTT listener.
+// Run starts the execution of the MQTT Runner.
 // Once called, it blocks waiting for connections until it's stopped by the
 // Stop function.
-func (mqtt *Listener) Run() error {
+func (mqtt *Runner) Run() error {
 	mqtt.log.Info().Msg("MQTT Listening on " + mqtt.tcpLsn.Addr().String())
 	mqtt.setRunningState(true)
 
@@ -89,27 +89,27 @@ func (mqtt *Listener) Run() error {
 		go mqtt.connHandler.Handle(conn)
 	}
 
-	mqtt.log.Debug().Msg("MQTT Listener stopped with success")
+	mqtt.log.Debug().Msg("MQTT Runner stopped with success")
 	return nil
 }
 
-// Stop stops the MQTT listener.
+// Stop stops the MQTT Runner.
 // Once called, it unblocks the Run function.
-func (mqtt *Listener) Stop() {
-	mqtt.log.Debug().Msg("MQTT Stopping listener")
+func (mqtt *Runner) Stop() {
+	mqtt.log.Debug().Msg("MQTT Stopping runner")
 
 	mqtt.setRunningState(false)
 	mqtt.tcpLsn.Close()
 }
 
-func (mqtt *Listener) setRunningState(st bool) {
+func (mqtt *Runner) setRunningState(st bool) {
 	mqtt.mtx.Lock()
 	defer mqtt.mtx.Unlock()
 
 	mqtt.running = st
 }
 
-func (mqtt *Listener) isRunning() bool {
+func (mqtt *Runner) isRunning() bool {
 	mqtt.mtx.Lock()
 	defer mqtt.mtx.Unlock()
 

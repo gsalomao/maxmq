@@ -18,22 +18,33 @@ package mocks
 
 import "github.com/stretchr/testify/mock"
 
-// ListenerMock is responsible to mock the mqtt.Listener.
-type ListenerMock struct {
+// RunnerMock is responsible to mock the broker.Runner.
+type RunnerMock struct {
 	mock.Mock
+	RunningCh chan bool
+	StopCh    chan bool
+	Err       error
 }
 
-// Run runs the listener.
-func (l *ListenerMock) Run() error {
-	ret := l.Called()
-	if err, ok := ret.Get(0).(error); ok {
-		return err
+func NewRunnerMock() *RunnerMock {
+	return &RunnerMock{
+		RunningCh: make(chan bool),
+		StopCh:    make(chan bool),
 	}
-
-	return nil
 }
 
-// Stop stops the listener unblocking the Run function.
-func (l *ListenerMock) Stop() {
-	l.Called()
+// Run runs the runner.
+func (r *RunnerMock) Run() error {
+	r.Called()
+
+	r.RunningCh <- true
+	<-r.StopCh
+
+	return r.Err
+}
+
+// Stop stops the runner unblocking the Run function.
+func (r *RunnerMock) Stop() {
+	r.Called()
+	r.StopCh <- true
 }

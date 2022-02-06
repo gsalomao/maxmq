@@ -108,7 +108,7 @@ func TestPacket_ReadPacketInvalid(t *testing.T) {
 				done <- true
 			}()
 
-			sConn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+			_ = sConn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 			reader := packet.NewReader(sConn, 1024)
 
 			_, err := reader.ReadPacket()

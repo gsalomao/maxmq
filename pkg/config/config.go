@@ -28,11 +28,10 @@ type Config struct {
 	// Minimal severity level of the logs.
 	LogLevel string `mapstructure:"log_level"`
 
-	// TCP address (<IP>:<port>) that the MQTT listener will bind to.
+	// TCP address (<IP>:<port>) that the MQTT will bind to.
 	MQTTTCPAddress string `mapstructure:"mqtt_tcp_address"`
 
-	// The amount of time, in seconds, the MQTT listener waits for the CONNECT
-	// Packet.
+	// The amount of time, in seconds, the MQTT waits for the CONNECT Packet.
 	MQTTConnectTimeout int `mapstructure:"mqtt_connect_timeout"`
 
 	// The size, in bytes, of the MQTT receiver and transmitter buffers.

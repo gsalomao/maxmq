@@ -71,13 +71,13 @@ func newCommandStart() *cobra.Command {
 			}
 
 			cm := mqtt.NewConnectionManager(mqttConf, &log)
-			mqtt, err := mqtt.NewListener(
+			mqtt, err := mqtt.NewRunner(
 				mqtt.WithConfiguration(mqttConf),
 				mqtt.WithConnectionHandler(&cm),
 				mqtt.WithLogger(&log),
 			)
 			if err != nil {
-				log.Fatal().Msg("Failed to create MQTT listener: " +
+				log.Fatal().Msg("Failed to create MQTT runner: " +
 					err.Error())
 			}
 
@@ -88,9 +88,9 @@ func newCommandStart() *cobra.Command {
 	return cmd
 }
 
-func startBroker(lsn broker.Listener, log *logger.Logger) {
+func startBroker(r broker.Runner, log *logger.Logger) {
 	brk := broker.New(log)
-	brk.AddListener(lsn)
+	brk.AddRunner(r)
 
 	err := brk.Start()
 	if err != nil {
