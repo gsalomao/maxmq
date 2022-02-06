@@ -17,7 +17,6 @@
 package mqtt_test
 
 import (
-	"errors"
 	"net"
 	"testing"
 	"time"
@@ -25,42 +24,93 @@ import (
 	"github.com/gsalomao/maxmq/mocks"
 	"github.com/gsalomao/maxmq/pkg/mqtt"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
+
+func TestConnectionManager_HandleConnectPacket(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+	cm := mqtt.NewConnectionManager(mqtt.Configuration{
+		ConnectTimeout: 1,
+		BufferSize:     1024,
+	}, logStub.Logger())
+
+	conn, sConn := net.Pipe()
+
+	done := make(chan bool)
+	go func() {
+		cm.Handle(sConn)
+		done <- true
+	}()
+
+	msg := []byte{
+		0x10, 13, // fixed header
+		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 0, // variable header
+		0, 1, 'a', // client ID
+	}
+
+	_, err := conn.Write(msg)
+	require.Nil(t, err)
+
+	conn.Close()
+	<-done
+}
+
+func TestConnectionManager_HandleClosed(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+	cm := mqtt.NewConnectionManager(mqtt.Configuration{
+		ConnectTimeout: 1,
+		BufferSize:     1024,
+	}, logStub.Logger())
+
+	conn, sConn := net.Pipe()
+
+	done := make(chan bool)
+	go func() {
+		cm.Handle(sConn)
+		done <- true
+	}()
+
+	<-time.After(time.Millisecond)
+	conn.Close()
+
+	<-done
+	assert.Contains(t, logStub.String(), "Connection was closed")
+}
 
 func TestConnectionManager_HandleFailedToSetDeadline(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{
-		ConnectTimeout: 5,
+		ConnectTimeout: 1,
+		BufferSize:     1024,
 	}, logStub.Logger())
 
-	mockConn := mocks.NetConnMock{}
-	mockConn.On("RemoteAddr").Return(&net.IPAddr{IP: net.IPv4zero})
-	mockConn.On("SetReadDeadline", mock.Anything).Return(errors.New("error"))
-	mockConn.On("Close", mock.Anything).Return(nil)
+	conn, sConn := net.Pipe()
+	conn.Close()
 
-	cm.Handle(&mockConn)
-	<-time.After(2 * time.Millisecond)
-
-	assert.Contains(t, logStub.String(), "Failed to set read deadline: error")
+	cm.Handle(sConn)
+	assert.Contains(t, logStub.String(), "Failed to set read deadline")
 }
 
 func TestConnectionManager_HandleFailedToRead(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{
-		ConnectTimeout: 5,
+		ConnectTimeout: 1,
+		BufferSize:     1024,
 	}, logStub.Logger())
 
-	mockConn := mocks.NetConnMock{}
-	mockConn.On("RemoteAddr").Return(&net.IPAddr{IP: net.IPv4zero})
-	mockConn.On("SetReadDeadline", mock.Anything).Return(nil)
-	mockConn.On("Read", mock.Anything).Return(0, errors.New("error"))
-	mockConn.On("Close", mock.Anything).Return(nil)
+	conn, sConn := net.Pipe()
 
-	cm.Handle(&mockConn)
-	<-time.After(2 * time.Millisecond)
+	done := make(chan bool)
+	go func() {
+		cm.Handle(sConn)
+		done <- true
+	}()
 
-	assert.Contains(t, logStub.String(), "Failed to read data: error")
+	_, err := conn.Write([]byte{0x15, 13})
+	require.Nil(t, err)
+
+	<-done
+	assert.Contains(t, logStub.String(), "Failed to read packet")
 }
 
 func TestConnectionManager_HandleReadTimeout(t *testing.T) {
@@ -69,27 +119,18 @@ func TestConnectionManager_HandleReadTimeout(t *testing.T) {
 		ConnectTimeout: 0,
 	}, logStub.Logger())
 
-	mockConn := mocks.NetConnMock{}
-	mockConn.On("RemoteAddr").Return(&net.IPAddr{IP: net.IPv4zero})
-	mockConn.On("SetReadDeadline", mock.Anything).Return(nil)
-	mockConn.On("Read", mock.Anything).Return(0, errors.New("timeout"))
-	mockConn.On("Close", mock.Anything).Return(nil)
+	_, sConn := net.Pipe()
+	cm.Handle(sConn)
 
-	cm.Handle(&mockConn)
-	<-time.After(2 * time.Millisecond)
-
-	assert.Contains(t, logStub.String(), "Timeout - No CONNECT Packet received")
+	assert.Contains(t, logStub.String(), "No CONNECT Packet received")
 }
 
 func TestConnectionManager_Close(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{}, logStub.Logger())
 
-	mockConn := mocks.NetConnMock{}
-	mockConn.On("RemoteAddr").Return(&net.IPAddr{IP: net.IPv4zero})
-	mockConn.On("Close", mock.Anything).Return(nil)
+	_, sConn := net.Pipe()
 
-	cm.Close(&mockConn)
-
-	assert.Contains(t, logStub.String(), " was closed")
+	cm.Close(sConn)
+	assert.Contains(t, logStub.String(), "Closed connection")
 }

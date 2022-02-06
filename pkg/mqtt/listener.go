@@ -29,7 +29,7 @@ import (
 type Listener struct {
 	log         *logger.Logger
 	conf        *Configuration
-	tcp         net.Listener
+	tcpLsn      net.Listener
 	connHandler ConnectionHandler
 	running     bool
 	mtx         sync.Mutex
@@ -53,8 +53,8 @@ func NewListener(opts ...OptionsFn) (*Listener, error) {
 		return nil, errors.New("missing connection handler")
 	}
 
-	tcp, err := net.Listen("tcp", mqtt.conf.TCPAddress)
-	mqtt.tcp = tcp
+	lsn, err := net.Listen("tcp", mqtt.conf.TCPAddress)
+	mqtt.tcpLsn = lsn
 	if err != nil {
 		return nil, err
 	}
@@ -66,38 +66,40 @@ func NewListener(opts ...OptionsFn) (*Listener, error) {
 // Once called, it blocks waiting for connections until it's stopped by the
 // Stop function.
 func (mqtt *Listener) Run() error {
-	mqtt.log.Info().Msg("MQTT listening on " + mqtt.tcp.Addr().String())
+	mqtt.log.Info().Msg("MQTT Listening on " + mqtt.tcpLsn.Addr().String())
 	mqtt.setRunningState(true)
 
 	for {
-		conn, err := mqtt.tcp.Accept()
+		mqtt.log.Trace().Msg("MQTT Waiting for TCP connection")
+
+		conn, err := mqtt.tcpLsn.Accept()
 		if err != nil {
 			if !mqtt.isRunning() {
 				break
 			}
 
-			mqtt.log.Debug().Msg("MQTT failed to accept TCP connection: " +
+			mqtt.log.Debug().Msg("MQTT Failed to accept TCP connection: " +
 				err.Error())
-
 			continue
 		}
 
 		addr := conn.RemoteAddr().String()
-		mqtt.log.Trace().Msg("New TCP connection from " + addr)
-		mqtt.connHandler.Handle(conn)
+		mqtt.log.Trace().Msg("MQTT New TCP connection from " + addr)
+
+		go mqtt.connHandler.Handle(conn)
 	}
 
-	mqtt.log.Debug().Msg("MQTT listener stopped with success")
+	mqtt.log.Debug().Msg("MQTT Listener stopped with success")
 	return nil
 }
 
 // Stop stops the MQTT listener.
 // Once called, it unblocks the Run function.
 func (mqtt *Listener) Stop() {
-	mqtt.log.Debug().Msg("Stopping MQTT listener")
+	mqtt.log.Debug().Msg("MQTT Stopping listener")
 
 	mqtt.setRunningState(false)
-	mqtt.tcp.Close()
+	mqtt.tcpLsn.Close()
 }
 
 func (mqtt *Listener) setRunningState(st bool) {

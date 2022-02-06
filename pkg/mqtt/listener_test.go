@@ -101,13 +101,13 @@ func TestListener_RunAndStop(t *testing.T) {
 		done <- true
 	}()
 
-	<-time.After(time.Millisecond)
-	assert.Contains(t, logStub.String(), "MQTT listening on [::]:1883")
+	<-time.After(5 * time.Millisecond)
+	assert.Contains(t, logStub.String(), "Listening on [::]:1883")
 	mqtt.Stop()
 
 	<-done
 	assert.Nil(t, err)
-	assert.Contains(t, logStub.String(), "MQTT listener stopped with success")
+	assert.Contains(t, logStub.String(), "Listener stopped with success")
 }
 
 func TestListener_Run_Accept(t *testing.T) {
@@ -164,10 +164,10 @@ func TestListener_AcceptError(t *testing.T) {
 	}()
 
 	<-time.After(time.Millisecond)
-	mqtt.tcp.Close()
+	mqtt.tcpLsn.Close()
 	mqtt.Stop()
 
 	<-done
 	assert.Nil(t, err)
-	assert.Contains(t, logStub.String(), "MQTT failed to accept TCP connection")
+	assert.Contains(t, logStub.String(), "Failed to accept TCP connection")
 }

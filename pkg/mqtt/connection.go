@@ -17,27 +17,26 @@
 package mqtt
 
 import (
+	"errors"
+	"io"
 	"net"
 	"time"
 
 	"github.com/gsalomao/maxmq/pkg/logger"
+	"github.com/gsalomao/maxmq/pkg/mqtt/packet"
 )
 
-// ConnectionHandler is responsible to handle the connection that has been
+// ConnectionHandler is responsible for handle the connection that has been
 // opened by the MQTT listener.
 type ConnectionHandler interface {
-	// Handle handles the new opened TCP connection.
-	Handle(conn net.Conn)
+	// Handle handles the opened TCP connection.
+	Handle(tcpConn net.Conn)
 }
 
 // ConnectionManager manages the opened connections.
 type ConnectionManager struct {
 	log  *logger.Logger
 	conf Configuration
-}
-
-type connection struct {
-	tcp net.Conn
 }
 
 // NewConnectionManager creates a new ConnectionManager.
@@ -52,55 +51,82 @@ func NewConnectionManager(
 }
 
 // Handle handles the new opened TCP connection.
-func (cm *ConnectionManager) Handle(tcp net.Conn) {
-	conn := connection{
-		tcp: tcp,
-	}
+func (cm *ConnectionManager) Handle(tcpConn net.Conn) {
+	defer cm.Close(tcpConn)
 
-	go cm.handleConnection(conn)
-}
+	conn := cm.newConnection(tcpConn)
 
-// Close closes the given TCP connection.
-func (cm *ConnectionManager) Close(conn net.Conn) {
-	if tcp, ok := conn.(*net.TCPConn); ok {
-		_ = tcp.SetLinger(0)
-	}
-
-	addr := conn.RemoteAddr().String()
-	conn.Close()
-	cm.log.Debug().Msg("Connection with " + addr + " was closed")
-}
-
-func (cm *ConnectionManager) handleConnection(conn connection) {
-	defer cm.Close(conn.tcp)
-
-	cm.log.Debug().Msg("Handling connection from " +
-		conn.tcp.RemoteAddr().String())
+	addr := conn.tcpConn.RemoteAddr().String()
+	cm.log.Debug().Msg("MQTT Handling connection from " + addr)
 
 	deadline := time.Now().
 		Add(time.Duration(cm.conf.ConnectTimeout) * time.Second)
 
-	buf := make([]byte, 1)
-
 	for {
-		err := conn.tcp.SetReadDeadline(deadline)
+		err := conn.tcpConn.SetReadDeadline(deadline)
 		if err != nil {
-			cm.log.Error().Msg("Failed to set read deadline: " +
+			cm.log.Error().Msg("MQTT Failed to set read deadline: " +
 				err.Error())
 			break
 		}
 
-		_, err = conn.tcp.Read(buf)
+		cm.log.Trace().Msg("MQTT Waiting packet from " + addr)
+
+		pkt, err := conn.reader.ReadPacket()
 		if err != nil {
-			if time.Now().After(deadline) {
-				cm.log.Debug().Msg(
-					"Timeout - No CONNECT Packet received from " +
-						conn.tcp.RemoteAddr().String())
+			if err == io.EOF {
+				cm.log.Debug().Msg("MQTT Connection was closed by " + addr)
 				break
 			}
 
-			cm.log.Warn().Msg("Failed to read data: " + err.Error())
-			continue
+			if errCon, ok := err.(net.Error); ok && errCon.Timeout() {
+				cm.log.Debug().Msg("MQTT No CONNECT Packet received from " +
+					addr)
+				break
+			}
+
+			cm.log.Warn().Msg("MQTT Failed to read packet from " + addr +
+				": " + err.Error())
+			break
 		}
+
+		err = cm.processPacket(pkt, &conn)
+		if err != nil {
+			cm.log.Warn().Msg("MQTT Failed to process " + pkt.Type().String() +
+				" Packet from " + addr + ": " + err.Error())
+			break
+		}
+
+		// TODO: Update the deadline based on the IdleTimeout from configuration
+	}
+}
+
+// Close closes the given TCP connection.
+func (cm *ConnectionManager) Close(tcpConn net.Conn) {
+	if tcp, ok := tcpConn.(*net.TCPConn); ok {
+		_ = tcp.SetLinger(0)
+	}
+
+	addr := tcpConn.RemoteAddr().String()
+	tcpConn.Close()
+	cm.log.Debug().Msg("MQTT Closed connection with " + addr)
+}
+
+func (cm *ConnectionManager) processPacket(
+	pkt packet.Packet,
+	conn *connection,
+) error {
+	return errors.New("not implemented")
+}
+
+type connection struct {
+	tcpConn net.Conn
+	reader  packet.Reader
+}
+
+func (cm *ConnectionManager) newConnection(tcpConn net.Conn) connection {
+	return connection{
+		tcpConn: tcpConn,
+		reader:  packet.NewReader(tcpConn, cm.conf.BufferSize),
 	}
 }
