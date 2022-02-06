@@ -52,23 +52,23 @@ clean: ## Clean build folder
 	$(call print_task_result,"Cleaning build folder","done")
 
 ## Run
-start: ## Start broker
+start: build ## Start broker
 	$(call print_task,"Starting broker")
 	@$(BUILD_DIR)/$(NAME) start
 
-start-dev: ## Start broker in development mode
+start-dev: build ## Start broker in development mode
 	$(call print_task,"Starting broker in development mode")
 	@watcher start
 
 ## Test
 test: ## Run tests
 	$(call print_task,"Running tests")
-	@go test -v ./...
+	@gotestsum --format pkgname --packages ./pkg/... -- -timeout 1s
 	$(call print_task_result,"Running tests","done")
 
 test-dev: ## Run tests in development mode
 	$(call print_task,"Running tests in development mode")
-	@looper
+	@gotestsum --format testname --packages ./pkg/... --watch -- -timeout 1s
 
 coverage: ## Run tests with coverage report
 	$(call print_task,"Running tests")
@@ -81,6 +81,10 @@ coverage: ## Run tests with coverage report
 	$(call print_task,"Generating coverage report")
 	@go tool cover -func $(COVERAGE_DIR)/coverage.out
 	$(call print_task_result,"Generating coverage report","done")
+
+coverage-html: coverage ## Open the coverage report in the browser
+	$(call print_task,"Openning coverage report")
+	@go tool cover -html coverage/coverage.out
 
 ## Analyze
 vet: ## Examine source code
