@@ -34,6 +34,9 @@ type Config struct {
 	// The amount of time, in seconds, the MQTT listener waits for the CONNECT
 	// Packet.
 	MQTTConnectTimeout int `mapstructure:"mqtt_connect_timeout"`
+
+	// The size, in bytes, of the MQTT receiver and transmitter buffers.
+	MQTTBufferSize int `mapstructure:"mqtt_buffer_size"`
 }
 
 // ReadConfigFile reads the configuration file.
@@ -69,12 +72,14 @@ func LoadConfig() (Config, error) {
 	_ = viper.BindEnv("log_level")
 	_ = viper.BindEnv("mqtt_tcp_address")
 	_ = viper.BindEnv("mqtt_connect_timeout")
+	_ = viper.BindEnv("mqtt_buffer_size")
 
 	// Set the default values
 	c := Config{
 		LogLevel:           "info",
 		MQTTTCPAddress:     ":1883",
 		MQTTConnectTimeout: 5,
+		MQTTBufferSize:     1024,
 	}
 
 	err := viper.Unmarshal(&c)

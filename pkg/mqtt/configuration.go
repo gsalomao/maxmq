@@ -24,4 +24,7 @@ type Configuration struct {
 	// The amount of time, in seconds, the MQTT listener waits for the CONNECT
 	// Packet.
 	ConnectTimeout int
+
+	// The size, in bytes, of the MQTT receiver and transmitter buffers.
+	BufferSize int
 }
