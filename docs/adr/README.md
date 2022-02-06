@@ -27,3 +27,4 @@ decisions here, and then modify the code to match.
 ### Accepted
 
 * [1. Record architecture decisions](0001-record-architecture-decisions.md)
+* [2. Use Go language](0002-use-go-language.md)
