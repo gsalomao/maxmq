@@ -125,8 +125,13 @@ type connection struct {
 }
 
 func (cm *ConnectionManager) newConnection(tcpConn net.Conn) connection {
+	opts := packet.ReaderOptions{
+		BufferSize:    cm.conf.BufferSize,
+		MaxPacketSize: cm.conf.MaxPacketSize,
+	}
+
 	return connection{
 		tcpConn: tcpConn,
-		reader:  packet.NewReader(tcpConn, cm.conf.BufferSize),
+		reader:  packet.NewReader(tcpConn, opts),
 	}
 }

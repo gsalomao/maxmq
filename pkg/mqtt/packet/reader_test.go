@@ -35,11 +35,39 @@ func TestPacket_ReadPacket(t *testing.T) {
 			done <- true
 		}()
 
-		reader := packet.NewReader(sConn, 1024)
+		opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
+		reader := packet.NewReader(sConn, opts)
 
 		pkt, err := reader.ReadPacket()
 		assert.Nil(t, err)
 		assert.NotNil(t, pkt)
+	}()
+
+	msg := []byte{
+		0x10, 13, // fixed header
+		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 0, // variable header
+		0, 1, 'a', // client ID
+	}
+
+	_, err := conn.Write(msg)
+	require.Nil(t, err)
+	<-done
+}
+
+func TestPacket_ReadPacketBiggerThanMaxPacketSize(t *testing.T) {
+	conn, sConn := net.Pipe()
+
+	done := make(chan bool)
+	go func() {
+		defer func() {
+			done <- true
+		}()
+
+		opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 2}
+		reader := packet.NewReader(sConn, opts)
+
+		_, err := reader.ReadPacket()
+		require.NotNil(t, err)
 	}()
 
 	msg := []byte{
@@ -62,7 +90,8 @@ func TestPacket_ReadPacketError(t *testing.T) {
 			done <- true
 		}()
 
-		reader := packet.NewReader(sConn, 1024)
+		opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
+		reader := packet.NewReader(sConn, opts)
 
 		_, err := reader.ReadPacket()
 		require.NotNil(t, err)
@@ -109,7 +138,8 @@ func TestPacket_ReadPacketInvalid(t *testing.T) {
 			}()
 
 			_ = sConn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-			reader := packet.NewReader(sConn, 1024)
+			opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
+			reader := packet.NewReader(sConn, opts)
 
 			_, err := reader.ReadPacket()
 			require.NotNil(t, err)

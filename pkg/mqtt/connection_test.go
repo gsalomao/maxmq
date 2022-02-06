@@ -32,6 +32,7 @@ func TestConnectionManager_HandleConnectPacket(t *testing.T) {
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{
 		ConnectTimeout: 1,
 		BufferSize:     1024,
+		MaxPacketSize:  65536,
 	}, logStub.Logger())
 
 	conn, sConn := net.Pipe()
@@ -60,6 +61,7 @@ func TestConnectionManager_HandleClosed(t *testing.T) {
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{
 		ConnectTimeout: 1,
 		BufferSize:     1024,
+		MaxPacketSize:  65536,
 	}, logStub.Logger())
 
 	conn, sConn := net.Pipe()
@@ -82,6 +84,7 @@ func TestConnectionManager_HandleFailedToSetDeadline(t *testing.T) {
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{
 		ConnectTimeout: 1,
 		BufferSize:     1024,
+		MaxPacketSize:  65536,
 	}, logStub.Logger())
 
 	conn, sConn := net.Pipe()
@@ -96,6 +99,7 @@ func TestConnectionManager_HandleFailedToRead(t *testing.T) {
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{
 		ConnectTimeout: 1,
 		BufferSize:     1024,
+		MaxPacketSize:  65536,
 	}, logStub.Logger())
 
 	conn, sConn := net.Pipe()
@@ -129,8 +133,25 @@ func TestConnectionManager_Close(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{}, logStub.Logger())
 
-	_, sConn := net.Pipe()
+	lsn, err := net.Listen("tcp", "")
+	require.Nil(t, err)
 
-	cm.Close(sConn)
+	done := make(chan bool)
+	go func() {
+		defer func() {
+			done <- true
+		}()
+
+		conn, err := lsn.Accept()
+		require.Nil(t, err)
+
+		cm.Close(conn)
+	}()
+
+	conn, err := net.Dial("tcp", lsn.Addr().String())
+	require.Nil(t, err)
+	defer conn.Close()
+
+	<-done
 	assert.Contains(t, logStub.String(), "Closed connection")
 }

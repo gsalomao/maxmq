@@ -26,4 +26,7 @@ type Configuration struct {
 
 	// The size, in bytes, of the MQTT receiver and transmitter buffers.
 	BufferSize int
+
+	// The maximum packet size, in bytes, allowed.
+	MaxPacketSize int
 }

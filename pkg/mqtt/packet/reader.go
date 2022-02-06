@@ -25,14 +25,24 @@ import (
 
 // Reader is responsible for read packets.
 type Reader struct {
-	bufReader bufio.Reader
+	bufReader     bufio.Reader
+	maxPacketSize int
 }
 
-// NewReader creates a buffered Reader based on the io.Reader and the buffer
-// size.
-func NewReader(r io.Reader, bufSize int) Reader {
+// ReaderOptions contains the options for the Reader.
+type ReaderOptions struct {
+	// BufferSize represents the size of the bufio.Reader.
+	BufferSize int
+
+	// MaxPacketSize represents the maximum packet size, in bytes, allowed.
+	MaxPacketSize int
+}
+
+// NewReader creates a buffered Reader based on the io.Reader and ReaderOptions.
+func NewReader(r io.Reader, o ReaderOptions) Reader {
 	return Reader{
-		bufReader: *bufio.NewReaderSize(r, bufSize),
+		bufReader:     *bufio.NewReaderSize(r, o.BufferSize),
+		maxPacketSize: o.MaxPacketSize,
 	}
 }
 
@@ -49,7 +59,9 @@ func (r *Reader) ReadPacket() (Packet, error) {
 		return nil, err
 	}
 
-	// TODO: Check maximum packet size from configuration
+	if len > r.maxPacketSize {
+		return nil, errors.New("max packet size exceeded")
+	}
 
 	fh := FixedHeader{
 		PacketType:      PacketType(ctrlByte >> 4),

@@ -36,6 +36,9 @@ type Config struct {
 
 	// The size, in bytes, of the MQTT receiver and transmitter buffers.
 	MQTTBufferSize int `mapstructure:"mqtt_buffer_size"`
+
+	// The maximum size, in bytes, allowed for MQTT Packets.
+	MQTTMaxPacketSize int `mapstructure:"mqtt_max_packet_size"`
 }
 
 // ReadConfigFile reads the configuration file.
@@ -72,6 +75,7 @@ func LoadConfig() (Config, error) {
 	_ = viper.BindEnv("mqtt_tcp_address")
 	_ = viper.BindEnv("mqtt_connect_timeout")
 	_ = viper.BindEnv("mqtt_buffer_size")
+	_ = viper.BindEnv("mqtt_max_packet_size")
 
 	// Set the default values
 	c := Config{
@@ -79,6 +83,7 @@ func LoadConfig() (Config, error) {
 		MQTTTCPAddress:     ":1883",
 		MQTTConnectTimeout: 5,
 		MQTTBufferSize:     1024,
+		MQTTMaxPacketSize:  65536,
 	}
 
 	err := viper.Unmarshal(&c)
