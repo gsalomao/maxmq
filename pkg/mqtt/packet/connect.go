@@ -33,26 +33,66 @@ const (
 	connectFlagUserName     = 0x80
 )
 
+// PacketConnect represents the CONNECT Packet from MQTT specifications.
 type PacketConnect struct {
-	Version        MQTTVersion
-	CleanSession   bool
-	WillFlag       bool
-	WillQoS        WillQoS
-	WillRetain     bool
-	UserNameFlag   bool
-	PasswordFlag   bool
-	KeepAlive      uint16
-	Properties     *Properties
-	ClientID       []byte
+	// Version represents the MQTT version.
+	Version MQTTVersion
+
+	// CleanSession indicates if the session is temporary or not.
+	CleanSession bool
+
+	// WillFlag indicates that, if the Connect request is accepted, a Will
+	// Message MUST be stored on the broker and associated with the connection.
+	WillFlag bool
+
+	// WillQoS indicates the QoS level to be used when publishing the Will
+	// Message.
+	WillQoS WillQoS
+
+	// WillRetain indicates if the Will Message is to be Retained when it is
+	// published.
+	WillRetain bool
+
+	// UserNameFlag indicates if the User Name is present on the message or not.
+	UserNameFlag bool
+
+	// PasswordFlag indicates if the Password is present on the message or not.
+	PasswordFlag bool
+
+	// KeepAlive is a time interval, measured in seconds, that is permitted to
+	// elapse between the point at which the Client finishes transmitting one
+	// Control Packet and the point it starts sending the next.
+	KeepAlive uint16
+
+	// Properties represents the CONNECT properties.
+	Properties *Properties
+
+	// ClientID identifies the client to the broker.
+	ClientID []byte
+
+	// WillProperties defines the Application Message properties to be sent with
+	// the Will Message when it is published.
 	WillProperties *Properties
-	WillTopic      []byte
-	WillMessage    []byte
-	UserName       []byte
-	Password       []byte
+
+	// WillTopic represents the topic which the Will Message will be published.
+	WillTopic []byte
+
+	// WillMessage represents the Will Message to be published.
+	WillMessage []byte
+
+	// UserName represents the User Name which the broker must use for
+	// authentication and authorization.
+	UserName []byte
+
+	// Password represents the Password which the broker must use for
+	// authentication and authorization.
+	Password []byte
 }
 
+// WillQoS indicates the QoS level to be used when publishing the Will Message.
 type WillQoS byte
 
+// Will QoS level.
 const (
 	WillQoS0 WillQoS = iota
 	WillQoS1
@@ -77,10 +117,14 @@ func newPacketConnect(fh FixedHeader) (Packet, error) {
 	return &PacketConnect{}, nil
 }
 
+// Pack encodes the packet into bytes and writes it into the io.Writer.
+// It is not supported by the CONNECT Packet in this broker.
 func (p *PacketConnect) Pack(_ io.Writer) error {
 	return errors.New("unsupported (CONNECT)")
 }
 
+// Unpack reads the packet bytes from bytes.Buffer and decodes them into the
+// packet.
 func (p *PacketConnect) Unpack(buf *bytes.Buffer) error {
 	err := p.unpackVersion(buf)
 	if err != nil {
@@ -125,6 +169,7 @@ func (p *PacketConnect) Unpack(buf *bytes.Buffer) error {
 	return nil
 }
 
+// Type returns the packet type.
 func (p *PacketConnect) Type() PacketType {
 	return CONNECT
 }
