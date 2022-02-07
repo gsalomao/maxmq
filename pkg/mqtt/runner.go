@@ -72,7 +72,7 @@ func (mqtt *Runner) Run() error {
 	for {
 		mqtt.log.Trace().Msg("MQTT Waiting for TCP connection")
 
-		conn, err := mqtt.tcpLsn.Accept()
+		tcpConn, err := mqtt.tcpLsn.Accept()
 		if err != nil {
 			if !mqtt.isRunning() {
 				break
@@ -83,8 +83,9 @@ func (mqtt *Runner) Run() error {
 			continue
 		}
 
-		addr := conn.RemoteAddr().String()
-		mqtt.log.Trace().Msg("MQTT New TCP connection from " + addr)
+		conn := mqtt.connHandler.NewConnection(tcpConn)
+		mqtt.log.Trace().Str("Address", conn.address).
+			Msg("MQTT New TCP connection")
 
 		go mqtt.connHandler.Handle(conn)
 	}

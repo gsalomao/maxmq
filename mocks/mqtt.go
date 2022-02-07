@@ -19,6 +19,7 @@ package mocks
 import (
 	"net"
 
+	"github.com/gsalomao/maxmq/pkg/mqtt"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -27,8 +28,14 @@ type ConnectionHandlerMock struct {
 	mock.Mock
 }
 
+// NewConnection creates a Connection object.
+func (m *ConnectionHandlerMock) NewConnection(nc net.Conn) mqtt.Connection {
+	m.Called(nc)
+	return mqtt.Connection{}
+}
+
 // Handle handles the new opened TCP connection.
-func (m *ConnectionHandlerMock) Handle(conn net.Conn) {
+func (m *ConnectionHandlerMock) Handle(conn mqtt.Connection) {
 	ret := m.Called(conn)
 
 	if fn, ok := ret.Get(0).(func()); ok {

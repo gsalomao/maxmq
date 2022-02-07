@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package mqtt
+package mqtt_test
 
 import (
 	"net"
@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/gsalomao/maxmq/mocks"
+	"github.com/gsalomao/maxmq/pkg/mqtt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -32,9 +33,9 @@ func TestRunner_NewRunner(t *testing.T) {
 		logStub := mocks.NewLoggerStub()
 		mockConnHandler := mocks.ConnectionHandlerMock{}
 
-		_, err := NewRunner(
-			WithConnectionHandler(&mockConnHandler),
-			WithLogger(logStub.Logger()),
+		_, err := mqtt.NewRunner(
+			mqtt.WithConnectionHandler(&mockConnHandler),
+			mqtt.WithLogger(logStub.Logger()),
 		)
 
 		require.NotNil(t, err)
@@ -44,9 +45,9 @@ func TestRunner_NewRunner(t *testing.T) {
 	t.Run("MissingLogger", func(t *testing.T) {
 		mockConnHandler := mocks.ConnectionHandlerMock{}
 
-		_, err := NewRunner(
-			WithConfiguration(Configuration{}),
-			WithConnectionHandler(&mockConnHandler),
+		_, err := mqtt.NewRunner(
+			mqtt.WithConfiguration(mqtt.Configuration{}),
+			mqtt.WithConnectionHandler(&mockConnHandler),
 		)
 
 		require.NotNil(t, err)
@@ -56,9 +57,9 @@ func TestRunner_NewRunner(t *testing.T) {
 	t.Run("MissingConnectionHandler", func(t *testing.T) {
 		logStub := mocks.NewLoggerStub()
 
-		_, err := NewRunner(
-			WithConfiguration(Configuration{}),
-			WithLogger(logStub.Logger()),
+		_, err := mqtt.NewRunner(
+			mqtt.WithConfiguration(mqtt.Configuration{}),
+			mqtt.WithLogger(logStub.Logger()),
 		)
 
 		require.NotNil(t, err)
@@ -69,12 +70,12 @@ func TestRunner_NewRunner(t *testing.T) {
 		mockConnHandler := mocks.ConnectionHandlerMock{}
 		logStub := mocks.NewLoggerStub()
 
-		_, err := NewRunner(
-			WithConfiguration(Configuration{
+		_, err := mqtt.NewRunner(
+			mqtt.WithConfiguration(mqtt.Configuration{
 				TCPAddress: ":1",
 			}),
-			WithConnectionHandler(&mockConnHandler),
-			WithLogger(logStub.Logger()),
+			mqtt.WithConnectionHandler(&mockConnHandler),
+			mqtt.WithLogger(logStub.Logger()),
 		)
 
 		require.NotNil(t, err)
@@ -86,12 +87,12 @@ func TestRunner_RunAndStop(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	mockConnHandler := mocks.ConnectionHandlerMock{}
 
-	mqtt, err := NewRunner(
-		WithConfiguration(Configuration{
+	mqtt, err := mqtt.NewRunner(
+		mqtt.WithConfiguration(mqtt.Configuration{
 			TCPAddress: ":1883",
 		}),
-		WithConnectionHandler(&mockConnHandler),
-		WithLogger(logStub.Logger()),
+		mqtt.WithConnectionHandler(&mockConnHandler),
+		mqtt.WithLogger(logStub.Logger()),
 	)
 	require.Nil(t, err)
 
@@ -115,15 +116,16 @@ func TestRunner_Run_Accept(t *testing.T) {
 
 	handled := make(chan bool)
 	mockConnHandler := mocks.ConnectionHandlerMock{}
+	mockConnHandler.On("NewConnection", mock.Anything)
 	mockConnHandler.On("Handle", mock.Anything).
 		Return(func() { handled <- true })
 
-	mqtt, err := NewRunner(
-		WithConfiguration(Configuration{
+	mqtt, err := mqtt.NewRunner(
+		mqtt.WithConfiguration(mqtt.Configuration{
 			TCPAddress: ":1883",
 		}),
-		WithConnectionHandler(&mockConnHandler),
-		WithLogger(logStub.Logger()),
+		mqtt.WithConnectionHandler(&mockConnHandler),
+		mqtt.WithLogger(logStub.Logger()),
 	)
 	require.Nil(t, err)
 
@@ -142,32 +144,4 @@ func TestRunner_Run_Accept(t *testing.T) {
 	mqtt.Stop()
 	<-done
 	assert.Nil(t, err)
-}
-
-func TestRunner_AcceptError(t *testing.T) {
-	logStub := mocks.NewLoggerStub()
-	mockConnHandler := mocks.ConnectionHandlerMock{}
-
-	mqtt, err := NewRunner(
-		WithConfiguration(Configuration{
-			TCPAddress: ":1883",
-		}),
-		WithConnectionHandler(&mockConnHandler),
-		WithLogger(logStub.Logger()),
-	)
-	require.Nil(t, err)
-
-	done := make(chan bool)
-	go func() {
-		err = mqtt.Run()
-		done <- true
-	}()
-
-	<-time.After(time.Millisecond)
-	mqtt.tcpLsn.Close()
-	mqtt.Stop()
-
-	<-done
-	assert.Nil(t, err)
-	assert.Contains(t, logStub.String(), "Failed to accept TCP connection")
 }

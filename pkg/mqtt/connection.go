@@ -26,11 +26,20 @@ import (
 	"github.com/gsalomao/maxmq/pkg/mqtt/packet"
 )
 
-// ConnectionHandler is responsible for handle the connection that has been
-// opened by the MQTT runner.
+// Connection represents a network connection.
+type Connection struct {
+	netConn net.Conn
+	reader  packet.Reader
+	address string
+}
+
+// ConnectionHandler is responsible for handle connections.
 type ConnectionHandler interface {
-	// Handle handles the opened TCP connection.
-	Handle(tcpConn net.Conn)
+	// NewConnection creates a Connection object.
+	NewConnection(nc net.Conn) Connection
+
+	// Handle handles the Connection.
+	Handle(conn Connection)
 }
 
 // ConnectionManager manages the opened connections.
@@ -50,50 +59,63 @@ func NewConnectionManager(
 	}
 }
 
+// NewConnection creates a Connection object.
+func (cm *ConnectionManager) NewConnection(nc net.Conn) Connection {
+	opts := packet.ReaderOptions{
+		BufferSize:    cm.conf.BufferSize,
+		MaxPacketSize: cm.conf.MaxPacketSize,
+	}
+
+	return Connection{
+		netConn: nc,
+		reader:  packet.NewReader(nc, opts),
+		address: nc.RemoteAddr().String(),
+	}
+}
+
 // Handle handles the new opened TCP connection.
-func (cm *ConnectionManager) Handle(tcpConn net.Conn) {
-	defer cm.Close(tcpConn)
+func (cm *ConnectionManager) Handle(conn Connection) {
+	defer cm.Close(conn)
 
-	conn := cm.newConnection(tcpConn)
-
-	addr := conn.tcpConn.RemoteAddr().String()
-	cm.log.Debug().Msg("MQTT Handling connection from " + addr)
+	cm.log.Debug().Str("Address", conn.address).Msg("MQTT Handling connection")
 
 	deadline := time.Now().
 		Add(time.Duration(cm.conf.ConnectTimeout) * time.Second)
 
 	for {
-		err := conn.tcpConn.SetReadDeadline(deadline)
+		err := conn.netConn.SetReadDeadline(deadline)
 		if err != nil {
 			cm.log.Error().Msg("MQTT Failed to set read deadline: " +
 				err.Error())
 			break
 		}
 
-		cm.log.Trace().Msg("MQTT Waiting packet from " + addr)
+		cm.log.Trace().Str("Address", conn.address).Msg("MQTT Waiting packet")
 
 		pkt, err := conn.reader.ReadPacket()
 		if err != nil {
 			if err == io.EOF {
-				cm.log.Debug().Msg("MQTT Connection was closed by " + addr)
+				cm.log.Debug().Str("Address", conn.address).
+					Msg("MQTT Connection was closed")
 				break
 			}
 
 			if errCon, ok := err.(net.Error); ok && errCon.Timeout() {
-				cm.log.Debug().Msg("MQTT No CONNECT Packet received from " +
-					addr)
+				cm.log.Debug().Str("Address", conn.address).
+					Msg("MQTT No CONNECT Packet received")
 				break
 			}
 
-			cm.log.Warn().Msg("MQTT Failed to read packet from " + addr +
-				": " + err.Error())
+			cm.log.Warn().Str("Address", conn.address).
+				Msg("MQTT Failed to read packet: " + err.Error())
 			break
 		}
 
 		err = cm.processPacket(pkt, &conn)
 		if err != nil {
-			cm.log.Warn().Msg("MQTT Failed to process " + pkt.Type().String() +
-				" Packet from " + addr + ": " + err.Error())
+			cm.log.Warn().Str("Address", conn.address).
+				Msg("MQTT Failed to process " + pkt.Type().String() +
+					" Packet: " + err.Error())
 			break
 		}
 
@@ -101,37 +123,26 @@ func (cm *ConnectionManager) Handle(tcpConn net.Conn) {
 	}
 }
 
-// Close closes the given TCP connection.
-func (cm *ConnectionManager) Close(tcpConn net.Conn) {
-	if tcp, ok := tcpConn.(*net.TCPConn); ok {
+// Close closes the given connection.
+func (cm *ConnectionManager) Close(conn Connection) {
+	if tcp, ok := conn.netConn.(*net.TCPConn); ok {
 		_ = tcp.SetLinger(0)
 	}
 
-	addr := tcpConn.RemoteAddr().String()
-	tcpConn.Close()
-	cm.log.Debug().Msg("MQTT Closed connection with " + addr)
+	cm.log.Debug().Str("Address", conn.address).Msg("MQTT Closing connection")
+	conn.netConn.Close()
 }
 
 func (cm *ConnectionManager) processPacket(
 	pkt packet.Packet,
-	conn *connection,
+	conn *Connection,
 ) error {
+	if pkt.Type() == packet.CONNECT {
+		connPkt, _ := pkt.(*packet.PacketConnect)
+		cm.log.Trace().Str("ClientID", string(connPkt.ClientID)).
+			Str("Address", conn.address).
+			Msg("MQTT Processing CONNECT Packet")
+	}
+
 	return errors.New("not implemented")
-}
-
-type connection struct {
-	tcpConn net.Conn
-	reader  packet.Reader
-}
-
-func (cm *ConnectionManager) newConnection(tcpConn net.Conn) connection {
-	opts := packet.ReaderOptions{
-		BufferSize:    cm.conf.BufferSize,
-		MaxPacketSize: cm.conf.MaxPacketSize,
-	}
-
-	return connection{
-		tcpConn: tcpConn,
-		reader:  packet.NewReader(tcpConn, opts),
-	}
 }

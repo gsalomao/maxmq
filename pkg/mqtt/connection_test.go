@@ -39,7 +39,8 @@ func TestConnectionManager_HandleConnectPacket(t *testing.T) {
 
 	done := make(chan bool)
 	go func() {
-		cm.Handle(sConn)
+		c := cm.NewConnection(sConn)
+		cm.Handle(c)
 		done <- true
 	}()
 
@@ -68,7 +69,8 @@ func TestConnectionManager_HandleClosed(t *testing.T) {
 
 	done := make(chan bool)
 	go func() {
-		cm.Handle(sConn)
+		c := cm.NewConnection(sConn)
+		cm.Handle(c)
 		done <- true
 	}()
 
@@ -90,7 +92,8 @@ func TestConnectionManager_HandleFailedToSetDeadline(t *testing.T) {
 	conn, sConn := net.Pipe()
 	conn.Close()
 
-	cm.Handle(sConn)
+	c := cm.NewConnection(sConn)
+	cm.Handle(c)
 	assert.Contains(t, logStub.String(), "Failed to set read deadline")
 }
 
@@ -106,7 +109,8 @@ func TestConnectionManager_HandleFailedToRead(t *testing.T) {
 
 	done := make(chan bool)
 	go func() {
-		cm.Handle(sConn)
+		c := cm.NewConnection(sConn)
+		cm.Handle(c)
 		done <- true
 	}()
 
@@ -124,7 +128,8 @@ func TestConnectionManager_HandleReadTimeout(t *testing.T) {
 	}, logStub.Logger())
 
 	_, sConn := net.Pipe()
-	cm.Handle(sConn)
+	c := cm.NewConnection(sConn)
+	cm.Handle(c)
 
 	assert.Contains(t, logStub.String(), "No CONNECT Packet received")
 }
@@ -142,9 +147,10 @@ func TestConnectionManager_Close(t *testing.T) {
 			done <- true
 		}()
 
-		conn, err := lsn.Accept()
+		tcpConn, err := lsn.Accept()
 		require.Nil(t, err)
 
+		conn := cm.NewConnection(tcpConn)
 		cm.Close(conn)
 	}()
 
@@ -153,5 +159,5 @@ func TestConnectionManager_Close(t *testing.T) {
 	defer conn.Close()
 
 	<-done
-	assert.Contains(t, logStub.String(), "Closed connection")
+	assert.Contains(t, logStub.String(), "Closing connection")
 }
