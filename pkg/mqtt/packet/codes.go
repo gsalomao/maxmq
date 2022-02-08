@@ -20,6 +20,9 @@ package packet
 type ReturnCode byte
 
 const (
+	// Connection accepted.
+	ReturnCodeV3ConnectionAccepted ReturnCode = 0x00
+
 	// The broker does not support the level of the MQTT protocol.
 	ReturnCodeV3UnacceptableProtocolVersion ReturnCode = 0x01
 
@@ -37,6 +40,9 @@ const (
 )
 
 const (
+	// The Connection is accepted.
+	ReturnCodeV5Success ReturnCode = 0x00
+
 	// The broker does not wish to reveal the reason for the failure, or none
 	// of the other codes apply.
 	ReturnCodeV5UnspecifiedError ReturnCode = 0x80
