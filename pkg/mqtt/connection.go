@@ -17,12 +17,8 @@
 package mqtt
 
 import (
-	"errors"
-	"io"
 	"net"
-	"time"
 
-	"github.com/gsalomao/maxmq/pkg/logger"
 	"github.com/gsalomao/maxmq/pkg/mqtt/packet"
 )
 
@@ -35,114 +31,9 @@ type Connection struct {
 
 // ConnectionHandler is responsible for handle connections.
 type ConnectionHandler interface {
-	// NewConnection creates a Connection object.
+	// NewConnection creates a new Connection.
 	NewConnection(nc net.Conn) Connection
 
 	// Handle handles the Connection.
 	Handle(conn Connection)
-}
-
-// ConnectionManager manages the opened connections.
-type ConnectionManager struct {
-	log  *logger.Logger
-	conf Configuration
-}
-
-// NewConnectionManager creates a new ConnectionManager.
-func NewConnectionManager(
-	cf Configuration,
-	lg *logger.Logger,
-) ConnectionManager {
-	return ConnectionManager{
-		conf: cf,
-		log:  lg,
-	}
-}
-
-// NewConnection creates a Connection object.
-func (cm *ConnectionManager) NewConnection(nc net.Conn) Connection {
-	opts := packet.ReaderOptions{
-		BufferSize:    cm.conf.BufferSize,
-		MaxPacketSize: cm.conf.MaxPacketSize,
-	}
-
-	return Connection{
-		netConn: nc,
-		reader:  packet.NewReader(nc, opts),
-		address: nc.RemoteAddr().String(),
-	}
-}
-
-// Handle handles the new opened TCP connection.
-func (cm *ConnectionManager) Handle(conn Connection) {
-	defer cm.Close(conn)
-
-	cm.log.Debug().Str("Address", conn.address).Msg("MQTT Handling connection")
-
-	deadline := time.Now().
-		Add(time.Duration(cm.conf.ConnectTimeout) * time.Second)
-
-	for {
-		err := conn.netConn.SetReadDeadline(deadline)
-		if err != nil {
-			cm.log.Error().Msg("MQTT Failed to set read deadline: " +
-				err.Error())
-			break
-		}
-
-		cm.log.Trace().Str("Address", conn.address).Msg("MQTT Waiting packet")
-
-		pkt, err := conn.reader.ReadPacket()
-		if err != nil {
-			if err == io.EOF {
-				cm.log.Debug().Str("Address", conn.address).
-					Msg("MQTT Connection was closed")
-				break
-			}
-
-			if errCon, ok := err.(net.Error); ok && errCon.Timeout() {
-				cm.log.Debug().Str("Address", conn.address).
-					Msg("MQTT No CONNECT Packet received")
-				break
-			}
-
-			cm.log.Warn().Str("Address", conn.address).
-				Msg("MQTT Failed to read packet: " + err.Error())
-			break
-		}
-
-		err = cm.processPacket(pkt, &conn)
-		if err != nil {
-			cm.log.Warn().Str("Address", conn.address).
-				Msg("MQTT Failed to process " + pkt.Type().String() +
-					" Packet: " + err.Error())
-			break
-		}
-
-		// TODO: Update the deadline based on the IdleTimeout from configuration
-	}
-}
-
-// Close closes the given connection.
-func (cm *ConnectionManager) Close(conn Connection) {
-	if tcp, ok := conn.netConn.(*net.TCPConn); ok {
-		_ = tcp.SetLinger(0)
-	}
-
-	cm.log.Debug().Str("Address", conn.address).Msg("MQTT Closing connection")
-	conn.netConn.Close()
-}
-
-func (cm *ConnectionManager) processPacket(
-	pkt packet.Packet,
-	conn *Connection,
-) error {
-	if pkt.Type() == packet.CONNECT {
-		connPkt, _ := pkt.(*packet.PacketConnect)
-		cm.log.Trace().Str("ClientID", string(connPkt.ClientID)).
-			Str("Address", conn.address).
-			Msg("MQTT Processing CONNECT Packet")
-	}
-
-	return errors.New("not implemented")
 }
