@@ -107,7 +107,7 @@ var protocolNames = map[MQTTVersion][]byte{
 
 func newPacketConnect(fh FixedHeader) (Packet, error) {
 	if fh.PacketType != CONNECT {
-		return nil, errors.New("invalid Packet Type (CONNECT)")
+		return nil, errors.New("packet type is not CONNECT")
 	}
 
 	if fh.ControlFlags != 0 {

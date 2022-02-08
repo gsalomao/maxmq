@@ -26,6 +26,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestPacketConnect_InvalidPacketType(t *testing.T) {
+	fh := FixedHeader{
+		PacketType: DISCONNECT, // invalid
+	}
+
+	pkt, err := newPacketConnect(fh)
+	require.NotNil(t, err)
+	require.Nil(t, pkt)
+}
+
+func TestPacketConnect_InvalidControlFlags(t *testing.T) {
+	fh := FixedHeader{
+		PacketType:   CONNECT,
+		ControlFlags: 1, // invalid
+	}
+
+	pkt, err := newPacketConnect(fh)
+	require.NotNil(t, err)
+	require.Nil(t, pkt)
+}
+
 func TestPacketConnect_PackUnsupported(t *testing.T) {
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 0, // variable header
@@ -34,7 +55,6 @@ func TestPacketConnect_PackUnsupported(t *testing.T) {
 
 	fh := FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -70,7 +90,6 @@ func TestPacketConnect_Unpack(t *testing.T) {
 
 			fh := FixedHeader{
 				PacketType:      CONNECT,
-				ControlFlags:    0,
 				RemainingLength: len(msg),
 			}
 
@@ -89,45 +108,10 @@ func TestPacketConnect_Unpack(t *testing.T) {
 	}
 }
 
-func TestPacketConnect_UnpackInvalidPacketType(t *testing.T) {
-	msg := []byte{
-		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 0, // variable header
-		0, 1, 'a', // client ID
-	}
-
-	fh := FixedHeader{
-		PacketType:      DISCONNECT, // invalid
-		ControlFlags:    0,
-		RemainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
-	require.NotNil(t, err)
-	require.Nil(t, pkt)
-}
-
-func TestPacketConnect_UnpackInvalidControlFlags(t *testing.T) {
-	msg := []byte{
-		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 0, // variable header
-		0, 1, 'a', // client ID
-	}
-
-	fh := FixedHeader{
-		PacketType:      CONNECT,
-		ControlFlags:    1, // invalid
-		RemainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
-	require.NotNil(t, err)
-	require.Nil(t, pkt)
-}
-
 func TestPacketConnect_UnpackProtocolNameMissing(t *testing.T) {
 	msg := []byte{}
 	fh := FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -151,7 +135,6 @@ func TestPacketConnect_UnpackProtocolNameInvalid(t *testing.T) {
 			msg = append(msg, 0, 2, 'a', 'b') // client ID
 			fh := FixedHeader{
 				PacketType:      CONNECT,
-				ControlFlags:    0,
 				RemainingLength: len(msg),
 			}
 
@@ -169,7 +152,6 @@ func TestPacketConnect_UnpackVersionMissing(t *testing.T) {
 	msg := []byte{0, 4, 'M', 'Q', 'T', 'T'}
 	fh := FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -187,7 +169,6 @@ func TestPacketConnect_UnpackVersionInvalid(t *testing.T) {
 	}
 	fh := FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -203,7 +184,6 @@ func TestPacketConnect_UnpackFlagsMissing(t *testing.T) {
 	msg := []byte{0, 4, 'M', 'Q', 'T', 'T', 4}
 	fh := FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -222,7 +202,6 @@ func TestPacketConnect_UnpackFlagsReservedInvalid(t *testing.T) {
 	}
 	fh := FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -240,7 +219,6 @@ func TestPacketConnect_UnpackFlagsReservedInvalid(t *testing.T) {
 	}
 	fh = FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -261,7 +239,6 @@ func TestPacketConnect_UnpackFlagsWillQoS(t *testing.T) {
 	}
 	fh := FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -284,7 +261,6 @@ func TestPacketConnect_UnpackFlagsWillQoSInvalid(t *testing.T) {
 	}
 	fh := FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -304,7 +280,6 @@ func TestPacketConnect_UnpackFlagsWillQoSInvalid(t *testing.T) {
 	}
 	fh = FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -324,7 +299,6 @@ func TestPacketConnect_UnpackFlagsWillQoSInvalid(t *testing.T) {
 	}
 	fh = FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -346,7 +320,6 @@ func TestPacketConnect_UnpackFlagsWillQoSInvalid(t *testing.T) {
 	}
 	fh = FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -367,7 +340,6 @@ func TestPacketConnect_UnpackFlagsWillRetain(t *testing.T) {
 	}
 	fh := FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -392,7 +364,6 @@ func TestPacketConnect_UnpackFlagsWillRetainInvalid(t *testing.T) {
 	}
 	fh := FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -414,7 +385,6 @@ func TestPacketConnect_UnpackFlagsWillRetainInvalid(t *testing.T) {
 	}
 	fh = FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -435,7 +405,6 @@ func TestPacketConnect_UnpackFlagsUserNamePasswordInvalid(t *testing.T) {
 	}
 	fh := FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -456,7 +425,6 @@ func TestPacketConnect_UnpackFlagsUserNamePasswordInvalid(t *testing.T) {
 	}
 	fh = FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -480,7 +448,6 @@ func TestPacketConnect_UnpackKeepAliveValid(t *testing.T) {
 		}
 		fh := FixedHeader{
 			PacketType:      CONNECT,
-			ControlFlags:    0,
 			RemainingLength: len(msg),
 		}
 
@@ -503,7 +470,6 @@ func TestPacketConnect_UnpackKeepAliveInvalid(t *testing.T) {
 	}
 	fh := FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -519,7 +485,6 @@ func TestPacketConnect_UnpackKeepAliveInvalid(t *testing.T) {
 	}
 	fh = FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -554,7 +519,6 @@ func TestPacketConnect_UnpackClientIDValid(t *testing.T) {
 		msg = append(msg, cp...)
 		fh := FixedHeader{
 			PacketType:      CONNECT,
-			ControlFlags:    0,
 			RemainingLength: len(msg),
 		}
 
@@ -576,7 +540,6 @@ func TestPacketConnect_UnpackClientIDValid(t *testing.T) {
 	}
 	fh := FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -611,7 +574,6 @@ func TestPacketConnect_UnpackClientIDMalformed(t *testing.T) {
 		msg = append(msg, id.data...)
 		fh := FixedHeader{
 			PacketType:      CONNECT,
-			ControlFlags:    0,
 			RemainingLength: len(msg),
 		}
 
@@ -631,7 +593,6 @@ func TestPacketConnect_UnpackClientIDMalformed(t *testing.T) {
 		msg = append(msg, id.data...)
 		fh = FixedHeader{
 			PacketType:      CONNECT,
-			ControlFlags:    0,
 			RemainingLength: len(msg),
 		}
 
@@ -666,7 +627,6 @@ func TestPacketConnect_UnpackClientIDMalformed(t *testing.T) {
 		msg = append(msg, cp...)
 		fh := FixedHeader{
 			PacketType:      CONNECT,
-			ControlFlags:    0,
 			RemainingLength: len(msg),
 		}
 
@@ -685,7 +645,6 @@ func TestPacketConnect_UnpackClientIDMalformed(t *testing.T) {
 		msg = append(msg, cp...)
 		fh = FixedHeader{
 			PacketType:      CONNECT,
-			ControlFlags:    0,
 			RemainingLength: len(msg),
 		}
 
@@ -706,7 +665,6 @@ func TestPacketConnect_UnpackClientIDRejected(t *testing.T) {
 	}
 	fh := FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -724,7 +682,6 @@ func TestPacketConnect_UnpackClientIDRejected(t *testing.T) {
 	}
 	fh = FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -754,7 +711,6 @@ func TestPacketConnect_UnpackWillTopicValid(t *testing.T) {
 			msg = append(msg, 0, 1, 'm') // will message
 			fh := FixedHeader{
 				PacketType:      CONNECT,
-				ControlFlags:    0,
 				RemainingLength: len(msg),
 			}
 
@@ -779,7 +735,6 @@ func TestPacketConnect_UnpackWillTopicMissing(t *testing.T) {
 	}
 	fh := FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -799,7 +754,6 @@ func TestPacketConnect_UnpackWillTopicMissing(t *testing.T) {
 	}
 	fh = FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -829,7 +783,6 @@ func TestPacketConnect_UnpackWillMessageValid(t *testing.T) {
 			msg = append(msg, buf...)
 			fh := FixedHeader{
 				PacketType:      CONNECT,
-				ControlFlags:    0,
 				RemainingLength: len(msg),
 			}
 
@@ -855,7 +808,6 @@ func TestPacketConnect_UnpackWillMessageMissing(t *testing.T) {
 	}
 	fh := FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -876,7 +828,6 @@ func TestPacketConnect_UnpackWillMessageMissing(t *testing.T) {
 	}
 	fh = FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -905,7 +856,6 @@ func TestPacketConnect_UnpackUserNameValid(t *testing.T) {
 			msg = append(msg, buf...)
 			fh := FixedHeader{
 				PacketType:      CONNECT,
-				ControlFlags:    0,
 				RemainingLength: len(msg),
 			}
 
@@ -931,7 +881,6 @@ func TestPacketConnect_UnpackUserNameMissing(t *testing.T) {
 
 	fh := FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -952,7 +901,6 @@ func TestPacketConnect_UnpackUserNameMissing(t *testing.T) {
 
 	fh = FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
@@ -982,7 +930,6 @@ func TestPacketConnect_UnpackPasswordValid(t *testing.T) {
 			msg = append(msg, buf...)
 			fh := FixedHeader{
 				PacketType:      CONNECT,
-				ControlFlags:    0,
 				RemainingLength: len(msg),
 			}
 
@@ -1008,7 +955,6 @@ func TestPacketConnect_UnpackPasswordInvalid(t *testing.T) {
 
 	fh := FixedHeader{
 		PacketType:      CONNECT,
-		ControlFlags:    0,
 		RemainingLength: len(msg),
 	}
 
