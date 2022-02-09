@@ -23,8 +23,8 @@ import (
 )
 
 func main() {
-	cli := cli.New(os.Stdout, os.Args[1:])
-	err := cli.Run()
+	c := cli.New(os.Stdout, os.Args[1:])
+	err := c.Run()
 	if err != nil {
 		os.Exit(1)
 	}

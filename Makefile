@@ -16,6 +16,7 @@
 NAME			= maxmq
 BUILD_DIR		= bin
 COVERAGE_DIR	= coverage
+MAIN_FILE		= cmd/maxmq/main.go
 
 # Colors
 GREEN  := $(shell tput -Txterm setaf 2)
@@ -42,7 +43,7 @@ LDFLAGS ="\
 build: ## Build application
 	$(call print_task,"Building application")
 	@mkdir -p ${BUILD_DIR}
-	@go build -o ${BUILD_DIR}/$(NAME) -ldflags ${LDFLAGS} main.go
+	@go build -o ${BUILD_DIR}/$(NAME) -ldflags ${LDFLAGS} $(MAIN_FILE)
 	$(call print_task_result,"Building application","done")
 
 clean: ## Clean build folder
@@ -56,9 +57,9 @@ start: build ## Start broker
 	$(call print_task,"Starting broker")
 	@$(BUILD_DIR)/$(NAME) start
 
-start-dev: build ## Start broker in development mode
+start-dev: ## Start broker in development mode
 	$(call print_task,"Starting broker in development mode")
-	@watcher start
+	@reflex -s -d none -r "\.go" -- sh -c "go run $(MAIN_FILE) start"
 
 ## Test
 test: ## Run tests
