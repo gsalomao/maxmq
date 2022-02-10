@@ -114,7 +114,7 @@ func (cm *ConnectionManager) Close(conn Connection) {
 	}
 
 	cm.log.Debug().Str("Address", conn.address).Msg("MQTT Closing connection")
-	conn.netConn.Close()
+	_ = conn.netConn.Close()
 }
 
 func (cm *ConnectionManager) processPacket(
@@ -122,7 +122,7 @@ func (cm *ConnectionManager) processPacket(
 	conn *Connection,
 ) error {
 	if pkt.Type() == packet.CONNECT {
-		connPkt, _ := pkt.(*packet.PacketConnect)
+		connPkt, _ := pkt.(*packet.Connect)
 		cm.log.Trace().Str("ClientID", string(connPkt.ClientID)).
 			Str("Address", conn.address).
 			Msg("MQTT Processing CONNECT Packet")

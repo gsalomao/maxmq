@@ -57,7 +57,7 @@ type Properties struct {
 	RequestProblemInfo *bool
 
 	// WillDelayInterval represents the time, in seconds, which the broker must
-	// delay to publish the Will Message.
+	// delay publishing the Will Message.
 	WillDelayInterval *uint32
 
 	// RequestResponseInfo indicates if the broker can send Response Information
@@ -80,12 +80,12 @@ type Properties struct {
 	MaximumPacketSize *uint32
 }
 
-// UserProperty constains a key/value pair of a user property.
+// UserProperty contains the key/value pair to a user property.
 type UserProperty struct {
-	// Key represents the key of the key/value pair of the property.
+	// Key represents the key of the key/value pair to the property.
 	Key []byte
 
-	// Value represents the value of the key/value pair of the property.
+	// Value represents the value of the key/value pair to the property.
 	Value []byte
 }
 
@@ -111,73 +111,73 @@ const (
 
 type propertyHandler struct {
 	fn    func(p *Properties, b *bytes.Buffer) error
-	types map[PacketType]struct{}
+	types map[Type]struct{}
 }
 
 var propertyHandlers = map[propertyType]propertyHandler{
 	propertyPayloadFormat: {
 		fn:    unpackPropertyPayloadFormat,
-		types: map[PacketType]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}},
 	},
 	propertyMessageExpiryInterval: {
 		fn:    unpackPropertyMessageExpiryInterval,
-		types: map[PacketType]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}},
 	},
 	propertyContentType: {
 		fn:    unpackPropertyContentType,
-		types: map[PacketType]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}},
 	},
 	propertyResponseTopic: {
 		fn:    unpackPropertyResponseTopic,
-		types: map[PacketType]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}},
 	},
 	propertyCorrelationData: {
 		fn:    unpackPropertyCorrelationData,
-		types: map[PacketType]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}},
 	},
 	propertySessionExpiryInterval: {
 		fn:    unpackPropertySessionExpiryInterval,
-		types: map[PacketType]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}},
 	},
 	propertyAuthMethod: {
 		fn:    unpackPropertyAuthMethod,
-		types: map[PacketType]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}},
 	},
 	propertyAuthData: {
 		fn:    unpackPropertyAuthData,
-		types: map[PacketType]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}},
 	},
 	propertyRequestProblemInfo: {
 		fn:    unpackPropertyRequestProblemInfo,
-		types: map[PacketType]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}},
 	},
 	propertyWillDelayInterval: {
 		fn:    unpackPropertyWillDelayInterval,
-		types: map[PacketType]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}},
 	},
 	propertyRequestResponseInfo: {
 		fn:    unpackPropertyRequestResponseInfo,
-		types: map[PacketType]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}},
 	},
 	propertyReceiveMaximum: {
 		fn:    unpackPropertyReceiveMaximum,
-		types: map[PacketType]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}},
 	},
 	propertyTopicAliasMaximum: {
 		fn:    unpackPropertyTopicAliasMaximum,
-		types: map[PacketType]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}},
 	},
 	propertyUser: {
 		fn:    unpackPropertyUser,
-		types: map[PacketType]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}},
 	},
 	propertyMaximumPacketSize: {
 		fn:    unpackPropertyMaximumPacketSize,
-		types: map[PacketType]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}},
 	},
 }
 
-func (p *Properties) unpack(b *bytes.Buffer, t PacketType) error {
+func (p *Properties) unpack(b *bytes.Buffer, t Type) error {
 	propsLen, err := readVariableInteger(b)
 	if err != nil {
 		return err
@@ -190,7 +190,7 @@ func (p *Properties) unpack(b *bytes.Buffer, t PacketType) error {
 	return p.unpackProperties(props, t)
 }
 
-func (p *Properties) unpackProperties(b *bytes.Buffer, t PacketType) error {
+func (p *Properties) unpackProperties(b *bytes.Buffer, t Type) error {
 	for {
 		bt, err := b.ReadByte()
 		if err != nil {
@@ -217,7 +217,7 @@ func (p *Properties) unpackProperties(b *bytes.Buffer, t PacketType) error {
 	return nil
 }
 
-func isValidProperty(h propertyHandler, t PacketType) bool {
+func isValidProperty(h propertyHandler, t Type) bool {
 	_, ok := h.types[t]
 	return ok
 }
@@ -310,7 +310,7 @@ func readPropByte(v **byte, b *bytes.Buffer, val func(byte) bool) error {
 		return ErrV5ProtocolError
 	}
 
-	prop, err := unpackByte(b, MQTT_V5_0)
+	prop, err := readByte(b, MQTT50)
 	if err != nil {
 		return err
 	}
@@ -328,7 +328,7 @@ func readPropBool(v **bool, b *bytes.Buffer) error {
 		return ErrV5ProtocolError
 	}
 
-	bt, err := unpackByte(b, MQTT_V5_0)
+	bt, err := readByte(b, MQTT50)
 	if err != nil {
 		return err
 	}
@@ -347,7 +347,7 @@ func readPropUint16(v **uint16, b *bytes.Buffer, val func(uint16) bool) error {
 		return ErrV5ProtocolError
 	}
 
-	prop, err := unpackUint16(b, MQTT_V5_0)
+	prop, err := readUint16(b, MQTT50)
 	if err != nil {
 		return err
 	}
@@ -365,7 +365,7 @@ func readPropUint32(v **uint32, b *bytes.Buffer, val func(uint32) bool) error {
 		return ErrV5ProtocolError
 	}
 
-	prop, err := unpackUint32(b, MQTT_V5_0)
+	prop, err := readUint32(b, MQTT50)
 	if err != nil {
 		return err
 	}
@@ -383,7 +383,7 @@ func readPropString(v *[]byte, b *bytes.Buffer) error {
 		return ErrV5ProtocolError
 	}
 
-	s, err := unpackString(b, MQTT_V5_0)
+	s, err := readString(b, MQTT50)
 	if err != nil {
 		return err
 	}
@@ -397,7 +397,7 @@ func readPropBinary(v *[]byte, b *bytes.Buffer) error {
 		return ErrV5ProtocolError
 	}
 
-	bt, err := unpackBinary(b, MQTT_V5_0)
+	bt, err := readBinary(b, MQTT50)
 	if err != nil {
 		return err
 	}

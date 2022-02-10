@@ -50,10 +50,10 @@ func readVariableInteger(rd io.Reader) (int, error) {
 	return value, nil
 }
 
-func unpackByte(buf *bytes.Buffer, ver MQTTVersion) (byte, error) {
+func readByte(buf *bytes.Buffer, ver MQTTVersion) (byte, error) {
 	b, err := buf.ReadByte()
 	if err != nil {
-		if ver == MQTT_V5_0 {
+		if ver == MQTT50 {
 			return 0, ErrV5MalformedPacket
 		}
 
@@ -63,10 +63,10 @@ func unpackByte(buf *bytes.Buffer, ver MQTTVersion) (byte, error) {
 	return b, nil
 }
 
-func unpackUint16(buf *bytes.Buffer, ver MQTTVersion) (uint16, error) {
+func readUint16(buf *bytes.Buffer, ver MQTTVersion) (uint16, error) {
 	u, err := decodeUint16(buf)
 	if err != nil {
-		if ver == MQTT_V5_0 {
+		if ver == MQTT50 {
 			return 0, ErrV5MalformedPacket
 		}
 
@@ -76,10 +76,10 @@ func unpackUint16(buf *bytes.Buffer, ver MQTTVersion) (uint16, error) {
 	return u, nil
 }
 
-func unpackUint32(buf *bytes.Buffer, ver MQTTVersion) (uint32, error) {
+func readUint32(buf *bytes.Buffer, ver MQTTVersion) (uint32, error) {
 	u, err := decodeUint32(buf)
 	if err != nil {
-		if ver == MQTT_V5_0 {
+		if ver == MQTT50 {
 			return 0, ErrV5MalformedPacket
 		}
 
@@ -89,10 +89,10 @@ func unpackUint32(buf *bytes.Buffer, ver MQTTVersion) (uint32, error) {
 	return u, nil
 }
 
-func unpackString(buf *bytes.Buffer, ver MQTTVersion) ([]byte, error) {
+func readString(buf *bytes.Buffer, ver MQTTVersion) ([]byte, error) {
 	str, err := decodeString(buf)
 	if err != nil {
-		if ver == MQTT_V5_0 {
+		if ver == MQTT50 {
 			return nil, ErrV5MalformedPacket
 		}
 
@@ -102,10 +102,10 @@ func unpackString(buf *bytes.Buffer, ver MQTTVersion) ([]byte, error) {
 	return str, nil
 }
 
-func unpackBinary(buf *bytes.Buffer, ver MQTTVersion) ([]byte, error) {
+func readBinary(buf *bytes.Buffer, ver MQTTVersion) ([]byte, error) {
 	b, err := decodeBinary(buf)
 	if err != nil {
-		if ver == MQTT_V5_0 {
+		if ver == MQTT50 {
 			return nil, ErrV5MalformedPacket
 		}
 

@@ -97,7 +97,7 @@ func TestPacket_ReadPacketError(t *testing.T) {
 		require.NotNil(t, err)
 	}()
 
-	conn.Close()
+	_ = conn.Close()
 	<-done
 }
 

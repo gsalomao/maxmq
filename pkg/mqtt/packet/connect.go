@@ -33,15 +33,15 @@ const (
 	connectFlagUserName     = 0x80
 )
 
-// PacketConnect represents the CONNECT Packet from MQTT specifications.
-type PacketConnect struct {
+// Connect represents the CONNECT Packet from MQTT specifications.
+type Connect struct {
 	// Version represents the MQTT version.
 	Version MQTTVersion
 
 	// CleanSession indicates if the session is temporary or not.
 	CleanSession bool
 
-	// WillFlag indicates that, if the Connect request is accepted, a Will
+	// WillFlag indicates that, if the Connect request is accepted, and the Will
 	// Message MUST be stored on the broker and associated with the connection.
 	WillFlag bool
 
@@ -53,7 +53,7 @@ type PacketConnect struct {
 	// published.
 	WillRetain bool
 
-	// UserNameFlag indicates if the User Name is present on the message or not.
+	// UserNameFlag indicates if the UserName is present on the message or not.
 	UserNameFlag bool
 
 	// PasswordFlag indicates if the Password is present on the message or not.
@@ -80,7 +80,7 @@ type PacketConnect struct {
 	// WillMessage represents the Will Message to be published.
 	WillMessage []byte
 
-	// UserName represents the User Name which the broker must use for
+	// UserName represents the UserName which the broker must use for
 	// authentication and authorization.
 	UserName []byte
 
@@ -100,32 +100,32 @@ const (
 )
 
 var protocolNames = map[MQTTVersion][]byte{
-	MQTT_V3_1:   {'M', 'Q', 'I', 's', 'd', 'p'},
-	MQTT_V3_1_1: {'M', 'Q', 'T', 'T'},
-	MQTT_V5_0:   {'M', 'Q', 'T', 'T'},
+	MQTT31:  {'M', 'Q', 'I', 's', 'd', 'p'},
+	MQTT311: {'M', 'Q', 'T', 'T'},
+	MQTT50:  {'M', 'Q', 'T', 'T'},
 }
 
-func newPacketConnect(fh FixedHeader) (Packet, error) {
-	if fh.PacketType != CONNECT {
+func newPacketConnect(fh fixedHeader) (Packet, error) {
+	if fh.packetType != CONNECT {
 		return nil, errors.New("packet type is not CONNECT")
 	}
 
-	if fh.ControlFlags != 0 {
+	if fh.controlFlags != 0 {
 		return nil, errors.New("invalid Control Flags (CONNECT)")
 	}
 
-	return &PacketConnect{}, nil
+	return &Connect{}, nil
 }
 
 // Pack encodes the packet into bytes and writes it into the io.Writer.
 // It is not supported by the CONNECT Packet in this broker.
-func (p *PacketConnect) Pack(_ io.Writer) error {
+func (p *Connect) Pack(_ io.Writer) error {
 	return errors.New("unsupported (CONNECT)")
 }
 
 // Unpack reads the packet bytes from bytes.Buffer and decodes them into the
 // packet.
-func (p *PacketConnect) Unpack(buf *bytes.Buffer) error {
+func (p *Connect) Unpack(buf *bytes.Buffer) error {
 	err := p.unpackVersion(buf)
 	if err != nil {
 		return err
@@ -136,7 +136,7 @@ func (p *PacketConnect) Unpack(buf *bytes.Buffer) error {
 		return err
 	}
 
-	p.KeepAlive, err = unpackUint16(buf, p.Version)
+	p.KeepAlive, err = readUint16(buf, p.Version)
 	if err != nil {
 		return err
 	}
@@ -170,11 +170,11 @@ func (p *PacketConnect) Unpack(buf *bytes.Buffer) error {
 }
 
 // Type returns the packet type.
-func (p *PacketConnect) Type() PacketType {
+func (p *Connect) Type() Type {
 	return CONNECT
 }
 
-func (p *PacketConnect) unpackVersion(buf *bytes.Buffer) error {
+func (p *Connect) unpackVersion(buf *bytes.Buffer) error {
 	protoName, err := decodeString(buf)
 	if err != nil {
 		return errors.New("cannot decode protocol name (CONNECT)")
@@ -195,7 +195,7 @@ func (p *PacketConnect) unpackVersion(buf *bytes.Buffer) error {
 	return nil
 }
 
-func (p *PacketConnect) unpackFlags(buf *bytes.Buffer) error {
+func (p *Connect) unpackFlags(buf *bytes.Buffer) error {
 	flags, err := buf.ReadByte()
 	if err != nil {
 		return errors.New("no Connect Flags (CONNECT)")
@@ -221,7 +221,7 @@ func (p *PacketConnect) unpackFlags(buf *bytes.Buffer) error {
 	return nil
 }
 
-func (p *PacketConnect) unpackFlagsWill(flags byte) error {
+func (p *Connect) unpackFlagsWill(flags byte) error {
 	p.WillFlag = hasFlag(flags, connectFlagWillFlag)
 
 	wQoS := flags & (connectFlagWillQoSMSB | connectFlagWillQoSLSB) >> 3
@@ -246,7 +246,7 @@ func (p *PacketConnect) unpackFlagsWill(flags byte) error {
 	return nil
 }
 
-func (p *PacketConnect) unpackFlagsUserNamePassword(flags byte) error {
+func (p *Connect) unpackFlagsUserNamePassword(flags byte) error {
 	p.PasswordFlag = hasFlag(flags, connectFlagPassword)
 	p.UserNameFlag = hasFlag(flags, connectFlagUserName)
 
@@ -258,8 +258,8 @@ func (p *PacketConnect) unpackFlagsUserNamePassword(flags byte) error {
 	return nil
 }
 
-func (p *PacketConnect) unpackProperties(buf *bytes.Buffer) error {
-	if p.Version != MQTT_V5_0 {
+func (p *Connect) unpackProperties(buf *bytes.Buffer) error {
+	if p.Version != MQTT50 {
 		return nil
 	}
 
@@ -275,19 +275,19 @@ func (p *PacketConnect) unpackProperties(buf *bytes.Buffer) error {
 	return nil
 }
 
-func (p *PacketConnect) unpackClientID(buf *bytes.Buffer) error {
+func (p *Connect) unpackClientID(buf *bytes.Buffer) error {
 	var err error
 
-	p.ClientID, err = unpackString(buf, p.Version) // MQTT-3.1.3-2
+	p.ClientID, err = readString(buf, p.Version) // MQTT-3.1.3-2
 	if err != nil {
 		return newErrMalformedPacket(p.Version, "invalid ClientID (CONNECT)")
 	}
 
 	if len(p.ClientID) == 0 {
-		if p.Version == MQTT_V3_1 {
+		if p.Version == MQTT31 {
 			return ErrV3IdentifierRejected
 		}
-		if p.Version == MQTT_V3_1_1 && !p.CleanSession { // MQTT-3.1.3-7
+		if p.Version == MQTT311 && !p.CleanSession { // MQTT-3.1.3-7
 			return ErrV3IdentifierRejected
 		}
 	}
@@ -295,14 +295,14 @@ func (p *PacketConnect) unpackClientID(buf *bytes.Buffer) error {
 	return nil
 }
 
-func (p *PacketConnect) unpackWill(buf *bytes.Buffer) error {
+func (p *Connect) unpackWill(buf *bytes.Buffer) error {
 	if !p.WillFlag { // MQTT-3.1.2-8
 		return nil
 	}
 
 	var err error
 
-	if p.Version == MQTT_V5_0 {
+	if p.Version == MQTT50 {
 		p.WillProperties = &Properties{}
 
 		err = p.WillProperties.unpack(buf, CONNECT)
@@ -311,12 +311,12 @@ func (p *PacketConnect) unpackWill(buf *bytes.Buffer) error {
 		}
 	}
 
-	p.WillTopic, err = unpackString(buf, p.Version) // MQTT-3.1.3-10
+	p.WillTopic, err = readString(buf, p.Version) // MQTT-3.1.3-10
 	if err != nil {
 		return newErrMalformedPacket(p.Version, "invalid Will Topic (CONNECT)")
 	}
 
-	p.WillMessage, err = unpackString(buf, p.Version)
+	p.WillMessage, err = readString(buf, p.Version)
 	if err != nil {
 		return newErrMalformedPacket(p.Version,
 			"invalid Will Message (CONNECT)")
@@ -325,14 +325,14 @@ func (p *PacketConnect) unpackWill(buf *bytes.Buffer) error {
 	return nil
 }
 
-func (p *PacketConnect) unpackUserName(buf *bytes.Buffer) error {
+func (p *Connect) unpackUserName(buf *bytes.Buffer) error {
 	if !p.UserNameFlag { // MQTT-3.1.2-18, MQTT-3.1.2-19
 		return nil
 	}
 
 	var err error
 
-	p.UserName, err = unpackString(buf, p.Version) // MQTT-3.1.3-11
+	p.UserName, err = readString(buf, p.Version) // MQTT-3.1.3-11
 	if err != nil {
 		return newErrMalformedPacket(p.Version, "invalid User Name (CONNECT)")
 	}
@@ -340,14 +340,14 @@ func (p *PacketConnect) unpackUserName(buf *bytes.Buffer) error {
 	return nil
 }
 
-func (p *PacketConnect) unpackPassword(buf *bytes.Buffer) error {
+func (p *Connect) unpackPassword(buf *bytes.Buffer) error {
 	if !p.PasswordFlag { // MQTT-3.1.2-20, MQTT-3.1.2-21
 		return nil
 	}
 
 	var err error
 
-	p.Password, err = unpackBinary(buf, p.Version)
+	p.Password, err = readBinary(buf, p.Version)
 	if err != nil {
 		return newErrMalformedPacket(p.Version, "invalid Password (CONNECT)")
 	}

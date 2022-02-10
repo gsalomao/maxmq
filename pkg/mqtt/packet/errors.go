@@ -22,25 +22,29 @@ import (
 )
 
 var (
-	// The broker does not support the level of the MQTT protocol.
+	// ErrV3UnacceptableProtocolVersion indicates that the broker does not
+	// support the level of the MQTT protocol.
 	ErrV3UnacceptableProtocolVersion = &Error{
 		Code:   ReturnCodeV3UnacceptableProtocolVersion,
 		Reason: "unacceptable protocol version",
 	}
 
-	// The client identifier is correct UTF-8 but not allowed.
+	// ErrV3IdentifierRejected indicates that the client identifier is correct
+	// UTF-8 but not allowed.
 	ErrV3IdentifierRejected = &Error{
 		Code:   ReturnCodeV3IdentifierRejected,
 		Reason: "client ID not allowed",
 	}
 
-	// Data within the CONNECT packet could not be correctly parsed.
+	// ErrV5MalformedPacket indicates that data within the CONNECT packet could
+	// not be correctly parsed.
 	ErrV5MalformedPacket = &Error{
 		Code:   ReturnCodeV5MalformedPacket,
 		Reason: "malformed packet",
 	}
 
-	//  Data in the CONNECT packet does not conform with the V5 specification.
+	// ErrV5ProtocolError indicates that data in the CONNECT packet does not
+	// conform with the V5.x specification.
 	ErrV5ProtocolError = &Error{
 		Code:   ReturnCodeV5ProtocolError,
 		Reason: "protocol error",
@@ -62,7 +66,7 @@ func (err Error) Error() string {
 }
 
 func newErrMalformedPacket(v MQTTVersion, msg string) error {
-	if v == MQTT_V5_0 {
+	if v == MQTT50 {
 		return ErrV5MalformedPacket
 	}
 

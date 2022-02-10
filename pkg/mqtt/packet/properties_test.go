@@ -42,17 +42,17 @@ func TestProperties_Unpack(t *testing.T) {
 	}
 	msg[10] = byte(len(msg)) - 14
 
-	fh := FixedHeader{
-		PacketType:      CONNECT,
-		ControlFlags:    0,
-		RemainingLength: len(msg),
+	fh := fixedHeader{
+		packetType:      CONNECT,
+		controlFlags:    0,
+		remainingLength: len(msg),
 	}
 
 	pkt, err := newPacketConnect(fh)
 	require.Nil(t, err)
 
 	require.Equal(t, CONNECT, pkt.Type())
-	connPkt, _ := pkt.(*PacketConnect)
+	connPkt, _ := pkt.(*Connect)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
 	require.Nil(t, err)
@@ -90,17 +90,17 @@ func TestProperties_UnpackWill(t *testing.T) {
 	}
 	msg[14] = byte(len(msg)) - 15 - 3 - 3
 
-	fh := FixedHeader{
-		PacketType:      CONNECT,
-		ControlFlags:    0,
-		RemainingLength: len(msg),
+	fh := fixedHeader{
+		packetType:      CONNECT,
+		controlFlags:    0,
+		remainingLength: len(msg),
 	}
 
 	pkt, err := newPacketConnect(fh)
 	require.Nil(t, err)
 
 	require.Equal(t, CONNECT, pkt.Type())
-	connPkt, _ := pkt.(*PacketConnect)
+	connPkt, _ := pkt.(*Connect)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
 	require.Nil(t, err)
@@ -138,10 +138,10 @@ func TestProperties_UnpackMalformed(t *testing.T) {
 		msg = append(msg, byte(len(prop)))
 		msg = append(msg, prop...)
 
-		fh := FixedHeader{
-			PacketType:      CONNECT,
-			ControlFlags:    0,
-			RemainingLength: len(msg),
+		fh := fixedHeader{
+			packetType:      CONNECT,
+			controlFlags:    0,
+			remainingLength: len(msg),
 		}
 
 		pkt, err := newPacketConnect(fh)
@@ -186,10 +186,10 @@ func TestProperties_UnpackProtocolError(t *testing.T) {
 		msg = append(msg, p...)
 		msg = append(msg, 0, 1, 'a') // client ID
 
-		fh := FixedHeader{
-			PacketType:      CONNECT,
-			ControlFlags:    0,
-			RemainingLength: len(msg),
+		fh := fixedHeader{
+			packetType:      CONNECT,
+			controlFlags:    0,
+			remainingLength: len(msg),
 		}
 
 		pkt, err := newPacketConnect(fh)
@@ -207,10 +207,10 @@ func TestProperties_UnpackProtocolError(t *testing.T) {
 		}
 		msg = append(msg, p...)
 
-		fh = FixedHeader{
-			PacketType:      CONNECT,
-			ControlFlags:    0,
-			RemainingLength: len(msg),
+		fh = fixedHeader{
+			packetType:      CONNECT,
+			controlFlags:    0,
+			remainingLength: len(msg),
 		}
 
 		pkt, err = newPacketConnect(fh)
@@ -226,10 +226,10 @@ func TestProperties_UnpackInvalidLength(t *testing.T) {
 		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 0, // variable header
 	}
 
-	fh := FixedHeader{
-		PacketType:      CONNECT,
-		ControlFlags:    0,
-		RemainingLength: len(msg),
+	fh := fixedHeader{
+		packetType:      CONNECT,
+		controlFlags:    0,
+		remainingLength: len(msg),
 	}
 
 	pkt, err := newPacketConnect(fh)

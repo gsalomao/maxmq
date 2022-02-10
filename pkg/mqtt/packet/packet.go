@@ -22,26 +22,12 @@ import (
 	"io"
 )
 
-// FixedHeader represents the MQTT fixed header based on the MQTT
-// specifications.
-type FixedHeader struct {
-	// PacketType represents the packet type (e.g. CONNECT, CONNACK, etc.).
-	PacketType PacketType
-
-	// ControlFlags represents the control flags.
-	ControlFlags byte
-
-	// RemainingLength is the number of bytes remaining within the current
-	// packet.
-	RemainingLength int
-}
-
-// PacketType represents the packet type (e.g. CONNECT, CONNACK, etc.).
-type PacketType byte
+// Type represents the packet type (e.g. CONNECT, CONNACK, etc.).
+type Type byte
 
 // Control packet type based on the MQTT specifications.
 const (
-	RESERVED PacketType = iota
+	RESERVED Type = iota
 	CONNECT
 	CONNACK
 	PUBLISH
@@ -63,9 +49,9 @@ type MQTTVersion byte
 
 // MQTT version.
 const (
-	MQTT_V3_1 MQTTVersion = iota + 3
-	MQTT_V3_1_1
-	MQTT_V5_0
+	MQTT31 MQTTVersion = iota + 3
+	MQTT311
+	MQTT50
 )
 
 // Packet represents the MQTT packet.
@@ -78,17 +64,21 @@ type Packet interface {
 	Unpack(buf *bytes.Buffer) error
 
 	// Type returns the packet type.
-	Type() PacketType
+	Type() Type
 }
 
-var packetTypeToFactory = map[PacketType]func(FixedHeader) (Packet, error){
+type fixedHeader struct {
+	packetType      Type
+	controlFlags    byte
+	remainingLength int
+}
+
+var packetTypeToFactory = map[Type]func(fixedHeader) (Packet, error){
 	CONNECT: newPacketConnect,
 }
 
-// NewPacket creates a Packet based on the packet type from the FixedHeader.
-// It returns an error if the packet type is invalid.
-func NewPacket(fh FixedHeader) (Packet, error) {
-	fn, ok := packetTypeToFactory[fh.PacketType]
+func newPacket(fh fixedHeader) (Packet, error) {
+	fn, ok := packetTypeToFactory[fh.packetType]
 	if !ok {
 		return nil, errors.New("invalid packet type")
 	}
@@ -96,7 +86,7 @@ func NewPacket(fh FixedHeader) (Packet, error) {
 	return fn(fh)
 }
 
-var packetTypeToString = map[PacketType]string{
+var packetTypeToString = map[Type]string{
 	CONNECT:     "CONNECT",
 	CONNACK:     "CONNACK",
 	PUBLISH:     "PUBLISH",
@@ -114,7 +104,7 @@ var packetTypeToString = map[PacketType]string{
 }
 
 // String returns the PacketType in string format.
-func (pt PacketType) String() string {
+func (pt Type) String() string {
 	n, ok := packetTypeToString[pt]
 	if !ok {
 		return ""
@@ -124,9 +114,9 @@ func (pt PacketType) String() string {
 }
 
 var versionToString = map[MQTTVersion]string{
-	MQTT_V3_1:   "3.1",
-	MQTT_V3_1_1: "3.1.1",
-	MQTT_V5_0:   "5.0",
+	MQTT31:  "3.1",
+	MQTT311: "3.1.1",
+	MQTT50:  "5.0",
 }
 
 // String returns the MQTTVersion in string format.

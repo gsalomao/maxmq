@@ -87,7 +87,7 @@ func TestRunner_RunAndStop(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	mockConnHandler := mocks.ConnectionHandlerMock{}
 
-	mqtt, err := mqtt.NewRunner(
+	r, err := mqtt.NewRunner(
 		mqtt.WithConfiguration(mqtt.Configuration{
 			TCPAddress: ":1883",
 		}),
@@ -98,13 +98,13 @@ func TestRunner_RunAndStop(t *testing.T) {
 
 	done := make(chan bool)
 	go func() {
-		err = mqtt.Run()
+		err = r.Run()
 		done <- true
 	}()
 
 	<-time.After(5 * time.Millisecond)
 	assert.Contains(t, logStub.String(), "Listening on [::]:1883")
-	mqtt.Stop()
+	r.Stop()
 
 	<-done
 	assert.Nil(t, err)
@@ -120,7 +120,7 @@ func TestRunner_Run_Accept(t *testing.T) {
 	mockConnHandler.On("Handle", mock.Anything).
 		Return(func() { handled <- true })
 
-	mqtt, err := mqtt.NewRunner(
+	r, err := mqtt.NewRunner(
 		mqtt.WithConfiguration(mqtt.Configuration{
 			TCPAddress: ":1883",
 		}),
@@ -131,17 +131,19 @@ func TestRunner_Run_Accept(t *testing.T) {
 
 	done := make(chan bool)
 	go func() {
-		err = mqtt.Run()
+		err = r.Run()
 		done <- true
 	}()
 
 	<-time.After(time.Millisecond)
 	conn, err := net.Dial("tcp", ":1883")
 	require.Nil(t, err)
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	<-handled
-	mqtt.Stop()
+	r.Stop()
 	<-done
 	assert.Nil(t, err)
 }

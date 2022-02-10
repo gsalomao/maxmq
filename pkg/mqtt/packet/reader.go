@@ -31,7 +31,7 @@ type Reader struct {
 
 // ReaderOptions contains the options for the Reader.
 type ReaderOptions struct {
-	// BufferSize represents the size of the bufio.Reader.
+	// BufferSize represents the buffer size.
 	BufferSize int
 
 	// MaxPacketSize represents the maximum packet size, in bytes, allowed.
@@ -54,27 +54,27 @@ func (r *Reader) ReadPacket() (Packet, error) {
 		return nil, err
 	}
 
-	len, err := readVariableInteger(&r.bufReader)
+	l, err := readVariableInteger(&r.bufReader)
 	if err != nil {
 		return nil, err
 	}
 
-	if len > r.maxPacketSize {
+	if l > r.maxPacketSize {
 		return nil, errors.New("max packet size exceeded")
 	}
 
-	fh := FixedHeader{
-		PacketType:      PacketType(ctrlByte >> 4),
-		ControlFlags:    ctrlByte & 0x0F,
-		RemainingLength: len,
+	fh := fixedHeader{
+		packetType:      Type(ctrlByte >> 4),
+		controlFlags:    ctrlByte & 0x0F,
+		remainingLength: l,
 	}
 
-	pkt, err := NewPacket(fh)
+	pkt, err := newPacket(fh)
 	if err != nil {
 		return nil, err
 	}
 
-	data := make([]byte, fh.RemainingLength)
+	data := make([]byte, fh.remainingLength)
 	if _, err := io.ReadFull(&r.bufReader, data); err != nil {
 		return nil, errors.New("missing data")
 	}

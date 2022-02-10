@@ -100,7 +100,7 @@ func (mqtt *Runner) Stop() {
 	mqtt.log.Debug().Msg("MQTT Stopping runner")
 
 	mqtt.setRunningState(false)
-	mqtt.tcpLsn.Close()
+	_ = mqtt.tcpLsn.Close()
 }
 
 func (mqtt *Runner) setRunningState(st bool) {

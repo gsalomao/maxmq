@@ -53,7 +53,7 @@ func TestConnectionManager_HandleConnectPacket(t *testing.T) {
 	_, err := conn.Write(msg)
 	require.Nil(t, err)
 
-	conn.Close()
+	_ = conn.Close()
 	<-done
 }
 
@@ -75,7 +75,7 @@ func TestConnectionManager_HandleClosed(t *testing.T) {
 	}()
 
 	<-time.After(time.Millisecond)
-	conn.Close()
+	_ = conn.Close()
 
 	<-done
 	assert.Contains(t, logStub.String(), "Connection was closed")
@@ -90,7 +90,7 @@ func TestConnectionManager_HandleFailedToSetDeadline(t *testing.T) {
 	}, logStub.Logger())
 
 	conn, sConn := net.Pipe()
-	conn.Close()
+	_ = conn.Close()
 
 	c := cm.NewConnection(sConn)
 	cm.Handle(c)
@@ -156,7 +156,9 @@ func TestConnectionManager_Close(t *testing.T) {
 
 	conn, err := net.Dial("tcp", lsn.Addr().String())
 	require.Nil(t, err)
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	<-done
 	assert.Contains(t, logStub.String(), "Closing connection")

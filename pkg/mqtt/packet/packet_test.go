@@ -14,98 +14,103 @@
  * limitations under the License.
  */
 
-package packet_test
+package packet
 
 import (
 	"testing"
 
-	"github.com/gsalomao/maxmq/pkg/mqtt/packet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPacket_NewPacket(t *testing.T) {
 	testCases := []struct {
-		tp    packet.PacketType
+		tp    Type
 		flags byte
 		name  string
 	}{
-		{tp: packet.CONNECT, flags: 0, name: "CONNECT"},
+		{tp: CONNECT, flags: 0, name: "CONNECT"},
 	}
 
 	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
-			fh := packet.FixedHeader{
-				PacketType:   test.tp,
-				ControlFlags: test.flags,
-			}
+		t.Run(
+			test.name, func(t *testing.T) {
+				fh := fixedHeader{
+					packetType:   test.tp,
+					controlFlags: test.flags,
+				}
 
-			pkt, err := packet.NewPacket(fh)
-			require.Nil(t, err)
-			require.NotNil(t, pkt)
+				pkt, err := newPacket(fh)
+				require.Nil(t, err)
+				require.NotNil(t, pkt)
 
-			assert.Equal(t, pkt.Type().String(), test.name)
-		})
+				assert.Equal(t, pkt.Type().String(), test.name)
+			},
+		)
 	}
 }
 
 func TestPacket_NewPacketInvalid(t *testing.T) {
-	fh := packet.FixedHeader{
-		PacketType:   packet.RESERVED,
-		ControlFlags: 0,
+	fh := fixedHeader{
+		packetType:   RESERVED,
+		controlFlags: 0,
 	}
 
-	pkt, err := packet.NewPacket(fh)
+	pkt, err := newPacket(fh)
 	assert.NotNil(t, err)
 	assert.Nil(t, pkt)
 }
 
 func TestPacket_PacketTypeToString(t *testing.T) {
 	testCases := []struct {
-		tp   packet.PacketType
+		tp   Type
 		name string
 	}{
-		{tp: packet.CONNECT, name: "CONNECT"},
-		{tp: packet.CONNACK, name: "CONNACK"},
-		{tp: packet.PUBLISH, name: "PUBLISH"},
-		{tp: packet.PUBACK, name: "PUBACK"},
-		{tp: packet.PUBREC, name: "PUBREC"},
-		{tp: packet.PUBREL, name: "PUBREL"},
-		{tp: packet.PUBCOMP, name: "PUBCOMP"},
-		{tp: packet.SUBSCRIBE, name: "SUBSCRIBE"},
-		{tp: packet.SUBACK, name: "SUBACK"},
-		{tp: packet.UNSUBSCRIBE, name: "UNSUBSCRIBE"},
-		{tp: packet.UNSUBACK, name: "UNSUBACK"},
-		{tp: packet.PINGREQ, name: "PINGREQ"},
-		{tp: packet.PINGRESP, name: "PINGRESP"},
-		{tp: packet.DISCONNECT, name: "DISCONNECT"},
+		{tp: CONNECT, name: "CONNECT"},
+		{tp: CONNACK, name: "CONNACK"},
+		{tp: PUBLISH, name: "PUBLISH"},
+		{tp: PUBACK, name: "PUBACK"},
+		{tp: PUBREC, name: "PUBREC"},
+		{tp: PUBREL, name: "PUBREL"},
+		{tp: PUBCOMP, name: "PUBCOMP"},
+		{tp: SUBSCRIBE, name: "SUBSCRIBE"},
+		{tp: SUBACK, name: "SUBACK"},
+		{tp: UNSUBSCRIBE, name: "UNSUBSCRIBE"},
+		{tp: UNSUBACK, name: "UNSUBACK"},
+		{tp: PINGREQ, name: "PINGREQ"},
+		{tp: PINGRESP, name: "PINGRESP"},
+		{tp: DISCONNECT, name: "DISCONNECT"},
 	}
 
 	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.name, test.tp.String())
-		})
+		t.Run(
+			test.name, func(t *testing.T) {
+				assert.Equal(t, test.name, test.tp.String())
+			},
+		)
 	}
 }
 
 func TestPacket_PacketTypeToStringInvalid(t *testing.T) {
-	tp := packet.RESERVED
+	tp := RESERVED
 	assert.Equal(t, "", tp.String())
 }
 
 func TestPacket_MQTTVersionToString(t *testing.T) {
 	testCases := []struct {
-		ver  packet.MQTTVersion
+		ver  MQTTVersion
 		name string
 	}{
-		{ver: packet.MQTT_V3_1, name: "3.1"},
-		{ver: packet.MQTT_V3_1_1, name: "3.1.1"},
-		{ver: packet.MQTT_V5_0, name: "5.0"},
+		{ver: MQTT31, name: "3.1"},
+		{ver: MQTT311, name: "3.1.1"},
+		{ver: MQTT50, name: "5.0"},
 	}
 
 	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.name, test.ver.String())
-		})
+		t.Run(
+			test.name, func(t *testing.T) {
+				assert.Equal(t, test.name, test.ver.String())
+			},
+		)
 	}
 }
