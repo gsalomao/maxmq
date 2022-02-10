@@ -29,7 +29,7 @@ reused. If a decision is reversed, we will keep the old one around, but mark it
 as superseded. (It's still relevant to know that it was the decision, but is no
 longer the decision.)
 
-We will keep ADRs in the project repository under docs/adr/NNNN-title.md and
+We will keep ADRs in the project repository under docs/adr/NNN-title.md, and
 they will be written in Markdown.
 
 A simple format with be used, so each document is easy to digest. The format has

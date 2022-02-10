@@ -21,7 +21,7 @@ chosen carefully.
 ## Decision
 
 Today, there are several protocol in the IoT market, such as MQTT, CoAP,
-LoRaWAN, and so on. Choose one protocol for the MaxMQ is not a simple task and
+LoRaWAN, and so on. Choose one protocol for the MaxMQ is not a simple task, and
 we chose for the MaxMQ the MQTT as the main protocol.
 
 This does not mean that the MaxMQ will not implement other protocols than the

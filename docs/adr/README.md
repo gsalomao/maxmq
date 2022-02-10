@@ -26,6 +26,6 @@ decisions here, and then modify the code to match.
 
 ### Accepted
 
-* [1. Record architecture decisions](0001-record-architecture-decisions.md)
-* [2. Use Go language](0002-use-go-language.md)
-* [3. Use MQTT protocol](0003-use-mqtt-protocol.md)
+* [1. Record architecture decisions](001-record-architecture-decisions.md)
+* [2. Use Go language](002-use-go-language.md)
+* [3. Use MQTT protocol](003-use-mqtt-protocol.md)
