@@ -26,7 +26,7 @@ CYAN   := $(shell tput -Txterm setaf 6)
 RESET  := $(shell tput -Txterm sgr0)
 BOLD	= \033[0;1m
 CYAN	= \033[0;36m
-NOCOLOR	= \033[0m
+NO_COLOR	= \033[0m
 
 # Build parameters
 VERSION = $(shell git describe --tags --always --dirty)
@@ -84,7 +84,7 @@ coverage: ## Run tests with coverage report
 	$(call print_task_result,"Generating coverage report","done")
 
 coverage-html: coverage ## Open the coverage report in the browser
-	$(call print_task,"Openning coverage report")
+	$(call print_task,"Opening coverage report")
 	@go tool cover -html coverage/coverage.out
 
 ## Analyze
@@ -130,7 +130,7 @@ help: ## Show this help
 		}' $(MAKEFILE_LIST)
 
 define print_task
-	@echo "${CYAN}==>${BOLD} $(1)...${NOCOLOR}"
+	@echo "${CYAN}==>${BOLD} $(1)...${NO_COLOR}"
 endef
 
 define print_task_result

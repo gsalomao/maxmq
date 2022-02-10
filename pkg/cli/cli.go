@@ -28,7 +28,7 @@ type CLI struct {
 	rootCmd *cobra.Command
 }
 
-// version represents the application version and it's updated at build time.
+// version represents the application version, and it's updated at build time.
 var version = "0.0.0"
 
 // New creates an instance of the command line interface.
@@ -58,7 +58,7 @@ func (c CLI) Run() error {
 	return c.rootCmd.Execute()
 }
 
-// registerCommands adds chield commands to the root command.
+// registerCommands adds child commands to the root command.
 func (c *CLI) registerCommands() {
 	c.rootCmd.AddCommand(newCommandStart())
 }

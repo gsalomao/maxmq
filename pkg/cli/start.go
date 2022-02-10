@@ -72,7 +72,7 @@ func newCommandStart() *cobra.Command {
 			}
 
 			cm := mqtt.NewConnectionManager(mqttConf, &log)
-			mqtt, err := mqtt.NewRunner(
+			r, err := mqtt.NewRunner(
 				mqtt.WithConfiguration(mqttConf),
 				mqtt.WithConnectionHandler(&cm),
 				mqtt.WithLogger(&log),
@@ -82,7 +82,7 @@ func newCommandStart() *cobra.Command {
 					err.Error())
 			}
 
-			startBroker(mqtt, &log)
+			startBroker(r, &log)
 		},
 	}
 

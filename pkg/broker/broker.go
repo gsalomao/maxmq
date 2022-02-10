@@ -78,7 +78,7 @@ func (b *Broker) Start() error {
 
 // Stop stops the broker stopping all runners.
 func (b *Broker) Stop() {
-	b.log.Info().Msg("Stoping broker")
+	b.log.Info().Msg("Stopping broker")
 	b.wg.Add(1)
 
 	for _, r := range b.runners {

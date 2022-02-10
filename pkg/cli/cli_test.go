@@ -45,9 +45,9 @@ func TestCLI_Run(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			out := bytes.NewBufferString("")
-			cli := cli.New(out, []string{test.in})
+			c := cli.New(out, []string{test.in})
 
-			err := cli.Run()
+			err := c.Run()
 
 			assert.Nil(t, err)
 			assert.Contains(t, out.String(), test.out)
