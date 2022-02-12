@@ -54,7 +54,7 @@ func (r *Reader) ReadPacket() (Packet, error) {
 		return nil, err
 	}
 
-	l, err := readVariableInteger(&r.bufReader)
+	l, err := readVarInteger(&r.bufReader)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func (r *Reader) ReadPacket() (Packet, error) {
 
 	fh := fixedHeader{
 		packetType:      Type(ctrlByte >> 4),
-		controlFlags:    ctrlByte & 0x0F,
+		controlFlags:    ctrlByte & controlByteMask,
 		remainingLength: l,
 	}
 

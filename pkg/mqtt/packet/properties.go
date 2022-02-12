@@ -17,7 +17,9 @@
 package packet
 
 import (
+	"bufio"
 	"bytes"
+	"fmt"
 )
 
 // Properties contains all properties available in the MQTT specification
@@ -45,8 +47,15 @@ type Properties struct {
 	// must store the Session State after the network connection is closed.
 	SessionExpiryInterval *uint32
 
-	// AuthMethod contains the name of the authentication method used for
-	// extended authentication.
+	// AssignedClientID represents the client ID assigned by the broker in case
+	// of the client connected with the broker without specifying a client ID.
+	AssignedClientID []byte
+
+	// ServerKeepAlive represents the Keep Alive, in seconds, assigned by the
+	// broker, and to be used by the client.
+	ServerKeepAlive *uint16
+
+	// AuthMethod contains the name of the authentication method.
 	AuthMethod []byte
 
 	// AuthData contains the authentication data.
@@ -54,7 +63,7 @@ type Properties struct {
 
 	// RequestProblemInfo indicates whether the Reason String or User Properties
 	// can be sent to the client in case of failures on any packet.
-	RequestProblemInfo *bool
+	RequestProblemInfo *byte
 
 	// WillDelayInterval represents the time, in seconds, which the broker must
 	// delay publishing the Will Message.
@@ -62,22 +71,52 @@ type Properties struct {
 
 	// RequestResponseInfo indicates if the broker can send Response Information
 	// with the CONNACK Packet.
-	RequestResponseInfo *bool
+	RequestResponseInfo *byte
 
-	// ReceiveMaximum represents the maximum number of QoS 1 and QoS 2 messages
-	// the client is willing to process concurrently.
+	// ResponseInfo contains a string that can be used to as the basis for
+	// creating a Response Topic.
+	ResponseInfo []byte
+
+	// ServerReference contains a string indicating another broker the client
+	// can use.
+	ServerReference []byte
+
+	// ReasonString represents the reason associated with the response.
+	ReasonString []byte
+
+	// ReceiveMaximum represents the maximum number of in-flight messages with
+	// QoS > 0.
 	ReceiveMaximum *uint16
 
-	// TopicAliasMaximum represents the highest value that the client will
-	// accept as a Topic Alias sent by the broker.
+	// TopicAliasMaximum represents the highest number of Topic Alias that the
+	// client or the broker accepts.
 	TopicAliasMaximum *uint16
+
+	// MaximumQoS represents the maximum QoS supported by the broker.
+	MaximumQoS *byte
+
+	// RetainAvailable indicates whether the broker supports retained messages
+	// or not.
+	RetainAvailable *byte
 
 	// UserProperties is a map of user provided properties.
 	UserProperties []UserProperty
 
 	// MaximumPacketSize represents the maximum packet size, in bytes, the
-	// client is willing to accept.
+	// client or the broker is willing to accept.
 	MaximumPacketSize *uint32
+
+	// WildcardSubscriptionAvailable indicates whether the broker supports
+	// Wildcard Subscriptions or not.
+	WildcardSubscriptionAvailable *byte
+
+	// SubscriptionIDAvailable indicates whether the broker supports
+	// Subscription Identifiers or not.
+	SubscriptionIDAvailable *byte
+
+	// SharedSubscriptionAvailable indicates whether the broker supports Shared
+	// Subscriptions or not.
+	SharedSubscriptionAvailable *byte
 }
 
 // UserProperty contains the key/value pair to a user property.
@@ -89,96 +128,241 @@ type UserProperty struct {
 	Value []byte
 }
 
-type propertyType byte
+type propType byte
 
 const (
-	propertyPayloadFormat         propertyType = 0x01
-	propertyMessageExpiryInterval propertyType = 0x02
-	propertyContentType           propertyType = 0x03
-	propertyResponseTopic         propertyType = 0x08
-	propertyCorrelationData       propertyType = 0x09
-	propertySessionExpiryInterval propertyType = 0x11
-	propertyAuthMethod            propertyType = 0x15
-	propertyAuthData              propertyType = 0x16
-	propertyRequestProblemInfo    propertyType = 0x17
-	propertyWillDelayInterval     propertyType = 0x18
-	propertyRequestResponseInfo   propertyType = 0x19
-	propertyReceiveMaximum        propertyType = 0x21
-	propertyTopicAliasMaximum     propertyType = 0x22
-	propertyUser                  propertyType = 0x26
-	propertyMaximumPacketSize     propertyType = 0x27
+	propPayloadFormatIndicator        propType = 0x01
+	propMessageExpiryInterval         propType = 0x02
+	propContentType                   propType = 0x03
+	propResponseTopic                 propType = 0x08
+	propCorrelationData               propType = 0x09
+	propSessionExpiryInterval         propType = 0x11
+	propAssignedClientID              propType = 0x12
+	propServerKeepAlive               propType = 0x13
+	propAuthMethod                    propType = 0x15
+	propAuthData                      propType = 0x16
+	propRequestProblemInfo            propType = 0x17
+	propWillDelayInterval             propType = 0x18
+	propRequestResponseInfo           propType = 0x19
+	propResponseInfo                  propType = 0x1A
+	propServerReference               propType = 0x1C
+	propReasonString                  propType = 0x1F
+	propReceiveMaximum                propType = 0x21
+	propTopicAliasMaximum             propType = 0x22
+	propMaximumQoS                    propType = 0x24
+	propRetainAvailable               propType = 0x25
+	propUser                          propType = 0x26
+	propMaximumPacketSize             propType = 0x27
+	propWildcardSubscriptionAvailable propType = 0x28
+	propSubscriptionIDAvailable       propType = 0x29
+	propSharedSubscriptionAvailable   propType = 0x2A
 )
 
 type propertyHandler struct {
-	fn    func(p *Properties, b *bytes.Buffer) error
-	types map[Type]struct{}
+	types  map[Type]struct{}
+	unpack func(p *Properties, b *bytes.Buffer) error
 }
 
-var propertyHandlers = map[propertyType]propertyHandler{
-	propertyPayloadFormat: {
-		fn:    unpackPropertyPayloadFormat,
-		types: map[Type]struct{}{CONNECT: {}},
+var propertyHandlers = map[propType]propertyHandler{
+	propPayloadFormatIndicator: {
+		types:  map[Type]struct{}{CONNECT: {}},
+		unpack: unpackPropPayloadFormat,
 	},
-	propertyMessageExpiryInterval: {
-		fn:    unpackPropertyMessageExpiryInterval,
-		types: map[Type]struct{}{CONNECT: {}},
+	propMessageExpiryInterval: {
+		types:  map[Type]struct{}{CONNECT: {}},
+		unpack: unpackPropMessageExpiryInterval,
 	},
-	propertyContentType: {
-		fn:    unpackPropertyContentType,
-		types: map[Type]struct{}{CONNECT: {}},
+	propContentType: {
+		types:  map[Type]struct{}{CONNECT: {}},
+		unpack: unpackPropContentType,
 	},
-	propertyResponseTopic: {
-		fn:    unpackPropertyResponseTopic,
-		types: map[Type]struct{}{CONNECT: {}},
+	propResponseTopic: {
+		types:  map[Type]struct{}{CONNECT: {}},
+		unpack: unpackPropResponseTopic,
 	},
-	propertyCorrelationData: {
-		fn:    unpackPropertyCorrelationData,
-		types: map[Type]struct{}{CONNECT: {}},
+	propCorrelationData: {
+		types:  map[Type]struct{}{CONNECT: {}},
+		unpack: unpackPropCorrelationData,
 	},
-	propertySessionExpiryInterval: {
-		fn:    unpackPropertySessionExpiryInterval,
-		types: map[Type]struct{}{CONNECT: {}},
+	propSessionExpiryInterval: {
+		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}},
+		unpack: unpackPropSessionExpiryInterval,
 	},
-	propertyAuthMethod: {
-		fn:    unpackPropertyAuthMethod,
-		types: map[Type]struct{}{CONNECT: {}},
+	propAssignedClientID: {
+		types: map[Type]struct{}{CONNACK: {}},
 	},
-	propertyAuthData: {
-		fn:    unpackPropertyAuthData,
-		types: map[Type]struct{}{CONNECT: {}},
+	propServerKeepAlive: {
+		types: map[Type]struct{}{CONNACK: {}},
 	},
-	propertyRequestProblemInfo: {
-		fn:    unpackPropertyRequestProblemInfo,
-		types: map[Type]struct{}{CONNECT: {}},
+	propAuthMethod: {
+		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}},
+		unpack: unpackPropAuthMethod,
 	},
-	propertyWillDelayInterval: {
-		fn:    unpackPropertyWillDelayInterval,
-		types: map[Type]struct{}{CONNECT: {}},
+	propAuthData: {
+		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}},
+		unpack: unpackPropAuthData,
 	},
-	propertyRequestResponseInfo: {
-		fn:    unpackPropertyRequestResponseInfo,
-		types: map[Type]struct{}{CONNECT: {}},
+	propRequestProblemInfo: {
+		types:  map[Type]struct{}{CONNECT: {}},
+		unpack: unpackPropRequestProblemInfo,
 	},
-	propertyReceiveMaximum: {
-		fn:    unpackPropertyReceiveMaximum,
-		types: map[Type]struct{}{CONNECT: {}},
+	propWillDelayInterval: {
+		types:  map[Type]struct{}{CONNECT: {}},
+		unpack: unpackPropWillDelayInterval,
 	},
-	propertyTopicAliasMaximum: {
-		fn:    unpackPropertyTopicAliasMaximum,
-		types: map[Type]struct{}{CONNECT: {}},
+	propRequestResponseInfo: {
+		types:  map[Type]struct{}{CONNECT: {}},
+		unpack: unpackPropRequestResponseInfo,
 	},
-	propertyUser: {
-		fn:    unpackPropertyUser,
-		types: map[Type]struct{}{CONNECT: {}},
+	propResponseInfo: {
+		types: map[Type]struct{}{CONNACK: {}},
 	},
-	propertyMaximumPacketSize: {
-		fn:    unpackPropertyMaximumPacketSize,
-		types: map[Type]struct{}{CONNECT: {}},
+	propServerReference: {
+		types: map[Type]struct{}{CONNACK: {}},
 	},
+	propReasonString: {
+		types: map[Type]struct{}{CONNACK: {}},
+	},
+	propReceiveMaximum: {
+		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}},
+		unpack: unpackPropReceiveMaximum,
+	},
+	propTopicAliasMaximum: {
+		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}},
+		unpack: unpackPropTopicAliasMaximum,
+	},
+	propMaximumQoS: {
+		types: map[Type]struct{}{CONNACK: {}},
+	},
+	propRetainAvailable: {
+		types: map[Type]struct{}{CONNACK: {}},
+	},
+	propUser: {
+		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}},
+		unpack: unpackPropertyUser,
+	},
+	propMaximumPacketSize: {
+		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}},
+		unpack: unpackPropertyMaximumPacketSize,
+	},
+	propWildcardSubscriptionAvailable: {
+		types: map[Type]struct{}{CONNACK: {}},
+	},
+	propSubscriptionIDAvailable: {
+		types: map[Type]struct{}{CONNACK: {}},
+	},
+	propSharedSubscriptionAvailable: {
+		types: map[Type]struct{}{CONNACK: {}},
+	},
+}
+
+func (p *Properties) pack(w *bufio.Writer, t Type) error {
+	buf := new(bytes.Buffer)
+	pw := propertiesWriter{buf: buf}
+
+	pw.writeUint32(p.SessionExpiryInterval, propSessionExpiryInterval, t)
+	pw.writeUint16(p.ReceiveMaximum, propReceiveMaximum, t)
+	pw.writeByte(p.MaximumQoS, propMaximumQoS, t)
+	pw.writeByte(p.RetainAvailable, propRetainAvailable, t)
+	pw.writeUint32(p.MaximumPacketSize, propMaximumPacketSize, t)
+	pw.writeBinary(p.AssignedClientID, propAssignedClientID, t)
+	pw.writeUint16(p.TopicAliasMaximum, propTopicAliasMaximum, t)
+	pw.writeBinary(p.ReasonString, propReasonString, t)
+	pw.writeUserProperties(p.UserProperties, t)
+	pw.writeByte(p.WildcardSubscriptionAvailable,
+		propWildcardSubscriptionAvailable, t)
+	pw.writeByte(p.SubscriptionIDAvailable, propSubscriptionIDAvailable, t)
+	pw.writeByte(p.SharedSubscriptionAvailable, propSharedSubscriptionAvailable,
+		t)
+	pw.writeUint16(p.ServerKeepAlive, propServerKeepAlive, t)
+	pw.writeBinary(p.ResponseInfo, propResponseInfo, t)
+	pw.writeBinary(p.ServerReference, propServerReference, t)
+	pw.writeBinary(p.AuthMethod, propAuthMethod, t)
+	pw.writeBinary(p.AuthData, propAuthData, t)
+
+	if pw.err != nil {
+		return pw.err
+	}
+
+	err := writeVarInteger(w, buf.Len())
+	if err != nil {
+		return err
+	}
+
+	_, err = buf.WriteTo(w)
+	return err
+}
+
+type propertiesWriter struct {
+	buf *bytes.Buffer
+	err error
+}
+
+func (w *propertiesWriter) isValid(pt propType, t Type) bool {
+	if w.err != nil {
+		return false
+	}
+
+	handler, ok := propertyHandlers[pt]
+	if !ok || !isValidProperty(handler, t) {
+		w.err = fmt.Errorf("invalid packet type (%s) or property (0x%X)",
+			t.String(), pt)
+		return false
+	}
+
+	return true
+}
+
+func (w *propertiesWriter) writeByte(v *byte, pt propType, t Type) {
+	if v == nil || !w.isValid(pt, t) {
+		return
+	}
+
+	w.buf.WriteByte(byte(pt))
+	w.buf.WriteByte(*v)
+}
+
+func (w *propertiesWriter) writeUint16(v *uint16, pt propType, t Type) {
+	if v == nil || !w.isValid(pt, t) {
+		return
+	}
+
+	w.buf.WriteByte(byte(pt))
+	writeUint16(w.buf, *v)
+}
+
+func (w *propertiesWriter) writeUint32(v *uint32, pt propType, t Type) {
+	if v == nil || !w.isValid(pt, t) {
+		return
+	}
+
+	w.buf.WriteByte(byte(pt))
+	writeUint32(w.buf, *v)
+}
+
+func (w *propertiesWriter) writeBinary(v []byte, pt propType, t Type) {
+	if v == nil || !w.isValid(pt, t) {
+		return
+	}
+
+	w.buf.WriteByte(byte(pt))
+	writeBinary(w.buf, v)
+}
+
+func (w *propertiesWriter) writeUserProperties(v []UserProperty, t Type) {
+	if len(v) == 0 || !w.isValid(propUser, t) {
+		return
+	}
+
+	for _, u := range v {
+		w.buf.WriteByte(byte(propUser))
+		writeBinary(w.buf, u.Key)
+		writeBinary(w.buf, u.Value)
+	}
 }
 
 func (p *Properties) unpack(b *bytes.Buffer, t Type) error {
-	propsLen, err := readVariableInteger(b)
+	propsLen, err := readVarInteger(b)
 	if err != nil {
 		return err
 	}
@@ -197,14 +381,14 @@ func (p *Properties) unpackProperties(b *bytes.Buffer, t Type) error {
 			break
 		}
 
-		pt := propertyType(bt)
+		pt := propType(bt)
 
 		handler, ok := propertyHandlers[pt]
 		if !ok || !isValidProperty(handler, t) {
 			return ErrV5MalformedPacket
 		}
 
-		err = handler.fn(p, b)
+		err = handler.unpack(p, b)
 		if err != nil {
 			return err
 		}
@@ -222,61 +406,71 @@ func isValidProperty(h propertyHandler, t Type) bool {
 	return ok
 }
 
-func unpackPropertyPayloadFormat(p *Properties, b *bytes.Buffer) error {
+func unpackPropPayloadFormat(p *Properties, b *bytes.Buffer) error {
 	return readPropByte(
 		&p.PayloadFormatIndicator,
 		b,
-		func(b byte) bool { return b == 0 || b == 1 })
+		func(b byte) bool { return b == 0 || b == 1 },
+	)
 }
 
-func unpackPropertyMessageExpiryInterval(p *Properties, b *bytes.Buffer) error {
+func unpackPropMessageExpiryInterval(p *Properties, b *bytes.Buffer) error {
 	return readPropUint32(&p.MessageExpiryInterval, b, nil)
 }
 
-func unpackPropertyContentType(p *Properties, b *bytes.Buffer) error {
+func unpackPropContentType(p *Properties, b *bytes.Buffer) error {
 	return readPropString(&p.ContentType, b)
 }
 
-func unpackPropertyResponseTopic(p *Properties, b *bytes.Buffer) error {
+func unpackPropResponseTopic(p *Properties, b *bytes.Buffer) error {
 	return readPropString(&p.ResponseTopic, b)
 }
 
-func unpackPropertyCorrelationData(p *Properties, b *bytes.Buffer) error {
+func unpackPropCorrelationData(p *Properties, b *bytes.Buffer) error {
 	return readPropBinary(&p.CorrelationData, b)
 }
 
-func unpackPropertySessionExpiryInterval(p *Properties, b *bytes.Buffer) error {
+func unpackPropSessionExpiryInterval(p *Properties, b *bytes.Buffer) error {
 	return readPropUint32(&p.SessionExpiryInterval, b, nil)
 }
 
-func unpackPropertyAuthMethod(p *Properties, b *bytes.Buffer) error {
+func unpackPropAuthMethod(p *Properties, b *bytes.Buffer) error {
 	return readPropString(&p.AuthMethod, b)
 }
 
-func unpackPropertyAuthData(p *Properties, b *bytes.Buffer) error {
+func unpackPropAuthData(p *Properties, b *bytes.Buffer) error {
 	return readPropBinary(&p.AuthData, b)
 }
 
-func unpackPropertyRequestProblemInfo(p *Properties, b *bytes.Buffer) error {
-	return readPropBool(&p.RequestProblemInfo, b)
+func unpackPropRequestProblemInfo(p *Properties, b *bytes.Buffer) error {
+	return readPropByte(
+		&p.RequestProblemInfo,
+		b,
+		func(b byte) bool { return b == 0 || b == 1 },
+	)
 }
 
-func unpackPropertyWillDelayInterval(p *Properties, b *bytes.Buffer) error {
+func unpackPropWillDelayInterval(p *Properties, b *bytes.Buffer) error {
 	return readPropUint32(&p.WillDelayInterval, b, nil)
 }
 
-func unpackPropertyRequestResponseInfo(p *Properties, b *bytes.Buffer) error {
-	return readPropBool(&p.RequestResponseInfo, b)
+func unpackPropRequestResponseInfo(p *Properties, b *bytes.Buffer) error {
+	return readPropByte(
+		&p.RequestResponseInfo,
+		b,
+		func(b byte) bool { return b == 0 || b == 1 },
+	)
 }
 
-func unpackPropertyReceiveMaximum(p *Properties, b *bytes.Buffer) error {
+func unpackPropReceiveMaximum(p *Properties, b *bytes.Buffer) error {
 	return readPropUint16(
 		&p.ReceiveMaximum,
 		b,
-		func(u uint16) bool { return u != 0 })
+		func(u uint16) bool { return u != 0 },
+	)
 }
 
-func unpackPropertyTopicAliasMaximum(p *Properties, b *bytes.Buffer) error {
+func unpackPropTopicAliasMaximum(p *Properties, b *bytes.Buffer) error {
 	return readPropUint16(&p.TopicAliasMaximum, b, nil)
 }
 
@@ -284,9 +478,9 @@ func unpackPropertyUser(p *Properties, b *bytes.Buffer) error {
 	kv := make([][]byte, 2)
 
 	for i := 0; i < len(kv); i++ {
-		str, err := decodeString(b)
+		str, err := readString(b, MQTT50)
 		if err != nil {
-			return ErrV5MalformedPacket
+			return err
 		}
 
 		kv[i] = str
@@ -302,7 +496,8 @@ func unpackPropertyMaximumPacketSize(p *Properties, b *bytes.Buffer) error {
 	return readPropUint32(
 		&p.MaximumPacketSize,
 		b,
-		func(u uint32) bool { return u != 0 })
+		func(u uint32) bool { return u != 0 },
+	)
 }
 
 func readPropByte(v **byte, b *bytes.Buffer, val func(byte) bool) error {
@@ -310,34 +505,15 @@ func readPropByte(v **byte, b *bytes.Buffer, val func(byte) bool) error {
 		return ErrV5ProtocolError
 	}
 
-	prop, err := readByte(b, MQTT50)
+	prop, err := b.ReadByte()
 	if err != nil {
-		return err
+		return ErrV5MalformedPacket
 	}
 
 	if val != nil && !val(prop) {
 		return ErrV5ProtocolError
 	}
 
-	*v = &prop
-	return nil
-}
-
-func readPropBool(v **bool, b *bytes.Buffer) error {
-	if *v != nil {
-		return ErrV5ProtocolError
-	}
-
-	bt, err := readByte(b, MQTT50)
-	if err != nil {
-		return err
-	}
-
-	if bt > 1 {
-		return ErrV5ProtocolError
-	}
-
-	prop := bt == 1
 	*v = &prop
 	return nil
 }

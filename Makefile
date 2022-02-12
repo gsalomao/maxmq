@@ -64,12 +64,12 @@ start-dev: ## Start broker in development mode
 ## Test
 test: ## Run tests
 	$(call print_task,"Running tests")
-	@gotestsum --format pkgname --packages ./pkg/... -- -timeout 1s
+	@gotestsum --format pkgname --packages ./pkg/... -- -timeout 3s
 	$(call print_task_result,"Running tests","done")
 
 test-dev: ## Run tests in development mode
 	$(call print_task,"Running tests in development mode")
-	@gotestsum --format testname --packages ./pkg/... --watch -- -timeout 1s
+	@gotestsum --format testname --packages ./pkg/... --watch -- -timeout 3s
 
 coverage: ## Run tests with coverage report
 	$(call print_task,"Running tests")

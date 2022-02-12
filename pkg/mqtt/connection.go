@@ -24,9 +24,13 @@ import (
 
 // Connection represents a network connection.
 type Connection struct {
-	netConn net.Conn
-	reader  packet.Reader
-	address string
+	netConn   net.Conn
+	reader    packet.Reader
+	address   string
+	connected bool
+	keepAlive uint16
+	clientID  []byte
+	version   packet.MQTTVersion
 }
 
 // ConnectionHandler is responsible for handle connections.

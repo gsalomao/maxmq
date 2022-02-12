@@ -53,6 +53,13 @@ func TestConnectionManager_HandleConnectPacket(t *testing.T) {
 	_, err := conn.Write(msg)
 	require.Nil(t, err)
 
+	out := make([]byte, 4)
+	_, err = conn.Read(out)
+	require.Nil(t, err)
+
+	connAck := []byte{0x20, 2, 0, 0}
+	assert.Equal(t, connAck, out)
+
 	_ = conn.Close()
 	<-done
 }
@@ -124,14 +131,41 @@ func TestConnectionManager_HandleFailedToRead(t *testing.T) {
 func TestConnectionManager_HandleReadTimeout(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{
-		ConnectTimeout: 0,
+		ConnectTimeout: 1,
+		BufferSize:     1024,
+		MaxPacketSize:  65536,
 	}, logStub.Logger())
 
-	_, sConn := net.Pipe()
-	c := cm.NewConnection(sConn)
-	cm.Handle(c)
+	conn, sConn := net.Pipe()
+	defer func(conn net.Conn) {
+		_ = conn.Close()
+	}(conn)
 
-	assert.Contains(t, logStub.String(), "No CONNECT Packet received")
+	done := make(chan bool)
+	go func() {
+		c := cm.NewConnection(sConn)
+		cm.Handle(c)
+		done <- true
+	}()
+
+	msg := []byte{
+		0x10, 13, // fixed header
+		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 1, // variable header
+		0, 1, 'a', // client ID
+	}
+
+	_, err := conn.Write(msg)
+	require.Nil(t, err)
+
+	out := make([]byte, 4)
+	_, err = conn.Read(out)
+	require.Nil(t, err)
+
+	connAck := []byte{0x20, 2, 0, 0}
+	assert.Equal(t, connAck, out)
+
+	<-done
+	assert.Contains(t, logStub.String(), "Timeout - No packet received")
 }
 
 func TestConnectionManager_Close(t *testing.T) {

@@ -93,7 +93,7 @@ func TestPacket_PacketTypeToString(t *testing.T) {
 
 func TestPacket_PacketTypeToStringInvalid(t *testing.T) {
 	tp := RESERVED
-	assert.Equal(t, "", tp.String())
+	assert.Equal(t, "UNKNOWN", tp.String())
 }
 
 func TestPacket_MQTTVersionToString(t *testing.T) {

@@ -25,6 +25,11 @@ import (
 // Type represents the packet type (e.g. CONNECT, CONNACK, etc.).
 type Type byte
 
+const (
+	packetTypeBit   byte = 4
+	controlByteMask byte = 0x0F
+)
+
 // Control packet type based on the MQTT specifications.
 const (
 	RESERVED Type = iota
@@ -80,7 +85,7 @@ var packetTypeToFactory = map[Type]func(fixedHeader) (Packet, error){
 func newPacket(fh fixedHeader) (Packet, error) {
 	fn, ok := packetTypeToFactory[fh.packetType]
 	if !ok {
-		return nil, errors.New("invalid packet type")
+		return nil, errors.New("invalid packet type: " + fh.packetType.String())
 	}
 
 	return fn(fh)
@@ -107,7 +112,7 @@ var packetTypeToString = map[Type]string{
 func (pt Type) String() string {
 	n, ok := packetTypeToString[pt]
 	if !ok {
-		return ""
+		return "UNKNOWN"
 	}
 
 	return n

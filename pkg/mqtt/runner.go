@@ -78,13 +78,14 @@ func (mqtt *Runner) Run() error {
 				break
 			}
 
-			mqtt.log.Debug().Msg("MQTT Failed to accept TCP connection: " +
-				err.Error())
+			mqtt.log.Debug().
+				Msg("MQTT Failed to accept TCP connection: " + err.Error())
 			continue
 		}
 
 		conn := mqtt.connHandler.NewConnection(tcpConn)
-		mqtt.log.Trace().Str("Address", conn.address).
+		mqtt.log.Trace().
+			Str("Address", conn.address).
 			Msg("MQTT New TCP connection")
 
 		go mqtt.connHandler.Handle(conn)
