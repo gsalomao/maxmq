@@ -235,7 +235,9 @@ func TestConnect_UnpackFlagsReservedInvalid(t *testing.T) {
 	// V5.0
 	msg = []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 5, 1, 0, 0, // variable header
+		0,         // property length
 		0, 1, 'a', // client ID
+		0, // will property length
 	}
 	fh = fixedHeader{
 		packetType:      CONNECT,
@@ -315,7 +317,7 @@ func TestConnect_UnpackFlagsWillQoSInvalid(t *testing.T) {
 		0, 4, 'M', 'Q', 'T', 'T', 5, 0x10, 0, 0, // variable header
 		0,         // property length
 		0, 1, 'a', // client ID
-		0, // property length
+		0, // will property length
 	}
 	fh = fixedHeader{
 		packetType:      CONNECT,
@@ -334,7 +336,7 @@ func TestConnect_UnpackFlagsWillQoSInvalid(t *testing.T) {
 		0, 4, 'M', 'Q', 'T', 'T', 5, 0x1C, 0, 0, // variable header
 		0,         // property length
 		0, 1, 'a', // client ID
-		0,         // property length
+		0,         // will property length
 		0, 1, 't', // will topic
 		0, 1, 'm', // will message
 	}
@@ -399,7 +401,7 @@ func TestConnect_UnpackFlagsWillRetainInvalid(t *testing.T) {
 		0, 4, 'M', 'Q', 'T', 'T', 5, 0x20, 0, 0, // variable header
 		0,         // property length
 		0, 1, 'a', // client ID
-		0,         // property length
+		0,         // will property length
 		0, 1, 't', // will topic
 		0, 1, 'm', // will message
 	}
@@ -440,7 +442,7 @@ func TestConnect_UnpackFlagsUserNamePasswordInvalid(t *testing.T) {
 		0, 4, 'M', 'Q', 'T', 'T', 5, 0x40, 0, 0, // variable header
 		0,         // property length
 		0, 1, 'a', // client ID
-		0,         // property length
+		0,         // will property length
 		0, 1, 'p', // password
 	}
 	fh = fixedHeader{
@@ -509,6 +511,53 @@ func TestConnect_UnpackKeepAliveInvalid(t *testing.T) {
 	}
 
 	pkt, err = newPacketConnect(fh)
+	require.Nil(t, err)
+
+	err = pkt.Unpack(bytes.NewBuffer(msg))
+	assert.NotNil(t, err)
+	assert.ErrorIs(t, err, ErrV5MalformedPacket)
+}
+
+func TestConnect_UnpackPropertiesValid(t *testing.T) {
+	msg := []byte{
+		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 0, // variable header
+		5,               // property length
+		17, 0, 0, 0, 10, // SessionExpiryInterval
+		0,         // will property length
+		0, 1, 'a', // client ID
+	}
+	fh := fixedHeader{
+		packetType:      CONNECT,
+		remainingLength: len(msg),
+	}
+
+	pkt, err := newPacketConnect(fh)
+	require.Nil(t, err)
+
+	err = pkt.Unpack(bytes.NewBuffer(msg))
+	require.Nil(t, err)
+
+	require.Equal(t, CONNECT, pkt.Type())
+	connPkt, _ := pkt.(*Connect)
+
+	require.NotNil(t, connPkt.Properties)
+	assert.Equal(t, uint32(10), *connPkt.Properties.SessionExpiryInterval)
+}
+
+func TestConnect_UnpackPropertiesMalformed(t *testing.T) {
+	msg := []byte{
+		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 0, // variable header
+		2,     // property length
+		99, 0, // Invalid
+		0,         // will property length
+		0, 1, 'a', // client ID
+	}
+	fh := fixedHeader{
+		packetType:      CONNECT,
+		remainingLength: len(msg),
+	}
+
+	pkt, err := newPacketConnect(fh)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -660,6 +709,7 @@ func TestConnect_UnpackClientIDMalformed(t *testing.T) {
 		// V5.0
 		msg = []byte{
 			0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 0, // variable header
+			0, // property length
 		}
 		msg = append(msg, cpLenBuf...)
 		msg = append(msg, cp...)
@@ -711,6 +761,57 @@ func TestConnect_UnpackClientIDRejected(t *testing.T) {
 	err = pkt.Unpack(bytes.NewBuffer(msg))
 	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV3IdentifierRejected)
+}
+
+func TestConnect_UnpackWillPropertiesValid(t *testing.T) {
+	msg := []byte{
+		0, 4, 'M', 'Q', 'T', 'T', 5, 4, 0, 0, // variable header
+		0,         // property length
+		0, 1, 'a', // client ID
+		5,               // will property length
+		17, 0, 0, 0, 10, // SessionExpiryInterval
+		0, 5, 't', 'o', 'p', 'i', 'c', // will topic
+		0, 1, 'm', // will message
+	}
+	fh := fixedHeader{
+		packetType:      CONNECT,
+		remainingLength: len(msg),
+	}
+
+	pkt, err := newPacketConnect(fh)
+	require.Nil(t, err)
+
+	err = pkt.Unpack(bytes.NewBuffer(msg))
+	require.Nil(t, err)
+
+	require.Equal(t, CONNECT, pkt.Type())
+	connPkt, _ := pkt.(*Connect)
+
+	require.NotNil(t, connPkt.WillProperties)
+	assert.Equal(t, uint32(10), *connPkt.WillProperties.SessionExpiryInterval)
+}
+
+func TestConnect_UnpackWillPropertiesMalformed(t *testing.T) {
+	msg := []byte{
+		0, 4, 'M', 'Q', 'T', 'T', 5, 4, 0, 0, // variable header
+		0,         // property length
+		0, 1, 'a', // client ID
+		2,     // will property length
+		99, 0, // invalid
+		0, 5, 't', 'o', 'p', 'i', 'c', // will topic
+		0, 1, 'm', // will message
+	}
+	fh := fixedHeader{
+		packetType:      CONNECT,
+		remainingLength: len(msg),
+	}
+
+	pkt, err := newPacketConnect(fh)
+	require.Nil(t, err)
+
+	err = pkt.Unpack(bytes.NewBuffer(msg))
+	require.NotNil(t, err)
+	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestConnect_UnpackWillTopicValid(t *testing.T) {
