@@ -114,33 +114,6 @@ func readBinary(buf *bytes.Buffer, ver MQTTVersion) ([]byte, error) {
 	return val, nil
 }
 
-func decodeString(buf *bytes.Buffer) ([]byte, error) {
-	str, err := decodeBinary(buf)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(str) > 0 && !isValidUTF8String(str) {
-		return nil, errors.New("invalid UTF8 string")
-	}
-
-	return str, nil
-}
-
-func decodeBinary(buf *bytes.Buffer) ([]byte, error) {
-	if buf.Len() < 2 {
-		return nil, errors.New("no enough bytes to decode binary data")
-	}
-
-	length := int(binary.BigEndian.Uint16(buf.Next(2)))
-	if length > buf.Len() {
-		return nil, errors.New("invalid length of binary data")
-	}
-
-	val := buf.Next(length)
-	return val, nil
-}
-
 func writeVarInteger(w *bufio.Writer, val int) error {
 	var data byte
 	var err error

@@ -175,7 +175,8 @@ func (p *Connect) Type() Type {
 }
 
 func (p *Connect) unpackVersion(buf *bytes.Buffer) error {
-	protoName, err := decodeString(buf)
+	// As the MQTT version is unknown yet, use the default version
+	protoName, err := readString(buf, MQTT311)
 	if err != nil {
 		return errors.New("cannot decode protocol name (CONNECT)")
 	}
