@@ -17,7 +17,6 @@
 package packet
 
 import (
-	"bufio"
 	"bytes"
 	"testing"
 
@@ -26,14 +25,10 @@ import (
 )
 
 func TestProperties_PackEmpty(t *testing.T) {
-	buf := new(bytes.Buffer)
-	w := bufio.NewWriter(buf)
+	buf := &bytes.Buffer{}
 	props := &Properties{}
 
-	err := props.pack(w, CONNACK)
-	require.Nil(t, err)
-
-	err = w.Flush()
+	err := props.pack(buf, CONNACK)
 	require.Nil(t, err)
 	require.NotEmpty(t, buf)
 
@@ -42,8 +37,7 @@ func TestProperties_PackEmpty(t *testing.T) {
 }
 
 func TestProperties_PackConnAck(t *testing.T) {
-	buf := new(bytes.Buffer)
-	w := bufio.NewWriter(buf)
+	buf := &bytes.Buffer{}
 	props := &Properties{
 		SessionExpiryInterval:         new(uint32),
 		ReceiveMaximum:                new(uint16),
@@ -78,10 +72,7 @@ func TestProperties_PackConnAck(t *testing.T) {
 	props.AuthMethod = []byte("JWT")
 	props.AuthData = []byte("token")
 
-	err := props.pack(w, CONNACK)
-	require.Nil(t, err)
-
-	err = w.Flush()
+	err := props.pack(buf, CONNACK)
 	require.Nil(t, err)
 	require.NotEmpty(t, buf)
 
@@ -108,14 +99,12 @@ func TestProperties_PackConnAck(t *testing.T) {
 }
 
 func TestProperties_PackInvalidProperty(t *testing.T) {
-	buf := new(bytes.Buffer)
-	w := bufio.NewWriter(buf)
-
+	buf := &bytes.Buffer{}
 	props := &Properties{MaximumQoS: new(byte), ServerKeepAlive: new(uint16)}
 	*props.MaximumQoS = 1
 	*props.ServerKeepAlive = 30
 
-	err := props.pack(w, CONNECT)
+	err := props.pack(buf, CONNECT)
 	require.NotNil(t, err)
 }
 

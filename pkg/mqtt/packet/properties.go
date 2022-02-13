@@ -17,7 +17,6 @@
 package packet
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 )
@@ -256,9 +255,9 @@ var propertyHandlers = map[propType]propertyHandler{
 	},
 }
 
-func (p *Properties) pack(w *bufio.Writer, t Type) error {
-	buf := new(bytes.Buffer)
-	pw := propertiesWriter{buf: buf}
+func (p *Properties) pack(buf *bytes.Buffer, t Type) error {
+	b := bytes.Buffer{}
+	pw := propertiesWriter{buf: &b}
 
 	pw.writeUint32(p.SessionExpiryInterval, propSessionExpiryInterval, t)
 	pw.writeUint16(p.ReceiveMaximum, propReceiveMaximum, t)
@@ -284,12 +283,12 @@ func (p *Properties) pack(w *bufio.Writer, t Type) error {
 		return pw.err
 	}
 
-	err := writeVarInteger(w, buf.Len())
+	err := writeVarInteger(buf, b.Len())
 	if err != nil {
 		return err
 	}
 
-	_, err = buf.WriteTo(w)
+	_, err = b.WriteTo(buf)
 	return err
 }
 

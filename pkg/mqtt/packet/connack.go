@@ -17,7 +17,6 @@
 package packet
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"io"
@@ -53,7 +52,7 @@ func NewConnAck(
 
 // Pack encodes the packet into bytes and writes it into the io.Writer.
 func (p *ConnAck) Pack(w io.Writer) error {
-	buf := bufio.NewWriterSize(w, 4)
+	buf := &bytes.Buffer{}
 
 	// Packet Type
 	err := buf.WriteByte(byte(CONNACK) << packetTypeBit)
@@ -91,7 +90,8 @@ func (p *ConnAck) Pack(w io.Writer) error {
 		}
 	}
 
-	return buf.Flush()
+	_, err = buf.WriteTo(w)
+	return err
 }
 
 // Unpack reads the packet bytes from bytes.Buffer and decodes them into the
