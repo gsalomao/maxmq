@@ -17,6 +17,7 @@
 package packet_test
 
 import (
+	"bytes"
 	"net"
 	"testing"
 	"time"
@@ -52,6 +53,22 @@ func TestPacket_ReadPacket(t *testing.T) {
 	_, err := conn.Write(msg)
 	require.Nil(t, err)
 	<-done
+}
+
+func BenchmarkReader_ReadPacket(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		msg := []byte{
+			0x10, 13, // fixed header
+			0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 0, // variable header
+			0, 1, 'a', // client ID
+		}
+		r := bytes.NewReader(msg)
+
+		opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
+		reader := packet.NewReader(r, opts)
+
+		_, _ = reader.ReadPacket()
+	}
 }
 
 func TestPacket_ReadPacketBiggerThanMaxPacketSize(t *testing.T) {

@@ -110,6 +110,22 @@ func TestConnect_Unpack(t *testing.T) {
 	}
 }
 
+func BenchmarkConnect_Unpack(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		msg := []byte{
+			0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 60, // variable header
+			0, 1, 'a', // client ID
+		}
+		fh := fixedHeader{
+			packetType:      CONNECT,
+			remainingLength: len(msg),
+		}
+
+		pkt, _ := newPacketConnect(fh)
+		_ = pkt.Unpack(bytes.NewBuffer(msg))
+	}
+}
+
 func TestConnect_UnpackProtocolNameMissing(t *testing.T) {
 	var msg []byte
 	fh := fixedHeader{

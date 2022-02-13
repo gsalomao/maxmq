@@ -40,6 +40,15 @@ func TestConnAck_Pack(t *testing.T) {
 	assert.Equal(t, msg, out.Bytes())
 }
 
+func BenchmarkConnAck_Pack(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		pkt := NewConnAck(MQTT311, ReturnCodeV3ConnectionAccepted, false, nil)
+
+		out := new(bytes.Buffer)
+		_ = pkt.Pack(out)
+	}
+}
+
 func TestConnAck_PackReturnCode(t *testing.T) {
 	testCases := []struct {
 		ver  MQTTVersion
