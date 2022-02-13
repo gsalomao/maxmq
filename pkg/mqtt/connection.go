@@ -28,7 +28,7 @@ type Connection struct {
 	reader    packet.Reader
 	address   string
 	connected bool
-	keepAlive uint16
+	timeout   uint16
 	clientID  []byte
 	version   packet.MQTTVersion
 }

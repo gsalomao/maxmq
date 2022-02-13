@@ -29,4 +29,7 @@ type Configuration struct {
 
 	// The maximum packet size, in bytes, allowed.
 	MaxPacketSize int
+
+	// The maximum Keep Alive value, in seconds, allowed by the broker.
+	MaxKeepAlive int
 }

@@ -45,15 +45,31 @@ func NewConnectionManager(
 
 // NewConnection creates a new Connection.
 func (cm *ConnectionManager) NewConnection(nc net.Conn) Connection {
+	bufSize := cm.conf.BufferSize
+	if bufSize <= 0 {
+		bufSize = 1024 // 1KB
+	}
+
+	maxPktSize := cm.conf.MaxPacketSize
+	if maxPktSize <= 0 {
+		maxPktSize = 268435456 // 256MB
+	}
+
+	connTimeout := uint16(cm.conf.ConnectTimeout)
+	if connTimeout <= 0 {
+		connTimeout = 5 // 5 seconds
+	}
+
 	opts := packet.ReaderOptions{
-		BufferSize:    cm.conf.BufferSize,
-		MaxPacketSize: cm.conf.MaxPacketSize,
+		BufferSize:    bufSize,
+		MaxPacketSize: maxPktSize,
 	}
 
 	return Connection{
 		netConn: nc,
 		reader:  packet.NewReader(nc, opts),
 		address: nc.RemoteAddr().String(),
+		timeout: connTimeout,
 	}
 }
 
@@ -63,10 +79,10 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 
 	cm.log.Debug().
 		Str("Address", conn.address).
+		Uint16("Timeout", conn.timeout).
 		Msg("MQTT Handling connection")
 
-	deadline := time.Now().
-		Add(time.Duration(cm.conf.ConnectTimeout) * time.Second)
+	deadline := time.Now().Add(time.Duration(conn.timeout) * time.Second)
 
 	for {
 		err := conn.netConn.SetReadDeadline(deadline)
@@ -78,6 +94,7 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 
 		cm.log.Trace().
 			Str("Address", conn.address).
+			Uint16("Timeout", conn.timeout).
 			Msg("MQTT Waiting packet")
 
 		pkt, err := conn.reader.ReadPacket()
@@ -94,7 +111,7 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 					Str("Address", conn.address).
 					Str("ClientID", string(conn.clientID)).
 					Bool("Connected", conn.connected).
-					Uint16("KeepAlive", conn.keepAlive).
+					Uint16("Timeout", conn.timeout).
 					Msg("MQTT Timeout - No packet received")
 				break
 			}
@@ -123,9 +140,8 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 			break
 		}
 
-		// TODO: Use MaxKeepAlive from config to compute the next deadline
-		if conn.keepAlive > 0 {
-			timeout := float32(conn.keepAlive) * 1.5
+		if conn.timeout > 0 {
+			timeout := float32(conn.timeout) * 1.5
 			deadline = time.Now().Add(time.Duration(timeout) * time.Second)
 		} else {
 			// Zero value of time to disable the deadline
@@ -167,14 +183,46 @@ func (cm *ConnectionManager) processPacketConnect(
 		Str("Address", conn.address).
 		Str("ClientID", string(pkt.ClientID)).
 		Str("Version", pkt.Version.String()).
+		Uint16("KeepAlive", pkt.KeepAlive).
 		Msg("MQTT Processing CONNECT Packet")
 
 	conn.clientID = pkt.ClientID
 	conn.version = pkt.Version
-	conn.keepAlive = pkt.KeepAlive
-	code := packet.ReturnCodeV3ConnectionAccepted
+	conn.timeout = pkt.KeepAlive
 
-	err := cm.sendConnAck(conn, code, false, nil)
+	if pkt.Version != packet.MQTT50 && cm.conf.MaxKeepAlive > 0 {
+		keepAlive := int(pkt.KeepAlive)
+		if keepAlive == 0 || keepAlive > cm.conf.MaxKeepAlive {
+			// For MQTT v3.1 and v3.1.1, there is no mechanism to tell the
+			// clients what Keep Alive value they should use. If an MQTT
+			// v3.1 or v3.1.1 client specifies a Keep Alive time greater than
+			// MaxKeepAlive, the CONNACK Packet is sent with the reason code
+			// "identifier rejected".
+			code := packet.ReturnCodeV3IdentifierRejected
+			_ = cm.sendConnAck(conn, code, false, nil)
+			return errors.New("keep alive exceeded")
+		}
+	}
+
+	var props *packet.Properties
+	if pkt.Version == packet.MQTT50 {
+		pr := packet.Properties{}
+		hasProps := false
+
+		keepAlive := int(pkt.KeepAlive)
+		if cm.conf.MaxKeepAlive > 0 && keepAlive > cm.conf.MaxKeepAlive {
+			pr.ServerKeepAlive = new(uint16)
+			*pr.ServerKeepAlive = uint16(cm.conf.MaxKeepAlive)
+			hasProps = true
+		}
+
+		if hasProps {
+			props = &pr
+		}
+	}
+
+	code := packet.ReturnCodeV3ConnectionAccepted
+	err := cm.sendConnAck(conn, code, false, props)
 	if err != nil {
 		return err
 	}
@@ -182,8 +230,8 @@ func (cm *ConnectionManager) processPacketConnect(
 	conn.connected = true
 	cm.log.Debug().
 		Str("Address", conn.address).
-		Str("ClientID", string(pkt.ClientID)).
-		Uint16("KeepAlive", conn.keepAlive).
+		Str("ClientID", string(conn.clientID)).
+		Uint16("Timeout", conn.timeout).
 		Msg("MQTT Client connected")
 
 	return nil
