@@ -17,6 +17,7 @@
 package packet
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
@@ -113,7 +114,7 @@ func readBinary(buf *bytes.Buffer, ver MQTTVersion) ([]byte, error) {
 	return val, nil
 }
 
-func writeVarInteger(buf *bytes.Buffer, val int) error {
+func writeVarInteger(buf *bufio.Writer, val int) error {
 	var data byte
 	var err error
 
@@ -126,12 +127,8 @@ func writeVarInteger(buf *bytes.Buffer, val int) error {
 		}
 
 		err = buf.WriteByte(data)
-		if err != nil {
+		if err != nil || val == 0 {
 			return err
-		}
-
-		if val == 0 {
-			return nil
 		}
 	}
 }

@@ -17,6 +17,7 @@
 package packet
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 )
@@ -283,7 +284,13 @@ func (p *Properties) pack(buf *bytes.Buffer, t Type) error {
 		return pw.err
 	}
 
-	err := writeVarInteger(buf, b.Len())
+	wr := bufio.NewWriterSize(buf, 4 /* max variable integer size */)
+	err := writeVarInteger(wr, b.Len())
+	if err != nil {
+		return err
+	}
+
+	err = wr.Flush()
 	if err != nil {
 		return err
 	}

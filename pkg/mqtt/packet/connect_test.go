@@ -17,6 +17,7 @@
 package packet
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"testing"
@@ -62,8 +63,9 @@ func TestConnect_PackUnsupported(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, pkt)
 
-	buf := new(bytes.Buffer)
-	err = pkt.Pack(buf)
+	buf := &bytes.Buffer{}
+	wr := bufio.NewWriter(buf)
+	err = pkt.Pack(wr)
 	require.NotNil(t, err)
 }
 
@@ -111,18 +113,23 @@ func TestConnect_Unpack(t *testing.T) {
 }
 
 func BenchmarkConnect_Unpack(b *testing.B) {
-	for n := 0; n < b.N; n++ {
-		msg := []byte{
-			0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 60, // variable header
-			0, 1, 'a', // client ID
-		}
-		fh := fixedHeader{
-			packetType:      CONNECT,
-			remainingLength: len(msg),
-		}
+	msg := []byte{
+		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 60, // variable header
+		0, 1, 'a', // client ID
+	}
+	fh := fixedHeader{
+		packetType:      CONNECT,
+		remainingLength: len(msg),
+	}
+	pkt, _ := newPacketConnect(fh)
 
-		pkt, _ := newPacketConnect(fh)
-		_ = pkt.Unpack(bytes.NewBuffer(msg))
+	b.ReportAllocs()
+
+	for n := 0; n < b.N; n++ {
+		err := pkt.Unpack(bytes.NewBuffer(msg))
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 

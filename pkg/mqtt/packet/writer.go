@@ -14,31 +14,32 @@
  * limitations under the License.
  */
 
-package mqtt
+package packet
 
 import (
-	"net"
-
-	"github.com/gsalomao/maxmq/pkg/mqtt/packet"
+	"bufio"
+	"io"
 )
 
-// Connection represents a network connection.
-type Connection struct {
-	netConn   net.Conn
-	reader    packet.Reader
-	writer    packet.Writer
-	address   string
-	connected bool
-	timeout   uint16
-	clientID  []byte
-	version   packet.MQTTVersion
+// Writer is responsible for write packets.
+type Writer struct {
+	bufWriter *bufio.Writer
 }
 
-// ConnectionHandler is responsible for handle connections.
-type ConnectionHandler interface {
-	// NewConnection creates a new Connection.
-	NewConnection(nc net.Conn) Connection
+// NewWriter creates a buffered writer based on the io.Writer and buffer size.
+func NewWriter(w io.Writer, bufSize int) Writer {
+	return Writer{
+		bufWriter: bufio.NewWriterSize(w, bufSize),
+	}
+}
 
-	// Handle handles the Connection.
-	Handle(conn Connection)
+// WritePacket writes the given Packet into the buffer.
+// It returns an error if it fails to write the packet.
+func (w *Writer) WritePacket(pkt Packet) error {
+	err := pkt.Pack(w.bufWriter)
+	if err != nil {
+		return err
+	}
+
+	return w.bufWriter.Flush()
 }

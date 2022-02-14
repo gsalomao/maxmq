@@ -14,31 +14,25 @@
  * limitations under the License.
  */
 
-package mqtt
+package packet
 
 import (
-	"net"
+	"bytes"
+	"testing"
 
-	"github.com/gsalomao/maxmq/pkg/mqtt/packet"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// Connection represents a network connection.
-type Connection struct {
-	netConn   net.Conn
-	reader    packet.Reader
-	writer    packet.Writer
-	address   string
-	connected bool
-	timeout   uint16
-	clientID  []byte
-	version   packet.MQTTVersion
-}
+func TestPacketWriter_WritePacket(t *testing.T) {
+	buf := &bytes.Buffer{}
+	wr := NewWriter(buf, 1024)
 
-// ConnectionHandler is responsible for handle connections.
-type ConnectionHandler interface {
-	// NewConnection creates a new Connection.
-	NewConnection(nc net.Conn) Connection
+	pkt := NewConnAck(MQTT311, ReturnCodeV3ConnectionAccepted, false, nil)
+	err := wr.WritePacket(&pkt)
+	require.Nil(t, err)
 
-	// Handle handles the Connection.
-	Handle(conn Connection)
+	msg := []byte{0x20, 2, 0, 0}
+	assert.NotEmpty(t, buf)
+	assert.Equal(t, msg, buf.Bytes())
 }

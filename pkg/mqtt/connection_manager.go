@@ -60,14 +60,15 @@ func (cm *ConnectionManager) NewConnection(nc net.Conn) Connection {
 		connTimeout = 5 // 5 seconds
 	}
 
-	opts := packet.ReaderOptions{
+	rdOpts := packet.ReaderOptions{
 		BufferSize:    bufSize,
 		MaxPacketSize: maxPktSize,
 	}
 
 	return Connection{
 		netConn: nc,
-		reader:  packet.NewReader(nc, opts),
+		reader:  packet.NewReader(nc, rdOpts),
+		writer:  packet.NewWriter(nc, bufSize),
 		address: nc.RemoteAddr().String(),
 		timeout: connTimeout,
 	}
@@ -211,8 +212,10 @@ func (cm *ConnectionManager) processPacketConnect(
 
 		keepAlive := int(pkt.KeepAlive)
 		if cm.conf.MaxKeepAlive > 0 && keepAlive > cm.conf.MaxKeepAlive {
+			conn.timeout = uint16(cm.conf.MaxKeepAlive)
+
 			pr.ServerKeepAlive = new(uint16)
-			*pr.ServerKeepAlive = uint16(cm.conf.MaxKeepAlive)
+			*pr.ServerKeepAlive = conn.timeout
 			hasProps = true
 		}
 
@@ -252,7 +255,7 @@ func (cm *ConnectionManager) sendConnAck(
 		Str("Version", conn.version.String()).
 		Msg("MQTT Sending CONNACK Packet")
 
-	err := pkt.Pack(conn.netConn)
+	err := conn.writer.WritePacket(&pkt)
 	if err != nil {
 		cm.log.Error().
 			Str("Address", conn.address).

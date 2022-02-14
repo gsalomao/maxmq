@@ -17,9 +17,9 @@
 package packet
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
-	"io"
 )
 
 // ConnAck represents the CONNACK Packet from MQTT specifications.
@@ -51,46 +51,51 @@ func NewConnAck(
 }
 
 // Pack encodes the packet into bytes and writes it into the io.Writer.
-func (p *ConnAck) Pack(w io.Writer) error {
-	buf := &bytes.Buffer{}
-
-	// Packet Type
-	err := buf.WriteByte(byte(CONNACK) << packetTypeBit)
-	if err != nil {
-		return err
-	}
-
-	// Remaining Length
-	err = buf.WriteByte(2)
-	if err != nil {
-		return err
-	}
+func (p *ConnAck) Pack(w *bufio.Writer) error {
+	varHeader := &bytes.Buffer{}
+	var err error
 
 	// Acknowledge Flags
 	if p.SessionPresent && p.Version != MQTT31 {
-		err = buf.WriteByte(1)
+		err = varHeader.WriteByte(1)
 	} else {
-		err = buf.WriteByte(0)
+		err = varHeader.WriteByte(0)
 	}
 	if err != nil {
 		return err
 	}
 
 	// Return Code
-	err = buf.WriteByte(byte(p.ReturnCode))
+	err = varHeader.WriteByte(byte(p.ReturnCode))
 	if err != nil {
 		return err
 	}
 
 	// Properties
-	if p.Version == MQTT50 && p.Properties != nil {
-		err = p.Properties.pack(buf, CONNACK)
+	if p.Version == MQTT50 {
+		if p.Properties == nil {
+			p.Properties = &Properties{}
+		}
+
+		err = p.Properties.pack(varHeader, CONNACK)
 		if err != nil {
 			return err
 		}
 	}
 
-	_, err = buf.WriteTo(w)
+	// Packet Type
+	err = w.WriteByte(byte(CONNACK) << packetTypeBit)
+	if err != nil {
+		return err
+	}
+
+	// Remaining Length
+	err = writeVarInteger(w, varHeader.Len())
+	if err != nil {
+		return err
+	}
+
+	_, err = varHeader.WriteTo(w)
 	return err
 }
 

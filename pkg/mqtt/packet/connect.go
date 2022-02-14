@@ -17,9 +17,9 @@
 package packet
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
-	"io"
 )
 
 const (
@@ -119,7 +119,7 @@ func newPacketConnect(fh fixedHeader) (Packet, error) {
 
 // Pack encodes the packet into bytes and writes it into the io.Writer.
 // It is not supported by the CONNECT Packet in this broker.
-func (p *Connect) Pack(_ io.Writer) error {
+func (p *Connect) Pack(_ *bufio.Writer) error {
 	return errors.New("unsupported (CONNECT)")
 }
 

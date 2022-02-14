@@ -17,9 +17,9 @@
 package packet
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
-	"io"
 )
 
 // Type represents the packet type (e.g. CONNECT, CONNACK, etc.).
@@ -61,8 +61,8 @@ const (
 
 // Packet represents the MQTT packet.
 type Packet interface {
-	// Pack encodes the packet into bytes and writes it into the io.Writer.
-	Pack(w io.Writer) error
+	// Pack encodes the packet into bytes and writes it into bufio.Writer.
+	Pack(w *bufio.Writer) error
 
 	// Unpack reads the packet bytes from bytes.Buffer and decodes them into the
 	// packet.
