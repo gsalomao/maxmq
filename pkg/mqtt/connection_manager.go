@@ -37,6 +37,18 @@ func NewConnectionManager(
 	cf Configuration,
 	lg *logger.Logger,
 ) ConnectionManager {
+	if cf.BufferSize <= 0 || cf.BufferSize > 65536 {
+		cf.BufferSize = 1024 // 1KB
+	}
+
+	if cf.MaxPacketSize < 20 || cf.MaxPacketSize > 268435456 {
+		cf.MaxPacketSize = 65536 // 64KB
+	}
+
+	if cf.ConnectTimeout <= 0 {
+		cf.ConnectTimeout = 5 // 5 seconds
+	}
+
 	return ConnectionManager{
 		conf: cf,
 		log:  lg,
@@ -45,32 +57,17 @@ func NewConnectionManager(
 
 // NewConnection creates a new Connection.
 func (cm *ConnectionManager) NewConnection(nc net.Conn) Connection {
-	bufSize := cm.conf.BufferSize
-	if bufSize <= 0 {
-		bufSize = 1024 // 1KB
-	}
-
-	maxPktSize := cm.conf.MaxPacketSize
-	if maxPktSize <= 0 {
-		maxPktSize = 268435456 // 256MB
-	}
-
-	connTimeout := uint16(cm.conf.ConnectTimeout)
-	if connTimeout <= 0 {
-		connTimeout = 5 // 5 seconds
-	}
-
 	rdOpts := packet.ReaderOptions{
-		BufferSize:    bufSize,
-		MaxPacketSize: maxPktSize,
+		BufferSize:    cm.conf.BufferSize,
+		MaxPacketSize: cm.conf.MaxPacketSize,
 	}
 
 	return Connection{
 		netConn: nc,
 		reader:  packet.NewReader(nc, rdOpts),
-		writer:  packet.NewWriter(nc, bufSize),
+		writer:  packet.NewWriter(nc, cm.conf.BufferSize),
 		address: nc.RemoteAddr().String(),
-		timeout: connTimeout,
+		timeout: uint16(cm.conf.ConnectTimeout),
 	}
 }
 
