@@ -39,6 +39,9 @@ type Config struct {
 
 	// The maximum size, in bytes, allowed for MQTT Packets.
 	MQTTMaxPacketSize int `mapstructure:"mqtt_max_packet_size"`
+
+	// The maximum allowed MQTT Keep Alive value, in seconds.
+	MQTTMaxKeepAlive int `mapstructure:"mqtt_max_keep_alive"`
 }
 
 // ReadConfigFile reads the configuration file.
@@ -76,6 +79,7 @@ func LoadConfig() (Config, error) {
 	_ = viper.BindEnv("mqtt_connect_timeout")
 	_ = viper.BindEnv("mqtt_buffer_size")
 	_ = viper.BindEnv("mqtt_max_packet_size")
+	_ = viper.BindEnv("mqtt_max_keep_alive")
 
 	// Set the default values
 	c := Config{
