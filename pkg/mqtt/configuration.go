@@ -32,4 +32,7 @@ type Configuration struct {
 
 	// The maximum Keep Alive value, in seconds, allowed by the broker.
 	MaxKeepAlive int
+
+	// The maximum QoS for PUBLISH Packets accepted by the broker.
+	MaximumQoS int
 }

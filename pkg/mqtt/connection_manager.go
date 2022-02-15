@@ -34,6 +34,8 @@ const (
 	maxPacketSize         = 268435456
 	defaultConnectTimeout = 5
 	minConnectTimeout     = 1
+	minQoS                = 0
+	maxQoS                = 2
 )
 
 // ConnectionManager implements the ConnectionHandler interface.
@@ -58,6 +60,17 @@ func NewConnectionManager(
 	if cf.ConnectTimeout < minConnectTimeout {
 		cf.ConnectTimeout = defaultConnectTimeout
 	}
+
+	if cf.MaximumQoS < minQoS || cf.MaximumQoS > maxQoS {
+		cf.MaximumQoS = maxQoS
+	}
+
+	lg.Trace().
+		Int("BufferSize", cf.BufferSize).
+		Int("MaxPacketSize", cf.MaxPacketSize).
+		Int("ConnectTimeout", cf.ConnectTimeout).
+		Int("MaximumQoS", cf.MaximumQoS).
+		Msg("MQTT Creating Connection Manager")
 
 	return ConnectionManager{
 		conf: cf,
@@ -214,27 +227,7 @@ func (cm *ConnectionManager) processPacketConnect(
 
 	var props *packet.Properties
 	if pkt.Version == packet.MQTT50 {
-		pr := packet.Properties{}
-		hasProps := false
-
-		keepAlive := int(pkt.KeepAlive)
-		if cm.conf.MaxKeepAlive > 0 && keepAlive > cm.conf.MaxKeepAlive {
-			conn.timeout = uint16(cm.conf.MaxKeepAlive)
-
-			pr.ServerKeepAlive = new(uint16)
-			*pr.ServerKeepAlive = conn.timeout
-			hasProps = true
-		}
-
-		if cm.conf.MaxPacketSize != maxPacketSize {
-			pr.MaximumPacketSize = new(uint32)
-			*pr.MaximumPacketSize = uint32(cm.conf.MaxPacketSize)
-			hasProps = true
-		}
-
-		if hasProps {
-			props = &pr
-		}
+		props = cm.newConnAckProperties(pkt, conn)
 	}
 
 	code := packet.ReturnCodeV3ConnectionAccepted
@@ -251,6 +244,41 @@ func (cm *ConnectionManager) processPacketConnect(
 		Msg("MQTT Client connected")
 
 	return nil
+}
+
+func (cm *ConnectionManager) newConnAckProperties(
+	pkt *packet.Connect,
+	conn *Connection,
+) *packet.Properties {
+	pr := packet.Properties{}
+	hasProps := false
+
+	keepAlive := int(pkt.KeepAlive)
+	if cm.conf.MaxKeepAlive > 0 && keepAlive > cm.conf.MaxKeepAlive {
+		conn.timeout = uint16(cm.conf.MaxKeepAlive)
+
+		pr.ServerKeepAlive = new(uint16)
+		*pr.ServerKeepAlive = conn.timeout
+		hasProps = true
+	}
+
+	if cm.conf.MaxPacketSize != maxPacketSize {
+		pr.MaximumPacketSize = new(uint32)
+		*pr.MaximumPacketSize = uint32(cm.conf.MaxPacketSize)
+		hasProps = true
+	}
+
+	if cm.conf.MaximumQoS < maxQoS {
+		pr.MaximumQoS = new(byte)
+		*pr.MaximumQoS = byte(cm.conf.MaximumQoS)
+		hasProps = true
+	}
+
+	if !hasProps {
+		return nil
+	}
+
+	return &pr
 }
 
 func (cm *ConnectionManager) sendConnAck(

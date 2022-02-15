@@ -117,6 +117,7 @@ func TestConnectionManager_ConnectV5MaxKeepAlive(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{
 		MaxKeepAlive: 1,
+		MaximumQoS:   2,
 	}, logStub.Logger())
 
 	conn, sConn := net.Pipe()
@@ -153,6 +154,7 @@ func TestConnectionManager_ConnectV5MaxKeepAliveNotNeeded(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{
 		MaxKeepAlive: 10,
+		MaximumQoS:   2,
 	}, logStub.Logger())
 
 	conn, sConn := net.Pipe()
@@ -191,6 +193,7 @@ func TestConnectionManager_ConnectV5MaxPacketSize(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{
 		MaxPacketSize: 65536,
+		MaximumQoS:    2,
 	}, logStub.Logger())
 
 	conn, sConn := net.Pipe()
@@ -227,6 +230,79 @@ func TestConnectionManager_ConnectV5MaxPacketSizeNotNeeded(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{
 		MaxPacketSize: 268435456,
+		MaximumQoS:    2,
+	}, logStub.Logger())
+
+	conn, sConn := net.Pipe()
+
+	done := make(chan bool)
+	go func() {
+		c := cm.NewConnection(sConn)
+		cm.Handle(c)
+		done <- true
+	}()
+
+	msg := []byte{
+		0x10, 14, // fixed header
+		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 10, // variable header
+		0,         // property length
+		0, 1, 'a', // client ID
+	}
+
+	_, err := conn.Write(msg)
+	require.Nil(t, err)
+
+	out := make([]byte, 5)
+	_, err = conn.Read(out)
+	require.Nil(t, err)
+
+	connAck := []byte{0x20, 3, 0, 0, 0}
+	assert.Equal(t, connAck, out)
+
+	_ = conn.Close()
+	<-done
+}
+
+func TestConnectionManager_ConnectV5MaximumQoS(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+	cm := mqtt.NewConnectionManager(mqtt.Configuration{
+		MaximumQoS: 1,
+	}, logStub.Logger())
+
+	conn, sConn := net.Pipe()
+
+	done := make(chan bool)
+	go func() {
+		c := cm.NewConnection(sConn)
+		cm.Handle(c)
+		done <- true
+	}()
+
+	msg := []byte{
+		0x10, 14, // fixed header
+		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 10, // variable header
+		0,         // property length
+		0, 1, 'a', // client ID
+	}
+
+	_, err := conn.Write(msg)
+	require.Nil(t, err)
+
+	out := make([]byte, 7)
+	_, err = conn.Read(out)
+	require.Nil(t, err)
+
+	connAck := []byte{0x20, 5, 0, 0, 2, 36, 1} // MaximumQoS
+	assert.Equal(t, connAck, out)
+
+	_ = conn.Close()
+	<-done
+}
+
+func TestConnectionManager_ConnectV55MaximumQoSNotNeeded(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+	cm := mqtt.NewConnectionManager(mqtt.Configuration{
+		MaximumQoS: 2,
 	}, logStub.Logger())
 
 	conn, sConn := net.Pipe()
