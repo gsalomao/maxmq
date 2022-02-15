@@ -37,4 +37,5 @@ func TestConfig_LoadConfig(t *testing.T) {
 	assert.Equal(t, 5, conf.MQTTConnectTimeout)
 	assert.Equal(t, 1024, conf.MQTTBufferSize)
 	assert.Equal(t, 0, conf.MQTTMaxKeepAlive)
+	assert.Equal(t, 2, conf.MQTTMaximumQoS)
 }

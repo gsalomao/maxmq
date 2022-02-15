@@ -70,6 +70,7 @@ func newCommandStart() *cobra.Command {
 				BufferSize:     conf.MQTTBufferSize,
 				MaxPacketSize:  conf.MQTTMaxPacketSize,
 				MaxKeepAlive:   conf.MQTTMaxKeepAlive,
+				MaximumQoS:     conf.MQTTMaximumQoS,
 			}
 
 			cm := mqtt.NewConnectionManager(mqttConf, &log)

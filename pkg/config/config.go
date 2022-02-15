@@ -42,6 +42,9 @@ type Config struct {
 
 	// The maximum allowed MQTT Keep Alive value, in seconds.
 	MQTTMaxKeepAlive int `mapstructure:"mqtt_max_keep_alive"`
+
+	// The maximum MQTT QoS for PUBLISH Packets accepted by the broker.
+	MQTTMaximumQoS int `mapstructure:"mqtt_max_qos"`
 }
 
 // ReadConfigFile reads the configuration file.
@@ -80,6 +83,7 @@ func LoadConfig() (Config, error) {
 	_ = viper.BindEnv("mqtt_buffer_size")
 	_ = viper.BindEnv("mqtt_max_packet_size")
 	_ = viper.BindEnv("mqtt_max_keep_alive")
+	_ = viper.BindEnv("mqtt_max_qos")
 
 	// Set the default values
 	c := Config{
@@ -88,6 +92,7 @@ func LoadConfig() (Config, error) {
 		MQTTConnectTimeout: 5,
 		MQTTBufferSize:     1024,
 		MQTTMaxPacketSize:  65536,
+		MQTTMaximumQoS:     2,
 	}
 
 	err := viper.Unmarshal(&c)
