@@ -40,8 +40,9 @@ const (
 
 // ConnectionManager implements the ConnectionHandler interface.
 type ConnectionManager struct {
-	log  *logger.Logger
-	conf Configuration
+	log            *logger.Logger
+	conf           Configuration
+	userProperties []packet.UserProperty
 }
 
 // NewConnectionManager creates a new ConnectionManager.
@@ -65,6 +66,12 @@ func NewConnectionManager(
 		cf.MaximumQoS = maxQoS
 	}
 
+	userProps := make([]packet.UserProperty, 0, len(cf.UserProperties))
+	for k, v := range cf.UserProperties {
+		userProps = append(userProps,
+			packet.UserProperty{Key: []byte(k), Value: []byte(v)})
+	}
+
 	lg.Trace().
 		Int("BufferSize", cf.BufferSize).
 		Int("ConnectTimeout", cf.ConnectTimeout).
@@ -74,8 +81,9 @@ func NewConnectionManager(
 		Msg("MQTT Creating Connection Manager")
 
 	return ConnectionManager{
-		conf: cf,
-		log:  lg,
+		conf:           cf,
+		log:            lg,
+		userProperties: userProps,
 	}
 }
 
@@ -283,6 +291,11 @@ func (cm *ConnectionManager) newConnAckProperties(
 
 		pr.RetainAvailable = new(byte)
 		*pr.RetainAvailable = ra
+		hasProps = true
+	}
+
+	if len(cm.userProperties) > 0 {
+		pr.UserProperties = cm.userProperties
 		hasProps = true
 	}
 

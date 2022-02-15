@@ -378,6 +378,48 @@ func TestConnectionManager_ConnectV5RetainAvailable(t *testing.T) {
 	<-done
 }
 
+func TestConnectionManager_ConnectV5UserProperty(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+	cm := mqtt.NewConnectionManager(mqtt.Configuration{
+		MaximumQoS:      2,
+		RetainAvailable: true,
+		UserProperties:  map[string]string{"k1": "v1", "k2": "v2"},
+	}, logStub.Logger())
+
+	conn, sConn := net.Pipe()
+
+	done := make(chan bool)
+	go func() {
+		c := cm.NewConnection(sConn)
+		cm.Handle(c)
+		done <- true
+	}()
+
+	msg := []byte{
+		0x10, 14, // fixed header
+		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 10, // variable header
+		0,         // property length
+		0, 1, 'a', // client ID
+	}
+
+	_, err := conn.Write(msg)
+	require.Nil(t, err)
+
+	out := make([]byte, 23)
+	_, err = conn.Read(out)
+	require.Nil(t, err)
+
+	connAck := []byte{
+		0x20, 21, 0, 0, 18,
+		38, 0, 2, 'k', '1', 0, 2, 'v', '1',
+		38, 0, 2, 'k', '2', 0, 2, 'v', '2',
+	} // RetainAvailable
+	assert.Equal(t, connAck, out)
+
+	_ = conn.Close()
+	<-done
+}
+
 func TestConnectionManager_ConnectV5RetainAvailableNotNeeded(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{

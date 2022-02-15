@@ -38,4 +38,8 @@ type Configuration struct {
 
 	// Indicate whether the broker allows retained messages or not.
 	RetainAvailable bool
+
+	// This property can be used to provide additional information to the Client
+	// including diagnostic information.
+	UserProperties map[string]string
 }
