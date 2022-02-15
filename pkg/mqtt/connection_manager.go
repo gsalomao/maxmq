@@ -26,6 +26,16 @@ import (
 	"github.com/gsalomao/maxmq/pkg/mqtt/packet"
 )
 
+const (
+	defaultBufferSize     = 1024
+	minBufferSize         = 1
+	maxBufferSize         = 65536
+	minPacketSize         = 20
+	maxPacketSize         = 268435456
+	defaultConnectTimeout = 5
+	minConnectTimeout     = 1
+)
+
 // ConnectionManager implements the ConnectionHandler interface.
 type ConnectionManager struct {
 	log  *logger.Logger
@@ -37,16 +47,16 @@ func NewConnectionManager(
 	cf Configuration,
 	lg *logger.Logger,
 ) ConnectionManager {
-	if cf.BufferSize <= 0 || cf.BufferSize > 65536 {
-		cf.BufferSize = 1024 // 1KB
+	if cf.BufferSize < minBufferSize || cf.BufferSize > maxBufferSize {
+		cf.BufferSize = defaultBufferSize
 	}
 
-	if cf.MaxPacketSize < 20 || cf.MaxPacketSize > 268435456 {
-		cf.MaxPacketSize = 65536 // 64KB
+	if cf.MaxPacketSize < minPacketSize || cf.MaxPacketSize > maxPacketSize {
+		cf.MaxPacketSize = maxPacketSize
 	}
 
-	if cf.ConnectTimeout <= 0 {
-		cf.ConnectTimeout = 5 // 5 seconds
+	if cf.ConnectTimeout < minConnectTimeout {
+		cf.ConnectTimeout = defaultConnectTimeout
 	}
 
 	return ConnectionManager{
@@ -213,6 +223,12 @@ func (cm *ConnectionManager) processPacketConnect(
 
 			pr.ServerKeepAlive = new(uint16)
 			*pr.ServerKeepAlive = conn.timeout
+			hasProps = true
+		}
+
+		if cm.conf.MaxPacketSize != maxPacketSize {
+			pr.MaximumPacketSize = new(uint32)
+			*pr.MaximumPacketSize = uint32(cm.conf.MaxPacketSize)
 			hasProps = true
 		}
 
