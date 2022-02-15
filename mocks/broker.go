@@ -26,6 +26,7 @@ type RunnerMock struct {
 	Err       error
 }
 
+// NewRunnerMock creates a RunnerMock.
 func NewRunnerMock() *RunnerMock {
 	return &RunnerMock{
 		RunningCh: make(chan bool),
