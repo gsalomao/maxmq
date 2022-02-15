@@ -45,6 +45,9 @@ type Config struct {
 
 	// The maximum MQTT QoS for PUBLISH Packets accepted by the broker.
 	MQTTMaximumQoS int `mapstructure:"mqtt_max_qos"`
+
+	// Indicate whether the broker allows retained MQTT messages or not.
+	MQTTRetainAvailable bool `mapstructure:"mqtt_retain_available"`
 }
 
 // ReadConfigFile reads the configuration file.
@@ -84,15 +87,17 @@ func LoadConfig() (Config, error) {
 	_ = viper.BindEnv("mqtt_max_packet_size")
 	_ = viper.BindEnv("mqtt_max_keep_alive")
 	_ = viper.BindEnv("mqtt_max_qos")
+	_ = viper.BindEnv("mqtt_retain_available")
 
 	// Set the default values
 	c := Config{
-		LogLevel:           "info",
-		MQTTTCPAddress:     ":1883",
-		MQTTConnectTimeout: 5,
-		MQTTBufferSize:     1024,
-		MQTTMaxPacketSize:  65536,
-		MQTTMaximumQoS:     2,
+		LogLevel:            "info",
+		MQTTTCPAddress:      ":1883",
+		MQTTConnectTimeout:  5,
+		MQTTBufferSize:      1024,
+		MQTTMaxPacketSize:   65536,
+		MQTTMaximumQoS:      2,
+		MQTTRetainAvailable: true,
 	}
 
 	err := viper.Unmarshal(&c)
