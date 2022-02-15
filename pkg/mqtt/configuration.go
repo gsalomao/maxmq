@@ -35,4 +35,7 @@ type Configuration struct {
 
 	// The maximum QoS for PUBLISH Packets accepted by the broker.
 	MaximumQoS int
+
+	// Indicate whether the broker allows retained messages or not.
+	RetainAvailable bool
 }

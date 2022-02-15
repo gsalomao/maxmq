@@ -67,9 +67,10 @@ func NewConnectionManager(
 
 	lg.Trace().
 		Int("BufferSize", cf.BufferSize).
-		Int("MaxPacketSize", cf.MaxPacketSize).
 		Int("ConnectTimeout", cf.ConnectTimeout).
 		Int("MaximumQoS", cf.MaximumQoS).
+		Int("MaxPacketSize", cf.MaxPacketSize).
+		Bool("RetainAvailable", cf.RetainAvailable).
 		Msg("MQTT Creating Connection Manager")
 
 	return ConnectionManager{
@@ -271,6 +272,17 @@ func (cm *ConnectionManager) newConnAckProperties(
 	if cm.conf.MaximumQoS < maxQoS {
 		pr.MaximumQoS = new(byte)
 		*pr.MaximumQoS = byte(cm.conf.MaximumQoS)
+		hasProps = true
+	}
+
+	if !cm.conf.RetainAvailable {
+		ra := byte(1)
+		if !cm.conf.RetainAvailable {
+			ra = 0
+		}
+
+		pr.RetainAvailable = new(byte)
+		*pr.RetainAvailable = ra
 		hasProps = true
 	}
 
