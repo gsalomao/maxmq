@@ -48,6 +48,10 @@ type Config struct {
 
 	// Indicate whether the broker allows retained MQTT messages or not.
 	MQTTRetainAvailable bool `mapstructure:"mqtt_retain_available"`
+
+	// Provide additional information to MQTT clients including diagnostic
+	// information.
+	MQTTUserProperties map[string]string `mapstructure:"mqtt_user_properties"`
 }
 
 // ReadConfigFile reads the configuration file.
