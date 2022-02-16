@@ -41,7 +41,11 @@ type Config struct {
 	MQTTMaxPacketSize int `mapstructure:"mqtt_max_packet_size"`
 
 	// The maximum allowed MQTT Keep Alive value, in seconds.
-	MQTTMaxKeepAlive int `mapstructure:"mqtt_max_keep_alive"`
+	MQTTMaxKeepAlive uint16 `mapstructure:"mqtt_max_keep_alive"`
+
+	// The maximum period, in seconds, a MQTT session is still valid after the
+	// network connection with the client has been closed.
+	MQTTSessionExpiration uint32 `mapstructure:"mqtt_session_expiration"`
 
 	// The maximum MQTT QoS for PUBLISH Packets accepted by the broker.
 	MQTTMaximumQoS int `mapstructure:"mqtt_max_qos"`
@@ -90,6 +94,7 @@ func LoadConfig() (Config, error) {
 	_ = viper.BindEnv("mqtt_buffer_size")
 	_ = viper.BindEnv("mqtt_max_packet_size")
 	_ = viper.BindEnv("mqtt_max_keep_alive")
+	_ = viper.BindEnv("mqtt_session_expiration")
 	_ = viper.BindEnv("mqtt_max_qos")
 	_ = viper.BindEnv("mqtt_retain_available")
 

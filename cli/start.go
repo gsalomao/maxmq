@@ -69,14 +69,15 @@ func newCommandStart() *cobra.Command {
 			}
 
 			mqttConf := mqtt.Configuration{
-				TCPAddress:      conf.MQTTTCPAddress,
-				ConnectTimeout:  conf.MQTTConnectTimeout,
-				BufferSize:      conf.MQTTBufferSize,
-				MaxPacketSize:   conf.MQTTMaxPacketSize,
-				MaxKeepAlive:    uint16(conf.MQTTMaxKeepAlive),
-				MaximumQoS:      conf.MQTTMaximumQoS,
-				RetainAvailable: conf.MQTTRetainAvailable,
-				UserProperties:  conf.MQTTUserProperties,
+				TCPAddress:               conf.MQTTTCPAddress,
+				ConnectTimeout:           conf.MQTTConnectTimeout,
+				BufferSize:               conf.MQTTBufferSize,
+				MaxPacketSize:            conf.MQTTMaxPacketSize,
+				MaxKeepAlive:             conf.MQTTMaxKeepAlive,
+				MaxSessionExpiryInterval: conf.MQTTSessionExpiration,
+				MaximumQoS:               conf.MQTTMaximumQoS,
+				RetainAvailable:          conf.MQTTRetainAvailable,
+				UserProperties:           conf.MQTTUserProperties,
 			}
 
 			cm := mqtt.NewConnectionManager(mqttConf, &log)
