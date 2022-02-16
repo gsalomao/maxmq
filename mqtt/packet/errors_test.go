@@ -14,29 +14,16 @@
  * limitations under the License.
  */
 
-package config_test
+package packet_test
 
 import (
 	"testing"
 
-	"github.com/gsalomao/maxmq/pkg/config"
+	"github.com/gsalomao/maxmq/mqtt/packet"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestConfig_ReadConfigFile(t *testing.T) {
-	err := config.ReadConfigFile()
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "Config File \"maxmq.conf\" Not Found")
-}
-
-func TestConfig_LoadConfig(t *testing.T) {
-	conf, err := config.LoadConfig()
-	assert.Nil(t, err)
-	assert.Equal(t, "info", conf.LogLevel)
-	assert.Equal(t, ":1883", conf.MQTTTCPAddress)
-	assert.Equal(t, 5, conf.MQTTConnectTimeout)
-	assert.Equal(t, 1024, conf.MQTTBufferSize)
-	assert.Equal(t, 0, conf.MQTTMaxKeepAlive)
-	assert.Equal(t, 2, conf.MQTTMaximumQoS)
-	assert.Equal(t, true, conf.MQTTRetainAvailable)
+func TestPacketError_ErrorMessage(t *testing.T) {
+	err := packet.ErrV5MalformedPacket
+	assert.Equal(t, "129 (malformed packet)", err.Error())
 }

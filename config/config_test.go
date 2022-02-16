@@ -14,43 +14,29 @@
  * limitations under the License.
  */
 
-package cli_test
+package config_test
 
 import (
-	"bytes"
 	"testing"
 
-	"github.com/gsalomao/maxmq/pkg/cli"
+	"github.com/gsalomao/maxmq/config"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCLI_Run(t *testing.T) {
-	tests := []struct {
-		name string
-		in   string
-		out  string
-	}{
-		{
-			name: "Usage",
-			in:   "",
-			out:  "MaxMQ is a Cloud-Native Message Broker for IoT",
-		},
-		{
-			name: "Version",
-			in:   "--version",
-			out:  "MaxMQ version",
-		},
-	}
+func TestConfig_ReadConfigFile(t *testing.T) {
+	err := config.ReadConfigFile()
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Config File \"maxmq.conf\" Not Found")
+}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			out := bytes.NewBufferString("")
-			c := cli.New(out, []string{test.in})
-
-			err := c.Run()
-
-			assert.Nil(t, err)
-			assert.Contains(t, out.String(), test.out)
-		})
-	}
+func TestConfig_LoadConfig(t *testing.T) {
+	conf, err := config.LoadConfig()
+	assert.Nil(t, err)
+	assert.Equal(t, "info", conf.LogLevel)
+	assert.Equal(t, ":1883", conf.MQTTTCPAddress)
+	assert.Equal(t, 5, conf.MQTTConnectTimeout)
+	assert.Equal(t, 1024, conf.MQTTBufferSize)
+	assert.Equal(t, 0, conf.MQTTMaxKeepAlive)
+	assert.Equal(t, 2, conf.MQTTMaximumQoS)
+	assert.Equal(t, true, conf.MQTTRetainAvailable)
 }

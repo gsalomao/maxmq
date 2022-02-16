@@ -14,16 +14,43 @@
  * limitations under the License.
  */
 
-package packet_test
+package cli_test
 
 import (
+	"bytes"
 	"testing"
 
-	"github.com/gsalomao/maxmq/pkg/mqtt/packet"
+	"github.com/gsalomao/maxmq/cli"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPacketError_ErrorMessage(t *testing.T) {
-	err := packet.ErrV5MalformedPacket
-	assert.Equal(t, "129 (malformed packet)", err.Error())
+func TestCLI_Run(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "Usage",
+			in:   "",
+			out:  "MaxMQ is a Cloud-Native Message Broker for IoT",
+		},
+		{
+			name: "Version",
+			in:   "--version",
+			out:  "MaxMQ version",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			out := bytes.NewBufferString("")
+			c := cli.New(out, []string{test.in})
+
+			err := c.Run()
+
+			assert.Nil(t, err)
+			assert.Contains(t, out.String(), test.out)
+		})
+	}
 }

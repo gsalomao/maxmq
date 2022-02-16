@@ -20,7 +20,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/gsalomao/maxmq/pkg/logger"
+	"github.com/gsalomao/maxmq/logger"
 )
 
 // Runner is a network interface for stream-oriented protocols.

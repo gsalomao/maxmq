@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/brianvoe/gofakeit/v6"
-	"github.com/gsalomao/maxmq/pkg/logger"
+	"github.com/gsalomao/maxmq/logger"
 	"github.com/stretchr/testify/assert"
 )
 

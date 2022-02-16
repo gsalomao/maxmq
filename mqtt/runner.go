@@ -21,7 +21,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/gsalomao/maxmq/pkg/logger"
+	"github.com/gsalomao/maxmq/logger"
 )
 
 // Runner is responsible to implement the MQTT protocol conform the v3.1.1

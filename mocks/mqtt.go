@@ -19,7 +19,7 @@ package mocks
 import (
 	"net"
 
-	"github.com/gsalomao/maxmq/pkg/mqtt"
+	"github.com/gsalomao/maxmq/mqtt"
 	"github.com/stretchr/testify/mock"
 )
 

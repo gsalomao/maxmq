@@ -22,8 +22,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/gsalomao/maxmq/pkg/logger"
-	"github.com/gsalomao/maxmq/pkg/mqtt/packet"
+	"github.com/gsalomao/maxmq/logger"
+	"github.com/gsalomao/maxmq/mqtt/packet"
 )
 
 const (

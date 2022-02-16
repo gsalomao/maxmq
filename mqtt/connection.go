@@ -19,7 +19,7 @@ package mqtt
 import (
 	"net"
 
-	"github.com/gsalomao/maxmq/pkg/mqtt/packet"
+	"github.com/gsalomao/maxmq/mqtt/packet"
 )
 
 // Connection represents a network connection.

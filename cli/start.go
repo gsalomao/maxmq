@@ -23,10 +23,10 @@ import (
 	"syscall"
 
 	"github.com/dimiro1/banner"
-	"github.com/gsalomao/maxmq/pkg/broker"
-	"github.com/gsalomao/maxmq/pkg/config"
-	"github.com/gsalomao/maxmq/pkg/logger"
-	"github.com/gsalomao/maxmq/pkg/mqtt"
+	"github.com/gsalomao/maxmq/broker"
+	"github.com/gsalomao/maxmq/config"
+	"github.com/gsalomao/maxmq/logger"
+	"github.com/gsalomao/maxmq/mqtt"
 	"github.com/mattn/go-colorable"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -50,13 +50,12 @@ func newCommandStart() *cobra.Command {
 			log := logger.New(os.Stdout)
 
 			err := config.ReadConfigFile()
-			if err != nil {
-				if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-					log.Info().Msg("Configuration file 'maxmq.conf' not found")
-				} else {
+			if err == nil {
+				log.Info().Msg("Loading configuration from file")
+			} else {
+				if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 					log.Warn().Msg(err.Error())
 				}
-
 			}
 
 			conf, err := config.LoadConfig()
