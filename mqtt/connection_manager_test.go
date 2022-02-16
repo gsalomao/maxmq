@@ -28,7 +28,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestConnectionManager_Connect(t *testing.T) {
+func TestConnectionManager_ConnectV3(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{}, logStub.Logger())
 
@@ -61,10 +61,48 @@ func TestConnectionManager_Connect(t *testing.T) {
 	<-done
 }
 
+func TestConnectionManager_ConnectV5(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+	cm := mqtt.NewConnectionManager(mqtt.Configuration{
+		MaximumQoS:      2,
+		RetainAvailable: true,
+	}, logStub.Logger())
+
+	conn, sConn := net.Pipe()
+
+	done := make(chan bool)
+	go func() {
+		c := cm.NewConnection(sConn)
+		cm.Handle(c)
+		done <- true
+	}()
+
+	msg := []byte{
+		0x10, 19, // fixed header
+		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 60, // variable header
+		5,                // property length
+		17, 0, 0, 0, 200, // SessionExpiryInterval
+		0, 1, 'a', // client ID
+	}
+
+	_, err := conn.Write(msg)
+	require.Nil(t, err)
+
+	out := make([]byte, 5)
+	_, err = conn.Read(out)
+	require.Nil(t, err)
+
+	connAck := []byte{0x20, 3, 0, 0, 0}
+	assert.Equal(t, connAck, out)
+
+	_ = conn.Close()
+	<-done
+}
+
 func TestConnectionManager_ConnectV3KeepAliveExceeded(t *testing.T) {
 	testCases := []struct {
 		keepAlive    uint16
-		maxKeepAlive int
+		maxKeepAlive uint16
 	}{
 		{keepAlive: 0, maxKeepAlive: 1},
 		{keepAlive: 2, maxKeepAlive: 1},
@@ -76,9 +114,10 @@ func TestConnectionManager_ConnectV3KeepAliveExceeded(t *testing.T) {
 		t.Run(fmt.Sprintf("%v-%v", test.keepAlive, test.maxKeepAlive),
 			func(t *testing.T) {
 				logStub := mocks.NewLoggerStub()
-				cm := mqtt.NewConnectionManager(mqtt.Configuration{
-					MaxKeepAlive: test.maxKeepAlive,
-				}, logStub.Logger())
+
+				conf := mqtt.NewDefaultConfiguration()
+				conf.MaxKeepAlive = test.maxKeepAlive
+				cm := mqtt.NewConnectionManager(conf, logStub.Logger())
 
 				conn, sConn := net.Pipe()
 
@@ -115,11 +154,10 @@ func TestConnectionManager_ConnectV3KeepAliveExceeded(t *testing.T) {
 
 func TestConnectionManager_ConnectV5MaxKeepAlive(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	cm := mqtt.NewConnectionManager(mqtt.Configuration{
-		MaxKeepAlive:    1,
-		MaximumQoS:      2,
-		RetainAvailable: true,
-	}, logStub.Logger())
+
+	conf := mqtt.NewDefaultConfiguration()
+	conf.MaxKeepAlive = 1
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
 
 	conn, sConn := net.Pipe()
 
@@ -153,11 +191,10 @@ func TestConnectionManager_ConnectV5MaxKeepAlive(t *testing.T) {
 
 func TestConnectionManager_ConnectV5MaxKeepAliveNotNeeded(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	cm := mqtt.NewConnectionManager(mqtt.Configuration{
-		MaxKeepAlive:    10,
-		MaximumQoS:      2,
-		RetainAvailable: true,
-	}, logStub.Logger())
+
+	conf := mqtt.NewDefaultConfiguration()
+	conf.MaxKeepAlive = 10
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
 
 	conn, sConn := net.Pipe()
 
@@ -191,13 +228,94 @@ func TestConnectionManager_ConnectV5MaxKeepAliveNotNeeded(t *testing.T) {
 	<-done
 }
 
+func TestConnectionManager_ConnectV5MaxSessionExpiryInterval(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+
+	conf := mqtt.NewDefaultConfiguration()
+	conf.MaxSessionExpiryInterval = 10
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
+
+	conn, sConn := net.Pipe()
+
+	done := make(chan bool)
+	go func() {
+		c := cm.NewConnection(sConn)
+		cm.Handle(c)
+		done <- true
+	}()
+
+	msg := []byte{
+		0x10, 19, // fixed header
+		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 10, // variable header
+		5,               // property length
+		17, 0, 0, 0, 11, // SessionExpiryInterval
+		0, 1, 'a', // client ID
+	}
+
+	_, err := conn.Write(msg)
+	require.Nil(t, err)
+
+	out := make([]byte, 10)
+	_, err = conn.Read(out)
+	require.Nil(t, err)
+
+	connAck := []byte{
+		0x20, 8, 0, 0, // fixed header
+		5,               // property length
+		17, 0, 0, 0, 10, // SessionExpiryInterval
+	}
+	assert.Equal(t, connAck, out)
+
+	_ = conn.Close()
+	<-done
+}
+
+func TestConnectionManager_ConnectV55MaxSessionExpiryNotNeeded(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+
+	conf := mqtt.NewDefaultConfiguration()
+	conf.MaxSessionExpiryInterval = 10
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
+
+	conn, sConn := net.Pipe()
+
+	done := make(chan bool)
+	go func() {
+		c := cm.NewConnection(sConn)
+		cm.Handle(c)
+		done <- true
+	}()
+
+	msg := []byte{
+		0x10, 19, // fixed header
+		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 10, // variable header
+		5,               // property length
+		17, 0, 0, 0, 10, // SessionExpiryInterval
+		0, 1, 'a', // client ID
+	}
+
+	_, err := conn.Write(msg)
+	require.Nil(t, err)
+
+	out := make([]byte, 5)
+	_, err = conn.Read(out)
+	require.Nil(t, err)
+
+	// ServerKeepAlive is not in packet as the keep alive sent in Connect
+	// Packet is equal or lower than the maximum keep alive.
+	connAck := []byte{0x20, 3, 0, 0, 0}
+	assert.Equal(t, connAck, out)
+
+	_ = conn.Close()
+	<-done
+}
+
 func TestConnectionManager_ConnectV5MaxPacketSize(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	cm := mqtt.NewConnectionManager(mqtt.Configuration{
-		MaxPacketSize:   65536,
-		MaximumQoS:      2,
-		RetainAvailable: true,
-	}, logStub.Logger())
+
+	conf := mqtt.NewDefaultConfiguration()
+	conf.MaxPacketSize = 65536
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
 
 	conn, sConn := net.Pipe()
 
@@ -231,11 +349,10 @@ func TestConnectionManager_ConnectV5MaxPacketSize(t *testing.T) {
 
 func TestConnectionManager_ConnectV5MaxPacketSizeNotNeeded(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	cm := mqtt.NewConnectionManager(mqtt.Configuration{
-		MaxPacketSize:   268435456,
-		MaximumQoS:      2,
-		RetainAvailable: true,
-	}, logStub.Logger())
+
+	conf := mqtt.NewDefaultConfiguration()
+	conf.MaxPacketSize = 268435456
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
 
 	conn, sConn := net.Pipe()
 
@@ -269,10 +386,10 @@ func TestConnectionManager_ConnectV5MaxPacketSizeNotNeeded(t *testing.T) {
 
 func TestConnectionManager_ConnectV5MaximumQoS(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	cm := mqtt.NewConnectionManager(mqtt.Configuration{
-		MaximumQoS:      1,
-		RetainAvailable: true,
-	}, logStub.Logger())
+
+	conf := mqtt.NewDefaultConfiguration()
+	conf.MaximumQoS = 1
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
 
 	conn, sConn := net.Pipe()
 
@@ -306,10 +423,10 @@ func TestConnectionManager_ConnectV5MaximumQoS(t *testing.T) {
 
 func TestConnectionManager_ConnectV5MaximumQoSNotNeeded(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	cm := mqtt.NewConnectionManager(mqtt.Configuration{
-		MaximumQoS:      2,
-		RetainAvailable: true,
-	}, logStub.Logger())
+
+	conf := mqtt.NewDefaultConfiguration()
+	conf.MaximumQoS = 2
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
 
 	conn, sConn := net.Pipe()
 
@@ -343,10 +460,10 @@ func TestConnectionManager_ConnectV5MaximumQoSNotNeeded(t *testing.T) {
 
 func TestConnectionManager_ConnectV5RetainAvailable(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	cm := mqtt.NewConnectionManager(mqtt.Configuration{
-		MaximumQoS:      2,
-		RetainAvailable: false,
-	}, logStub.Logger())
+
+	conf := mqtt.NewDefaultConfiguration()
+	conf.RetainAvailable = false
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
 
 	conn, sConn := net.Pipe()
 
@@ -380,11 +497,10 @@ func TestConnectionManager_ConnectV5RetainAvailable(t *testing.T) {
 
 func TestConnectionManager_ConnectV5UserProperty(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	cm := mqtt.NewConnectionManager(mqtt.Configuration{
-		MaximumQoS:      2,
-		RetainAvailable: true,
-		UserProperties:  map[string]string{"k1": "v1", "k2": "v2"},
-	}, logStub.Logger())
+
+	conf := mqtt.NewDefaultConfiguration()
+	conf.UserProperties = map[string]string{"k1": "v1"}
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
 
 	conn, sConn := net.Pipe()
 
@@ -405,14 +521,13 @@ func TestConnectionManager_ConnectV5UserProperty(t *testing.T) {
 	_, err := conn.Write(msg)
 	require.Nil(t, err)
 
-	out := make([]byte, 23)
+	out := make([]byte, 14)
 	_, err = conn.Read(out)
 	require.Nil(t, err)
 
 	connAck := []byte{
-		0x20, 21, 0, 0, 18,
+		0x20, 12, 0, 0, 9,
 		38, 0, 2, 'k', '1', 0, 2, 'v', '1',
-		38, 0, 2, 'k', '2', 0, 2, 'v', '2',
 	} // RetainAvailable
 	assert.Equal(t, connAck, out)
 
@@ -422,10 +537,10 @@ func TestConnectionManager_ConnectV5UserProperty(t *testing.T) {
 
 func TestConnectionManager_ConnectV5RetainAvailableNotNeeded(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	cm := mqtt.NewConnectionManager(mqtt.Configuration{
-		MaximumQoS:      2,
-		RetainAvailable: true,
-	}, logStub.Logger())
+
+	conf := mqtt.NewDefaultConfiguration()
+	conf.RetainAvailable = true
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
 
 	conn, sConn := net.Pipe()
 
@@ -459,7 +574,8 @@ func TestConnectionManager_ConnectV5RetainAvailableNotNeeded(t *testing.T) {
 
 func TestConnectionManager_NetConnClosed(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	cm := mqtt.NewConnectionManager(mqtt.Configuration{}, logStub.Logger())
+	cm := mqtt.NewConnectionManager(mqtt.NewDefaultConfiguration(),
+		logStub.Logger())
 
 	conn, sConn := net.Pipe()
 
@@ -479,7 +595,8 @@ func TestConnectionManager_NetConnClosed(t *testing.T) {
 
 func TestConnectionManager_SetDeadlineFailure(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	cm := mqtt.NewConnectionManager(mqtt.Configuration{}, logStub.Logger())
+	cm := mqtt.NewConnectionManager(mqtt.NewDefaultConfiguration(),
+		logStub.Logger())
 
 	conn, sConn := net.Pipe()
 	_ = conn.Close()
@@ -491,7 +608,8 @@ func TestConnectionManager_SetDeadlineFailure(t *testing.T) {
 
 func TestConnectionManager_ReadFailure(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	cm := mqtt.NewConnectionManager(mqtt.Configuration{}, logStub.Logger())
+	cm := mqtt.NewConnectionManager(mqtt.NewDefaultConfiguration(),
+		logStub.Logger())
 
 	conn, sConn := net.Pipe()
 
@@ -511,7 +629,8 @@ func TestConnectionManager_ReadFailure(t *testing.T) {
 
 func TestConnectionManager_ReadTimeout(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	cm := mqtt.NewConnectionManager(mqtt.Configuration{}, logStub.Logger())
+	cm := mqtt.NewConnectionManager(mqtt.NewDefaultConfiguration(),
+		logStub.Logger())
 
 	conn, sConn := net.Pipe()
 	defer func(conn net.Conn) {
@@ -547,7 +666,8 @@ func TestConnectionManager_ReadTimeout(t *testing.T) {
 
 func TestConnectionManager_Close(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	cm := mqtt.NewConnectionManager(mqtt.Configuration{}, logStub.Logger())
+	cm := mqtt.NewConnectionManager(mqtt.NewDefaultConfiguration(),
+		logStub.Logger())
 
 	lsn, err := net.Listen("tcp", "")
 	require.Nil(t, err)

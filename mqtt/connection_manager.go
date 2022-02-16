@@ -77,6 +77,7 @@ func NewConnectionManager(
 		Int("ConnectTimeout", cf.ConnectTimeout).
 		Int("MaximumQoS", cf.MaximumQoS).
 		Int("MaxPacketSize", cf.MaxPacketSize).
+		Uint32("MaxSessionExpiryInterval", cf.MaxSessionExpiryInterval).
 		Bool("RetainAvailable", cf.RetainAvailable).
 		Msg("MQTT Creating Connection Manager")
 
@@ -151,7 +152,8 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 				Msg("MQTT Failed to read packet: " + err.Error())
 
 			if pktErr, ok := err.(packet.Error); ok {
-				_ = cm.sendConnAck(&conn, pktErr.Code, false, nil)
+				connAck := newConnAck(nil, pktErr.Code, false, cm.conf, nil)
+				_ = cm.sendConnAck(&conn, connAck)
 			}
 			break
 		}
@@ -161,7 +163,7 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 			Stringer("PacketType", pkt.Type()).
 			Msg("MQTT Received packet")
 
-		err = cm.processPacket(pkt, &conn)
+		err = cm.handlePacket(pkt, &conn)
 		if err != nil {
 			cm.log.Warn().
 				Str("Address", conn.address).
@@ -193,59 +195,59 @@ func (cm *ConnectionManager) Close(conn Connection) {
 	_ = conn.netConn.Close()
 }
 
-func (cm *ConnectionManager) processPacket(
+func (cm *ConnectionManager) handlePacket(
 	pkt packet.Packet,
 	conn *Connection,
 ) error {
 	if pkt.Type() == packet.CONNECT {
 		connPkt, _ := pkt.(*packet.Connect)
-		return cm.processPacketConnect(connPkt, conn)
+		return cm.handlePacketConnect(connPkt, conn)
 	}
 
 	return errors.New("invalid packet type: " + pkt.Type().String())
 }
 
-func (cm *ConnectionManager) processPacketConnect(
-	pkt *packet.Connect,
+func (cm *ConnectionManager) handlePacketConnect(
+	connPkt *packet.Connect,
 	conn *Connection,
 ) error {
 	cm.log.Trace().
 		Str("Address", conn.address).
-		Str("ClientID", string(pkt.ClientID)).
-		Str("Version", pkt.Version.String()).
-		Uint16("KeepAlive", pkt.KeepAlive).
-		Msg("MQTT Processing CONNECT Packet")
+		Str("ClientID", string(connPkt.ClientID)).
+		Str("Version", connPkt.Version.String()).
+		Uint16("KeepAlive", connPkt.KeepAlive).
+		Msg("MQTT Handling CONNECT Packet")
 
-	conn.clientID = pkt.ClientID
-	conn.version = pkt.Version
-	conn.timeout = pkt.KeepAlive
+	conn.clientID = connPkt.ClientID
+	conn.version = connPkt.Version
+	conn.timeout = connPkt.KeepAlive
 
-	if pkt.Version != packet.MQTT50 && cm.conf.MaxKeepAlive > 0 {
-		keepAlive := int(pkt.KeepAlive)
-		if keepAlive == 0 || keepAlive > cm.conf.MaxKeepAlive {
+	if connPkt.Version != packet.MQTT50 && cm.conf.MaxKeepAlive > 0 {
+		if connPkt.KeepAlive == 0 || connPkt.KeepAlive > cm.conf.MaxKeepAlive {
 			// For MQTT v3.1 and v3.1.1, there is no mechanism to tell the
 			// clients what Keep Alive value they should use. If an MQTT
 			// v3.1 or v3.1.1 client specifies a Keep Alive time greater than
 			// MaxKeepAlive, the CONNACK Packet is sent with the reason code
 			// "identifier rejected".
 			code := packet.ReturnCodeV3IdentifierRejected
-			_ = cm.sendConnAck(conn, code, false, nil)
+			connAckPkt := newConnAck(connPkt, code, false, cm.conf, nil)
+			_ = cm.sendConnAck(conn, connAckPkt)
 			return errors.New("keep alive exceeded")
 		}
 	}
 
-	var props *packet.Properties
-	if pkt.Version == packet.MQTT50 {
-		props = cm.newConnAckProperties(pkt, conn)
-	}
-
 	code := packet.ReturnCodeV3ConnectionAccepted
-	err := cm.sendConnAck(conn, code, false, props)
+	connAck := newConnAck(connPkt, code, false, cm.conf, cm.userProperties)
+	err := cm.sendConnAck(conn, connAck)
 	if err != nil {
 		return err
 	}
 
 	conn.connected = true
+	if connAck.Properties != nil && connAck.Properties.ServerKeepAlive != nil {
+		conn.timeout = *connAck.Properties.ServerKeepAlive
+	}
+
 	cm.log.Debug().
 		Str("Address", conn.address).
 		Str("ClientID", string(conn.clientID)).
@@ -255,69 +257,14 @@ func (cm *ConnectionManager) processPacketConnect(
 	return nil
 }
 
-func (cm *ConnectionManager) newConnAckProperties(
-	pkt *packet.Connect,
-	conn *Connection,
-) *packet.Properties {
-	pr := packet.Properties{}
-	hasProps := false
-
-	keepAlive := int(pkt.KeepAlive)
-	if cm.conf.MaxKeepAlive > 0 && keepAlive > cm.conf.MaxKeepAlive {
-		conn.timeout = uint16(cm.conf.MaxKeepAlive)
-
-		pr.ServerKeepAlive = new(uint16)
-		*pr.ServerKeepAlive = conn.timeout
-		hasProps = true
-	}
-
-	if cm.conf.MaxPacketSize != maxPacketSize {
-		pr.MaximumPacketSize = new(uint32)
-		*pr.MaximumPacketSize = uint32(cm.conf.MaxPacketSize)
-		hasProps = true
-	}
-
-	if cm.conf.MaximumQoS < maxQoS {
-		pr.MaximumQoS = new(byte)
-		*pr.MaximumQoS = byte(cm.conf.MaximumQoS)
-		hasProps = true
-	}
-
-	if !cm.conf.RetainAvailable {
-		ra := byte(1)
-		if !cm.conf.RetainAvailable {
-			ra = 0
-		}
-
-		pr.RetainAvailable = new(byte)
-		*pr.RetainAvailable = ra
-		hasProps = true
-	}
-
-	if len(cm.userProperties) > 0 {
-		pr.UserProperties = cm.userProperties
-		hasProps = true
-	}
-
-	if !hasProps {
-		return nil
-	}
-
-	return &pr
-}
-
 func (cm *ConnectionManager) sendConnAck(
 	conn *Connection,
-	code packet.ReturnCode,
-	sessionPresent bool,
-	props *packet.Properties,
+	pkt packet.ConnAck,
 ) error {
-	pkt := packet.NewConnAck(conn.version, code, sessionPresent, props)
-
 	cm.log.Trace().
 		Str("Address", conn.address).
 		Str("ClientID", string(conn.clientID)).
-		Uint8("ReturnCode", uint8(code)).
+		Uint8("ReturnCode", uint8(pkt.ReturnCode)).
 		Str("Version", conn.version.String()).
 		Msg("MQTT Sending CONNACK Packet")
 
@@ -326,7 +273,7 @@ func (cm *ConnectionManager) sendConnAck(
 		cm.log.Error().
 			Str("Address", conn.address).
 			Str("ClientID", string(conn.clientID)).
-			Uint8("ReturnCode", uint8(code)).
+			Uint8("ReturnCode", uint8(pkt.ReturnCode)).
 			Str("Version", conn.version.String()).
 			Msg("MQTT Failed to send CONNACK Packet: " + err.Error())
 	}

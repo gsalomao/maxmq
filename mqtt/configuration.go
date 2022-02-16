@@ -31,7 +31,10 @@ type Configuration struct {
 	MaxPacketSize int
 
 	// The maximum Keep Alive value, in seconds, allowed by the broker.
-	MaxKeepAlive int
+	MaxKeepAlive uint16
+
+	// The maximum Session Expire Interval, in seconds, allowed by the broker.
+	MaxSessionExpiryInterval uint32
 
 	// The maximum QoS for PUBLISH Packets accepted by the broker.
 	MaximumQoS int
@@ -42,4 +45,19 @@ type Configuration struct {
 	// This property can be used to provide additional information to the Client
 	// including diagnostic information.
 	UserProperties map[string]string
+}
+
+// NewDefaultConfiguration creates a new configuration with default values.
+func NewDefaultConfiguration() Configuration {
+	return Configuration{
+		TCPAddress:               ":1883",
+		ConnectTimeout:           defaultConnectTimeout,
+		BufferSize:               defaultBufferSize,
+		MaxPacketSize:            maxPacketSize,
+		MaxKeepAlive:             0,
+		MaxSessionExpiryInterval: 0,
+		MaximumQoS:               2,
+		RetainAvailable:          true,
+		UserProperties:           map[string]string{},
+	}
 }
