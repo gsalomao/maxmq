@@ -83,6 +83,7 @@ func newConnAck(
 		addMaximumQoSToProperties(props, conf)
 		addTopicAliasMaxToProperties(props, conf)
 		addRetainAvailableToProperties(props, conf)
+		addWildcardSubscriptionAvailableToProperties(props, conf)
 		addReceiveMaximumToProperties(props, conf)
 
 		connProps := connPkt.Properties
@@ -156,5 +157,20 @@ func addRetainAvailableToProperties(pr *packet.Properties, conf Configuration) {
 
 		pr.RetainAvailable = new(byte)
 		*pr.RetainAvailable = ra
+	}
+}
+
+func addWildcardSubscriptionAvailableToProperties(
+	pr *packet.Properties,
+	conf Configuration,
+) {
+	if !conf.WildcardSubscriptionAvailable {
+		wsa := byte(1)
+		if !conf.WildcardSubscriptionAvailable {
+			wsa = 0
+		}
+
+		pr.WildcardSubscriptionAvailable = new(byte)
+		*pr.WildcardSubscriptionAvailable = wsa
 	}
 }

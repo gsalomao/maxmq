@@ -60,6 +60,7 @@ func NewConnectionManager(
 		Uint32("MaxSessionExpiryInterval", cf.MaxSessionExpiryInterval).
 		Int("MaxTopicAlias", cf.MaxTopicAlias).
 		Bool("RetainAvailable", cf.RetainAvailable).
+		Bool("WildcardSubscriptionAvailable", cf.WildcardSubscriptionAvailable).
 		Msg("MQTT Creating Connection Manager")
 
 	return ConnectionManager{

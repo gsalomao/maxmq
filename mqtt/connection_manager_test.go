@@ -30,17 +30,18 @@ import (
 
 func newConfiguration() mqtt.Configuration {
 	return mqtt.Configuration{
-		TCPAddress:               ":1883",
-		ConnectTimeout:           5,
-		BufferSize:               1024,
-		MaxPacketSize:            268435456,
-		MaxKeepAlive:             0,
-		MaxSessionExpiryInterval: 0,
-		MaxInflightMessages:      0,
-		MaximumQoS:               2,
-		MaxTopicAlias:            0,
-		RetainAvailable:          true,
-		UserProperties:           map[string]string{},
+		TCPAddress:                    ":1883",
+		ConnectTimeout:                5,
+		BufferSize:                    1024,
+		MaxPacketSize:                 268435456,
+		MaxKeepAlive:                  0,
+		MaxSessionExpiryInterval:      0,
+		MaxInflightMessages:           0,
+		MaximumQoS:                    2,
+		MaxTopicAlias:                 0,
+		RetainAvailable:               true,
+		WildcardSubscriptionAvailable: true,
+		UserProperties:                map[string]string{},
 	}
 }
 
@@ -80,8 +81,9 @@ func TestConnectionManager_ConnectV3(t *testing.T) {
 func TestConnectionManager_ConnectV5(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{
-		MaximumQoS:      2,
-		RetainAvailable: true,
+		MaximumQoS:                    2,
+		RetainAvailable:               true,
+		WildcardSubscriptionAvailable: true,
 	}, logStub.Logger())
 
 	conn, sConn := net.Pipe()
@@ -694,6 +696,43 @@ func TestConnectionManager_ConnectV5RetainAvailable(t *testing.T) {
 	require.Nil(t, err)
 
 	connAck := []byte{0x20, 5, 0, 0, 2, 37, 0} // RetainAvailable
+	assert.Equal(t, connAck, out)
+
+	_ = conn.Close()
+	<-done
+}
+
+func TestConnectionManager_ConnectV5WildcardSubsAvailable(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+
+	conf := newConfiguration()
+	conf.WildcardSubscriptionAvailable = false
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
+
+	conn, sConn := net.Pipe()
+
+	done := make(chan bool)
+	go func() {
+		c := cm.NewConnection(sConn)
+		cm.Handle(c)
+		done <- true
+	}()
+
+	msg := []byte{
+		0x10, 14, // fixed header
+		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 10, // variable header
+		0,         // property length
+		0, 1, 'a', // client ID
+	}
+
+	_, err := conn.Write(msg)
+	require.Nil(t, err)
+
+	out := make([]byte, 7)
+	_, err = conn.Read(out)
+	require.Nil(t, err)
+
+	connAck := []byte{0x20, 5, 0, 0, 2, 40, 0} // WildcardSubscriptionAvailable
 	assert.Equal(t, connAck, out)
 
 	_ = conn.Close()
