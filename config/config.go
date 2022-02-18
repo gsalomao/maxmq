@@ -41,7 +41,7 @@ type Config struct {
 	MQTTMaxPacketSize int `mapstructure:"mqtt_max_packet_size"`
 
 	// The maximum allowed MQTT Keep Alive value, in seconds.
-	MQTTMaxKeepAlive uint16 `mapstructure:"mqtt_max_keep_alive"`
+	MQTTMaxKeepAlive int `mapstructure:"mqtt_max_keep_alive"`
 
 	// The maximum period, in seconds, a MQTT session is still valid after the
 	// network connection with the client has been closed.

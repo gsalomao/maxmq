@@ -23,7 +23,6 @@ func newConnAck(
 	code packet.ReturnCode,
 	sessionPresent bool,
 	conf Configuration,
-	userProperties []packet.UserProperty,
 ) packet.ConnAck {
 	var props *packet.Properties
 	version := packet.MQTT311
@@ -32,18 +31,17 @@ func newConnAck(
 		version = packet.MQTT50
 		props = &packet.Properties{}
 
-		addServerKeepAliveToProperties(props, connPkt.KeepAlive, conf)
+		addServerKeepAliveToProperties(props, int(connPkt.KeepAlive), conf)
 		addMaxPacketSizeToProperties(props, conf)
 		addMaximumQoSToProperties(props, conf)
 		addRetainAvailableToProperties(props, conf)
+		addReceiveMaximum(props, conf)
 
 		connProps := connPkt.Properties
 		if connProps != nil && connProps.SessionExpiryInterval != nil {
 			sesExpInt := *connPkt.Properties.SessionExpiryInterval
 			addSessionExpiryIntervalToProperties(props, sesExpInt, conf)
 		}
-
-		props.UserProperties = userProperties
 	}
 
 	return packet.NewConnAck(version, code, sessionPresent, props)
@@ -51,12 +49,12 @@ func newConnAck(
 
 func addServerKeepAliveToProperties(
 	pr *packet.Properties,
-	keepAlive uint16,
+	keepAlive int,
 	conf Configuration,
 ) {
 	if conf.MaxKeepAlive > 0 && keepAlive > conf.MaxKeepAlive {
 		pr.ServerKeepAlive = new(uint16)
-		*pr.ServerKeepAlive = conf.MaxKeepAlive
+		*pr.ServerKeepAlive = uint16(conf.MaxKeepAlive)
 	}
 }
 
@@ -73,30 +71,28 @@ func addSessionExpiryIntervalToProperties(
 	}
 }
 
-func addMaxPacketSizeToProperties(
-	pr *packet.Properties,
-	conf Configuration,
-) {
-	if conf.MaxPacketSize != maxPacketSize {
+func addReceiveMaximum(pr *packet.Properties, conf Configuration) {
+	if conf.MaxInflightMessages > 0 && conf.MaxInflightMessages < 65535 {
+		pr.ReceiveMaximum = new(uint16)
+		*pr.ReceiveMaximum = uint16(conf.MaxInflightMessages)
+	}
+}
+
+func addMaxPacketSizeToProperties(pr *packet.Properties, conf Configuration) {
+	if conf.MaxPacketSize != 268435456 {
 		pr.MaximumPacketSize = new(uint32)
 		*pr.MaximumPacketSize = uint32(conf.MaxPacketSize)
 	}
 }
 
-func addMaximumQoSToProperties(
-	pr *packet.Properties,
-	conf Configuration,
-) {
-	if conf.MaximumQoS < maxQoS {
+func addMaximumQoSToProperties(pr *packet.Properties, conf Configuration) {
+	if conf.MaximumQoS < 2 {
 		pr.MaximumQoS = new(byte)
 		*pr.MaximumQoS = byte(conf.MaximumQoS)
 	}
 }
 
-func addRetainAvailableToProperties(
-	pr *packet.Properties,
-	conf Configuration,
-) {
+func addRetainAvailableToProperties(pr *packet.Properties, conf Configuration) {
 	if !conf.RetainAvailable {
 		ra := byte(1)
 		if !conf.RetainAvailable {

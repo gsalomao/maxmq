@@ -31,11 +31,8 @@ const (
 	minBufferSize         = 1
 	maxBufferSize         = 65536
 	minPacketSize         = 20
-	maxPacketSize         = 268435456
 	defaultConnectTimeout = 5
 	minConnectTimeout     = 1
-	minQoS                = 0
-	maxQoS                = 2
 )
 
 // ConnectionManager implements the ConnectionHandler interface.
@@ -54,16 +51,20 @@ func NewConnectionManager(
 		cf.BufferSize = defaultBufferSize
 	}
 
-	if cf.MaxPacketSize < minPacketSize || cf.MaxPacketSize > maxPacketSize {
-		cf.MaxPacketSize = maxPacketSize
+	if cf.MaxPacketSize < minPacketSize || cf.MaxPacketSize > 268435456 {
+		cf.MaxPacketSize = 268435456
 	}
 
 	if cf.ConnectTimeout < minConnectTimeout {
 		cf.ConnectTimeout = defaultConnectTimeout
 	}
 
-	if cf.MaximumQoS < minQoS || cf.MaximumQoS > maxQoS {
-		cf.MaximumQoS = maxQoS
+	if cf.MaximumQoS < 0 || cf.MaximumQoS > 2 {
+		cf.MaximumQoS = 2
+	}
+
+	if cf.MaxInflightMessages < 0 || cf.MaxInflightMessages > 65535 {
+		cf.MaxInflightMessages = 0
 	}
 
 	userProps := make([]packet.UserProperty, 0, len(cf.UserProperties))
@@ -78,6 +79,7 @@ func NewConnectionManager(
 		Int("MaximumQoS", cf.MaximumQoS).
 		Int("MaxPacketSize", cf.MaxPacketSize).
 		Uint32("MaxSessionExpiryInterval", cf.MaxSessionExpiryInterval).
+		Int("MaxInflightMessages", cf.MaxInflightMessages).
 		Bool("RetainAvailable", cf.RetainAvailable).
 		Msg("MQTT Creating Connection Manager")
 
@@ -152,7 +154,7 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 				Msg("MQTT Failed to read packet: " + err.Error())
 
 			if pktErr, ok := err.(packet.Error); ok {
-				connAck := newConnAck(nil, pktErr.Code, false, cm.conf, nil)
+				connAck := newConnAck(nil, pktErr.Code, false, cm.conf)
 				_ = cm.sendConnAck(&conn, connAck)
 			}
 			break
@@ -223,21 +225,26 @@ func (cm *ConnectionManager) handlePacketConnect(
 	conn.timeout = connPkt.KeepAlive
 
 	if connPkt.Version != packet.MQTT50 && cm.conf.MaxKeepAlive > 0 {
-		if connPkt.KeepAlive == 0 || connPkt.KeepAlive > cm.conf.MaxKeepAlive {
+		ka := int(connPkt.KeepAlive)
+		if ka == 0 || ka > cm.conf.MaxKeepAlive {
 			// For MQTT v3.1 and v3.1.1, there is no mechanism to tell the
 			// clients what Keep Alive value they should use. If an MQTT
 			// v3.1 or v3.1.1 client specifies a Keep Alive time greater than
 			// MaxKeepAlive, the CONNACK Packet is sent with the reason code
 			// "identifier rejected".
 			code := packet.ReturnCodeV3IdentifierRejected
-			connAckPkt := newConnAck(connPkt, code, false, cm.conf, nil)
+			connAckPkt := newConnAck(connPkt, code, false, cm.conf)
 			_ = cm.sendConnAck(conn, connAckPkt)
 			return errors.New("keep alive exceeded")
 		}
 	}
 
 	code := packet.ReturnCodeV3ConnectionAccepted
-	connAck := newConnAck(connPkt, code, false, cm.conf, cm.userProperties)
+	connAck := newConnAck(connPkt, code, false, cm.conf)
+	if connAck.Properties != nil {
+		connAck.Properties.UserProperties = cm.userProperties
+	}
+
 	err := cm.sendConnAck(conn, connAck)
 	if err != nil {
 		return err
