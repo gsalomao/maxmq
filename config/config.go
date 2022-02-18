@@ -61,6 +61,9 @@ type Config struct {
 	// Indicate whether the broker allows retained MQTT messages or not.
 	MQTTRetainAvailable bool `mapstructure:"mqtt_retain_available"`
 
+	// Indicate whether the broker allows MQTT wildcard subscription or not.
+	MQTTWildcardSubscription bool `mapstructure:"mqtt_wildcard_subscription"`
+
 	// Provide additional information to MQTT clients including diagnostic
 	// information.
 	MQTTUserProperties map[string]string `mapstructure:"mqtt_user_properties"`
@@ -107,18 +110,20 @@ func LoadConfig() (Config, error) {
 	_ = viper.BindEnv("mqtt_max_qos")
 	_ = viper.BindEnv("mqtt_max_topic_alias")
 	_ = viper.BindEnv("mqtt_retain_available")
+	_ = viper.BindEnv("mqtt_wildcard_subscription")
 
 	// Set the default values
 	c := Config{
-		LogLevel:                "info",
-		MQTTTCPAddress:          ":1883",
-		MQTTConnectTimeout:      5,
-		MQTTBufferSize:          1024,
-		MQTTMaxPacketSize:       65536,
-		MQTTMaxInflightMessages: 20,
-		MQTTMaximumQoS:          2,
-		MQTTMaxTopicAlias:       10,
-		MQTTRetainAvailable:     true,
+		LogLevel:                 "info",
+		MQTTTCPAddress:           ":1883",
+		MQTTConnectTimeout:       5,
+		MQTTBufferSize:           1024,
+		MQTTMaxPacketSize:        65536,
+		MQTTMaxInflightMessages:  20,
+		MQTTMaximumQoS:           2,
+		MQTTMaxTopicAlias:        10,
+		MQTTRetainAvailable:      true,
+		MQTTWildcardSubscription: true,
 	}
 
 	err := viper.Unmarshal(&c)
