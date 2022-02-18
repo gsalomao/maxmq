@@ -47,6 +47,10 @@ type Config struct {
 	// network connection with the client has been closed.
 	MQTTSessionExpiration uint32 `mapstructure:"mqtt_session_expiration"`
 
+	// The maximum number of MQTT QoS 1 or 2 messages that can be processed
+	// simultaneously.
+	MQTTMaxInflightMessages int `mapstructure:"mqtt_max_inflight_messages"`
+
 	// The maximum MQTT QoS for PUBLISH Packets accepted by the broker.
 	MQTTMaximumQoS int `mapstructure:"mqtt_max_qos"`
 
@@ -95,18 +99,20 @@ func LoadConfig() (Config, error) {
 	_ = viper.BindEnv("mqtt_max_packet_size")
 	_ = viper.BindEnv("mqtt_max_keep_alive")
 	_ = viper.BindEnv("mqtt_session_expiration")
+	_ = viper.BindEnv("mqtt_max_inflight_messages")
 	_ = viper.BindEnv("mqtt_max_qos")
 	_ = viper.BindEnv("mqtt_retain_available")
 
 	// Set the default values
 	c := Config{
-		LogLevel:            "info",
-		MQTTTCPAddress:      ":1883",
-		MQTTConnectTimeout:  5,
-		MQTTBufferSize:      1024,
-		MQTTMaxPacketSize:   65536,
-		MQTTMaximumQoS:      2,
-		MQTTRetainAvailable: true,
+		LogLevel:                "info",
+		MQTTTCPAddress:          ":1883",
+		MQTTConnectTimeout:      5,
+		MQTTBufferSize:          1024,
+		MQTTMaxPacketSize:       65536,
+		MQTTMaxInflightMessages: 20,
+		MQTTMaximumQoS:          2,
+		MQTTRetainAvailable:     true,
 	}
 
 	err := viper.Unmarshal(&c)

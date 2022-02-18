@@ -75,6 +75,7 @@ func newCommandStart() *cobra.Command {
 				MaxPacketSize:            conf.MQTTMaxPacketSize,
 				MaxKeepAlive:             conf.MQTTMaxKeepAlive,
 				MaxSessionExpiryInterval: conf.MQTTSessionExpiration,
+				MaxInflightMessages:      conf.MQTTMaxInflightMessages,
 				MaximumQoS:               conf.MQTTMaximumQoS,
 				RetainAvailable:          conf.MQTTRetainAvailable,
 				UserProperties:           conf.MQTTUserProperties,

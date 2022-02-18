@@ -38,6 +38,7 @@ func TestConfig_LoadConfig(t *testing.T) {
 	assert.Equal(t, 1024, conf.MQTTBufferSize)
 	assert.Equal(t, 0, conf.MQTTMaxKeepAlive)
 	assert.Equal(t, uint32(0), conf.MQTTSessionExpiration)
+	assert.Equal(t, 20, conf.MQTTMaxInflightMessages)
 	assert.Equal(t, 2, conf.MQTTMaximumQoS)
 	assert.Equal(t, true, conf.MQTTRetainAvailable)
 }
