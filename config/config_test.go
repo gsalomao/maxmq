@@ -40,5 +40,6 @@ func TestConfig_LoadConfig(t *testing.T) {
 	assert.Equal(t, uint32(0), conf.MQTTSessionExpiration)
 	assert.Equal(t, 20, conf.MQTTMaxInflightMessages)
 	assert.Equal(t, 2, conf.MQTTMaximumQoS)
+	assert.Equal(t, 10, conf.MQTTMaxTopicAlias)
 	assert.Equal(t, true, conf.MQTTRetainAvailable)
 }

@@ -77,6 +77,7 @@ func newCommandStart() *cobra.Command {
 				MaxSessionExpiryInterval: conf.MQTTSessionExpiration,
 				MaxInflightMessages:      conf.MQTTMaxInflightMessages,
 				MaximumQoS:               conf.MQTTMaximumQoS,
+				MaxTopicAlias:            conf.MQTTMaxTopicAlias,
 				RetainAvailable:          conf.MQTTRetainAvailable,
 				UserProperties:           conf.MQTTUserProperties,
 			}

@@ -54,6 +54,10 @@ type Config struct {
 	// The maximum MQTT QoS for PUBLISH Packets accepted by the broker.
 	MQTTMaximumQoS int `mapstructure:"mqtt_max_qos"`
 
+	// The maximum number of topic aliases that an MQTT V5 client is allowed to
+	// create.
+	MQTTMaxTopicAlias int `mapstructure:"mqtt_max_topic_alias"`
+
 	// Indicate whether the broker allows retained MQTT messages or not.
 	MQTTRetainAvailable bool `mapstructure:"mqtt_retain_available"`
 
@@ -101,6 +105,7 @@ func LoadConfig() (Config, error) {
 	_ = viper.BindEnv("mqtt_session_expiration")
 	_ = viper.BindEnv("mqtt_max_inflight_messages")
 	_ = viper.BindEnv("mqtt_max_qos")
+	_ = viper.BindEnv("mqtt_max_topic_alias")
 	_ = viper.BindEnv("mqtt_retain_available")
 
 	// Set the default values
@@ -112,6 +117,7 @@ func LoadConfig() (Config, error) {
 		MQTTMaxPacketSize:       65536,
 		MQTTMaxInflightMessages: 20,
 		MQTTMaximumQoS:          2,
+		MQTTMaxTopicAlias:       10,
 		MQTTRetainAvailable:     true,
 	}
 
