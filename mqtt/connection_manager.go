@@ -26,15 +26,6 @@ import (
 	"github.com/gsalomao/maxmq/mqtt/packet"
 )
 
-const (
-	defaultBufferSize     = 1024
-	minBufferSize         = 1
-	maxBufferSize         = 65536
-	minPacketSize         = 20
-	defaultConnectTimeout = 5
-	minConnectTimeout     = 1
-)
-
 // ConnectionManager implements the ConnectionHandler interface.
 type ConnectionManager struct {
 	log            *logger.Logger
@@ -47,25 +38,12 @@ func NewConnectionManager(
 	cf Configuration,
 	lg *logger.Logger,
 ) ConnectionManager {
-	if cf.BufferSize < minBufferSize || cf.BufferSize > maxBufferSize {
-		cf.BufferSize = defaultBufferSize
-	}
-
-	if cf.MaxPacketSize < minPacketSize || cf.MaxPacketSize > 268435456 {
-		cf.MaxPacketSize = 268435456
-	}
-
-	if cf.ConnectTimeout < minConnectTimeout {
-		cf.ConnectTimeout = defaultConnectTimeout
-	}
-
-	if cf.MaximumQoS < 0 || cf.MaximumQoS > 2 {
-		cf.MaximumQoS = 2
-	}
-
-	if cf.MaxInflightMessages < 0 || cf.MaxInflightMessages > 65535 {
-		cf.MaxInflightMessages = 0
-	}
+	cf.BufferSize = bufferSizeOrDefault(cf.BufferSize)
+	cf.MaxPacketSize = maxPacketSizeOrDefault(cf.MaxPacketSize)
+	cf.ConnectTimeout = connectTimeoutOrDefault(cf.ConnectTimeout)
+	cf.MaximumQoS = maximumQosOrDefault(cf.MaximumQoS)
+	cf.MaxTopicAlias = maxTopicAliasOrDefault(cf.MaxTopicAlias)
+	cf.MaxInflightMessages = maxInflightMsgOrDefault(cf.MaxInflightMessages)
 
 	userProps := make([]packet.UserProperty, 0, len(cf.UserProperties))
 	for k, v := range cf.UserProperties {
@@ -77,9 +55,10 @@ func NewConnectionManager(
 		Int("BufferSize", cf.BufferSize).
 		Int("ConnectTimeout", cf.ConnectTimeout).
 		Int("MaximumQoS", cf.MaximumQoS).
+		Int("MaxInflightMessages", cf.MaxInflightMessages).
 		Int("MaxPacketSize", cf.MaxPacketSize).
 		Uint32("MaxSessionExpiryInterval", cf.MaxSessionExpiryInterval).
-		Int("MaxInflightMessages", cf.MaxInflightMessages).
+		Int("MaxTopicAlias", cf.MaxTopicAlias).
 		Bool("RetainAvailable", cf.RetainAvailable).
 		Msg("MQTT Creating Connection Manager")
 

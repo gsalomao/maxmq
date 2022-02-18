@@ -43,6 +43,10 @@ type Configuration struct {
 	// The maximum QoS for PUBLISH Packets accepted by the broker.
 	MaximumQoS int
 
+	// The maximum number of topic aliases that an MQTT V5 client is allowed to
+	// create.
+	MaxTopicAlias int
+
 	// Indicate whether the broker allows retained messages or not.
 	RetainAvailable bool
 

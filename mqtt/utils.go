@@ -18,6 +18,53 @@ package mqtt
 
 import "github.com/gsalomao/maxmq/mqtt/packet"
 
+func bufferSizeOrDefault(bs int) int {
+	if bs < 1 || bs > 65535 {
+		return 1024
+	}
+
+	return bs
+}
+
+func maxPacketSizeOrDefault(mps int) int {
+	if mps < 20 || mps > 268435456 {
+		return 268435456
+	}
+
+	return mps
+}
+
+func connectTimeoutOrDefault(ct int) int {
+	if ct < 1 {
+		return 5
+	}
+
+	return ct
+}
+
+func maximumQosOrDefault(mq int) int {
+	if mq < 0 || mq > 2 {
+		return 2
+	}
+
+	return mq
+}
+func maxTopicAliasOrDefault(mta int) int {
+	if mta < 0 || mta > 65535 {
+		return 0
+	}
+
+	return mta
+}
+
+func maxInflightMsgOrDefault(mim int) int {
+	if mim < 0 || mim > 65535 {
+		return 0
+	}
+
+	return mim
+}
+
 func newConnAck(
 	connPkt *packet.Connect,
 	code packet.ReturnCode,
@@ -34,8 +81,9 @@ func newConnAck(
 		addServerKeepAliveToProperties(props, int(connPkt.KeepAlive), conf)
 		addMaxPacketSizeToProperties(props, conf)
 		addMaximumQoSToProperties(props, conf)
+		addTopicAliasMaxToProperties(props, conf)
 		addRetainAvailableToProperties(props, conf)
-		addReceiveMaximum(props, conf)
+		addReceiveMaximumToProperties(props, conf)
 
 		connProps := connPkt.Properties
 		if connProps != nil && connProps.SessionExpiryInterval != nil {
@@ -71,7 +119,7 @@ func addSessionExpiryIntervalToProperties(
 	}
 }
 
-func addReceiveMaximum(pr *packet.Properties, conf Configuration) {
+func addReceiveMaximumToProperties(pr *packet.Properties, conf Configuration) {
 	if conf.MaxInflightMessages > 0 && conf.MaxInflightMessages < 65535 {
 		pr.ReceiveMaximum = new(uint16)
 		*pr.ReceiveMaximum = uint16(conf.MaxInflightMessages)
@@ -89,6 +137,13 @@ func addMaximumQoSToProperties(pr *packet.Properties, conf Configuration) {
 	if conf.MaximumQoS < 2 {
 		pr.MaximumQoS = new(byte)
 		*pr.MaximumQoS = byte(conf.MaximumQoS)
+	}
+}
+
+func addTopicAliasMaxToProperties(pr *packet.Properties, conf Configuration) {
+	if conf.MaxTopicAlias > 0 {
+		pr.TopicAliasMaximum = new(uint16)
+		*pr.TopicAliasMaximum = uint16(conf.MaxTopicAlias)
 	}
 }
 
