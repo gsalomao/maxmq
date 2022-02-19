@@ -65,6 +65,9 @@ type Configuration struct {
 	// Indicate whether the broker allows zero-length client identifier or not.
 	AllowEmptyClientID bool
 
+	// Prefix to be added to automatically generated client IDs.
+	ClientIDPrefix []byte
+
 	// This property can be used to provide additional information to the Client
 	// including diagnostic information.
 	UserProperties map[string]string

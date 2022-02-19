@@ -139,7 +139,7 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 				Msg("MQTT Failed to read packet: " + err.Error())
 
 			if pktErr, ok := err.(packet.Error); ok {
-				connAck := newConnAck(nil, pktErr.Code, false, cm.conf)
+				connAck := newConnAck(&conn, pktErr.Code, false, cm.conf, nil)
 				_ = cm.sendConnAck(&conn, connAck)
 			}
 			break
@@ -217,19 +217,27 @@ func (cm *ConnectionManager) handlePacketConnect(
 		// MaxKeepAlive, the CONNACK Packet is sent with the reason code
 		// "identifier rejected".
 		code := packet.ReturnCodeV3IdentifierRejected
-		connAckPkt := newConnAck(connPkt, code, false, cm.conf)
+		connAckPkt := newConnAck(conn, code, false, cm.conf, nil)
 		_ = cm.sendConnAck(conn, connAckPkt)
 		return err
 	}
 
 	if err := cm.checkClientID(connPkt); err != nil {
-		connAckPkt := newConnAck(connPkt, err.Code, false, cm.conf)
+		connAckPkt := newConnAck(conn, err.Code, false, cm.conf, nil)
 		_ = cm.sendConnAck(conn, connAckPkt)
 		return err
 	}
 
 	code := packet.ReturnCodeV3ConnectionAccepted
-	connAck := newConnAck(connPkt, code, false, cm.conf)
+	connAck := newConnAck(conn, code, false, cm.conf, connPkt.Properties)
+
+	if len(connPkt.ClientID) == 0 {
+		conn.clientID = generateClientID(cm.conf.ClientIDPrefix)
+
+		if conn.version == packet.MQTT50 {
+			connAck.Properties.AssignedClientID = conn.clientID
+		}
+	}
 
 	if connAck.Properties != nil {
 		connAck.Properties.UserProperties = cm.userProperties

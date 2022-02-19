@@ -271,17 +271,9 @@ func TestConnectionManager_ConnectV5(t *testing.T) {
 
 func TestConnectionManager_ConnectV5ClientIDTooBig(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	cm := mqtt.NewConnectionManager(mqtt.Configuration{
-		MaximumQoS:                    3,     // invalid: will be changed to 2
-		MaxTopicAlias:                 65536, // invalid: will be changed to 0
-		MaxInflightMessages:           65536, // invalid: will be changed to 0
-		RetainAvailable:               true,
-		WildcardSubscriptionAvailable: true,
-		SubscriptionIDAvailable:       true,
-		SharedSubscriptionAvailable:   true,
-		AllowEmptyClientID:            false,
-		MaxClientIDLen:                30,
-	}, logStub.Logger())
+	conf := newConfiguration()
+	conf.MaxClientIDLen = 30
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
 
 	conn, sConn := net.Pipe()
 
@@ -317,16 +309,9 @@ func TestConnectionManager_ConnectV5ClientIDTooBig(t *testing.T) {
 
 func TestConnectionManager_ConnectV5DenyEmptyClientID(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	cm := mqtt.NewConnectionManager(mqtt.Configuration{
-		MaximumQoS:                    3,     // invalid: will be changed to 2
-		MaxTopicAlias:                 65536, // invalid: will be changed to 0
-		MaxInflightMessages:           65536, // invalid: will be changed to 0
-		RetainAvailable:               true,
-		WildcardSubscriptionAvailable: true,
-		SubscriptionIDAvailable:       true,
-		SharedSubscriptionAvailable:   true,
-		AllowEmptyClientID:            false,
-	}, logStub.Logger())
+	conf := newConfiguration()
+	conf.AllowEmptyClientID = false
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
 
 	conn, sConn := net.Pipe()
 
@@ -352,6 +337,79 @@ func TestConnectionManager_ConnectV5DenyEmptyClientID(t *testing.T) {
 	require.Nil(t, err)
 
 	connAck := []byte{0x20, 3, 0, 0x85, 0} // client ID not valid
+	assert.Equal(t, connAck, out)
+
+	_ = conn.Close()
+	<-done
+}
+
+func TestConnectionManager_ConnectV5AssignClientID(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+	conf := newConfiguration()
+	conf.AllowEmptyClientID = true
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
+
+	conn, sConn := net.Pipe()
+
+	done := make(chan bool)
+	go func() {
+		c := cm.NewConnection(sConn)
+		cm.Handle(c)
+		done <- true
+	}()
+
+	msg := []byte{
+		0x10, 13, // fixed header
+		0, 4, 'M', 'Q', 'T', 'T', 5, 2, 0, 0, // variable header
+		0,    // property length
+		0, 0, // client ID
+	}
+
+	_, err := conn.Write(msg)
+	require.Nil(t, err)
+
+	out := make([]byte, 8)
+	_, err = conn.Read(out)
+	require.Nil(t, err)
+
+	connAck := []byte{0x20, 26, 0, 0, 23, 18, 0, 20}
+	assert.Equal(t, connAck, out)
+
+	_ = conn.Close()
+	<-done
+}
+
+func TestConnectionManager_ConnectV5AssignClientIDWithPrefix(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+	conf := newConfiguration()
+	conf.AllowEmptyClientID = true
+	conf.ClientIDPrefix = []byte("AUTO-")
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
+
+	conn, sConn := net.Pipe()
+
+	done := make(chan bool)
+	go func() {
+		c := cm.NewConnection(sConn)
+		cm.Handle(c)
+		done <- true
+	}()
+
+	msg := []byte{
+		0x10, 13, // fixed header
+		0, 4, 'M', 'Q', 'T', 'T', 5, 2, 0, 0, // variable header
+		0,    // property length
+		0, 0, // client ID
+	}
+
+	_, err := conn.Write(msg)
+	require.Nil(t, err)
+
+	out := make([]byte, 13)
+	_, err = conn.Read(out)
+	require.Nil(t, err)
+
+	connAck := []byte{0x20, 31, 0, 0, 28, 18, 0, 25, 'A', 'U', 'T', 'O', '-'}
 	assert.Equal(t, connAck, out)
 
 	_ = conn.Close()

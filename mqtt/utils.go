@@ -16,7 +16,10 @@
 
 package mqtt
 
-import "github.com/gsalomao/maxmq/mqtt/packet"
+import (
+	"github.com/gsalomao/maxmq/mqtt/packet"
+	"github.com/rs/xid"
+)
 
 func bufferSizeOrDefault(bs int) int {
 	if bs < 1 || bs > 65535 {
@@ -73,24 +76,38 @@ func maxClientIDLenOrDefault(cIDLen int) int {
 	return cIDLen
 }
 
+func generateClientID(prefix []byte) []byte {
+	pLen := len(prefix)
+	cID := make([]byte, pLen+20)
+
+	if pLen > 0 {
+		_ = copy(cID, prefix)
+	}
+
+	guid := xid.New()
+	_ = guid.Encode(cID[pLen:])
+	return cID
+}
+
 func newConnAck(
-	pkt *packet.Connect,
+	conn *Connection,
 	rc packet.ReturnCode,
 	sessionPresent bool,
 	conf Configuration,
+	connProps *packet.Properties,
 ) packet.ConnAck {
 	var props *packet.Properties
 
 	ver := packet.MQTT311
-	if pkt != nil {
-		ver = pkt.Version
+	if conn != nil {
+		ver = conn.version
 	}
 
-	if pkt != nil && ver == packet.MQTT50 && rc == packet.ReturnCodeV5Success {
+	if ver == packet.MQTT50 && rc == packet.ReturnCodeV5Success {
 		props = &packet.Properties{}
 
-		addServerKeepAliveToProperties(props, int(pkt.KeepAlive), conf)
-		addSessionExpiryIntervalToProperties(props, pkt, conf)
+		addServerKeepAliveToProperties(props, conn.timeout, conf)
+		addSessionExpiryIntervalToProperties(props, connProps, conf)
 		addMaxPacketSizeToProperties(props, conf)
 		addReceiveMaximumToProperties(props, conf)
 		addMaximumQoSToProperties(props, conf)
@@ -106,10 +123,10 @@ func newConnAck(
 
 func addServerKeepAliveToProperties(
 	pr *packet.Properties,
-	keepAlive int,
+	keepAlive uint16,
 	conf Configuration,
 ) {
-	if conf.MaxKeepAlive > 0 && keepAlive > conf.MaxKeepAlive {
+	if conf.MaxKeepAlive > 0 && keepAlive > uint16(conf.MaxKeepAlive) {
 		pr.ServerKeepAlive = new(uint16)
 		*pr.ServerKeepAlive = uint16(conf.MaxKeepAlive)
 	}
@@ -117,15 +134,14 @@ func addServerKeepAliveToProperties(
 
 func addSessionExpiryIntervalToProperties(
 	pr *packet.Properties,
-	connPkt *packet.Connect,
+	props *packet.Properties,
 	conf Configuration,
 ) {
-	connProps := connPkt.Properties
-	if connProps == nil || connProps.SessionExpiryInterval == nil {
+	if props == nil || props.SessionExpiryInterval == nil {
 		return
 	}
 
-	expInt := *connProps.SessionExpiryInterval
+	expInt := *props.SessionExpiryInterval
 	maxExpInt := conf.MaxSessionExpiryInterval
 
 	if maxExpInt > 0 && expInt > maxExpInt {
