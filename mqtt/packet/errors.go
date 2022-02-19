@@ -49,6 +49,13 @@ var (
 		Code:   ReturnCodeV5ProtocolError,
 		Reason: "protocol error",
 	}
+
+	// ErrV5InvalidClientID indicates that client ID in the CONNECT packet is
+	// valid, but it is not allowed by the broker.
+	ErrV5InvalidClientID = &Error{
+		Code:   ReturnCodeV5InvalidClientID,
+		Reason: "invalid client identifier",
+	}
 )
 
 // Error represents the errors related to the MQTT protocol.

@@ -59,6 +59,9 @@ type Configuration struct {
 	// Indicate whether the broker allows shared subscription or not.
 	SharedSubscriptionAvailable bool
 
+	// Indicate whether the broker allows zero-length client identifier or not.
+	AllowEmptyClientID bool
+
 	// This property can be used to provide additional information to the Client
 	// including diagnostic information.
 	UserProperties map[string]string

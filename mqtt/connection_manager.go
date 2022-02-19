@@ -52,6 +52,7 @@ func NewConnectionManager(
 	}
 
 	lg.Trace().
+		Bool("AllowEmptyClientID", cf.AllowEmptyClientID).
 		Int("BufferSize", cf.BufferSize).
 		Int("ConnectTimeout", cf.ConnectTimeout).
 		Int("MaximumQoS", cf.MaximumQoS).
@@ -206,29 +207,32 @@ func (cm *ConnectionManager) handlePacketConnect(
 	conn.version = connPkt.Version
 	conn.timeout = connPkt.KeepAlive
 
-	if connPkt.Version != packet.MQTT50 && cm.conf.MaxKeepAlive > 0 {
-		ka := int(connPkt.KeepAlive)
-		if ka == 0 || ka > cm.conf.MaxKeepAlive {
-			// For MQTT v3.1 and v3.1.1, there is no mechanism to tell the
-			// clients what Keep Alive value they should use. If an MQTT
-			// v3.1 or v3.1.1 client specifies a Keep Alive time greater than
-			// MaxKeepAlive, the CONNACK Packet is sent with the reason code
-			// "identifier rejected".
-			code := packet.ReturnCodeV3IdentifierRejected
-			connAckPkt := newConnAck(connPkt, code, false, cm.conf)
-			_ = cm.sendConnAck(conn, connAckPkt)
-			return errors.New("keep alive exceeded")
-		}
+	if err := cm.checkKeepAlive(connPkt); err != nil {
+		// For MQTT v3.1 and v3.1.1, there is no mechanism to tell the
+		// clients what Keep Alive value they should use. If an MQTT
+		// v3.1 or v3.1.1 client specifies a Keep Alive time greater than
+		// MaxKeepAlive, the CONNACK Packet is sent with the reason code
+		// "identifier rejected".
+		code := packet.ReturnCodeV3IdentifierRejected
+		connAckPkt := newConnAck(connPkt, code, false, cm.conf)
+		_ = cm.sendConnAck(conn, connAckPkt)
+		return err
+	}
+
+	if err := cm.checkClientID(connPkt); err != nil {
+		connAckPkt := newConnAck(connPkt, err.Code, false, cm.conf)
+		_ = cm.sendConnAck(conn, connAckPkt)
+		return err
 	}
 
 	code := packet.ReturnCodeV3ConnectionAccepted
 	connAck := newConnAck(connPkt, code, false, cm.conf)
+
 	if connAck.Properties != nil {
 		connAck.Properties.UserProperties = cm.userProperties
 	}
 
-	err := cm.sendConnAck(conn, connAck)
-	if err != nil {
+	if err := cm.sendConnAck(conn, connAck); err != nil {
 		return err
 	}
 
@@ -244,6 +248,33 @@ func (cm *ConnectionManager) handlePacketConnect(
 		Msg("MQTT Client connected")
 
 	return nil
+}
+
+func (cm *ConnectionManager) checkKeepAlive(pkt *packet.Connect) error {
+	// For V5.0 clients, the Keep Alive sent in the CONNECT Packet can be
+	// overwritten in the CONNACK Packet.
+	if pkt.Version == packet.MQTT50 || cm.conf.MaxKeepAlive == 0 {
+		return nil
+	}
+
+	keepAlive := int(pkt.KeepAlive)
+	if keepAlive == 0 || keepAlive > cm.conf.MaxKeepAlive {
+		return errors.New("keep alive exceeded")
+	}
+
+	return nil
+}
+
+func (cm *ConnectionManager) checkClientID(pkt *packet.Connect) *packet.Error {
+	if cm.conf.AllowEmptyClientID || len(pkt.ClientID) != 0 {
+		return nil
+	}
+
+	if pkt.Version == packet.MQTT50 {
+		return packet.ErrV5InvalidClientID
+	}
+
+	return packet.ErrV3IdentifierRejected
 }
 
 func (cm *ConnectionManager) sendConnAck(
