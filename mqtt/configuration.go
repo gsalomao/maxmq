@@ -56,6 +56,9 @@ type Configuration struct {
 	// Indicate whether the broker allows subscription identifier or not.
 	SubscriptionIDAvailable bool
 
+	// Indicate whether the broker allows shared subscription or not.
+	SharedSubscriptionAvailable bool
+
 	// This property can be used to provide additional information to the Client
 	// including diagnostic information.
 	UserProperties map[string]string

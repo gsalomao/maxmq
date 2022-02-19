@@ -42,6 +42,7 @@ func newConfiguration() mqtt.Configuration {
 		RetainAvailable:               true,
 		WildcardSubscriptionAvailable: true,
 		SubscriptionIDAvailable:       true,
+		SharedSubscriptionAvailable:   true,
 		UserProperties:                map[string]string{},
 	}
 }
@@ -82,10 +83,13 @@ func TestConnectionManager_ConnectV3(t *testing.T) {
 func TestConnectionManager_ConnectV5(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{
-		MaximumQoS:                    2,
+		MaximumQoS:                    3,     // invalid: will be changed to 2
+		MaxTopicAlias:                 65536, // invalid: will be changed to 0
+		MaxInflightMessages:           65536, // invalid: will be changed to 0
 		RetainAvailable:               true,
 		WildcardSubscriptionAvailable: true,
 		SubscriptionIDAvailable:       true,
+		SharedSubscriptionAvailable:   true,
 	}, logStub.Logger())
 
 	conn, sConn := net.Pipe()
@@ -209,45 +213,6 @@ func TestConnectionManager_ConnectV5MaxKeepAlive(t *testing.T) {
 	<-done
 }
 
-func TestConnectionManager_ConnectV5MaxKeepAliveNotNeeded(t *testing.T) {
-	logStub := mocks.NewLoggerStub()
-
-	conf := newConfiguration()
-	conf.MaxKeepAlive = 10
-	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
-
-	conn, sConn := net.Pipe()
-
-	done := make(chan bool)
-	go func() {
-		c := cm.NewConnection(sConn)
-		cm.Handle(c)
-		done <- true
-	}()
-
-	msg := []byte{
-		0x10, 14, // fixed header
-		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 10, // variable header
-		0,         // property length
-		0, 1, 'a', // client ID
-	}
-
-	_, err := conn.Write(msg)
-	require.Nil(t, err)
-
-	out := make([]byte, 5)
-	_, err = conn.Read(out)
-	require.Nil(t, err)
-
-	// ServerKeepAlive is not in packet as the keep alive sent in Connect
-	// Packet is equal or lower than the maximum keep alive.
-	connAck := []byte{0x20, 3, 0, 0, 0}
-	assert.Equal(t, connAck, out)
-
-	_ = conn.Close()
-	<-done
-}
-
 func TestConnectionManager_ConnectV5MaxSessionExpiryInterval(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 
@@ -284,46 +249,6 @@ func TestConnectionManager_ConnectV5MaxSessionExpiryInterval(t *testing.T) {
 		5,               // property length
 		17, 0, 0, 0, 10, // SessionExpiryInterval
 	}
-	assert.Equal(t, connAck, out)
-
-	_ = conn.Close()
-	<-done
-}
-
-func TestConnectionManager_ConnectV55MaxSessionExpiryNotNeeded(t *testing.T) {
-	logStub := mocks.NewLoggerStub()
-
-	conf := newConfiguration()
-	conf.MaxSessionExpiryInterval = 10
-	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
-
-	conn, sConn := net.Pipe()
-
-	done := make(chan bool)
-	go func() {
-		c := cm.NewConnection(sConn)
-		cm.Handle(c)
-		done <- true
-	}()
-
-	msg := []byte{
-		0x10, 19, // fixed header
-		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 10, // variable header
-		5,               // property length
-		17, 0, 0, 0, 10, // SessionExpiryInterval
-		0, 1, 'a', // client ID
-	}
-
-	_, err := conn.Write(msg)
-	require.Nil(t, err)
-
-	out := make([]byte, 5)
-	_, err = conn.Read(out)
-	require.Nil(t, err)
-
-	// ServerKeepAlive is not in packet as the keep alive sent in Connect
-	// Packet is equal or lower than the maximum keep alive.
-	connAck := []byte{0x20, 3, 0, 0, 0}
 	assert.Equal(t, connAck, out)
 
 	_ = conn.Close()
@@ -371,7 +296,7 @@ func TestConnectionManager_ConnectV5ReceiveMaximum(t *testing.T) {
 	<-done
 }
 
-func TestConnectionManager_ConnectV5ReceiveMaximumNotNeededZero(t *testing.T) {
+func TestConnectionManager_ConnectV5ReceiveMaximumZero(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 
 	conf := newConfiguration()
@@ -408,7 +333,7 @@ func TestConnectionManager_ConnectV5ReceiveMaximumNotNeededZero(t *testing.T) {
 	<-done
 }
 
-func TestConnectionManager_ConnectV5ReceiveMaximumNotNeededMax(t *testing.T) {
+func TestConnectionManager_ConnectV5ReceiveMaximumMax(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 
 	conf := newConfiguration()
@@ -482,43 +407,6 @@ func TestConnectionManager_ConnectV5MaxPacketSize(t *testing.T) {
 	<-done
 }
 
-func TestConnectionManager_ConnectV5MaxPacketSizeNotNeeded(t *testing.T) {
-	logStub := mocks.NewLoggerStub()
-
-	conf := newConfiguration()
-	conf.MaxPacketSize = 268435456
-	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
-
-	conn, sConn := net.Pipe()
-
-	done := make(chan bool)
-	go func() {
-		c := cm.NewConnection(sConn)
-		cm.Handle(c)
-		done <- true
-	}()
-
-	msg := []byte{
-		0x10, 14, // fixed header
-		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 10, // variable header
-		0,         // property length
-		0, 1, 'a', // client ID
-	}
-
-	_, err := conn.Write(msg)
-	require.Nil(t, err)
-
-	out := make([]byte, 5)
-	_, err = conn.Read(out)
-	require.Nil(t, err)
-
-	connAck := []byte{0x20, 3, 0, 0, 0}
-	assert.Equal(t, connAck, out)
-
-	_ = conn.Close()
-	<-done
-}
-
 func TestConnectionManager_ConnectV5MaximumQoS(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 
@@ -556,43 +444,6 @@ func TestConnectionManager_ConnectV5MaximumQoS(t *testing.T) {
 	<-done
 }
 
-func TestConnectionManager_ConnectV5MaximumQoSNotNeeded(t *testing.T) {
-	logStub := mocks.NewLoggerStub()
-
-	conf := newConfiguration()
-	conf.MaximumQoS = 2
-	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
-
-	conn, sConn := net.Pipe()
-
-	done := make(chan bool)
-	go func() {
-		c := cm.NewConnection(sConn)
-		cm.Handle(c)
-		done <- true
-	}()
-
-	msg := []byte{
-		0x10, 14, // fixed header
-		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 10, // variable header
-		0,         // property length
-		0, 1, 'a', // client ID
-	}
-
-	_, err := conn.Write(msg)
-	require.Nil(t, err)
-
-	out := make([]byte, 5)
-	_, err = conn.Read(out)
-	require.Nil(t, err)
-
-	connAck := []byte{0x20, 3, 0, 0, 0}
-	assert.Equal(t, connAck, out)
-
-	_ = conn.Close()
-	<-done
-}
-
 func TestConnectionManager_ConnectV5TopicAliasMaximum(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 
@@ -624,43 +475,6 @@ func TestConnectionManager_ConnectV5TopicAliasMaximum(t *testing.T) {
 	require.Nil(t, err)
 
 	connAck := []byte{0x20, 6, 0, 0, 3, 34, 0, 10} // TopicAliasMaximum
-	assert.Equal(t, connAck, out)
-
-	_ = conn.Close()
-	<-done
-}
-
-func TestConnectionManager_ConnectV5TopicAliasMaximumNotNeeded(t *testing.T) {
-	logStub := mocks.NewLoggerStub()
-
-	conf := newConfiguration()
-	conf.MaxTopicAlias = 0
-	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
-
-	conn, sConn := net.Pipe()
-
-	done := make(chan bool)
-	go func() {
-		c := cm.NewConnection(sConn)
-		cm.Handle(c)
-		done <- true
-	}()
-
-	msg := []byte{
-		0x10, 14, // fixed header
-		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 10, // variable header
-		0,         // property length
-		0, 1, 'a', // client ID
-	}
-
-	_, err := conn.Write(msg)
-	require.Nil(t, err)
-
-	out := make([]byte, 5)
-	_, err = conn.Read(out)
-	require.Nil(t, err)
-
-	connAck := []byte{0x20, 3, 0, 0, 0}
 	assert.Equal(t, connAck, out)
 
 	_ = conn.Close()
@@ -741,7 +555,7 @@ func TestConnectionManager_ConnectV5WildcardSubsAvailable(t *testing.T) {
 	<-done
 }
 
-func TestConnectionManager_ConnectV5SubscriptionIDsAvailable(t *testing.T) {
+func TestConnectionManager_ConnectV5SubscriptionIDAvailable(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 
 	conf := newConfiguration()
@@ -772,6 +586,43 @@ func TestConnectionManager_ConnectV5SubscriptionIDsAvailable(t *testing.T) {
 	require.Nil(t, err)
 
 	connAck := []byte{0x20, 5, 0, 0, 2, 41, 0} // SubscriptionIDAvailable
+	assert.Equal(t, connAck, out)
+
+	_ = conn.Close()
+	<-done
+}
+
+func TestConnectionManager_ConnectV5SharedSubscriptionAvailable(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+
+	conf := newConfiguration()
+	conf.SharedSubscriptionAvailable = false
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
+
+	conn, sConn := net.Pipe()
+
+	done := make(chan bool)
+	go func() {
+		c := cm.NewConnection(sConn)
+		cm.Handle(c)
+		done <- true
+	}()
+
+	msg := []byte{
+		0x10, 14, // fixed header
+		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 10, // variable header
+		0,         // property length
+		0, 1, 'a', // client ID
+	}
+
+	_, err := conn.Write(msg)
+	require.Nil(t, err)
+
+	out := make([]byte, 7)
+	_, err = conn.Read(out)
+	require.Nil(t, err)
+
+	connAck := []byte{0x20, 5, 0, 0, 2, 42, 0} // SharedSubscriptionAvailable
 	assert.Equal(t, connAck, out)
 
 	_ = conn.Close()
@@ -812,43 +663,6 @@ func TestConnectionManager_ConnectV5UserProperty(t *testing.T) {
 		0x20, 12, 0, 0, 9,
 		38, 0, 2, 'k', '1', 0, 2, 'v', '1',
 	} // RetainAvailable
-	assert.Equal(t, connAck, out)
-
-	_ = conn.Close()
-	<-done
-}
-
-func TestConnectionManager_ConnectV5RetainAvailableNotNeeded(t *testing.T) {
-	logStub := mocks.NewLoggerStub()
-
-	conf := newConfiguration()
-	conf.RetainAvailable = true
-	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
-
-	conn, sConn := net.Pipe()
-
-	done := make(chan bool)
-	go func() {
-		c := cm.NewConnection(sConn)
-		cm.Handle(c)
-		done <- true
-	}()
-
-	msg := []byte{
-		0x10, 14, // fixed header
-		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 10, // variable header
-		0,         // property length
-		0, 1, 'a', // client ID
-	}
-
-	_, err := conn.Write(msg)
-	require.Nil(t, err)
-
-	out := make([]byte, 5)
-	_, err = conn.Read(out)
-	require.Nil(t, err)
-
-	connAck := []byte{0x20, 3, 0, 0, 0}
 	assert.Equal(t, connAck, out)
 
 	_ = conn.Close()

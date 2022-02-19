@@ -62,6 +62,7 @@ func NewConnectionManager(
 		Bool("RetainAvailable", cf.RetainAvailable).
 		Bool("WildcardSubscriptionAvailable", cf.WildcardSubscriptionAvailable).
 		Bool("SubscriptionIDAvailable", cf.SubscriptionIDAvailable).
+		Bool("SharedSubscriptionAvailable", cf.SharedSubscriptionAvailable).
 		Msg("MQTT Creating Connection Manager")
 
 	return ConnectionManager{

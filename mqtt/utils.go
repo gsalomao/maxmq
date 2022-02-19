@@ -57,12 +57,12 @@ func maxTopicAliasOrDefault(mta int) int {
 	return mta
 }
 
-func maxInflightMsgOrDefault(mim int) int {
-	if mim < 0 || mim > 65535 {
+func maxInflightMsgOrDefault(im int) int {
+	if im < 0 || im > 65535 {
 		return 0
 	}
 
-	return mim
+	return im
 }
 
 func newConnAck(
@@ -87,6 +87,7 @@ func newConnAck(
 		addRetainAvailableToProperties(props, conf)
 		addWildcardSubscriptionAvailableToProperties(props, conf)
 		addSubscriptionIDAvailableToProperties(props, conf)
+		addSharedSubscriptionAvailableToProperties(props, conf)
 	}
 
 	return packet.NewConnAck(version, code, sessionPresent, props)
@@ -189,5 +190,20 @@ func addSubscriptionIDAvailableToProperties(
 
 		pr.SubscriptionIDAvailable = new(byte)
 		*pr.SubscriptionIDAvailable = available
+	}
+}
+
+func addSharedSubscriptionAvailableToProperties(
+	pr *packet.Properties,
+	conf Configuration,
+) {
+	if !conf.SharedSubscriptionAvailable {
+		available := byte(1)
+		if !conf.SharedSubscriptionAvailable {
+			available = 0
+		}
+
+		pr.SharedSubscriptionAvailable = new(byte)
+		*pr.SharedSubscriptionAvailable = available
 	}
 }
