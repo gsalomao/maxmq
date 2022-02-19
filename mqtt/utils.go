@@ -65,21 +65,32 @@ func maxInflightMsgOrDefault(im int) int {
 	return im
 }
 
+func maxClientIDLenOrDefault(cIDLen int) int {
+	if cIDLen < 23 || cIDLen > 65535 {
+		return 23
+	}
+
+	return cIDLen
+}
+
 func newConnAck(
-	connPkt *packet.Connect,
-	code packet.ReturnCode,
+	pkt *packet.Connect,
+	rc packet.ReturnCode,
 	sessionPresent bool,
 	conf Configuration,
 ) packet.ConnAck {
 	var props *packet.Properties
-	version := packet.MQTT311
 
-	if connPkt != nil && connPkt.Version == packet.MQTT50 {
-		version = packet.MQTT50
+	ver := packet.MQTT311
+	if pkt != nil {
+		ver = pkt.Version
+	}
+
+	if pkt != nil && ver == packet.MQTT50 && rc == packet.ReturnCodeV5Success {
 		props = &packet.Properties{}
 
-		addServerKeepAliveToProperties(props, int(connPkt.KeepAlive), conf)
-		addSessionExpiryIntervalToProperties(props, connPkt, conf)
+		addServerKeepAliveToProperties(props, int(pkt.KeepAlive), conf)
+		addSessionExpiryIntervalToProperties(props, pkt, conf)
 		addMaxPacketSizeToProperties(props, conf)
 		addReceiveMaximumToProperties(props, conf)
 		addMaximumQoSToProperties(props, conf)
@@ -90,7 +101,7 @@ func newConnAck(
 		addSharedSubscriptionAvailableToProperties(props, conf)
 	}
 
-	return packet.NewConnAck(version, code, sessionPresent, props)
+	return packet.NewConnAck(ver, rc, sessionPresent, props)
 }
 
 func addServerKeepAliveToProperties(

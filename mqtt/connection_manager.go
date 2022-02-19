@@ -44,6 +44,7 @@ func NewConnectionManager(
 	cf.MaximumQoS = maximumQosOrDefault(cf.MaximumQoS)
 	cf.MaxTopicAlias = maxTopicAliasOrDefault(cf.MaxTopicAlias)
 	cf.MaxInflightMessages = maxInflightMsgOrDefault(cf.MaxInflightMessages)
+	cf.MaxClientIDLen = maxClientIDLenOrDefault(cf.MaxClientIDLen)
 
 	userProps := make([]packet.UserProperty, 0, len(cf.UserProperties))
 	for k, v := range cf.UserProperties {
@@ -56,6 +57,7 @@ func NewConnectionManager(
 		Int("BufferSize", cf.BufferSize).
 		Int("ConnectTimeout", cf.ConnectTimeout).
 		Int("MaximumQoS", cf.MaximumQoS).
+		Int("MaxClientIDLen", cf.MaxClientIDLen).
 		Int("MaxInflightMessages", cf.MaxInflightMessages).
 		Int("MaxPacketSize", cf.MaxPacketSize).
 		Uint32("MaxSessionExpiryInterval", cf.MaxSessionExpiryInterval).
@@ -152,6 +154,7 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 		if err != nil {
 			cm.log.Warn().
 				Str("Address", conn.address).
+				Str("ClientID", string(conn.clientID)).
 				Stringer("PacketType", pkt.Type()).
 				Msg("MQTT Failed to process packet: " + err.Error())
 			break
@@ -266,15 +269,29 @@ func (cm *ConnectionManager) checkKeepAlive(pkt *packet.Connect) error {
 }
 
 func (cm *ConnectionManager) checkClientID(pkt *packet.Connect) *packet.Error {
-	if cm.conf.AllowEmptyClientID || len(pkt.ClientID) != 0 {
-		return nil
+	cIDLen := len(pkt.ClientID)
+
+	if !cm.conf.AllowEmptyClientID && cIDLen == 0 {
+		if pkt.Version == packet.MQTT50 {
+			return packet.ErrV5InvalidClientID
+		}
+
+		return packet.ErrV3IdentifierRejected
 	}
 
-	if pkt.Version == packet.MQTT50 {
-		return packet.ErrV5InvalidClientID
+	if pkt.Version == packet.MQTT31 && cIDLen > 23 {
+		return packet.ErrV3IdentifierRejected
 	}
 
-	return packet.ErrV3IdentifierRejected
+	if cIDLen > cm.conf.MaxClientIDLen {
+		if pkt.Version == packet.MQTT50 {
+			return packet.ErrV5InvalidClientID
+		}
+
+		return packet.ErrV3IdentifierRejected
+	}
+
+	return nil
 }
 
 func (cm *ConnectionManager) sendConnAck(

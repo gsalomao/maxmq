@@ -59,6 +59,9 @@ type Configuration struct {
 	// Indicate whether the broker allows shared subscription or not.
 	SharedSubscriptionAvailable bool
 
+	// The maximum length, in bytes, for client ID allowed by the broker.
+	MaxClientIDLen int
+
 	// Indicate whether the broker allows zero-length client identifier or not.
 	AllowEmptyClientID bool
 
