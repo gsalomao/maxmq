@@ -70,6 +70,9 @@ type Config struct {
 	// Indicate whether the broker allows MQTT shared subscription or not.
 	MQTTSharedSubscription bool `mapstructure:"mqtt_shared_subscription"`
 
+	// The maximum length, in bytes, for MQTT client ID allowed by the broker.
+	MQTTMaxClientIDLen int `mapstructure:"mqtt_max_client_id_len"`
+
 	// Indicate whether the broker allows zero-length MQTT client identifier
 	// or not.
 	MQTTAllowEmptyClientID bool `mapstructure:"mqtt_allow_empty_client_id"`
@@ -123,6 +126,7 @@ func LoadConfig() (Config, error) {
 	_ = viper.BindEnv("mqtt_wildcard_subscription")
 	_ = viper.BindEnv("mqtt_subscription_identifier")
 	_ = viper.BindEnv("mqtt_shared_subscription")
+	_ = viper.BindEnv("mqtt_max_client_id_len")
 	_ = viper.BindEnv("mqtt_allow_empty_client_id")
 
 	// Set the default values
@@ -139,6 +143,7 @@ func LoadConfig() (Config, error) {
 		MQTTWildcardSubscription: true,
 		MQTTSubscriptionID:       true,
 		MQTTSharedSubscription:   true,
+		MQTTMaxClientIDLen:       65535,
 		MQTTAllowEmptyClientID:   true,
 	}
 
