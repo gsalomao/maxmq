@@ -88,6 +88,7 @@ func newBroker(conf config.Config, log *logger.Logger) (*broker.Broker, error) {
 		SharedSubscriptionAvailable:   conf.MQTTSharedSubscription,
 		MaxClientIDLen:                conf.MQTTMaxClientIDLen,
 		AllowEmptyClientID:            conf.MQTTAllowEmptyClientID,
+		ClientIDPrefix:                []byte(conf.MQTTClientIDPrefix),
 		UserProperties:                conf.MQTTUserProperties,
 	}
 

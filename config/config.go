@@ -77,6 +77,9 @@ type Config struct {
 	// or not.
 	MQTTAllowEmptyClientID bool `mapstructure:"mqtt_allow_empty_client_id"`
 
+	// Prefix to be added to automatically generated MQTT client IDs.
+	MQTTClientIDPrefix string `mapstructure:"mqtt_client_id_prefix"`
+
 	// Provide additional information to MQTT clients including diagnostic
 	// information.
 	MQTTUserProperties map[string]string `mapstructure:"mqtt_user_properties"`
@@ -128,6 +131,7 @@ func LoadConfig() (Config, error) {
 	_ = viper.BindEnv("mqtt_shared_subscription")
 	_ = viper.BindEnv("mqtt_max_client_id_len")
 	_ = viper.BindEnv("mqtt_allow_empty_client_id")
+	_ = viper.BindEnv("mqtt_client_id_prefix")
 
 	// Set the default values
 	c := Config{

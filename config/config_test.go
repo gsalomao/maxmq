@@ -46,5 +46,6 @@ func TestConfig_LoadConfig(t *testing.T) {
 	assert.Equal(t, true, conf.MQTTSubscriptionID)
 	assert.Equal(t, true, conf.MQTTSharedSubscription)
 	assert.Equal(t, 65535, conf.MQTTMaxClientIDLen)
+	assert.Equal(t, "", conf.MQTTClientIDPrefix)
 	assert.Equal(t, true, conf.MQTTAllowEmptyClientID)
 }
