@@ -79,18 +79,14 @@ func newConnAck(
 		props = &packet.Properties{}
 
 		addServerKeepAliveToProperties(props, int(connPkt.KeepAlive), conf)
+		addSessionExpiryIntervalToProperties(props, connPkt, conf)
 		addMaxPacketSizeToProperties(props, conf)
+		addReceiveMaximumToProperties(props, conf)
 		addMaximumQoSToProperties(props, conf)
 		addTopicAliasMaxToProperties(props, conf)
 		addRetainAvailableToProperties(props, conf)
 		addWildcardSubscriptionAvailableToProperties(props, conf)
-		addReceiveMaximumToProperties(props, conf)
-
-		connProps := connPkt.Properties
-		if connProps != nil && connProps.SessionExpiryInterval != nil {
-			sesExpInt := *connPkt.Properties.SessionExpiryInterval
-			addSessionExpiryIntervalToProperties(props, sesExpInt, conf)
-		}
+		addSubscriptionIDsAvailableToProperties(props, conf)
 	}
 
 	return packet.NewConnAck(version, code, sessionPresent, props)
@@ -109,12 +105,18 @@ func addServerKeepAliveToProperties(
 
 func addSessionExpiryIntervalToProperties(
 	pr *packet.Properties,
-	sesExpInt uint32,
+	connPkt *packet.Connect,
 	conf Configuration,
 ) {
-	maxSesExpInt := conf.MaxSessionExpiryInterval
+	connProps := connPkt.Properties
+	if connProps == nil || connProps.SessionExpiryInterval == nil {
+		return
+	}
 
-	if maxSesExpInt > 0 && sesExpInt > maxSesExpInt {
+	expInt := *connProps.SessionExpiryInterval
+	maxExpInt := conf.MaxSessionExpiryInterval
+
+	if maxExpInt > 0 && expInt > maxExpInt {
 		pr.SessionExpiryInterval = new(uint32)
 		*pr.SessionExpiryInterval = conf.MaxSessionExpiryInterval
 	}
@@ -150,13 +152,13 @@ func addTopicAliasMaxToProperties(pr *packet.Properties, conf Configuration) {
 
 func addRetainAvailableToProperties(pr *packet.Properties, conf Configuration) {
 	if !conf.RetainAvailable {
-		ra := byte(1)
+		available := byte(1)
 		if !conf.RetainAvailable {
-			ra = 0
+			available = 0
 		}
 
 		pr.RetainAvailable = new(byte)
-		*pr.RetainAvailable = ra
+		*pr.RetainAvailable = available
 	}
 }
 
@@ -165,12 +167,27 @@ func addWildcardSubscriptionAvailableToProperties(
 	conf Configuration,
 ) {
 	if !conf.WildcardSubscriptionAvailable {
-		wsa := byte(1)
+		available := byte(1)
 		if !conf.WildcardSubscriptionAvailable {
-			wsa = 0
+			available = 0
 		}
 
 		pr.WildcardSubscriptionAvailable = new(byte)
-		*pr.WildcardSubscriptionAvailable = wsa
+		*pr.WildcardSubscriptionAvailable = available
+	}
+}
+
+func addSubscriptionIDsAvailableToProperties(
+	pr *packet.Properties,
+	conf Configuration,
+) {
+	if !conf.SubscriptionIDsAvailable {
+		available := byte(1)
+		if !conf.SubscriptionIDsAvailable {
+			available = 0
+		}
+
+		pr.SubscriptionIDsAvailable = new(byte)
+		*pr.SubscriptionIDsAvailable = available
 	}
 }

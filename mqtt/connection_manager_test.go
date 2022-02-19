@@ -41,6 +41,7 @@ func newConfiguration() mqtt.Configuration {
 		MaxTopicAlias:                 0,
 		RetainAvailable:               true,
 		WildcardSubscriptionAvailable: true,
+		SubscriptionIDAvailable:       true,
 		UserProperties:                map[string]string{},
 	}
 }
@@ -84,6 +85,7 @@ func TestConnectionManager_ConnectV5(t *testing.T) {
 		MaximumQoS:                    2,
 		RetainAvailable:               true,
 		WildcardSubscriptionAvailable: true,
+		SubscriptionIDAvailable:       true,
 	}, logStub.Logger())
 
 	conn, sConn := net.Pipe()
@@ -733,6 +735,43 @@ func TestConnectionManager_ConnectV5WildcardSubsAvailable(t *testing.T) {
 	require.Nil(t, err)
 
 	connAck := []byte{0x20, 5, 0, 0, 2, 40, 0} // WildcardSubscriptionAvailable
+	assert.Equal(t, connAck, out)
+
+	_ = conn.Close()
+	<-done
+}
+
+func TestConnectionManager_ConnectV5SubscriptionIDsAvailable(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+
+	conf := newConfiguration()
+	conf.SubscriptionIDAvailable = false
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
+
+	conn, sConn := net.Pipe()
+
+	done := make(chan bool)
+	go func() {
+		c := cm.NewConnection(sConn)
+		cm.Handle(c)
+		done <- true
+	}()
+
+	msg := []byte{
+		0x10, 14, // fixed header
+		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 10, // variable header
+		0,         // property length
+		0, 1, 'a', // client ID
+	}
+
+	_, err := conn.Write(msg)
+	require.Nil(t, err)
+
+	out := make([]byte, 7)
+	_, err = conn.Read(out)
+	require.Nil(t, err)
+
+	connAck := []byte{0x20, 5, 0, 0, 2, 41, 0} // SubscriptionIDAvailable
 	assert.Equal(t, connAck, out)
 
 	_ = conn.Close()

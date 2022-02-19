@@ -53,6 +53,9 @@ type Configuration struct {
 	// Indicate whether the broker allows wildcard subscription or not.
 	WildcardSubscriptionAvailable bool
 
+	// Indicate whether the broker allows subscription identifier or not.
+	SubscriptionIDAvailable bool
+
 	// This property can be used to provide additional information to the Client
 	// including diagnostic information.
 	UserProperties map[string]string

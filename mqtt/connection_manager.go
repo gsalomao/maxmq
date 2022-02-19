@@ -61,6 +61,7 @@ func NewConnectionManager(
 		Int("MaxTopicAlias", cf.MaxTopicAlias).
 		Bool("RetainAvailable", cf.RetainAvailable).
 		Bool("WildcardSubscriptionAvailable", cf.WildcardSubscriptionAvailable).
+		Bool("SubscriptionIDAvailable", cf.SubscriptionIDAvailable).
 		Msg("MQTT Creating Connection Manager")
 
 	return ConnectionManager{
