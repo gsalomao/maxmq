@@ -433,7 +433,6 @@ func TestConnectionManager_ConnectV3KeepAliveExceeded(t *testing.T) {
 		t.Run(fmt.Sprintf("%v-%v", test.keepAlive, test.maxKeepAlive),
 			func(t *testing.T) {
 				logStub := mocks.NewLoggerStub()
-
 				conf := newConfiguration()
 				conf.MaxKeepAlive = test.maxKeepAlive
 				cm := mqtt.NewConnectionManager(conf, logStub.Logger())
@@ -473,7 +472,6 @@ func TestConnectionManager_ConnectV3KeepAliveExceeded(t *testing.T) {
 
 func TestConnectionManager_ConnectV5MaxKeepAlive(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-
 	conf := newConfiguration()
 	conf.MaxKeepAlive = 1
 	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
@@ -510,7 +508,6 @@ func TestConnectionManager_ConnectV5MaxKeepAlive(t *testing.T) {
 
 func TestConnectionManager_ConnectV5MaxSessionExpiryInterval(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-
 	conf := newConfiguration()
 	conf.MaxSessionExpiryInterval = 10
 	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
@@ -552,7 +549,6 @@ func TestConnectionManager_ConnectV5MaxSessionExpiryInterval(t *testing.T) {
 
 func TestConnectionManager_ConnectV5ReceiveMaximum(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-
 	conf := newConfiguration()
 	conf.MaxInflightMessages = 20
 	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
@@ -593,7 +589,6 @@ func TestConnectionManager_ConnectV5ReceiveMaximum(t *testing.T) {
 
 func TestConnectionManager_ConnectV5ReceiveMaximumZero(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-
 	conf := newConfiguration()
 	conf.MaxInflightMessages = 0
 	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
@@ -630,7 +625,6 @@ func TestConnectionManager_ConnectV5ReceiveMaximumZero(t *testing.T) {
 
 func TestConnectionManager_ConnectV5ReceiveMaximumMax(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-
 	conf := newConfiguration()
 	conf.MaxInflightMessages = 65535
 	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
@@ -667,7 +661,6 @@ func TestConnectionManager_ConnectV5ReceiveMaximumMax(t *testing.T) {
 
 func TestConnectionManager_ConnectV5MaxPacketSize(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-
 	conf := newConfiguration()
 	conf.MaxPacketSize = 65536
 	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
@@ -704,7 +697,6 @@ func TestConnectionManager_ConnectV5MaxPacketSize(t *testing.T) {
 
 func TestConnectionManager_ConnectV5MaximumQoS(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-
 	conf := newConfiguration()
 	conf.MaximumQoS = 1
 	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
@@ -741,7 +733,6 @@ func TestConnectionManager_ConnectV5MaximumQoS(t *testing.T) {
 
 func TestConnectionManager_ConnectV5TopicAliasMaximum(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-
 	conf := newConfiguration()
 	conf.MaxTopicAlias = 10
 	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
@@ -778,7 +769,6 @@ func TestConnectionManager_ConnectV5TopicAliasMaximum(t *testing.T) {
 
 func TestConnectionManager_ConnectV5RetainAvailable(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-
 	conf := newConfiguration()
 	conf.RetainAvailable = false
 	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
@@ -815,7 +805,6 @@ func TestConnectionManager_ConnectV5RetainAvailable(t *testing.T) {
 
 func TestConnectionManager_ConnectV5WildcardSubsAvailable(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-
 	conf := newConfiguration()
 	conf.WildcardSubscriptionAvailable = false
 	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
@@ -852,7 +841,6 @@ func TestConnectionManager_ConnectV5WildcardSubsAvailable(t *testing.T) {
 
 func TestConnectionManager_ConnectV5SubscriptionIDAvailable(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-
 	conf := newConfiguration()
 	conf.SubscriptionIDAvailable = false
 	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
@@ -889,7 +877,6 @@ func TestConnectionManager_ConnectV5SubscriptionIDAvailable(t *testing.T) {
 
 func TestConnectionManager_ConnectV5SharedSubscriptionAvailable(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-
 	conf := newConfiguration()
 	conf.SharedSubscriptionAvailable = false
 	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
@@ -926,7 +913,6 @@ func TestConnectionManager_ConnectV5SharedSubscriptionAvailable(t *testing.T) {
 
 func TestConnectionManager_ConnectV5UserProperty(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-
 	conf := newConfiguration()
 	conf.UserProperties = map[string]string{"k1": "v1"}
 	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
@@ -961,6 +947,62 @@ func TestConnectionManager_ConnectV5UserProperty(t *testing.T) {
 	assert.Equal(t, connAck, out)
 
 	_ = conn.Close()
+	<-done
+}
+
+func TestConnectionManager_PingReq(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+	conf := newConfiguration()
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
+
+	conn, sConn := net.Pipe()
+
+	done := make(chan bool)
+	go func() {
+		c := cm.NewConnection(sConn)
+		cm.Handle(c)
+		done <- true
+	}()
+
+	connPkt := []byte{0x10, 13, 0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 5, 0, 1, 'a'}
+	_, _ = conn.Write(connPkt)
+	out := make([]byte, 4)
+	_, err := conn.Read(out)
+	require.Nil(t, err)
+	require.Equal(t, byte(0x20), out[0])
+
+	pingReq := []byte{0xC0, 0}
+	_, _ = conn.Write(pingReq)
+
+	out = make([]byte, 2)
+	_, err = conn.Read(out)
+	require.Nil(t, err)
+
+	pingResp := []byte{0xD0, 0}
+	assert.Equal(t, pingResp, out)
+
+	_ = conn.Close()
+	<-done
+}
+
+func TestConnectionManager_PingReqWithoutConnect(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+	conf := newConfiguration()
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
+
+	conn, sConn := net.Pipe()
+	defer func() { _ = conn.Close() }()
+
+	done := make(chan bool)
+	go func() {
+		c := cm.NewConnection(sConn)
+		cm.Handle(c)
+		done <- true
+	}()
+
+	pingReq := []byte{0xC0, 0}
+	_, _ = conn.Write(pingReq)
+
 	<-done
 }
 
@@ -1001,6 +1043,7 @@ func TestConnectionManager_ReadFailure(t *testing.T) {
 	cm := mqtt.NewConnectionManager(newConfiguration(), logStub.Logger())
 
 	conn, sConn := net.Pipe()
+	defer func() { _ = conn.Close() }()
 
 	done := make(chan bool)
 	go func() {
@@ -1021,9 +1064,7 @@ func TestConnectionManager_ReadTimeout(t *testing.T) {
 	cm := mqtt.NewConnectionManager(newConfiguration(), logStub.Logger())
 
 	conn, sConn := net.Pipe()
-	defer func(conn net.Conn) {
-		_ = conn.Close()
-	}(conn)
+	defer func() { _ = conn.Close() }()
 
 	done := make(chan bool)
 	go func() {
@@ -1074,9 +1115,7 @@ func TestConnectionManager_Close(t *testing.T) {
 
 	conn, err := net.Dial("tcp", lsn.Addr().String())
 	require.Nil(t, err)
-	defer func() {
-		_ = conn.Close()
-	}()
+	defer func() { _ = conn.Close() }()
 
 	<-done
 	assert.Contains(t, logStub.String(), "Closing connection")

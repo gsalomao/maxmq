@@ -19,6 +19,7 @@ package mqtt
 import (
 	"errors"
 	"io"
+	"math"
 	"net"
 	"time"
 
@@ -140,7 +141,7 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 
 			if pktErr, ok := err.(packet.Error); ok {
 				connAck := newConnAck(&conn, pktErr.Code, false, cm.conf, nil)
-				_ = cm.sendConnAck(&conn, connAck)
+				_ = cm.sendPacket(&conn, &connAck)
 			}
 			break
 		}
@@ -161,7 +162,7 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 		}
 
 		if conn.timeout > 0 {
-			timeout := float32(conn.timeout) * 1.5
+			timeout := math.Ceil(float64(conn.timeout) * 1.5)
 			deadline = time.Now().Add(time.Duration(timeout) * time.Second)
 		} else {
 			// Zero value of time to disable the deadline
@@ -187,13 +188,17 @@ func (cm *ConnectionManager) handlePacket(
 	pkt packet.Packet,
 	conn *Connection,
 ) error {
+	if !conn.connected && pkt.Type() != packet.CONNECT {
+		return errors.New("unexpected packet type")
+	}
+
 	switch pkt.Type() {
 	case packet.CONNECT:
 		connPkt, _ := pkt.(*packet.Connect)
 		return cm.handlePacketConnect(connPkt, conn)
 	case packet.PINGREQ:
-		pingReq, _ := pkt.(*packet.PingReq)
-		return cm.handlePacketPingReq(pingReq, conn)
+		pingResp := packet.PingResp{}
+		return cm.sendPacket(conn, &pingResp)
 	default:
 		return errors.New("invalid packet type: " + pkt.Type().String())
 	}
@@ -222,13 +227,13 @@ func (cm *ConnectionManager) handlePacketConnect(
 		// "identifier rejected".
 		code := packet.ReturnCodeV3IdentifierRejected
 		connAckPkt := newConnAck(conn, code, false, cm.conf, nil)
-		_ = cm.sendConnAck(conn, connAckPkt)
+		_ = cm.sendPacket(conn, &connAckPkt)
 		return err
 	}
 
 	if err := cm.checkClientID(connPkt); err != nil {
 		connAckPkt := newConnAck(conn, err.Code, false, cm.conf, nil)
-		_ = cm.sendConnAck(conn, connAckPkt)
+		_ = cm.sendPacket(conn, &connAckPkt)
 		return err
 	}
 
@@ -247,7 +252,7 @@ func (cm *ConnectionManager) handlePacketConnect(
 		connAck.Properties.UserProperties = cm.userProperties
 	}
 
-	if err := cm.sendConnAck(conn, connAck); err != nil {
+	if err := cm.sendPacket(conn, &connAck); err != nil {
 		return err
 	}
 
@@ -306,33 +311,26 @@ func (cm *ConnectionManager) checkClientID(pkt *packet.Connect) *packet.Error {
 	return nil
 }
 
-func (cm *ConnectionManager) sendConnAck(
+func (cm *ConnectionManager) sendPacket(
 	conn *Connection,
-	pkt packet.ConnAck,
+	pkt packet.Packet,
 ) error {
 	cm.log.Trace().
 		Str("Address", conn.address).
 		Str("ClientID", string(conn.clientID)).
-		Uint8("ReturnCode", uint8(pkt.ReturnCode)).
+		Stringer("PacketType", pkt.Type()).
 		Str("Version", conn.version.String()).
-		Msg("MQTT Sending CONNACK Packet")
+		Msg("MQTT Sending packet")
 
-	err := conn.writer.WritePacket(&pkt)
+	err := conn.writer.WritePacket(pkt)
 	if err != nil {
 		cm.log.Error().
 			Str("Address", conn.address).
 			Str("ClientID", string(conn.clientID)).
-			Uint8("ReturnCode", uint8(pkt.ReturnCode)).
+			Stringer("PacketType", pkt.Type()).
 			Str("Version", conn.version.String()).
-			Msg("MQTT Failed to send CONNACK Packet: " + err.Error())
+			Msg("MQTT Failed to send packet: " + err.Error())
 	}
 
 	return err
-}
-
-func (cm *ConnectionManager) handlePacketPingReq(
-	_ *packet.PingReq,
-	_ *Connection,
-) error {
-	return errors.New("not implemented (PINGREQ)")
 }
