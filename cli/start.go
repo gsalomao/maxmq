@@ -85,6 +85,7 @@ func newBroker(conf config.Config, log *logger.Logger) (*broker.Broker, error) {
 		RetainAvailable:               conf.MQTTRetainAvailable,
 		WildcardSubscriptionAvailable: conf.MQTTWildcardSubscription,
 		SubscriptionIDAvailable:       conf.MQTTSubscriptionID,
+		SharedSubscriptionAvailable:   conf.MQTTSharedSubscription,
 		UserProperties:                conf.MQTTUserProperties,
 	}
 

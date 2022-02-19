@@ -44,4 +44,5 @@ func TestConfig_LoadConfig(t *testing.T) {
 	assert.Equal(t, true, conf.MQTTRetainAvailable)
 	assert.Equal(t, true, conf.MQTTWildcardSubscription)
 	assert.Equal(t, true, conf.MQTTSubscriptionID)
+	assert.Equal(t, true, conf.MQTTSharedSubscription)
 }
