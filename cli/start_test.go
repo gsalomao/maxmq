@@ -19,15 +19,30 @@ package cli
 import (
 	"testing"
 
+	"github.com/gsalomao/maxmq/broker"
+	"github.com/gsalomao/maxmq/config"
 	"github.com/gsalomao/maxmq/mocks"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestCLI_StartBroker(t *testing.T) {
+func TestCLI_NewBroker(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+	conf := config.Config{}
+	brk, err := newBroker(conf, logStub.Logger())
+	require.Nil(t, err)
+	require.NotNil(t, brk)
+}
+
+func TestCLI_RunBroker(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 
 	mockRunner := mocks.NewRunnerMock()
 	mockRunner.On("Run")
+	mockRunner.On("Stop")
+
+	brk := broker.New(logStub.Logger())
+	brk.AddRunner(mockRunner)
 
 	done := make(chan bool)
 	go func() {
@@ -35,11 +50,18 @@ func TestCLI_StartBroker(t *testing.T) {
 			done <- true
 		}()
 
-		startBroker(mockRunner, logStub.Logger())
+		runBroker(&brk, logStub.Logger())
 		assert.Contains(t, logStub.String(), "Starting broker")
 	}()
 
 	<-mockRunner.RunningCh
-	mockRunner.StopCh <- true
+	brk.Stop()
 	<-done
+}
+
+func TestCLI_LoadConfig(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+	conf, err := loadConfig(logStub.Logger())
+	require.Nil(t, err)
+	assert.Equal(t, "info", conf.LogLevel)
 }

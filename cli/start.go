@@ -49,16 +49,7 @@ func newCommandStart() *cobra.Command {
 
 			log := logger.New(os.Stdout)
 
-			err := config.ReadConfigFile()
-			if err == nil {
-				log.Info().Msg("Loading configuration from file")
-			} else {
-				if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-					log.Warn().Msg(err.Error())
-				}
-			}
-
-			conf, err := config.LoadConfig()
+			conf, err := loadConfig(&log)
 			if err != nil {
 				log.Fatal().Msg("Failed to load configuration: " + err.Error())
 			}
@@ -68,54 +59,76 @@ func newCommandStart() *cobra.Command {
 				log.Fatal().Msg("Failed to set log severity: " + err.Error())
 			}
 
-			mqttConf := mqtt.Configuration{
-				TCPAddress:                    conf.MQTTTCPAddress,
-				ConnectTimeout:                conf.MQTTConnectTimeout,
-				BufferSize:                    conf.MQTTBufferSize,
-				MaxPacketSize:                 conf.MQTTMaxPacketSize,
-				MaxKeepAlive:                  conf.MQTTMaxKeepAlive,
-				MaxSessionExpiryInterval:      conf.MQTTSessionExpiration,
-				MaxInflightMessages:           conf.MQTTMaxInflightMessages,
-				MaximumQoS:                    conf.MQTTMaximumQoS,
-				MaxTopicAlias:                 conf.MQTTMaxTopicAlias,
-				RetainAvailable:               conf.MQTTRetainAvailable,
-				WildcardSubscriptionAvailable: conf.MQTTWildcardSubscription,
-				SubscriptionIDAvailable:       conf.MQTTSubscriptionID,
-				UserProperties:                conf.MQTTUserProperties,
-			}
-
-			cm := mqtt.NewConnectionManager(mqttConf, &log)
-			r, err := mqtt.NewRunner(
-				mqtt.WithConfiguration(mqttConf),
-				mqtt.WithConnectionHandler(&cm),
-				mqtt.WithLogger(&log),
-			)
+			brk, err := newBroker(conf, &log)
 			if err != nil {
-				log.Fatal().Msg("Failed to create MQTT runner: " +
-					err.Error())
+				log.Fatal().Msg("Failed to create broker: " + err.Error())
 			}
 
-			startBroker(r, &log)
+			runBroker(brk, &log)
 		},
 	}
 
 	return cmd
 }
 
-func startBroker(r broker.Runner, log *logger.Logger) {
+func newBroker(conf config.Config, log *logger.Logger) (*broker.Broker, error) {
+	mqttConf := mqtt.Configuration{
+		TCPAddress:                    conf.MQTTTCPAddress,
+		ConnectTimeout:                conf.MQTTConnectTimeout,
+		BufferSize:                    conf.MQTTBufferSize,
+		MaxPacketSize:                 conf.MQTTMaxPacketSize,
+		MaxKeepAlive:                  conf.MQTTMaxKeepAlive,
+		MaxSessionExpiryInterval:      conf.MQTTSessionExpiration,
+		MaxInflightMessages:           conf.MQTTMaxInflightMessages,
+		MaximumQoS:                    conf.MQTTMaximumQoS,
+		MaxTopicAlias:                 conf.MQTTMaxTopicAlias,
+		RetainAvailable:               conf.MQTTRetainAvailable,
+		WildcardSubscriptionAvailable: conf.MQTTWildcardSubscription,
+		SubscriptionIDAvailable:       conf.MQTTSubscriptionID,
+		UserProperties:                conf.MQTTUserProperties,
+	}
+
+	cm := mqtt.NewConnectionManager(mqttConf, log)
+	r, err := mqtt.NewRunner(
+		mqtt.WithConfiguration(mqttConf),
+		mqtt.WithConnectionHandler(&cm),
+		mqtt.WithLogger(log),
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	brk := broker.New(log)
 	brk.AddRunner(r)
 
+	return &brk, nil
+}
+
+func runBroker(brk *broker.Broker, log *logger.Logger) {
 	err := brk.Start()
 	if err != nil {
-		log.Error().Msg("Failed to start broker: " + err.Error())
+		log.Fatal().Msg("Failed to start broker: " + err.Error())
 	}
 
-	go waitOSSignals(&brk)
+	go waitOSSignals(brk)
+
 	err = brk.Wait()
 	if err != nil {
 		log.Error().Msg("Broker stopped with error: " + err.Error())
 	}
+}
+
+func loadConfig(log *logger.Logger) (config.Config, error) {
+	err := config.ReadConfigFile()
+	if err == nil {
+		log.Info().Msg("Loading configuration from file")
+	} else {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			log.Warn().Msg(err.Error())
+		}
+	}
+
+	return config.LoadConfig()
 }
 
 func waitOSSignals(brk *broker.Broker) {
