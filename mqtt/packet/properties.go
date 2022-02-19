@@ -285,12 +285,9 @@ func (p *Properties) pack(buf *bytes.Buffer, t Type) error {
 	}
 
 	wr := bufio.NewWriterSize(buf, 4 /* max variable integer size */)
-	err := writeVarInteger(wr, b.Len())
-	if err != nil {
-		return err
-	}
+	_ = writeVarInteger(wr, b.Len())
 
-	err = wr.Flush()
+	err := wr.Flush()
 	if err != nil {
 		return err
 	}

@@ -57,19 +57,13 @@ func (p *ConnAck) Pack(w *bufio.Writer) error {
 
 	// Acknowledge Flags
 	if p.SessionPresent && p.Version != MQTT31 {
-		err = varHeader.WriteByte(1)
+		_ = varHeader.WriteByte(1)
 	} else {
-		err = varHeader.WriteByte(0)
-	}
-	if err != nil {
-		return err
+		_ = varHeader.WriteByte(0)
 	}
 
 	// Return Code
-	err = varHeader.WriteByte(byte(p.ReturnCode))
-	if err != nil {
-		return err
-	}
+	_ = varHeader.WriteByte(byte(p.ReturnCode))
 
 	// Properties
 	if p.Version == MQTT50 {
@@ -83,18 +77,8 @@ func (p *ConnAck) Pack(w *bufio.Writer) error {
 		}
 	}
 
-	// Packet Type
-	err = w.WriteByte(byte(CONNACK) << packetTypeBit)
-	if err != nil {
-		return err
-	}
-
-	// Remaining Length
-	err = writeVarInteger(w, varHeader.Len())
-	if err != nil {
-		return err
-	}
-
+	_ = w.WriteByte(byte(CONNACK) << packetTypeBit)
+	_ = writeVarInteger(w, varHeader.Len())
 	_, err = varHeader.WriteTo(w)
 	return err
 }

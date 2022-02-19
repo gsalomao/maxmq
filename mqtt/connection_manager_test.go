@@ -51,7 +51,9 @@ func newConfiguration() mqtt.Configuration {
 
 func TestConnectionManager_ConnectV3(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	cm := mqtt.NewConnectionManager(mqtt.Configuration{}, logStub.Logger())
+	conf := newConfiguration()
+	conf.MaxKeepAlive = 600
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
 
 	conn, sConn := net.Pipe()
 
@@ -64,7 +66,7 @@ func TestConnectionManager_ConnectV3(t *testing.T) {
 
 	msg := []byte{
 		0x10, 13, // fixed header
-		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 0, // variable header
+		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 10, // variable header
 		0, 1, 'a', // client ID
 	}
 
