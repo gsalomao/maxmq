@@ -64,6 +64,9 @@ type Config struct {
 	// Indicate whether the broker allows MQTT wildcard subscription or not.
 	MQTTWildcardSubscription bool `mapstructure:"mqtt_wildcard_subscription"`
 
+	// Indicate whether the broker allows MQTT subscription identifier or not.
+	MQTTSubscriptionID bool `mapstructure:"mqtt_subscription_identifier"`
+
 	// Provide additional information to MQTT clients including diagnostic
 	// information.
 	MQTTUserProperties map[string]string `mapstructure:"mqtt_user_properties"`
@@ -111,6 +114,7 @@ func LoadConfig() (Config, error) {
 	_ = viper.BindEnv("mqtt_max_topic_alias")
 	_ = viper.BindEnv("mqtt_retain_available")
 	_ = viper.BindEnv("mqtt_wildcard_subscription")
+	_ = viper.BindEnv("mqtt_subscription_identifier")
 
 	// Set the default values
 	c := Config{
@@ -124,6 +128,7 @@ func LoadConfig() (Config, error) {
 		MQTTMaxTopicAlias:        10,
 		MQTTRetainAvailable:      true,
 		MQTTWildcardSubscription: true,
+		MQTTSubscriptionID:       true,
 	}
 
 	err := viper.Unmarshal(&c)

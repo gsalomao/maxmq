@@ -43,4 +43,5 @@ func TestConfig_LoadConfig(t *testing.T) {
 	assert.Equal(t, 10, conf.MQTTMaxTopicAlias)
 	assert.Equal(t, true, conf.MQTTRetainAvailable)
 	assert.Equal(t, true, conf.MQTTWildcardSubscription)
+	assert.Equal(t, true, conf.MQTTSubscriptionID)
 }

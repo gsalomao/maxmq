@@ -86,7 +86,7 @@ func newConnAck(
 		addTopicAliasMaxToProperties(props, conf)
 		addRetainAvailableToProperties(props, conf)
 		addWildcardSubscriptionAvailableToProperties(props, conf)
-		addSubscriptionIDsAvailableToProperties(props, conf)
+		addSubscriptionIDAvailableToProperties(props, conf)
 	}
 
 	return packet.NewConnAck(version, code, sessionPresent, props)
@@ -177,17 +177,17 @@ func addWildcardSubscriptionAvailableToProperties(
 	}
 }
 
-func addSubscriptionIDsAvailableToProperties(
+func addSubscriptionIDAvailableToProperties(
 	pr *packet.Properties,
 	conf Configuration,
 ) {
-	if !conf.SubscriptionIDsAvailable {
+	if !conf.SubscriptionIDAvailable {
 		available := byte(1)
-		if !conf.SubscriptionIDsAvailable {
+		if !conf.SubscriptionIDAvailable {
 			available = 0
 		}
 
-		pr.SubscriptionIDsAvailable = new(byte)
-		*pr.SubscriptionIDsAvailable = available
+		pr.SubscriptionIDAvailable = new(byte)
+		*pr.SubscriptionIDAvailable = available
 	}
 }

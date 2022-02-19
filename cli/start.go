@@ -80,6 +80,7 @@ func newCommandStart() *cobra.Command {
 				MaxTopicAlias:                 conf.MQTTMaxTopicAlias,
 				RetainAvailable:               conf.MQTTRetainAvailable,
 				WildcardSubscriptionAvailable: conf.MQTTWildcardSubscription,
+				SubscriptionIDAvailable:       conf.MQTTSubscriptionID,
 				UserProperties:                conf.MQTTUserProperties,
 			}
 
