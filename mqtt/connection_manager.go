@@ -187,12 +187,16 @@ func (cm *ConnectionManager) handlePacket(
 	pkt packet.Packet,
 	conn *Connection,
 ) error {
-	if pkt.Type() == packet.CONNECT {
+	switch pkt.Type() {
+	case packet.CONNECT:
 		connPkt, _ := pkt.(*packet.Connect)
 		return cm.handlePacketConnect(connPkt, conn)
+	case packet.PINGREQ:
+		pingReq, _ := pkt.(*packet.PingReq)
+		return cm.handlePacketPingReq(pingReq, conn)
+	default:
+		return errors.New("invalid packet type: " + pkt.Type().String())
 	}
-
-	return errors.New("invalid packet type: " + pkt.Type().String())
 }
 
 func (cm *ConnectionManager) handlePacketConnect(
@@ -324,4 +328,11 @@ func (cm *ConnectionManager) sendConnAck(
 	}
 
 	return err
+}
+
+func (cm *ConnectionManager) handlePacketPingReq(
+	_ *packet.PingReq,
+	_ *Connection,
+) error {
+	return errors.New("not implemented (PINGREQ)")
 }
