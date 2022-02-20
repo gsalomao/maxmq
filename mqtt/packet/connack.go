@@ -51,25 +51,25 @@ func NewConnAck(
 }
 
 // Pack encodes the packet into bytes and writes it into the io.Writer.
-func (p *ConnAck) Pack(w *bufio.Writer) error {
+func (pkt *ConnAck) Pack(w *bufio.Writer) error {
 	varHeader := &bytes.Buffer{}
 	var err error
 
 	// Acknowledge Flags
-	if p.SessionPresent && p.Version != MQTT31 {
+	if pkt.SessionPresent && pkt.Version != MQTT31 {
 		_ = varHeader.WriteByte(1)
 	} else {
 		_ = varHeader.WriteByte(0)
 	}
 
-	_ = varHeader.WriteByte(byte(p.ReasonCode))
+	_ = varHeader.WriteByte(byte(pkt.ReasonCode))
 
-	if p.Version == MQTT50 {
-		if p.Properties == nil {
-			p.Properties = &Properties{}
+	if pkt.Version == MQTT50 {
+		if pkt.Properties == nil {
+			pkt.Properties = &Properties{}
 		}
 
-		err = p.Properties.pack(varHeader, CONNACK)
+		err = pkt.Properties.pack(varHeader, CONNACK)
 		if err != nil {
 			return err
 		}
@@ -84,11 +84,11 @@ func (p *ConnAck) Pack(w *bufio.Writer) error {
 // Unpack reads the packet bytes from bytes.Buffer and decodes them into the
 // packet.
 // It is not supported by the CONNACK Packet in this broker.
-func (p *ConnAck) Unpack(_ *bytes.Buffer) error {
+func (pkt *ConnAck) Unpack(_ *bytes.Buffer) error {
 	return errors.New("unsupported (CONNACK)")
 }
 
 // Type returns the packet type.
-func (p *ConnAck) Type() Type {
+func (pkt *ConnAck) Type() Type {
 	return CONNACK
 }

@@ -43,17 +43,17 @@ func newPacketPingReq(fh fixedHeader) (Packet, error) {
 
 // Pack encodes the packet into bytes and writes it into the io.Writer.
 // It is not supported by the PINGREQ Packet in this broker.
-func (p *PingReq) Pack(_ *bufio.Writer) error {
+func (pkt *PingReq) Pack(_ *bufio.Writer) error {
 	return errors.New("unsupported (PINGREQ)")
 }
 
 // Unpack reads the packet bytes from bytes.Buffer and decodes them into the
 // packet.
-func (p *PingReq) Unpack(_ *bytes.Buffer) error {
+func (pkt *PingReq) Unpack(_ *bytes.Buffer) error {
 	return nil
 }
 
 // Type returns the packet type.
-func (p *PingReq) Type() Type {
+func (pkt *PingReq) Type() Type {
 	return PINGREQ
 }

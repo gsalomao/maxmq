@@ -26,7 +26,7 @@ import (
 type PingResp struct{}
 
 // Pack encodes the packet into bytes and writes it into the io.Writer.
-func (p *PingResp) Pack(w *bufio.Writer) error {
+func (pkt *PingResp) Pack(w *bufio.Writer) error {
 	_ = w.WriteByte(byte(PINGRESP) << packetTypeBit)
 	return w.WriteByte(0)
 }
@@ -34,11 +34,11 @@ func (p *PingResp) Pack(w *bufio.Writer) error {
 // Unpack reads the packet bytes from bytes.Buffer and decodes them into the
 // packet.
 // It is not supported by the PINGRESP Packet in this broker.
-func (p *PingResp) Unpack(_ *bytes.Buffer) error {
+func (pkt *PingResp) Unpack(_ *bytes.Buffer) error {
 	return errors.New("unsupported (PINGRESP)")
 }
 
 // Type returns the packet type.
-func (p *PingResp) Type() Type {
+func (pkt *PingResp) Type() Type {
 	return PINGRESP
 }
