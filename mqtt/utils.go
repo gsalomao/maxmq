@@ -91,7 +91,7 @@ func generateClientID(prefix []byte) []byte {
 
 func newConnAck(
 	conn *Connection,
-	rc packet.ReturnCode,
+	rc packet.ReasonCode,
 	sessionPresent bool,
 	conf Configuration,
 	connProps *packet.Properties,
@@ -103,7 +103,7 @@ func newConnAck(
 		ver = conn.version
 	}
 
-	if ver == packet.MQTT50 && rc == packet.ReturnCodeV5Success {
+	if ver == packet.MQTT50 && rc == packet.ReasonCodeV5Success {
 		props = &packet.Properties{}
 
 		addServerKeepAliveToProperties(props, conn.timeout, conf)

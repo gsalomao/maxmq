@@ -27,8 +27,8 @@ type ConnAck struct {
 	// Version represents the MQTT version.
 	Version MQTTVersion
 
-	// ReturnCode represents the return code based on the MQTT specifications.
-	ReturnCode ReturnCode
+	// ReasonCode represents the reason code based on the MQTT specifications.
+	ReasonCode ReasonCode
 
 	// SessionPresent indicates if there is already a session associated with
 	// the Client ID.
@@ -40,11 +40,11 @@ type ConnAck struct {
 
 // NewConnAck creates a CONNACK Packet.
 func NewConnAck(
-	v MQTTVersion, c ReturnCode, sessionPresent bool, p *Properties,
+	v MQTTVersion, c ReasonCode, sessionPresent bool, p *Properties,
 ) ConnAck {
 	return ConnAck{
 		Version:        v,
-		ReturnCode:     c,
+		ReasonCode:     c,
 		SessionPresent: sessionPresent,
 		Properties:     p,
 	}
@@ -62,10 +62,8 @@ func (p *ConnAck) Pack(w *bufio.Writer) error {
 		_ = varHeader.WriteByte(0)
 	}
 
-	// Return Code
-	_ = varHeader.WriteByte(byte(p.ReturnCode))
+	_ = varHeader.WriteByte(byte(p.ReasonCode))
 
-	// Properties
 	if p.Version == MQTT50 {
 		if p.Properties == nil {
 			p.Properties = &Properties{}

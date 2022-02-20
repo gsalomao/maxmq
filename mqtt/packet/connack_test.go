@@ -27,7 +27,7 @@ import (
 )
 
 func TestConnAck_Pack(t *testing.T) {
-	pkt := NewConnAck(MQTT311, ReturnCodeV3ConnectionAccepted, false, nil)
+	pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
 	require.NotNil(t, pkt)
 	require.Equal(t, CONNACK, pkt.Type())
 
@@ -55,7 +55,7 @@ func BenchmarkConnAck_Pack(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		buf.Reset()
-		pkt := NewConnAck(MQTT311, ReturnCodeV3ConnectionAccepted, false, nil)
+		pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
 
 		err := pkt.Pack(wr)
 		if err != nil {
@@ -67,13 +67,13 @@ func BenchmarkConnAck_Pack(b *testing.B) {
 func TestConnAck_PackReturnCode(t *testing.T) {
 	tests := []struct {
 		ver  MQTTVersion
-		code ReturnCode
+		code ReasonCode
 		msg  []byte
 	}{
-		{MQTT31, ReturnCodeV3ConnectionAccepted, []byte{0x20, 2, 0, 0}},
-		{MQTT311, ReturnCodeV3NotAuthorized, []byte{0x20, 2, 0, 5}},
-		{MQTT50, ReturnCodeV5Success, []byte{0x20, 3, 0, 0, 0}},
-		{MQTT50, ReturnCodeV5UnspecifiedError, []byte{0x20, 3, 0, 0x80, 0}},
+		{MQTT31, ReasonCodeV3ConnectionAccepted, []byte{0x20, 2, 0, 0}},
+		{MQTT311, ReasonCodeV3NotAuthorized, []byte{0x20, 2, 0, 5}},
+		{MQTT50, ReasonCodeV5Success, []byte{0x20, 3, 0, 0, 0}},
+		{MQTT50, ReasonCodeV5UnspecifiedError, []byte{0x20, 3, 0, 0x80, 0}},
 	}
 
 	for _, tt := range tests {
@@ -108,7 +108,7 @@ func TestConnAck_PackSessionPresent(t *testing.T) {
 	}
 
 	for _, tt := range testCases {
-		pkt := NewConnAck(tt.ver, ReturnCodeV3ConnectionAccepted, tt.val,
+		pkt := NewConnAck(tt.ver, ReasonCodeV3ConnectionAccepted, tt.val,
 			nil)
 		buf := &bytes.Buffer{}
 		wr := bufio.NewWriter(buf)
@@ -127,7 +127,7 @@ func TestConnAck_PackV5Properties(t *testing.T) {
 	props := &Properties{SessionExpiryInterval: new(uint32)}
 	*props.SessionExpiryInterval = 30
 
-	pkt := NewConnAck(MQTT50, ReturnCodeV5Success, false, props)
+	pkt := NewConnAck(MQTT50, ReasonCodeV5Success, false, props)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -149,7 +149,7 @@ func TestConnAck_PackV5Properties(t *testing.T) {
 }
 
 func TestConnAck_PackV5WithoutProperties(t *testing.T) {
-	pkt := NewConnAck(MQTT50, ReturnCodeV5Success, false, nil)
+	pkt := NewConnAck(MQTT50, ReasonCodeV5Success, false, nil)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -173,7 +173,7 @@ func TestConnAck_PackV3WithoutProperties(t *testing.T) {
 	props := &Properties{SessionExpiryInterval: new(uint32)}
 	*props.SessionExpiryInterval = 30
 
-	pkt := NewConnAck(MQTT311, ReturnCodeV3ConnectionAccepted, false, props)
+	pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, props)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -193,7 +193,7 @@ func TestConnAck_PackV3WithoutProperties(t *testing.T) {
 }
 
 func TestConnAck_UnpackUnsupported(t *testing.T) {
-	pkt := NewConnAck(MQTT311, ReturnCodeV3ConnectionAccepted, false, nil)
+	pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}

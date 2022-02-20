@@ -140,7 +140,8 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 				Msg("MQTT Failed to read packet: " + err.Error())
 
 			if pktErr, ok := err.(packet.Error); ok {
-				connAck := newConnAck(&conn, pktErr.Code, false, cm.conf, nil)
+				connAck := newConnAck(&conn, pktErr.ReasonCode, false, cm.conf,
+					nil)
 				_ = cm.sendPacket(&conn, &connAck)
 			}
 			break
@@ -225,19 +226,19 @@ func (cm *ConnectionManager) handlePacketConnect(
 		// v3.1 or v3.1.1 client specifies a Keep Alive time greater than
 		// MaxKeepAlive, the CONNACK Packet is sent with the reason code
 		// "identifier rejected".
-		code := packet.ReturnCodeV3IdentifierRejected
+		code := packet.ReasonCodeV3IdentifierRejected
 		connAckPkt := newConnAck(conn, code, false, cm.conf, nil)
 		_ = cm.sendPacket(conn, &connAckPkt)
 		return err
 	}
 
 	if err := cm.checkClientID(connPkt); err != nil {
-		connAckPkt := newConnAck(conn, err.Code, false, cm.conf, nil)
+		connAckPkt := newConnAck(conn, err.ReasonCode, false, cm.conf, nil)
 		_ = cm.sendPacket(conn, &connAckPkt)
 		return err
 	}
 
-	code := packet.ReturnCodeV3ConnectionAccepted
+	code := packet.ReasonCodeV3ConnectionAccepted
 	connAck := newConnAck(conn, code, false, cm.conf, connPkt.Properties)
 
 	if len(connPkt.ClientID) == 0 {

@@ -28,7 +28,7 @@ func TestPacketWriter_WritePacket(t *testing.T) {
 	buf := &bytes.Buffer{}
 	wr := NewWriter(buf, 1024)
 
-	pkt := NewConnAck(MQTT311, ReturnCodeV3ConnectionAccepted, false, nil)
+	pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
 	err := wr.WritePacket(&pkt)
 	require.Nil(t, err)
 
