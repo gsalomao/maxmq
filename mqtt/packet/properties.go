@@ -185,7 +185,7 @@ var propertyHandlers = map[propType]propertyHandler{
 		unpack: unpackPropCorrelationData,
 	},
 	propSessionExpiryInterval: {
-		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}},
+		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}, DISCONNECT: {}},
 		unpack: unpackPropSessionExpiryInterval,
 	},
 	propAssignedClientID: {
@@ -218,10 +218,10 @@ var propertyHandlers = map[propType]propertyHandler{
 		types: map[Type]struct{}{CONNACK: {}},
 	},
 	propServerReference: {
-		types: map[Type]struct{}{CONNACK: {}},
+		types: map[Type]struct{}{CONNACK: {}, DISCONNECT: {}},
 	},
 	propReasonString: {
-		types: map[Type]struct{}{CONNACK: {}},
+		types: map[Type]struct{}{CONNACK: {}, DISCONNECT: {}},
 	},
 	propReceiveMaximum: {
 		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}},
@@ -238,7 +238,7 @@ var propertyHandlers = map[propType]propertyHandler{
 		types: map[Type]struct{}{CONNACK: {}},
 	},
 	propUser: {
-		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}},
+		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}, DISCONNECT: {}},
 		unpack: unpackPropertyUser,
 	},
 	propMaximumPacketSize: {

@@ -17,6 +17,9 @@
 package mqtt
 
 import (
+	"math"
+	"time"
+
 	"github.com/gsalomao/maxmq/mqtt/packet"
 	"github.com/rs/xid"
 )
@@ -87,6 +90,16 @@ func generateClientID(prefix []byte) []byte {
 	guid := xid.New()
 	_ = guid.Encode(cID[pLen:])
 	return cID
+}
+
+func nextConnectionDeadline(conn Connection) time.Time {
+	if conn.timeout > 0 {
+		timeout := math.Ceil(float64(conn.timeout) * 1.5)
+		return time.Now().Add(time.Duration(timeout) * time.Second)
+	} else {
+		// Zero value of time to disable the timeout
+		return time.Time{}
+	}
 }
 
 func newConnAck(

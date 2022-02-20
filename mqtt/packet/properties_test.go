@@ -98,6 +98,30 @@ func TestProperties_PackConnAck(t *testing.T) {
 	assert.Equal(t, []byte{22, 0, 5, 't', 'o', 'k', 'e', 'n'}, msg[76:84])
 }
 
+func TestProperties_PackDisconnect(t *testing.T) {
+	buf := &bytes.Buffer{}
+	props := &Properties{SessionExpiryInterval: new(uint32)}
+
+	*props.SessionExpiryInterval = 10
+	props.ReasonString = []byte("test")
+	props.UserProperties = []UserProperty{
+		{Key: []byte{'a'}, Value: []byte{0}},
+		{Key: []byte{'b'}, Value: []byte{1}},
+	}
+	props.ServerReference = []byte("srv")
+
+	err := props.pack(buf, DISCONNECT)
+	require.Nil(t, err)
+	require.NotEmpty(t, buf)
+
+	msg := buf.Bytes()
+	assert.Equal(t, []byte{17, 0, 0, 0, 10}, msg[1:6])
+	assert.Equal(t, []byte{31, 0, 4, 't', 'e', 's', 't'}, msg[6:13])
+	assert.Equal(t, []byte{38, 0, 1, 'a', 0, 1, 0}, msg[13:20])
+	assert.Equal(t, []byte{38, 0, 1, 'b', 0, 1, 1}, msg[20:27])
+	assert.Equal(t, []byte{28, 0, 3, 's', 'r', 'v'}, msg[27:33])
+}
+
 func TestProperties_PackInvalidProperty(t *testing.T) {
 	buf := &bytes.Buffer{}
 	props := &Properties{MaximumQoS: new(byte), ServerKeepAlive: new(uint16)}

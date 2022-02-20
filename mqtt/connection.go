@@ -29,6 +29,7 @@ type Connection struct {
 	writer    packet.Writer
 	address   string
 	connected bool
+	closed    bool
 	timeout   uint16
 	clientID  []byte
 	version   packet.MQTTVersion

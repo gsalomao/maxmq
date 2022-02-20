@@ -19,7 +19,6 @@ package mqtt
 import (
 	"errors"
 	"io"
-	"math"
 	"net"
 	"time"
 
@@ -94,7 +93,7 @@ func (cm *ConnectionManager) NewConnection(nc net.Conn) Connection {
 
 // Handle handles the Connection.
 func (cm *ConnectionManager) Handle(conn Connection) {
-	defer cm.Close(conn)
+	defer cm.Close(&conn, true)
 
 	cm.log.Debug().
 		Str("Address", conn.address).
@@ -162,27 +161,33 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 			break
 		}
 
-		if conn.timeout > 0 {
-			timeout := math.Ceil(float64(conn.timeout) * 1.5)
-			deadline = time.Now().Add(time.Duration(timeout) * time.Second)
-		} else {
-			// Zero value of time to disable the deadline
-			deadline = time.Time{}
+		if !conn.connected {
+			break
 		}
+
+		deadline = nextConnectionDeadline(conn)
 	}
 }
 
 // Close closes the given connection.
-func (cm *ConnectionManager) Close(conn Connection) {
-	if tcp, ok := conn.netConn.(*net.TCPConn); ok {
+func (cm *ConnectionManager) Close(conn *Connection, force bool) {
+	if conn.closed {
+		return
+	}
+
+	if tcp, ok := conn.netConn.(*net.TCPConn); ok && force {
 		_ = tcp.SetLinger(0)
 	}
 
 	cm.log.Debug().
 		Str("Address", conn.address).
+		Str("ClientID", string(conn.clientID)).
+		Bool("Force", force).
 		Msg("MQTT Closing connection")
 
 	_ = conn.netConn.Close()
+	conn.connected = false
+	conn.closed = true
 }
 
 func (cm *ConnectionManager) handlePacket(
@@ -200,6 +205,9 @@ func (cm *ConnectionManager) handlePacket(
 	case packet.PINGREQ:
 		pingResp := packet.PingResp{}
 		return cm.sendPacket(conn, &pingResp)
+	case packet.DISCONNECT:
+		cm.Close(conn, false)
+		return nil
 	default:
 		return errors.New("invalid packet type: " + pkt.Type().String())
 	}

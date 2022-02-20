@@ -79,8 +79,9 @@ type fixedHeader struct {
 }
 
 var packetTypeToFactory = map[Type]func(fixedHeader) (Packet, error){
-	CONNECT: newPacketConnect,
-	PINGREQ: newPacketPingReq,
+	CONNECT:    newPacketConnect,
+	PINGREQ:    newPacketPingReq,
+	DISCONNECT: newPacketDisconnect,
 }
 
 func newPacket(fh fixedHeader) (Packet, error) {

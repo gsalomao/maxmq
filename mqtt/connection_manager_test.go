@@ -1006,6 +1006,34 @@ func TestConnectionManager_PingReqWithoutConnect(t *testing.T) {
 	<-done
 }
 
+func TestConnectionManager_Disconnect(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+	conf := newConfiguration()
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
+
+	conn, sConn := net.Pipe()
+	defer func() { _ = conn.Close() }()
+
+	done := make(chan bool)
+	go func() {
+		c := cm.NewConnection(sConn)
+		cm.Handle(c)
+		done <- true
+	}()
+
+	connPkt := []byte{0x10, 13, 0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 5, 0, 1, 'a'}
+	_, _ = conn.Write(connPkt)
+	out := make([]byte, 4)
+	_, err := conn.Read(out)
+	require.Nil(t, err)
+	require.Equal(t, byte(0x20), out[0])
+
+	discPkt := []byte{0xE0, 0}
+	_, _ = conn.Write(discPkt)
+
+	<-done
+}
+
 func TestConnectionManager_NetConnClosed(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	cm := mqtt.NewConnectionManager(newConfiguration(), logStub.Logger())
@@ -1110,7 +1138,8 @@ func TestConnectionManager_Close(t *testing.T) {
 		require.Nil(t, err)
 
 		conn := cm.NewConnection(tcpConn)
-		cm.Close(conn)
+		cm.Close(&conn, true)
+		cm.Close(&conn, false)
 	}()
 
 	conn, err := net.Dial("tcp", lsn.Addr().String())
