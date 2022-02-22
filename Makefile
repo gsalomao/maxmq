@@ -13,31 +13,27 @@
 # limitations under the License.
 
 # Project parameters
-NAME			= maxmq
-BUILD_DIR		= bin
-COVERAGE_DIR	= coverage
-MAIN_FILE		= cmd/maxmq/main.go
+NAME            = maxmq
+BUILD_DIR       = bin
+COVERAGE_DIR    = coverage
+MAIN_FILE       = cmd/maxmq/main.go
 
 # Colors
-GREEN  := $(shell tput -Txterm setaf 2)
-YELLOW := $(shell tput -Txterm setaf 3)
-WHITE  := $(shell tput -Txterm setaf 7)
-CYAN   := $(shell tput -Txterm setaf 6)
-RESET  := $(shell tput -Txterm sgr0)
-BOLD	= \033[0;1m
-CYAN	= \033[0;36m
-NO_COLOR	= \033[0m
+GREEN       := $(shell tput -Txterm setaf 2)
+YELLOW      := $(shell tput -Txterm setaf 3)
+WHITE       := $(shell tput -Txterm setaf 7)
+CYAN        := $(shell tput -Txterm setaf 6)
+RESET       := $(shell tput -Txterm sgr0)
+BOLD        = \033[0;1m
 
 # Build parameters
-VERSION = $(shell git describe --tags --always --dirty)
+VERSION = $(shell git describe --tags --always --dirty | sed -e 's/^v//')
 
 .PHONY: all build coverage
 
 all: help
 
-LDFLAGS ="\
-	-X 'github.com/gsalomao/maxmq/cli.version=${VERSION}' \
-"
+LDFLAGS ="-X 'github.com/gsalomao/maxmq/cli.version=${VERSION}'"
 
 ## Build
 build: ## Build application
@@ -45,6 +41,11 @@ build: ## Build application
 	@mkdir -p ${BUILD_DIR}
 	@go build -o ${BUILD_DIR}/$(NAME) -ldflags ${LDFLAGS} $(MAIN_FILE)
 	$(call print_task_result,"Building application","done")
+
+image: ## Build Docker image
+	$(call print_task,"Building Docker image")
+	@docker build . -t maxmq:latest
+	$(call print_task_result,"Building Docker image","done")
 
 clean: ## Clean build folder
 	$(call print_task,"Cleaning build folder")
@@ -130,9 +131,9 @@ help: ## Show this help
 		}' $(MAKEFILE_LIST)
 
 define print_task
-	@echo "${CYAN}==>${BOLD} $(1)...${NO_COLOR}"
+	@printf "${CYAN}==>${BOLD} %s...${RESET}\n" $(1)
 endef
 
 define print_task_result
-	@echo "${CYAN}==>${NOCOLOR} $(1)... $(2)"
+	@printf "${CYAN}==> %s... %s${RESET}\n" $(1) $(2)
 endef
