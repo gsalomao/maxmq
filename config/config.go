@@ -93,14 +93,17 @@ type Config struct {
 func ReadConfigFile() error {
 	viper.SetConfigName("maxmq.conf")
 	viper.SetConfigType("toml")
-	viper.AddConfigPath("/etc")
-	viper.AddConfigPath("/etc/maxmq")
 
 	if exe, err := os.Executable(); err == nil {
-		root := filepath.Dir(exe) + "/../"
-		root = filepath.Dir(root)
+		pwd := filepath.Dir(exe)
+		viper.AddConfigPath(pwd)
+
+		root := filepath.Dir(pwd + "/../")
 		viper.AddConfigPath(root)
 	}
+
+	viper.AddConfigPath("/etc/maxmq")
+	viper.AddConfigPath("/etc")
 
 	return viper.ReadInConfig()
 }
