@@ -1,0 +1,19 @@
+CHART NAME: {{ .Chart.Name }}
+CHART VERSION: {{ .Chart.Version }}
+APP VERSION: {{ .Chart.AppVersion }}
+
+  __  __                  __  __    ___
+ |  \/  |   __ _  __  __ |  \/  |  / _ \
+ | |\/| |  / _` | \ \/ / | |\/| | | | | |
+ | |  | | | (_| |  >  <  | |  | | | |_| |
+ |_|  |_|  \__,_| /_/\_\ |_|  |_|  \__\_\
+
+  A Cloud-Native Message Broker for IoT
+
+** Please be patient while the chart is being deployed **
+
+1. Get the pod's name:
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "maxmq.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+
+2. Forward MQTT traffic
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 1883:1883

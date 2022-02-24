@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "maxmq.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "maxmq.labels" . | nindent 4 }}
+  {{- if .Values.service.annotations }}
+  annotations:
+    {{ toYaml .Values.service.annotations | indent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: mqtt
+      port: {{ .Values.service.mqtt }}
+      protocol: TCP
+      targetPort: mqtt
+  selector:
+    {{- include "maxmq.selectorLabels" . | nindent 4 }}

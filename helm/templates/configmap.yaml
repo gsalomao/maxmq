@@ -1,0 +1,17 @@
+{{- if .Values.maxmqConfig }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "maxmq.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ include "maxmq.name" . }}
+    helm.sh/chart: {{ include "maxmq.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+data:
+  maxmq.conf: |
+    {{- range $key, $value := .Values.maxmqConfig}}
+    {{$key}} = "{{ $value }}"
+    {{- end}}
+{{- end -}}
