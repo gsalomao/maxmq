@@ -12,6 +12,9 @@ words=wip,WIP
 [body-max-line-length]
 line-length=72
 
+[body-min-length]
+min-length=5
+
 [contrib-title-conventional-commits]
 types = build,chore,ci,docs,feat,fix,style,refactor,perf,test
 
