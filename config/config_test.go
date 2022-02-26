@@ -51,4 +51,8 @@ func TestConfig_LoadConfig(t *testing.T) {
 	assert.Equal(t, 65535, conf.MQTTMaxClientIDLen)
 	assert.Equal(t, "", conf.MQTTClientIDPrefix)
 	assert.Equal(t, true, conf.MQTTAllowEmptyClientID)
+	assert.Equal(t, ":8080", conf.HTTPAddress)
+	assert.Equal(t, 5, conf.HTTPReadTimeout)
+	assert.Equal(t, 5, conf.HTTPWriteTimeout)
+	assert.Equal(t, 5, conf.HTTPShutdownTimeout)
 }

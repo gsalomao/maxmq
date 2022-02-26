@@ -92,6 +92,21 @@ type Config struct {
 	// Provide additional information to MQTT clients including diagnostic
 	// information.
 	MQTTUserProperties map[string]string `mapstructure:"mqtt_user_properties"`
+
+	// TCP address (<IP>:<port>) that the HTTP server will bind to.
+	HTTPAddress string `mapstructure:"http_address"`
+
+	// The amount of time, in seconds, the HTTP server waits for reading the
+	// entire request, including the body.
+	HTTPReadTimeout int `mapstructure:"http_read_timeout"`
+
+	// The amount of time, in seconds, the HTTP server waits before timing out
+	// writes of the response.
+	HTTPWriteTimeout int `mapstructure:"http_write_timeout"`
+
+	// The amount of time, in seconds, the broker waits for graceful shutdown of
+	// the HTTP server.
+	HTTPShutdownTimeout int `mapstructure:"http_shutdown_timeout"`
 }
 
 // ReadConfigFile reads the configuration file.
@@ -147,6 +162,10 @@ func LoadConfig() (Config, error) {
 	_ = viper.BindEnv("mqtt_max_client_id_len")
 	_ = viper.BindEnv("mqtt_allow_empty_client_id")
 	_ = viper.BindEnv("mqtt_client_id_prefix")
+	_ = viper.BindEnv("http_address")
+	_ = viper.BindEnv("http_read_timeout")
+	_ = viper.BindEnv("http_write_timeout")
+	_ = viper.BindEnv("http_shutdown_timeout")
 
 	// Set the default values
 	c := Config{
@@ -167,6 +186,10 @@ func LoadConfig() (Config, error) {
 		MQTTSharedSubscription:   true,
 		MQTTMaxClientIDLen:       65535,
 		MQTTAllowEmptyClientID:   true,
+		HTTPAddress:              ":8080",
+		HTTPReadTimeout:          5,
+		HTTPWriteTimeout:         5,
+		HTTPShutdownTimeout:      5,
 	}
 
 	err := viper.Unmarshal(&c)

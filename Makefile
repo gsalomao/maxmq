@@ -132,7 +132,7 @@ help: ## Show this help
 		}' $(MAKEFILE_LIST)
 
 define print_task
-	@printf "${CYAN}==>${BOLD} %s...${RESET}\n" $(1)
+	@printf "${BOLD}==> %s...${RESET}\n" $(1)
 endef
 
 define print_task_result
