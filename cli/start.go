@@ -23,6 +23,7 @@ import (
 	"syscall"
 
 	"github.com/dimiro1/banner"
+	"github.com/gsalomao/maxmq/api"
 	"github.com/gsalomao/maxmq/broker"
 	"github.com/gsalomao/maxmq/config"
 	"github.com/gsalomao/maxmq/logger"
@@ -103,8 +104,21 @@ func newBroker(conf config.Config, log *logger.Logger) (*broker.Broker, error) {
 		return nil, err
 	}
 
+	httpConf := api.Configuration{
+		Address:         conf.HTTPAddress,
+		ReadTimeout:     conf.HTTPReadTimeout,
+		WriteTimeout:    conf.HTTPWriteTimeout,
+		ShutdownTimeout: conf.HTTPShutdownTimeout,
+	}
+
+	srv, err := api.NewHTTPServer(httpConf, log)
+	if err != nil {
+		return nil, err
+	}
+
 	brk := broker.New(log)
 	brk.AddRunner(r)
+	brk.AddRunner(srv)
 
 	if conf.MetricsEnabled {
 		log.Info().

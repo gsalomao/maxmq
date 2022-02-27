@@ -46,8 +46,9 @@ COPY --from=build /tmp/maxmq/config/maxmq.conf /etc/maxmq.conf
 
 # MaxMQ uses the following ports:
 # - 1883 for MQTT
+# - 8080 for HTTP
 # - 8888 for Prometheus
-EXPOSE 1883 8888
+EXPOSE 1883 8888 8888
 
 # Run application
 CMD ["/usr/bin/maxmq", "start"]

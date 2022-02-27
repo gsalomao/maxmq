@@ -34,6 +34,7 @@ func TestCLI_NewBroker(t *testing.T) {
 			MetricsEnabled: true,
 			MetricsAddress: ":8888",
 			MetricsPath:    "/metrics",
+			HTTPAddress:    ":8080",
 		}
 		brk, err := newBroker(conf, logStub.Logger())
 		require.Nil(t, err)
@@ -47,6 +48,18 @@ func TestCLI_NewBroker(t *testing.T) {
 			MetricsEnabled: true,
 			MetricsAddress: "",
 			MetricsPath:    "",
+		}
+		brk, err := newBroker(conf, logStub.Logger())
+		require.NotNil(t, err)
+		require.Nil(t, brk)
+	})
+
+	t.Run("InvalidHTTPServer", func(t *testing.T) {
+		logStub := mocks.NewLoggerStub()
+		conf := config.Config{
+			MQTTTCPAddress: ":1883",
+			MetricsEnabled: false,
+			HTTPAddress:    "",
 		}
 		brk, err := newBroker(conf, logStub.Logger())
 		require.NotNil(t, err)

@@ -39,7 +39,7 @@ func TestRunner_NewRunner(t *testing.T) {
 		)
 
 		require.NotNil(t, err)
-		assert.Equal(t, "missing configuration", err.Error())
+		assert.Contains(t, err.Error(), "missing configuration")
 	})
 
 	t.Run("MissingLogger", func(t *testing.T) {
@@ -51,7 +51,7 @@ func TestRunner_NewRunner(t *testing.T) {
 		)
 
 		require.NotNil(t, err)
-		assert.Equal(t, "missing logger", err.Error())
+		assert.Contains(t, err.Error(), "missing logger")
 	})
 
 	t.Run("MissingConnectionHandler", func(t *testing.T) {
@@ -63,7 +63,19 @@ func TestRunner_NewRunner(t *testing.T) {
 		)
 
 		require.NotNil(t, err)
-		assert.Equal(t, "missing connection handler", err.Error())
+		assert.Contains(t, err.Error(), "missing connection handler")
+	})
+
+	t.Run("MissingAddress", func(t *testing.T) {
+		mockConnHandler := mocks.ConnectionHandlerMock{}
+		logStub := mocks.NewLoggerStub()
+		_, err := mqtt.NewRunner(
+			mqtt.WithConfiguration(mqtt.Configuration{}),
+			mqtt.WithConnectionHandler(&mockConnHandler),
+			mqtt.WithLogger(logStub.Logger()),
+		)
+		assert.NotNil(t, err)
+		assert.Contains(t, err.Error(), "missing address")
 	})
 }
 

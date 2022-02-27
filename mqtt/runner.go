@@ -44,13 +44,16 @@ func NewRunner(opts ...OptionsFn) (*Runner, error) {
 	}
 
 	if mqtt.log == nil {
-		return nil, errors.New("missing logger")
+		return nil, errors.New("MQTT missing logger")
 	}
 	if mqtt.conf == nil {
-		return nil, errors.New("missing configuration")
+		return nil, errors.New("MQTT missing configuration")
 	}
 	if mqtt.connHandler == nil {
-		return nil, errors.New("missing connection handler")
+		return nil, errors.New("MQTT missing connection handler")
+	}
+	if mqtt.conf.TCPAddress == "" {
+		return nil, errors.New("MQTT missing address")
 	}
 
 	return mqtt, nil
