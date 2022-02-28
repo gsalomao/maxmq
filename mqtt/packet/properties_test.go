@@ -249,3 +249,41 @@ func TestProperties_UnpackInvalidLength(t *testing.T) {
 	err := props.unpack(bytes.NewBuffer(msg), CONNECT)
 	assert.NotNil(t, err)
 }
+
+func TestProperties_Size(t *testing.T) {
+	props := &Properties{
+		SessionExpiryInterval:         new(uint32),
+		ReceiveMaximum:                new(uint16),
+		MaximumQoS:                    new(byte),
+		RetainAvailable:               new(byte),
+		MaximumPacketSize:             new(uint32),
+		TopicAliasMaximum:             new(uint16),
+		WildcardSubscriptionAvailable: new(byte),
+		SubscriptionIDAvailable:       new(byte),
+		SharedSubscriptionAvailable:   new(byte),
+		ServerKeepAlive:               new(uint16),
+	}
+
+	*props.SessionExpiryInterval = 10
+	*props.ReceiveMaximum = 50
+	*props.MaximumQoS = 1
+	*props.RetainAvailable = 1
+	*props.MaximumPacketSize = 200
+	props.AssignedClientID = []byte("123")
+	*props.TopicAliasMaximum = 40
+	props.ReasonString = []byte("test")
+	props.UserProperties = []UserProperty{
+		{Key: []byte{'a'}, Value: []byte{0}},
+		{Key: []byte{'b'}, Value: []byte{1}},
+	}
+	*props.WildcardSubscriptionAvailable = 1
+	*props.SubscriptionIDAvailable = 1
+	*props.SharedSubscriptionAvailable = 1
+	*props.ServerKeepAlive = 30
+	props.ResponseInfo = []byte("info")
+	props.ServerReference = []byte("srv")
+	props.AuthMethod = []byte("JWT")
+	props.AuthData = []byte("token")
+
+	assert.Equal(t, 83, props.size(CONNACK))
+}

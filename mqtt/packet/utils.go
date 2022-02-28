@@ -25,8 +25,7 @@ import (
 	"unicode/utf8"
 )
 
-func readVarInteger(rd io.Reader) (int, error) {
-	value := 0
+func readVarInteger(rd io.Reader, val *int) (n int, err error) {
 	multiplier := 1
 	data := make([]byte, 1)
 
@@ -36,7 +35,8 @@ func readVarInteger(rd io.Reader) (int, error) {
 			return 0, errors.New("invalid variable integer")
 		}
 
-		value += int(data[0]&127) * multiplier
+		n++
+		*val += int(data[0]&127) * multiplier
 		multiplier *= 128
 
 		if multiplier > (128 * 128 * 128) {
@@ -48,7 +48,7 @@ func readVarInteger(rd io.Reader) (int, error) {
 		}
 	}
 
-	return value, nil
+	return
 }
 
 func readUint16(buf *bytes.Buffer, ver MQTTVersion) (uint16, error) {

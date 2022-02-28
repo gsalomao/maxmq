@@ -256,49 +256,33 @@ var propertyHandlers = map[propType]propertyHandler{
 	},
 }
 
-func (p *Properties) pack(buf *bytes.Buffer, t Type) error {
-	b := bytes.Buffer{}
-	pw := propertiesWriter{buf: &b}
-
-	pw.writeUint32(p.SessionExpiryInterval, propSessionExpiryInterval, t)
-	pw.writeUint16(p.ReceiveMaximum, propReceiveMaximum, t)
-	pw.writeByte(p.MaximumQoS, propMaximumQoS, t)
-	pw.writeByte(p.RetainAvailable, propRetainAvailable, t)
-	pw.writeUint32(p.MaximumPacketSize, propMaximumPacketSize, t)
-	pw.writeBinary(p.AssignedClientID, propAssignedClientID, t)
-	pw.writeUint16(p.TopicAliasMaximum, propTopicAliasMaximum, t)
-	pw.writeBinary(p.ReasonString, propReasonString, t)
-	pw.writeUserProperties(p.UserProperties, t)
-	pw.writeByte(p.WildcardSubscriptionAvailable,
-		propWildcardSubscriptionAvailable, t)
-	pw.writeByte(p.SubscriptionIDAvailable, propSubscriptionIDAvailable, t)
-	pw.writeByte(p.SharedSubscriptionAvailable, propSharedSubscriptionAvailable,
-		t)
-	pw.writeUint16(p.ServerKeepAlive, propServerKeepAlive, t)
-	pw.writeBinary(p.ResponseInfo, propResponseInfo, t)
-	pw.writeBinary(p.ServerReference, propServerReference, t)
-	pw.writeBinary(p.AuthMethod, propAuthMethod, t)
-	pw.writeBinary(p.AuthData, propAuthData, t)
-
-	if pw.err != nil {
-		return pw.err
-	}
-
-	wr := bufio.NewWriterSize(buf, 4 /* max variable integer size */)
-	_ = writeVarInteger(wr, b.Len())
-
-	err := wr.Flush()
-	if err != nil {
-		return err
-	}
-
-	_, err = b.WriteTo(buf)
-	return err
-}
-
 type propertiesWriter struct {
 	buf *bytes.Buffer
 	err error
+}
+
+func (w *propertiesWriter) load(p *Properties, t Type) error {
+	w.writeUint32(p.SessionExpiryInterval, propSessionExpiryInterval, t)
+	w.writeUint16(p.ReceiveMaximum, propReceiveMaximum, t)
+	w.writeByte(p.MaximumQoS, propMaximumQoS, t)
+	w.writeByte(p.RetainAvailable, propRetainAvailable, t)
+	w.writeUint32(p.MaximumPacketSize, propMaximumPacketSize, t)
+	w.writeBinary(p.AssignedClientID, propAssignedClientID, t)
+	w.writeUint16(p.TopicAliasMaximum, propTopicAliasMaximum, t)
+	w.writeBinary(p.ReasonString, propReasonString, t)
+	w.writeUserProperties(p.UserProperties, t)
+	w.writeByte(p.WildcardSubscriptionAvailable,
+		propWildcardSubscriptionAvailable, t)
+	w.writeByte(p.SubscriptionIDAvailable, propSubscriptionIDAvailable, t)
+	w.writeByte(p.SharedSubscriptionAvailable, propSharedSubscriptionAvailable,
+		t)
+	w.writeUint16(p.ServerKeepAlive, propServerKeepAlive, t)
+	w.writeBinary(p.ResponseInfo, propResponseInfo, t)
+	w.writeBinary(p.ServerReference, propServerReference, t)
+	w.writeBinary(p.AuthMethod, propAuthMethod, t)
+	w.writeBinary(p.AuthData, propAuthData, t)
+
+	return w.err
 }
 
 func (w *propertiesWriter) isValid(pt propType, t Type) bool {
@@ -364,8 +348,30 @@ func (w *propertiesWriter) writeUserProperties(v []UserProperty, t Type) {
 	}
 }
 
+func (p *Properties) pack(buf *bytes.Buffer, t Type) error {
+	b := bytes.Buffer{}
+	pw := propertiesWriter{buf: &b}
+
+	err := pw.load(p, t)
+	if err != nil {
+		return pw.err
+	}
+
+	wr := bufio.NewWriterSize(buf, 4 /* max variable integer size */)
+	_ = writeVarInteger(wr, b.Len())
+
+	err = wr.Flush()
+	if err != nil {
+		return err
+	}
+
+	_, err = b.WriteTo(buf)
+	return err
+}
+
 func (p *Properties) unpack(b *bytes.Buffer, t Type) error {
-	propsLen, err := readVarInteger(b)
+	var propsLen int
+	_, err := readVarInteger(b, &propsLen)
 	if err != nil {
 		return err
 	}
@@ -402,6 +408,18 @@ func (p *Properties) unpackProperties(b *bytes.Buffer, t Type) error {
 	}
 
 	return nil
+}
+
+func (p *Properties) size(t Type) int {
+	b := bytes.Buffer{}
+	pw := propertiesWriter{buf: &b}
+
+	err := pw.load(p, t)
+	if err != nil {
+		return 0
+	}
+
+	return b.Len()
 }
 
 func isValidProperty(h propertyHandler, t Type) bool {

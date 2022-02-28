@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -104,4 +105,18 @@ func BenchmarkPingReq_Unpack(b *testing.B) {
 			b.Fatal(err)
 		}
 	}
+}
+
+func TestPingReq_Size(t *testing.T) {
+	fh := fixedHeader{
+		packetType:      PINGREQ,
+		remainingLength: 0,
+		size:            2,
+	}
+
+	pkt, err := newPacketPingReq(fh)
+	require.Nil(t, err)
+	require.NotNil(t, pkt)
+
+	assert.Equal(t, 2, pkt.Size())
 }

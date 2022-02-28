@@ -36,6 +36,8 @@ type ConnAck struct {
 
 	// Properties represents the CONNACK properties (MQTT V5.0 only).
 	Properties *Properties
+
+	size int
 }
 
 // NewConnAck creates a CONNACK Packet.
@@ -77,7 +79,9 @@ func (pkt *ConnAck) Pack(w *bufio.Writer) error {
 
 	_ = w.WriteByte(byte(CONNACK) << packetTypeBit)
 	_ = writeVarInteger(w, varHeader.Len())
-	_, err = varHeader.WriteTo(w)
+	n, err := varHeader.WriteTo(w)
+	pkt.size = 2 + int(n)
+
 	return err
 }
 
@@ -91,4 +95,9 @@ func (pkt *ConnAck) Unpack(_ *bytes.Buffer) error {
 // Type returns the packet type.
 func (pkt *ConnAck) Type() Type {
 	return CONNACK
+}
+
+// Size returns the packet size in bytes.
+func (pkt *ConnAck) Size() int {
+	return pkt.size
 }

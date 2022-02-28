@@ -87,6 +87,8 @@ type Connect struct {
 	// Password represents the Password which the broker must use for
 	// authentication and authorization.
 	Password []byte
+
+	size int
 }
 
 // WillQoS indicates the QoS level to be used when publishing the Will Message.
@@ -114,7 +116,7 @@ func newPacketConnect(fh fixedHeader) (Packet, error) {
 		return nil, errors.New("invalid Control Flags (CONNECT)")
 	}
 
-	return &Connect{}, nil
+	return &Connect{size: fh.size + fh.remainingLength}, nil
 }
 
 // Pack encodes the packet into bytes and writes it into the io.Writer.
@@ -172,6 +174,11 @@ func (pkt *Connect) Unpack(buf *bytes.Buffer) error {
 // Type returns the packet type.
 func (pkt *Connect) Type() Type {
 	return CONNECT
+}
+
+// Size returns the packet size in bytes.
+func (pkt *Connect) Size() int {
+	return pkt.size
 }
 
 func (pkt *Connect) unpackVersion(buf *bytes.Buffer) error {

@@ -23,7 +23,9 @@ import (
 )
 
 // PingReq represents the PINGREQ Packet from MQTT specifications.
-type PingReq struct{}
+type PingReq struct {
+	size int
+}
 
 func newPacketPingReq(fh fixedHeader) (Packet, error) {
 	if fh.packetType != PINGREQ {
@@ -38,7 +40,7 @@ func newPacketPingReq(fh fixedHeader) (Packet, error) {
 		return nil, errors.New("invalid Remain Length (PINGREQ)")
 	}
 
-	return &PingReq{}, nil
+	return &PingReq{size: fh.size}, nil
 }
 
 // Pack encodes the packet into bytes and writes it into the io.Writer.
@@ -56,4 +58,9 @@ func (pkt *PingReq) Unpack(_ *bytes.Buffer) error {
 // Type returns the packet type.
 func (pkt *PingReq) Type() Type {
 	return PINGREQ
+}
+
+// Size returns the packet size in bytes.
+func (pkt *PingReq) Size() int {
+	return pkt.size
 }

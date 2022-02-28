@@ -32,6 +32,8 @@ type Disconnect struct {
 
 	// Properties represents the DISCONNECT properties (MQTT V5.0 only).
 	Properties *Properties
+
+	size int
 }
 
 func newPacketDisconnect(fh fixedHeader) (Packet, error) {
@@ -48,7 +50,7 @@ func newPacketDisconnect(fh fixedHeader) (Packet, error) {
 		ver = MQTT50
 	}
 
-	return &Disconnect{Version: ver}, nil
+	return &Disconnect{Version: ver, size: fh.size + fh.remainingLength}, nil
 }
 
 // NewDisconnect creates a DISCONNECT Packet.
@@ -79,7 +81,9 @@ func (pkt *Disconnect) Pack(w *bufio.Writer) error {
 
 	_ = w.WriteByte(byte(DISCONNECT) << packetTypeBit)
 	_ = writeVarInteger(w, varHeader.Len())
-	_, err := varHeader.WriteTo(w)
+	n, err := varHeader.WriteTo(w)
+	pkt.size = 2 + int(n)
+
 	return err
 }
 
@@ -107,4 +111,9 @@ func (pkt *Disconnect) Unpack(buf *bytes.Buffer) error {
 // Type returns the packet type.
 func (pkt *Disconnect) Type() Type {
 	return DISCONNECT
+}
+
+// Size returns the packet size in bytes.
+func (pkt *Disconnect) Size() int {
+	return pkt.size
 }

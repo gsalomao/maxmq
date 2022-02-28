@@ -1101,3 +1101,64 @@ func TestConnect_UnpackPasswordInvalid(t *testing.T) {
 	require.NotNil(t, err)
 	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
 }
+
+func TestConnect_Size(t *testing.T) {
+	t.Run("V3", func(t *testing.T) {
+		msg := []byte{
+			0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 0, // variable header
+			0, 1, 'a', // client ID
+		}
+		fh := fixedHeader{
+			packetType:      CONNECT,
+			remainingLength: len(msg),
+			size:            2,
+		}
+
+		pkt, err := newPacketConnect(fh)
+		require.Nil(t, err)
+		require.NotNil(t, pkt)
+
+		assert.Equal(t, 15, pkt.Size())
+	})
+
+	t.Run("V5", func(t *testing.T) {
+		msg := []byte{
+			0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 0, // variable header
+			0,         // property length
+			0, 1, 'a', // client ID
+			0, // will property length
+		}
+		fh := fixedHeader{
+			packetType:      CONNECT,
+			remainingLength: len(msg),
+			size:            2,
+		}
+
+		pkt, err := newPacketConnect(fh)
+		require.Nil(t, err)
+		require.NotNil(t, pkt)
+
+		assert.Equal(t, 17, pkt.Size())
+	})
+
+	t.Run("V5-Properties", func(t *testing.T) {
+		msg := []byte{
+			0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 0, // variable header
+			5,               // property length
+			17, 0, 0, 0, 10, // SessionExpiryInterval
+			0, 1, 'a', // client ID
+			0, // will property length
+		}
+		fh := fixedHeader{
+			packetType:      CONNECT,
+			remainingLength: len(msg),
+			size:            2,
+		}
+
+		pkt, err := newPacketConnect(fh)
+		require.Nil(t, err)
+		require.NotNil(t, pkt)
+
+		assert.Equal(t, 22, pkt.Size())
+	})
+}

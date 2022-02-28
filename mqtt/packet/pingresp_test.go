@@ -64,3 +64,21 @@ func TestPingResp_UnpackUnsupported(t *testing.T) {
 	err := pkt.Unpack(buf)
 	require.NotNil(t, err)
 }
+
+func TestPingResp_Size(t *testing.T) {
+	t.Run("Unknown", func(t *testing.T) {
+		pkt := PingResp{}
+		assert.Equal(t, 0, pkt.Size())
+	})
+
+	t.Run("Known", func(t *testing.T) {
+		pkt := PingResp{}
+		buf := &bytes.Buffer{}
+		wr := bufio.NewWriter(buf)
+
+		err := pkt.Pack(wr)
+		require.Nil(t, err)
+
+		assert.Equal(t, 2, pkt.Size())
+	})
+}

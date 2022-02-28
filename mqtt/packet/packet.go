@@ -70,12 +70,16 @@ type Packet interface {
 
 	// Type returns the packet type.
 	Type() Type
+
+	// Size returns the packet size in bytes.
+	Size() int
 }
 
 type fixedHeader struct {
 	packetType      Type
 	controlFlags    byte
 	remainingLength int
+	size            int
 }
 
 var packetTypeToFactory = map[Type]func(fixedHeader) (Packet, error){

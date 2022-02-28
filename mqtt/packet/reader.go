@@ -54,19 +54,21 @@ func (r *Reader) ReadPacket() (Packet, error) {
 		return nil, err
 	}
 
-	l, err := readVarInteger(&r.bufReader)
+	var remainLen int
+	n, err := readVarInteger(&r.bufReader, &remainLen)
 	if err != nil {
 		return nil, err
 	}
 
-	if l > r.maxPacketSize {
+	if remainLen > r.maxPacketSize {
 		return nil, errors.New("max packet size exceeded")
 	}
 
 	fh := fixedHeader{
 		packetType:      Type(ctrlByte >> 4),
 		controlFlags:    ctrlByte & controlByteMask,
-		remainingLength: l,
+		remainingLength: remainLen,
+		size:            1 + n,
 	}
 
 	pkt, err := newPacket(fh)

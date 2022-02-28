@@ -231,3 +231,54 @@ func TestDisconnect_UnpackV5PropertiesInvalid(t *testing.T) {
 	err = pkt.Unpack(bytes.NewBuffer(msg))
 	require.NotNil(t, err)
 }
+
+func TestDisconnect_Size(t *testing.T) {
+	t.Run("Unknown", func(t *testing.T) {
+		pkt := NewDisconnect(MQTT311, ReasonCodeV3ConnectionAccepted, nil)
+		require.NotNil(t, pkt)
+		assert.Equal(t, 0, pkt.Size())
+	})
+
+	t.Run("V3", func(t *testing.T) {
+		pkt := NewDisconnect(MQTT311, ReasonCodeV3ConnectionAccepted, nil)
+		require.NotNil(t, pkt)
+
+		buf := &bytes.Buffer{}
+		wr := bufio.NewWriter(buf)
+
+		err := pkt.Pack(wr)
+		require.Nil(t, err)
+
+		assert.Equal(t, 2, pkt.Size())
+	})
+
+	t.Run("V5", func(t *testing.T) {
+		pkt := NewDisconnect(MQTT50, ReasonCodeV3ConnectionAccepted, nil)
+		require.NotNil(t, pkt)
+
+		buf := &bytes.Buffer{}
+		wr := bufio.NewWriter(buf)
+
+		err := pkt.Pack(wr)
+		require.Nil(t, err)
+
+		assert.Equal(t, 4, pkt.Size())
+	})
+
+	t.Run("V5-Properties", func(t *testing.T) {
+		msg := []byte{0, 5, 17, 0, 0, 0, 30}
+		fh := fixedHeader{
+			packetType:      DISCONNECT,
+			remainingLength: len(msg),
+			size:            2,
+		}
+
+		pkt, err := newPacketDisconnect(fh)
+		require.Nil(t, err)
+
+		err = pkt.Unpack(bytes.NewBuffer(msg))
+		require.Nil(t, err)
+
+		assert.Equal(t, 9, pkt.Size())
+	})
+}

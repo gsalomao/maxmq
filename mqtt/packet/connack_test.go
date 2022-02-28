@@ -200,3 +200,53 @@ func TestConnAck_UnpackUnsupported(t *testing.T) {
 	err := pkt.Unpack(buf)
 	require.NotNil(t, err)
 }
+
+func TestConnAck_Size(t *testing.T) {
+	t.Run("Unknown", func(t *testing.T) {
+		pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
+		require.NotNil(t, pkt)
+		assert.Equal(t, 0, pkt.Size())
+	})
+
+	t.Run("V3", func(t *testing.T) {
+		pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
+		require.NotNil(t, pkt)
+
+		buf := &bytes.Buffer{}
+		wr := bufio.NewWriter(buf)
+
+		err := pkt.Pack(wr)
+		require.Nil(t, err)
+
+		assert.Equal(t, 4, pkt.Size())
+	})
+
+	t.Run("V5", func(t *testing.T) {
+		pkt := NewConnAck(MQTT50, ReasonCodeV5Success, false, nil)
+		require.NotNil(t, pkt)
+
+		buf := &bytes.Buffer{}
+		wr := bufio.NewWriter(buf)
+
+		err := pkt.Pack(wr)
+		require.Nil(t, err)
+
+		assert.Equal(t, 5, pkt.Size())
+	})
+
+	t.Run("V5-Properties", func(t *testing.T) {
+		props := &Properties{SessionExpiryInterval: new(uint32)}
+		*props.SessionExpiryInterval = 30
+
+		pkt := NewConnAck(MQTT50, ReasonCodeV5Success, false, props)
+		require.NotNil(t, pkt)
+
+		buf := &bytes.Buffer{}
+		wr := bufio.NewWriter(buf)
+
+		err := pkt.Pack(wr)
+		require.Nil(t, err)
+
+		assert.Equal(t, 10, pkt.Size())
+	})
+}

@@ -23,12 +23,17 @@ import (
 )
 
 // PingResp represents the PINGRESP Packet from MQTT specifications.
-type PingResp struct{}
+type PingResp struct {
+	size int
+}
 
 // Pack encodes the packet into bytes and writes it into the io.Writer.
 func (pkt *PingResp) Pack(w *bufio.Writer) error {
 	_ = w.WriteByte(byte(PINGRESP) << packetTypeBit)
-	return w.WriteByte(0)
+	err := w.WriteByte(0)
+	pkt.size = 2
+
+	return err
 }
 
 // Unpack reads the packet bytes from bytes.Buffer and decodes them into the
@@ -41,4 +46,9 @@ func (pkt *PingResp) Unpack(_ *bytes.Buffer) error {
 // Type returns the packet type.
 func (pkt *PingResp) Type() Type {
 	return PINGRESP
+}
+
+// Size returns the packet size in bytes.
+func (pkt *PingResp) Size() int {
+	return pkt.size
 }
