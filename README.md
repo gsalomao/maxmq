@@ -39,6 +39,7 @@ low-bandwidth, high-latency or unreliable networks.
 - [ ] Automatic network partition healing (Cluster)
 - [ ] Extensible through plugins
 - [ ] WebUI
+- [ ] Metrics support ([Prometheus](https://prometheus.io/))
 
 ### Roadmap
 
