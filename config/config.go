@@ -28,6 +28,15 @@ type Config struct {
 	// Minimal severity level of the logs.
 	LogLevel string `mapstructure:"log_level"`
 
+	// Indicate whether the broker exports metrics or not.
+	MetricsEnabled bool `mapstructure:"metrics_enabled"`
+
+	// TCP address (<IP>:<port>) where the Prometheus metrics are exported.
+	MetricsAddress string `mapstructure:"metrics_address"`
+
+	// The path where the metrics are exported.
+	MetricsPath string `mapstructure:"metrics_path"`
+
 	// TCP address (<IP>:<port>) that the MQTT will bind to.
 	MQTTTCPAddress string `mapstructure:"mqtt_tcp_address"`
 
@@ -119,6 +128,9 @@ func LoadConfig() (Config, error) {
 
 	// Bind environment variables
 	_ = viper.BindEnv("log_level")
+	_ = viper.BindEnv("metrics_enabled")
+	_ = viper.BindEnv("metrics_address")
+	_ = viper.BindEnv("metrics_path")
 	_ = viper.BindEnv("mqtt_tcp_address")
 	_ = viper.BindEnv("mqtt_connect_timeout")
 	_ = viper.BindEnv("mqtt_buffer_size")
@@ -139,6 +151,9 @@ func LoadConfig() (Config, error) {
 	// Set the default values
 	c := Config{
 		LogLevel:                 "info",
+		MetricsEnabled:           true,
+		MetricsAddress:           ":8888",
+		MetricsPath:              "/metrics",
 		MQTTTCPAddress:           ":1883",
 		MQTTConnectTimeout:       5,
 		MQTTBufferSize:           1024,
