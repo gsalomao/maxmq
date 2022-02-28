@@ -92,6 +92,9 @@ type Properties struct {
 	// client or the broker accepts.
 	TopicAliasMaximum *uint16
 
+	// TopicAlias represents a value that is used to identify the Topic Name.
+	TopicAlias *uint16
+
 	// MaximumQoS represents the maximum QoS supported by the broker.
 	MaximumQoS *byte
 
@@ -149,6 +152,7 @@ const (
 	propReasonString                  propType = 0x1F
 	propReceiveMaximum                propType = 0x21
 	propTopicAliasMaximum             propType = 0x22
+	propTopicAlias                    propType = 0x23
 	propMaximumQoS                    propType = 0x24
 	propRetainAvailable               propType = 0x25
 	propUser                          propType = 0x26
@@ -231,6 +235,9 @@ var propertyHandlers = map[propType]propertyHandler{
 		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}},
 		unpack: unpackPropTopicAliasMaximum,
 	},
+	propTopicAlias: {
+		types: map[Type]struct{}{PUBLISH: {}},
+	},
 	propMaximumQoS: {
 		types: map[Type]struct{}{CONNACK: {}},
 	},
@@ -269,6 +276,7 @@ func (w *propertiesWriter) load(p *Properties, t Type) error {
 	w.writeUint32(p.MaximumPacketSize, propMaximumPacketSize, t)
 	w.writeBinary(p.AssignedClientID, propAssignedClientID, t)
 	w.writeUint16(p.TopicAliasMaximum, propTopicAliasMaximum, t)
+	w.writeUint16(p.TopicAlias, propTopicAlias, t)
 	w.writeBinary(p.ReasonString, propReasonString, t)
 	w.writeUserProperties(p.UserProperties, t)
 	w.writeByte(p.WildcardSubscriptionAvailable,

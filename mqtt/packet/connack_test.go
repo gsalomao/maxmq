@@ -148,6 +148,24 @@ func TestConnAck_PackV5Properties(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
+func TestConnAck_PackV5InvalidProperty(t *testing.T) {
+	props := &Properties{TopicAlias: new(uint16)}
+	*props.TopicAlias = 10
+
+	pkt := NewConnAck(MQTT50, ReasonCodeV5Success, false, props)
+	require.NotNil(t, pkt)
+
+	buf := &bytes.Buffer{}
+	wr := bufio.NewWriter(buf)
+
+	err := pkt.Pack(wr)
+	assert.NotNil(t, err)
+
+	err = wr.Flush()
+	assert.Nil(t, err)
+	assert.Empty(t, buf)
+}
+
 func TestConnAck_PackV5WithoutProperties(t *testing.T) {
 	pkt := NewConnAck(MQTT50, ReasonCodeV5Success, false, nil)
 	require.NotNil(t, pkt)
