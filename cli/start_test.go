@@ -27,11 +27,31 @@ import (
 )
 
 func TestCLI_NewBroker(t *testing.T) {
-	logStub := mocks.NewLoggerStub()
-	conf := config.Config{}
-	brk, err := newBroker(conf, logStub.Logger())
-	require.Nil(t, err)
-	require.NotNil(t, brk)
+	t.Run("Valid", func(t *testing.T) {
+		logStub := mocks.NewLoggerStub()
+		conf := config.Config{
+			MQTTTCPAddress: ":1883",
+			MetricsEnabled: true,
+			MetricsAddress: ":8888",
+			MetricsPath:    "/metrics",
+		}
+		brk, err := newBroker(conf, logStub.Logger())
+		require.Nil(t, err)
+		require.NotNil(t, brk)
+	})
+
+	t.Run("InvalidMetrics", func(t *testing.T) {
+		logStub := mocks.NewLoggerStub()
+		conf := config.Config{
+			MQTTTCPAddress: ":1883",
+			MetricsEnabled: true,
+			MetricsAddress: "",
+			MetricsPath:    "",
+		}
+		brk, err := newBroker(conf, logStub.Logger())
+		require.NotNil(t, err)
+		require.Nil(t, brk)
+	})
 }
 
 func TestCLI_RunBroker(t *testing.T) {

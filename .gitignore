@@ -36,3 +36,5 @@ go.work
 
 # Others
 /maxmq.conf
+/prometheus.yml
+/data

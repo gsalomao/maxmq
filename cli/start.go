@@ -26,6 +26,7 @@ import (
 	"github.com/gsalomao/maxmq/broker"
 	"github.com/gsalomao/maxmq/config"
 	"github.com/gsalomao/maxmq/logger"
+	"github.com/gsalomao/maxmq/metrics"
 	"github.com/gsalomao/maxmq/mqtt"
 	"github.com/mattn/go-colorable"
 	"github.com/spf13/cobra"
@@ -105,6 +106,25 @@ func newBroker(conf config.Config, log *logger.Logger) (*broker.Broker, error) {
 	brk := broker.New(log)
 	brk.AddRunner(r)
 
+	if conf.MetricsEnabled {
+		log.Info().
+			Str("Address", conf.MetricsAddress).
+			Str("Path", conf.MetricsPath).
+			Msg("Enabling metrics")
+
+		c := metrics.Configuration{
+			Address: conf.MetricsAddress,
+			Path:    conf.MetricsPath,
+		}
+
+		prom, err := metrics.NewPrometheus(c, log)
+		if err != nil {
+			return nil, err
+		}
+
+		brk.AddRunner(prom)
+	}
+
 	return &brk, nil
 }
 
@@ -125,7 +145,7 @@ func runBroker(brk *broker.Broker, log *logger.Logger) {
 func loadConfig(log *logger.Logger) (config.Config, error) {
 	err := config.ReadConfigFile()
 	if err == nil {
-		log.Info().Msg("Loading configuration from file")
+		log.Info().Msg("Loading configuration")
 	} else {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			log.Warn().Msg(err.Error())
