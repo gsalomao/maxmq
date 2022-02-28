@@ -53,12 +53,6 @@ func NewRunner(opts ...OptionsFn) (*Runner, error) {
 		return nil, errors.New("missing connection handler")
 	}
 
-	lsn, err := net.Listen("tcp", mqtt.conf.TCPAddress)
-	mqtt.tcpLsn = lsn
-	if err != nil {
-		return nil, err
-	}
-
 	return mqtt, nil
 }
 
@@ -66,7 +60,13 @@ func NewRunner(opts ...OptionsFn) (*Runner, error) {
 // Once called, it blocks waiting for connections until it's stopped by the
 // Stop function.
 func (mqtt *Runner) Run() error {
-	mqtt.log.Info().Msg("MQTT Listening on " + mqtt.tcpLsn.Addr().String())
+	lsn, err := net.Listen("tcp", mqtt.conf.TCPAddress)
+	if err != nil {
+		return err
+	}
+
+	mqtt.log.Info().Msg("MQTT Listening on " + lsn.Addr().String())
+	mqtt.tcpLsn = lsn
 	mqtt.setRunningState(true)
 
 	for {

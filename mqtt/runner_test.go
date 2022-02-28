@@ -65,22 +65,25 @@ func TestRunner_NewRunner(t *testing.T) {
 		require.NotNil(t, err)
 		assert.Equal(t, "missing connection handler", err.Error())
 	})
+}
 
-	t.Run("InvalidTCPAddress", func(t *testing.T) {
-		mockConnHandler := mocks.ConnectionHandlerMock{}
-		logStub := mocks.NewLoggerStub()
+func TestRunner_RunInvalidTCPAddress(t *testing.T) {
+	mockConnHandler := mocks.ConnectionHandlerMock{}
+	logStub := mocks.NewLoggerStub()
 
-		_, err := mqtt.NewRunner(
-			mqtt.WithConfiguration(mqtt.Configuration{
-				TCPAddress: ":1",
-			}),
-			mqtt.WithConnectionHandler(&mockConnHandler),
-			mqtt.WithLogger(logStub.Logger()),
-		)
+	runner, err := mqtt.NewRunner(
+		mqtt.WithConfiguration(mqtt.Configuration{
+			TCPAddress: ":1",
+		}),
+		mqtt.WithConnectionHandler(&mockConnHandler),
+		mqtt.WithLogger(logStub.Logger()),
+	)
+	require.Nil(t, err)
+	require.NotNil(t, runner)
 
-		require.NotNil(t, err)
-		assert.Contains(t, err.Error(), "bind: permission denied")
-	})
+	err = runner.Run()
+	require.NotNil(t, err)
+	assert.Contains(t, err.Error(), "bind: permission denied")
 }
 
 func TestRunner_RunAndStop(t *testing.T) {
