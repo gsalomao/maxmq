@@ -23,15 +23,6 @@ import (
 	"github.com/gsalomao/maxmq/logger"
 )
 
-// Runner is a network interface for stream-oriented protocols.
-type Runner interface {
-	// Run runs the runner and must block until the runner stops.
-	Run() error
-
-	// Stop stops the runner unblocking the Run function.
-	Stop()
-}
-
 // Broker represents the message broker.
 type Broker struct {
 	log     *logger.Logger
