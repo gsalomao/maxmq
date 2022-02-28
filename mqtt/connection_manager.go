@@ -30,6 +30,7 @@ import (
 type ConnectionManager struct {
 	log            *logger.Logger
 	conf           Configuration
+	metrics        *metrics
 	userProperties []packet.UserProperty
 }
 
@@ -71,6 +72,7 @@ func NewConnectionManager(
 	return ConnectionManager{
 		conf:           cf,
 		log:            lg,
+		metrics:        newMetrics(lg),
 		userProperties: userProps,
 	}
 }
@@ -94,6 +96,7 @@ func (cm *ConnectionManager) NewConnection(nc net.Conn) Connection {
 // Handle handles the Connection.
 func (cm *ConnectionManager) Handle(conn Connection) {
 	defer cm.Close(&conn, true)
+	cm.metrics.connected()
 
 	cm.log.Debug().
 		Str("Address", conn.address).
@@ -151,6 +154,8 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 			Stringer("PacketType", pkt.Type()).
 			Msg("MQTT Received packet")
 
+		cm.metrics.packetReceived(pkt)
+
 		err = cm.handlePacket(pkt, &conn)
 		if err != nil {
 			cm.log.Warn().
@@ -188,6 +193,7 @@ func (cm *ConnectionManager) Close(conn *Connection, force bool) {
 	_ = conn.netConn.Close()
 	conn.connected = false
 	conn.closed = true
+	cm.metrics.disconnected()
 }
 
 func (cm *ConnectionManager) handlePacket(
@@ -339,7 +345,9 @@ func (cm *ConnectionManager) sendPacket(
 			Stringer("PacketType", pkt.Type()).
 			Str("Version", conn.version.String()).
 			Msg("MQTT Failed to send packet: " + err.Error())
+		return err
 	}
 
-	return err
+	cm.metrics.packetSent(pkt)
+	return nil
 }
