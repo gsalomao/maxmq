@@ -101,6 +101,7 @@ fmt: ## Format source code
 
 lint: ## Lint source code
 	$(call print_task,"Linting source code")
+	@golint  -set_exit_status ./...
 	@golangci-lint run ./...
 	$(call print_task_result,"Linting source code","done")
 
