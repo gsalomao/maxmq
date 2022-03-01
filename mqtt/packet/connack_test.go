@@ -268,3 +268,9 @@ func TestConnAck_Size(t *testing.T) {
 		assert.Equal(t, 10, pkt.Size())
 	})
 }
+
+func TestConnAck_Timestamp(t *testing.T) {
+	pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
+	require.NotNil(t, pkt)
+	assert.NotNil(t, pkt.Timestamp())
+}

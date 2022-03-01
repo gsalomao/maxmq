@@ -20,27 +20,29 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"time"
 )
 
 // PingReq represents the PINGREQ Packet from MQTT specifications.
 type PingReq struct {
-	size int
+	size      int
+	timestamp time.Time
 }
 
-func newPacketPingReq(fh fixedHeader) (Packet, error) {
-	if fh.packetType != PINGREQ {
+func newPacketPingReq(opts options) (Packet, error) {
+	if opts.packetType != PINGREQ {
 		return nil, errors.New("packet type is not PINGREQ")
 	}
 
-	if fh.controlFlags != 0 {
+	if opts.controlFlags != 0 {
 		return nil, errors.New("invalid Control Flags (PINGREQ)")
 	}
 
-	if fh.remainingLength != 0 {
+	if opts.remainingLength != 0 {
 		return nil, errors.New("invalid Remain Length (PINGREQ)")
 	}
 
-	return &PingReq{size: fh.size}, nil
+	return &PingReq{size: opts.size, timestamp: opts.timestamp}, nil
 }
 
 // Pack encodes the packet into bytes and writes it into the io.Writer.
@@ -63,4 +65,9 @@ func (pkt *PingReq) Type() Type {
 // Size returns the packet size in bytes.
 func (pkt *PingReq) Size() int {
 	return pkt.size
+}
+
+// Timestamp returns the timestamp which the packet was created.
+func (pkt *PingReq) Timestamp() time.Time {
+	return pkt.timestamp
 }

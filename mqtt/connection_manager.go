@@ -24,6 +24,7 @@ import (
 
 	"github.com/gsalomao/maxmq/logger"
 	"github.com/gsalomao/maxmq/mqtt/packet"
+	"go.uber.org/multierr"
 )
 
 // ConnectionManager implements the ConnectionHandler interface.
@@ -144,7 +145,7 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 			if pktErr, ok := err.(packet.Error); ok {
 				connAck := newConnAck(&conn, pktErr.ReasonCode, false, cm.conf,
 					nil)
-				_ = cm.sendPacket(&conn, &connAck)
+				_, _ = cm.sendPacket(&conn, &connAck)
 			}
 			break
 		}
@@ -209,10 +210,10 @@ func (cm *ConnectionManager) handlePacket(
 		connPkt, _ := pkt.(*packet.Connect)
 		return cm.handlePacketConnect(connPkt, conn)
 	case packet.PINGREQ:
-		pingResp := packet.PingResp{}
-		return cm.sendPacket(conn, &pingResp)
+		return cm.sendPingResp(conn, pkt)
 	case packet.DISCONNECT:
 		cm.Close(conn, false)
+		cm.metrics.disconnectLatency(time.Since(pkt.Timestamp()))
 		return nil
 	default:
 		return errors.New("invalid packet type: " + pkt.Type().String())
@@ -241,15 +242,17 @@ func (cm *ConnectionManager) handlePacketConnect(
 		// MaxKeepAlive, the CONNACK Packet is sent with the reason code
 		// "identifier rejected".
 		code := packet.ReasonCodeV3IdentifierRejected
-		connAckPkt := newConnAck(conn, code, false, cm.conf, nil)
-		_ = cm.sendPacket(conn, &connAckPkt)
-		return err
+		connAck := newConnAck(conn, code, false, cm.conf, nil)
+
+		errSendConnAck := cm.sendConnAck(conn, connPkt, &connAck)
+		return multierr.Combine(err, errSendConnAck)
 	}
 
 	if err := cm.checkClientID(connPkt); err != nil {
-		connAckPkt := newConnAck(conn, err.ReasonCode, false, cm.conf, nil)
-		_ = cm.sendPacket(conn, &connAckPkt)
-		return err
+		connAck := newConnAck(conn, err.ReasonCode, false, cm.conf, nil)
+
+		errSendConnAck := cm.sendConnAck(conn, connPkt, &connAck)
+		return multierr.Combine(err, errSendConnAck)
 	}
 
 	code := packet.ReasonCodeV3ConnectionAccepted
@@ -267,7 +270,8 @@ func (cm *ConnectionManager) handlePacketConnect(
 		connAck.Properties.UserProperties = cm.userProperties
 	}
 
-	if err := cm.sendPacket(conn, &connAck); err != nil {
+	err := cm.sendConnAck(conn, connPkt, &connAck)
+	if err != nil {
 		return err
 	}
 
@@ -326,10 +330,43 @@ func (cm *ConnectionManager) checkClientID(pkt *packet.Connect) *packet.Error {
 	return nil
 }
 
+func (cm *ConnectionManager) sendConnAck(
+	conn *Connection,
+	connect *packet.Connect,
+	connAck *packet.ConnAck,
+) error {
+	tm, err := cm.sendPacket(conn, connAck)
+	if err != nil {
+		return err
+	}
+
+	latency := tm.Sub(connect.Timestamp())
+	cm.metrics.connectLatency(latency, int(connAck.ReasonCode))
+
+	return nil
+}
+
+func (cm *ConnectionManager) sendPingResp(
+	conn *Connection,
+	pingReq packet.Packet,
+) error {
+	pingResp := packet.NewPingResp()
+
+	tm, err := cm.sendPacket(conn, &pingResp)
+	if err != nil {
+		return err
+	}
+
+	latency := tm.Sub(pingReq.Timestamp())
+	cm.metrics.pingLatency(latency)
+
+	return nil
+}
+
 func (cm *ConnectionManager) sendPacket(
 	conn *Connection,
 	pkt packet.Packet,
-) error {
+) (time.Time, error) {
 	cm.log.Trace().
 		Str("Address", conn.address).
 		Str("ClientID", string(conn.clientID)).
@@ -345,9 +382,10 @@ func (cm *ConnectionManager) sendPacket(
 			Stringer("PacketType", pkt.Type()).
 			Str("Version", conn.version.String()).
 			Msg("MQTT Failed to send packet: " + err.Error())
-		return err
+		return time.Now(), err
 	}
 
 	cm.metrics.packetSent(pkt)
-	return nil
+
+	return time.Now(), nil
 }

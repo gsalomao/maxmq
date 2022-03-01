@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"time"
 )
 
 // ConnAck represents the CONNACK Packet from MQTT specifications.
@@ -37,7 +38,8 @@ type ConnAck struct {
 	// Properties represents the CONNACK properties (MQTT V5.0 only).
 	Properties *Properties
 
-	size int
+	size      int
+	timestamp time.Time
 }
 
 // NewConnAck creates a CONNACK Packet.
@@ -49,6 +51,7 @@ func NewConnAck(
 		ReasonCode:     c,
 		SessionPresent: sessionPresent,
 		Properties:     p,
+		timestamp:      time.Now(),
 	}
 }
 
@@ -100,4 +103,9 @@ func (pkt *ConnAck) Type() Type {
 // Size returns the packet size in bytes.
 func (pkt *ConnAck) Size() int {
 	return pkt.size
+}
+
+// Timestamp returns the timestamp which the packet was created.
+func (pkt *ConnAck) Timestamp() time.Time {
+	return pkt.timestamp
 }

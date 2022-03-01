@@ -26,44 +26,29 @@ import (
 )
 
 func TestPingReq_InvalidPacketType(t *testing.T) {
-	fh := fixedHeader{
-		packetType: DISCONNECT, // invalid
-	}
-
-	pkt, err := newPacketPingReq(fh)
+	opts := options{packetType: DISCONNECT}
+	pkt, err := newPacketPingReq(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
 func TestPingReq_InvalidControlFlags(t *testing.T) {
-	fh := fixedHeader{
-		packetType:   PINGREQ,
-		controlFlags: 1, // invalid
-	}
-
-	pkt, err := newPacketPingReq(fh)
+	opts := options{packetType: PINGREQ, controlFlags: 1}
+	pkt, err := newPacketPingReq(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
 func TestPingReq_InvalidRemainLength(t *testing.T) {
-	fh := fixedHeader{
-		packetType:      PINGREQ,
-		remainingLength: 1,
-	}
-
-	pkt, err := newPacketPingReq(fh)
+	opts := options{packetType: PINGREQ, remainingLength: 1}
+	pkt, err := newPacketPingReq(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
 func TestPingReq_PackUnsupported(t *testing.T) {
-	fh := fixedHeader{
-		packetType:      PINGREQ,
-		remainingLength: 0,
-	}
-
-	pkt, err := newPacketPingReq(fh)
+	opts := options{packetType: PINGREQ, remainingLength: 0}
+	pkt, err := newPacketPingReq(opts)
 	require.Nil(t, err)
 	require.NotNil(t, pkt)
 
@@ -74,12 +59,8 @@ func TestPingReq_PackUnsupported(t *testing.T) {
 }
 
 func TestPingReq_Unpack(t *testing.T) {
-	fh := fixedHeader{
-		packetType:      PINGREQ,
-		remainingLength: 0,
-	}
-
-	pkt, err := newPacketPingReq(fh)
+	opts := options{packetType: PINGREQ, remainingLength: 0}
+	pkt, err := newPacketPingReq(opts)
 	require.Nil(t, err)
 	require.NotNil(t, pkt)
 	require.Equal(t, PINGREQ, pkt.Type())
@@ -91,11 +72,8 @@ func TestPingReq_Unpack(t *testing.T) {
 
 func BenchmarkPingReq_Unpack(b *testing.B) {
 	var msg []byte
-	fh := fixedHeader{
-		packetType:      PINGREQ,
-		remainingLength: 0,
-	}
-	pkt, _ := newPacketPingReq(fh)
+	opts := options{packetType: PINGREQ, remainingLength: 0}
+	pkt, _ := newPacketPingReq(opts)
 
 	b.ReportAllocs()
 
@@ -108,15 +86,19 @@ func BenchmarkPingReq_Unpack(b *testing.B) {
 }
 
 func TestPingReq_Size(t *testing.T) {
-	fh := fixedHeader{
-		packetType:      PINGREQ,
-		remainingLength: 0,
-		size:            2,
-	}
-
-	pkt, err := newPacketPingReq(fh)
+	opts := options{packetType: PINGREQ, remainingLength: 0, size: 2}
+	pkt, err := newPacketPingReq(opts)
 	require.Nil(t, err)
 	require.NotNil(t, pkt)
 
 	assert.Equal(t, 2, pkt.Size())
+}
+
+func TestPingReq_Timestamp(t *testing.T) {
+	opts := options{packetType: PINGREQ, remainingLength: 0, size: 2}
+	pkt, err := newPacketPingReq(opts)
+	require.Nil(t, err)
+	require.NotNil(t, pkt)
+
+	assert.NotNil(t, pkt.Timestamp())
 }

@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"time"
 )
 
 // Reader is responsible for read packets.
@@ -54,6 +55,8 @@ func (r *Reader) ReadPacket() (Packet, error) {
 		return nil, err
 	}
 
+	now := time.Now()
+
 	var remainLen int
 	n, err := readVarInteger(&r.bufReader, &remainLen)
 	if err != nil {
@@ -64,19 +67,20 @@ func (r *Reader) ReadPacket() (Packet, error) {
 		return nil, errors.New("max packet size exceeded")
 	}
 
-	fh := fixedHeader{
+	opts := options{
 		packetType:      Type(ctrlByte >> 4),
 		controlFlags:    ctrlByte & controlByteMask,
 		remainingLength: remainLen,
 		size:            1 + n,
+		timestamp:       now,
 	}
 
-	pkt, err := newPacket(fh)
+	pkt, err := newPacket(opts)
 	if err != nil {
 		return nil, err
 	}
 
-	data := make([]byte, fh.remainingLength)
+	data := make([]byte, opts.remainingLength)
 	if _, err := io.ReadFull(&r.bufReader, data); err != nil {
 		return nil, errors.New("missing data")
 	}

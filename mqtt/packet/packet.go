@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"time"
 )
 
 // Type represents the packet type (e.g. CONNECT, CONNACK, etc.).
@@ -73,28 +74,33 @@ type Packet interface {
 
 	// Size returns the packet size in bytes.
 	Size() int
+
+	// Timestamp returns the timestamp which the packet was created.
+	Timestamp() time.Time
 }
 
-type fixedHeader struct {
+type options struct {
 	packetType      Type
 	controlFlags    byte
 	remainingLength int
 	size            int
+	timestamp       time.Time
 }
 
-var packetTypeToFactory = map[Type]func(fixedHeader) (Packet, error){
+var packetTypeToFactory = map[Type]func(options) (Packet, error){
 	CONNECT:    newPacketConnect,
 	PINGREQ:    newPacketPingReq,
 	DISCONNECT: newPacketDisconnect,
 }
 
-func newPacket(fh fixedHeader) (Packet, error) {
-	fn, ok := packetTypeToFactory[fh.packetType]
+func newPacket(opts options) (Packet, error) {
+	fn, ok := packetTypeToFactory[opts.packetType]
 	if !ok {
-		return nil, errors.New("invalid packet type: " + fh.packetType.String())
+		return nil, errors.New("invalid packet type: " +
+			opts.packetType.String())
 	}
 
-	return fn(fh)
+	return fn(opts)
 }
 
 var packetTypeToString = map[Type]string{

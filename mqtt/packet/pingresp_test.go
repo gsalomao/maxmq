@@ -26,7 +26,7 @@ import (
 )
 
 func TestPingResp_Pack(t *testing.T) {
-	pkt := PingResp{}
+	pkt := NewPingResp()
 	require.Equal(t, PINGRESP, pkt.Type())
 
 	buf := &bytes.Buffer{}
@@ -49,7 +49,7 @@ func BenchmarkPingResp_Pack(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		buf.Reset()
-		pkt := PingResp{}
+		pkt := NewPingResp()
 
 		err := pkt.Pack(wr)
 		if err != nil {
@@ -59,7 +59,7 @@ func BenchmarkPingResp_Pack(b *testing.B) {
 }
 
 func TestPingResp_UnpackUnsupported(t *testing.T) {
-	pkt := PingResp{}
+	pkt := NewPingResp()
 	buf := &bytes.Buffer{}
 	err := pkt.Unpack(buf)
 	require.NotNil(t, err)
@@ -67,12 +67,12 @@ func TestPingResp_UnpackUnsupported(t *testing.T) {
 
 func TestPingResp_Size(t *testing.T) {
 	t.Run("Unknown", func(t *testing.T) {
-		pkt := PingResp{}
+		pkt := NewPingResp()
 		assert.Equal(t, 0, pkt.Size())
 	})
 
 	t.Run("Known", func(t *testing.T) {
-		pkt := PingResp{}
+		pkt := NewPingResp()
 		buf := &bytes.Buffer{}
 		wr := bufio.NewWriter(buf)
 
@@ -81,4 +81,10 @@ func TestPingResp_Size(t *testing.T) {
 
 		assert.Equal(t, 2, pkt.Size())
 	})
+}
+
+func TestPingResp_Timestamp(t *testing.T) {
+	pkt := NewPingResp()
+	require.NotNil(t, pkt)
+	assert.NotNil(t, pkt.Timestamp())
 }

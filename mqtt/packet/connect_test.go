@@ -28,22 +28,15 @@ import (
 )
 
 func TestConnect_InvalidPacketType(t *testing.T) {
-	fh := fixedHeader{
-		packetType: DISCONNECT, // invalid
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: DISCONNECT}
+	pkt, err := newPacketConnect(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
 func TestConnect_InvalidControlFlags(t *testing.T) {
-	fh := fixedHeader{
-		packetType:   CONNECT,
-		controlFlags: 1, // invalid
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, controlFlags: 1}
+	pkt, err := newPacketConnect(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
@@ -54,12 +47,8 @@ func TestConnect_PackUnsupported(t *testing.T) {
 		0, 1, 'a', // client ID
 	}
 
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 	require.NotNil(t, pkt)
 
@@ -91,12 +80,8 @@ func TestConnect_Unpack(t *testing.T) {
 				}
 				msg = append(msg, 0, 1, 'a')
 
-				fh := fixedHeader{
-					packetType:      CONNECT,
-					remainingLength: len(msg),
-				}
-
-				pkt, err := newPacketConnect(fh)
+				opts := options{packetType: CONNECT, remainingLength: len(msg)}
+				pkt, err := newPacketConnect(opts)
 				require.Nil(t, err)
 				require.NotNil(t, pkt)
 
@@ -117,11 +102,8 @@ func BenchmarkConnect_Unpack(b *testing.B) {
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 60, // variable header
 		0, 1, 'a', // client ID
 	}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-	pkt, _ := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, _ := newPacketConnect(opts)
 
 	b.ReportAllocs()
 
@@ -135,12 +117,8 @@ func BenchmarkConnect_Unpack(b *testing.B) {
 
 func TestConnect_UnpackProtocolNameMissing(t *testing.T) {
 	var msg []byte
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -159,12 +137,9 @@ func TestConnect_UnpackProtocolNameInvalid(t *testing.T) {
 				msg = append(msg, buf...)
 				msg = append(msg, 4, 0, 0, 0)     // variable header
 				msg = append(msg, 0, 2, 'a', 'b') // client ID
-				fh := fixedHeader{
-					packetType:      CONNECT,
-					remainingLength: len(msg),
-				}
 
-				pkt, err := newPacketConnect(fh)
+				opts := options{packetType: CONNECT, remainingLength: len(msg)}
+				pkt, err := newPacketConnect(opts)
 				require.Nil(t, err)
 
 				err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -177,12 +152,8 @@ func TestConnect_UnpackProtocolNameInvalid(t *testing.T) {
 
 func TestConnect_UnpackVersionMissing(t *testing.T) {
 	msg := []byte{0, 4, 'M', 'Q', 'T', 'T'}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -194,12 +165,8 @@ func TestConnect_UnpackVersionInvalid(t *testing.T) {
 		0, 4, 'M', 'Q', 'T', 'T', 0, 0, 0, 0, // variable header
 		0, 1, 'a', // client ID
 	}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -209,12 +176,8 @@ func TestConnect_UnpackVersionInvalid(t *testing.T) {
 
 func TestConnect_UnpackFlagsMissing(t *testing.T) {
 	msg := []byte{0, 4, 'M', 'Q', 'T', 'T', 4}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -227,12 +190,8 @@ func TestConnect_UnpackFlagsReservedInvalid(t *testing.T) {
 		0, 4, 'M', 'Q', 'T', 'T', 4, 1, 0, 0, // variable header
 		0, 1, 'a', // client ID
 	}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -246,12 +205,8 @@ func TestConnect_UnpackFlagsReservedInvalid(t *testing.T) {
 		0, 1, 'a', // client ID
 		0, // will property length
 	}
-	fh = fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err = newPacketConnect(fh)
+	opts = options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -266,12 +221,8 @@ func TestConnect_UnpackFlagsWillQoS(t *testing.T) {
 		0, 1, 't', // will topic
 		0, 1, 'm', // will message
 	}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	require.Equal(t, CONNECT, pkt.Type())
@@ -288,12 +239,8 @@ func TestConnect_UnpackFlagsWillQoSInvalid(t *testing.T) {
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0x10, 0, 0, // variable header
 		0, 1, 'a', // client ID
 	}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -307,12 +254,8 @@ func TestConnect_UnpackFlagsWillQoSInvalid(t *testing.T) {
 		0, 1, 't', // will topic
 		0, 1, 'm', // will message
 	}
-	fh = fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err = newPacketConnect(fh)
+	opts = options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -326,12 +269,8 @@ func TestConnect_UnpackFlagsWillQoSInvalid(t *testing.T) {
 		0, 1, 'a', // client ID
 		0, // will property length
 	}
-	fh = fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err = newPacketConnect(fh)
+	opts = options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -347,12 +286,8 @@ func TestConnect_UnpackFlagsWillQoSInvalid(t *testing.T) {
 		0, 1, 't', // will topic
 		0, 1, 'm', // will message
 	}
-	fh = fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err = newPacketConnect(fh)
+	opts = options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -367,12 +302,8 @@ func TestConnect_UnpackFlagsWillRetain(t *testing.T) {
 		0, 1, 't', // will topic
 		0, 1, 'm', // will message
 	}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	require.Equal(t, CONNECT, pkt.Type())
@@ -391,12 +322,8 @@ func TestConnect_UnpackFlagsWillRetainInvalid(t *testing.T) {
 		0, 1, 't', // will topic
 		0, 1, 'm', // will message
 	}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -412,12 +339,8 @@ func TestConnect_UnpackFlagsWillRetainInvalid(t *testing.T) {
 		0, 1, 't', // will topic
 		0, 1, 'm', // will message
 	}
-	fh = fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err = newPacketConnect(fh)
+	opts = options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -432,12 +355,8 @@ func TestConnect_UnpackFlagsUserNamePasswordInvalid(t *testing.T) {
 		0, 1, 'a', // client ID
 		0, 1, 'p', // password
 	}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -452,12 +371,8 @@ func TestConnect_UnpackFlagsUserNamePasswordInvalid(t *testing.T) {
 		0,         // will property length
 		0, 1, 'p', // password
 	}
-	fh = fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err = newPacketConnect(fh)
+	opts = options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -475,12 +390,8 @@ func TestConnect_UnpackKeepAliveValid(t *testing.T) {
 			0, 4, 'M', 'Q', 'T', 'T', 4, 0, msb, lsb, // variable header
 			0, 1, 'a', // client ID
 		}
-		fh := fixedHeader{
-			packetType:      CONNECT,
-			remainingLength: len(msg),
-		}
-
-		pkt, err := newPacketConnect(fh)
+		opts := options{packetType: CONNECT, remainingLength: len(msg)}
+		pkt, err := newPacketConnect(opts)
 		require.Nil(t, err)
 
 		require.Equal(t, CONNECT, pkt.Type())
@@ -497,12 +408,8 @@ func TestConnect_UnpackKeepAliveInvalid(t *testing.T) {
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, // variable header
 	}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -512,12 +419,8 @@ func TestConnect_UnpackKeepAliveInvalid(t *testing.T) {
 	msg = []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, // variable header
 	}
-	fh = fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err = newPacketConnect(fh)
+	opts = options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -533,12 +436,8 @@ func TestConnect_UnpackPropertiesValid(t *testing.T) {
 		0,         // will property length
 		0, 1, 'a', // client ID
 	}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -559,12 +458,8 @@ func TestConnect_UnpackPropertiesMalformed(t *testing.T) {
 		0,         // will property length
 		0, 1, 'a', // client ID
 	}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -593,12 +488,9 @@ func TestConnect_UnpackClientIDValid(t *testing.T) {
 		}
 		msg = append(msg, cpLenBuf...)
 		msg = append(msg, cp...)
-		fh := fixedHeader{
-			packetType:      CONNECT,
-			remainingLength: len(msg),
-		}
 
-		pkt, err := newPacketConnect(fh)
+		opts := options{packetType: CONNECT, remainingLength: len(msg)}
+		pkt, err := newPacketConnect(opts)
 		require.Nil(t, err)
 
 		require.Equal(t, CONNECT, pkt.Type())
@@ -614,12 +506,8 @@ func TestConnect_UnpackClientIDValid(t *testing.T) {
 		0, 4, 'M', 'Q', 'T', 'T', 4, 2, 0, 0, // variable header
 		0, 0, // client ID
 	}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	require.Equal(t, CONNECT, pkt.Type())
@@ -648,12 +536,9 @@ func TestConnect_UnpackClientIDMalformed(t *testing.T) {
 		}
 		msg = append(msg, id.len...)
 		msg = append(msg, id.data...)
-		fh := fixedHeader{
-			packetType:      CONNECT,
-			remainingLength: len(msg),
-		}
 
-		pkt, err := newPacketConnect(fh)
+		opts := options{packetType: CONNECT, remainingLength: len(msg)}
+		pkt, err := newPacketConnect(opts)
 		require.Nil(t, err)
 
 		err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -667,12 +552,9 @@ func TestConnect_UnpackClientIDMalformed(t *testing.T) {
 		}
 		msg = append(msg, id.len...)
 		msg = append(msg, id.data...)
-		fh = fixedHeader{
-			packetType:      CONNECT,
-			remainingLength: len(msg),
-		}
 
-		pkt, err = newPacketConnect(fh)
+		opts = options{packetType: CONNECT, remainingLength: len(msg)}
+		pkt, err = newPacketConnect(opts)
 		require.Nil(t, err)
 
 		err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -701,12 +583,9 @@ func TestConnect_UnpackClientIDMalformed(t *testing.T) {
 		}
 		msg = append(msg, cpLenBuf...)
 		msg = append(msg, cp...)
-		fh := fixedHeader{
-			packetType:      CONNECT,
-			remainingLength: len(msg),
-		}
 
-		pkt, err := newPacketConnect(fh)
+		opts := options{packetType: CONNECT, remainingLength: len(msg)}
+		pkt, err := newPacketConnect(opts)
 		require.Nil(t, err)
 
 		err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -720,12 +599,9 @@ func TestConnect_UnpackClientIDMalformed(t *testing.T) {
 		}
 		msg = append(msg, cpLenBuf...)
 		msg = append(msg, cp...)
-		fh = fixedHeader{
-			packetType:      CONNECT,
-			remainingLength: len(msg),
-		}
 
-		pkt, err = newPacketConnect(fh)
+		opts = options{packetType: CONNECT, remainingLength: len(msg)}
+		pkt, err = newPacketConnect(opts)
 		require.Nil(t, err)
 
 		err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -740,12 +616,8 @@ func TestConnect_UnpackClientIDRejected(t *testing.T) {
 		0, 6, 'M', 'Q', 'I', 's', 'd', 'p', 3, 0, 0, 0, // variable header
 		0, 0, // client ID
 	}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -757,12 +629,8 @@ func TestConnect_UnpackClientIDRejected(t *testing.T) {
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 0, // variable header
 		0, 0, // payload
 	}
-	fh = fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err = newPacketConnect(fh)
+	opts = options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -780,12 +648,8 @@ func TestConnect_UnpackWillPropertiesValid(t *testing.T) {
 		0, 5, 't', 'o', 'p', 'i', 'c', // will topic
 		0, 1, 'm', // will message
 	}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -808,12 +672,8 @@ func TestConnect_UnpackWillPropertiesMalformed(t *testing.T) {
 		0, 5, 't', 'o', 'p', 'i', 'c', // will topic
 		0, 1, 'm', // will message
 	}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -838,12 +698,9 @@ func TestConnect_UnpackWillTopicValid(t *testing.T) {
 				msg = append(msg, wtLenMSB, wtLenLSB)
 				msg = append(msg, buf...)
 				msg = append(msg, 0, 1, 'm') // will message
-				fh := fixedHeader{
-					packetType:      CONNECT,
-					remainingLength: len(msg),
-				}
 
-				pkt, err := newPacketConnect(fh)
+				opts := options{packetType: CONNECT, remainingLength: len(msg)}
+				pkt, err := newPacketConnect(opts)
 				require.Nil(t, err)
 
 				require.Equal(t, CONNECT, pkt.Type())
@@ -863,12 +720,8 @@ func TestConnect_UnpackWillTopicMissing(t *testing.T) {
 		0, 4, 'M', 'Q', 'T', 'T', 4, 4, 0, 0, // variable header
 		0, 1, 'a', // client ID
 	}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -882,12 +735,9 @@ func TestConnect_UnpackWillTopicMissing(t *testing.T) {
 		0, 1, 'a', // client ID
 		0, // will property length
 	}
-	fh = fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
 
-	pkt, err = newPacketConnect(fh)
+	opts = options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -912,12 +762,9 @@ func TestConnect_UnpackWillMessageValid(t *testing.T) {
 				wmLenLSB := byte(len(m) & 0xFF)
 				msg = append(msg, wmLenMSB, wmLenLSB)
 				msg = append(msg, buf...)
-				fh := fixedHeader{
-					packetType:      CONNECT,
-					remainingLength: len(msg),
-				}
 
-				pkt, err := newPacketConnect(fh)
+				opts := options{packetType: CONNECT, remainingLength: len(msg)}
+				pkt, err := newPacketConnect(opts)
 				require.Nil(t, err)
 
 				require.Equal(t, CONNECT, pkt.Type())
@@ -938,12 +785,9 @@ func TestConnect_UnpackWillMessageMissing(t *testing.T) {
 		0, 1, 'a', // client ID
 		0, 1, 't', // will topic
 	}
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
 
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -958,12 +802,9 @@ func TestConnect_UnpackWillMessageMissing(t *testing.T) {
 		0,         // will property length
 		0, 1, 't', // will topic
 	}
-	fh = fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
 
-	pkt, err = newPacketConnect(fh)
+	opts = options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -987,12 +828,9 @@ func TestConnect_UnpackUserNameValid(t *testing.T) {
 				nLenLSB := byte(len(n) & 0xFF)
 				msg = append(msg, nLenMSB, nLenLSB)
 				msg = append(msg, buf...)
-				fh := fixedHeader{
-					packetType:      CONNECT,
-					remainingLength: len(msg),
-				}
 
-				pkt, err := newPacketConnect(fh)
+				opts := options{packetType: CONNECT, remainingLength: len(msg)}
+				pkt, err := newPacketConnect(opts)
 				require.Nil(t, err)
 
 				require.Equal(t, CONNECT, pkt.Type())
@@ -1013,12 +851,8 @@ func TestConnect_UnpackUserNameMissing(t *testing.T) {
 		0, 1, 'a', // client ID
 	}
 
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -1033,12 +867,8 @@ func TestConnect_UnpackUserNameMissing(t *testing.T) {
 		0, // will property length
 	}
 
-	fh = fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err = newPacketConnect(fh)
+	opts = options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -1063,12 +893,9 @@ func TestConnect_UnpackPasswordValid(t *testing.T) {
 				pLenLSB := byte(len(p) & 0xFF)
 				msg = append(msg, pLenMSB, pLenLSB)
 				msg = append(msg, buf...)
-				fh := fixedHeader{
-					packetType:      CONNECT,
-					remainingLength: len(msg),
-				}
 
-				pkt, err := newPacketConnect(fh)
+				opts := options{packetType: CONNECT, remainingLength: len(msg)}
+				pkt, err := newPacketConnect(opts)
 				require.Nil(t, err)
 
 				require.Equal(t, CONNECT, pkt.Type())
@@ -1089,12 +916,8 @@ func TestConnect_UnpackPasswordInvalid(t *testing.T) {
 		0, 1, 'u', // username
 	}
 
-	fh := fixedHeader{
-		packetType:      CONNECT,
-		remainingLength: len(msg),
-	}
-
-	pkt, err := newPacketConnect(fh)
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
 	err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -1108,13 +931,9 @@ func TestConnect_Size(t *testing.T) {
 			0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 0, // variable header
 			0, 1, 'a', // client ID
 		}
-		fh := fixedHeader{
-			packetType:      CONNECT,
-			remainingLength: len(msg),
-			size:            2,
-		}
 
-		pkt, err := newPacketConnect(fh)
+		opts := options{packetType: CONNECT, remainingLength: len(msg), size: 2}
+		pkt, err := newPacketConnect(opts)
 		require.Nil(t, err)
 		require.NotNil(t, pkt)
 
@@ -1128,13 +947,9 @@ func TestConnect_Size(t *testing.T) {
 			0, 1, 'a', // client ID
 			0, // will property length
 		}
-		fh := fixedHeader{
-			packetType:      CONNECT,
-			remainingLength: len(msg),
-			size:            2,
-		}
 
-		pkt, err := newPacketConnect(fh)
+		opts := options{packetType: CONNECT, remainingLength: len(msg), size: 2}
+		pkt, err := newPacketConnect(opts)
 		require.Nil(t, err)
 		require.NotNil(t, pkt)
 
@@ -1149,16 +964,25 @@ func TestConnect_Size(t *testing.T) {
 			0, 1, 'a', // client ID
 			0, // will property length
 		}
-		fh := fixedHeader{
-			packetType:      CONNECT,
-			remainingLength: len(msg),
-			size:            2,
-		}
 
-		pkt, err := newPacketConnect(fh)
+		opts := options{packetType: CONNECT, remainingLength: len(msg), size: 2}
+		pkt, err := newPacketConnect(opts)
 		require.Nil(t, err)
 		require.NotNil(t, pkt)
 
 		assert.Equal(t, 22, pkt.Size())
 	})
+}
+
+func TestConnect_Timestamp(t *testing.T) {
+	msg := []byte{
+		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 60, // variable header
+		0, 1, 'a', // client ID
+	}
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketConnect(opts)
+	require.Nil(t, err)
+	require.NotNil(t, pkt)
+
+	assert.NotNil(t, pkt.Timestamp())
 }

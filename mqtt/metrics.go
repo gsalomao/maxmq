@@ -17,6 +17,9 @@
 package mqtt
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/gsalomao/maxmq/logger"
 	"github.com/gsalomao/maxmq/mqtt/packet"
 	"github.com/prometheus/client_golang/prometheus"
@@ -27,6 +30,7 @@ type metrics struct {
 	packets     *packetsMetrics
 	bytes       *bytesMetrics
 	connections *connectionsMetrics
+	latencies   *latenciesMetrics
 	log         *logger.Logger
 }
 
@@ -50,20 +54,24 @@ type connectionsMetrics struct {
 	active          prometheus.Gauge
 }
 
+type latenciesMetrics struct {
+	connect    *prometheus.HistogramVec
+	ping       prometheus.Histogram
+	disconnect prometheus.Histogram
+}
+
 func newMetrics(log *logger.Logger) *metrics {
 	mt := &metrics{log: log}
 
 	mt.packets = newPacketsMetrics("maxmq", "mqtt")
 	mt.bytes = newBytesMetrics("maxmq", "mqtt")
 	mt.connections = newConnectionsMetrics("maxmq", "mqtt")
-
-	if err := mt.registerPacketsMetrics(); err != nil {
-		log.Warn().Msg("MQTT Failed to register metrics: " + err.Error())
-	}
+	mt.latencies = newLatenciesMetrics("maxmq", "mqtt")
 
 	err := multierr.Combine(mt.registerPacketsMetrics())
 	err = multierr.Combine(err, mt.registerBytesMetrics())
 	err = multierr.Combine(err, mt.registerConnectionsMetrics())
+	err = multierr.Combine(err, mt.registerLatenciesMetrics())
 	if err != nil {
 		log.Warn().Msg("MQTT Failed to register metrics: " + err.Error())
 	}
@@ -188,6 +196,49 @@ func newConnectionsMetrics(namespace, subsystem string) *connectionsMetrics {
 	return cm
 }
 
+func newLatenciesMetrics(namespace, subsystem string) *latenciesMetrics {
+	lm := &latenciesMetrics{}
+	buckets := []float64{
+		0.00025, 0.0005, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1,
+		0.25, 0.5,
+	}
+
+	lm.connect = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "connect_latency",
+			Help: "Duration in seconds from the time the CONNECT packet is " +
+				"received until the time the CONNACK packet is sent",
+			Buckets: buckets,
+		}, []string{"code"},
+	)
+
+	lm.ping = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "ping_latency",
+			Help: "Duration in seconds from the time the PINGREQ packet is " +
+				"received until the time the PINGRESP packet is sent",
+			Buckets: buckets,
+		},
+	)
+
+	lm.disconnect = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "disconnect_latency",
+			Help: "Duration in seconds from the time the DISCONNECT packet " +
+				"is received until the time the connection is closed",
+			Buckets: buckets,
+		},
+	)
+
+	return lm
+}
+
 func (m *metrics) registerPacketsMetrics() error {
 	err := multierr.Combine(prometheus.Register(m.packets.received))
 	err = multierr.Combine(err, prometheus.Register(m.packets.receivedTotal))
@@ -211,6 +262,14 @@ func (m *metrics) registerConnectionsMetrics() error {
 	err = multierr.Combine(err,
 		prometheus.Register(m.connections.disconnectTotal))
 	err = multierr.Combine(err, prometheus.Register(m.connections.active))
+
+	return err
+}
+
+func (m *metrics) registerLatenciesMetrics() error {
+	err := multierr.Combine(prometheus.Register(m.latencies.connect))
+	err = multierr.Combine(err, prometheus.Register(m.latencies.ping))
+	err = multierr.Combine(err, prometheus.Register(m.latencies.disconnect))
 
 	return err
 }
@@ -243,4 +302,17 @@ func (m *metrics) connected() {
 func (m *metrics) disconnected() {
 	m.connections.disconnectTotal.Inc()
 	m.connections.active.Dec()
+}
+
+func (m *metrics) connectLatency(d time.Duration, code int) {
+	lb := prometheus.Labels{"code": fmt.Sprint(code)}
+	m.latencies.connect.With(lb).Observe(d.Seconds())
+}
+
+func (m *metrics) pingLatency(d time.Duration) {
+	m.latencies.ping.Observe(d.Seconds())
+}
+
+func (m *metrics) disconnectLatency(d time.Duration) {
+	m.latencies.disconnect.Observe(d.Seconds())
 }

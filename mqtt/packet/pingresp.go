@@ -20,11 +20,18 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"time"
 )
 
 // PingResp represents the PINGRESP Packet from MQTT specifications.
 type PingResp struct {
-	size int
+	size      int
+	timestamp time.Time
+}
+
+// NewPingResp creates a PINGRESP Packet.
+func NewPingResp() PingResp {
+	return PingResp{timestamp: time.Now()}
 }
 
 // Pack encodes the packet into bytes and writes it into the io.Writer.
@@ -51,4 +58,9 @@ func (pkt *PingResp) Type() Type {
 // Size returns the packet size in bytes.
 func (pkt *PingResp) Size() int {
 	return pkt.size
+}
+
+// Timestamp returns the timestamp which the packet was created.
+func (pkt *PingResp) Timestamp() time.Time {
+	return pkt.timestamp
 }

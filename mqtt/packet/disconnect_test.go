@@ -26,22 +26,15 @@ import (
 )
 
 func TestDisconnect_InvalidPacketType(t *testing.T) {
-	fh := fixedHeader{
-		packetType: CONNECT, // invalid
-	}
-
-	pkt, err := newPacketDisconnect(fh)
+	opts := options{packetType: CONNECT}
+	pkt, err := newPacketDisconnect(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
 func TestDisconnect_InvalidControlFlags(t *testing.T) {
-	fh := fixedHeader{
-		packetType:   DISCONNECT,
-		controlFlags: 1, // invalid
-	}
-
-	pkt, err := newPacketDisconnect(fh)
+	opts := options{packetType: DISCONNECT, controlFlags: 1}
+	pkt, err := newPacketDisconnect(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
@@ -135,12 +128,8 @@ func TestDisconnect_PackV5PropertiesInvalid(t *testing.T) {
 }
 
 func TestDisconnect_UnpackV3(t *testing.T) {
-	fh := fixedHeader{
-		packetType:      DISCONNECT,
-		remainingLength: 0,
-	}
-
-	pkt, err := newPacketDisconnect(fh)
+	opts := options{packetType: DISCONNECT, remainingLength: 0}
+	pkt, err := newPacketDisconnect(opts)
 	require.Nil(t, err)
 	require.NotNil(t, pkt)
 	require.Equal(t, DISCONNECT, pkt.Type())
@@ -156,12 +145,9 @@ func TestDisconnect_UnpackV3(t *testing.T) {
 
 func TestDisconnect_UnpackV5(t *testing.T) {
 	msg := []byte{0x81, 0}
-	fh := fixedHeader{
-		packetType:      DISCONNECT,
-		remainingLength: len(msg),
-	}
 
-	pkt, err := newPacketDisconnect(fh)
+	opts := options{packetType: DISCONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketDisconnect(opts)
 	require.Nil(t, err)
 	require.NotNil(t, pkt)
 	require.Equal(t, DISCONNECT, pkt.Type())
@@ -177,12 +163,8 @@ func TestDisconnect_UnpackV5(t *testing.T) {
 }
 
 func TestDisconnect_UnpackV5NoReasonCode(t *testing.T) {
-	fh := fixedHeader{
-		packetType:      DISCONNECT,
-		remainingLength: 1,
-	}
-
-	pkt, err := newPacketDisconnect(fh)
+	opts := options{packetType: DISCONNECT, remainingLength: 1}
+	pkt, err := newPacketDisconnect(opts)
 	require.Nil(t, err)
 	require.NotNil(t, pkt)
 	require.Equal(t, DISCONNECT, pkt.Type())
@@ -194,12 +176,9 @@ func TestDisconnect_UnpackV5NoReasonCode(t *testing.T) {
 
 func TestDisconnect_UnpackV5Properties(t *testing.T) {
 	msg := []byte{0, 5, 17, 0, 0, 0, 30}
-	fh := fixedHeader{
-		packetType:      DISCONNECT,
-		remainingLength: len(msg),
-	}
 
-	pkt, err := newPacketDisconnect(fh)
+	opts := options{packetType: DISCONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketDisconnect(opts)
 	require.Nil(t, err)
 	require.NotNil(t, pkt)
 	require.Equal(t, DISCONNECT, pkt.Type())
@@ -218,12 +197,9 @@ func TestDisconnect_UnpackV5Properties(t *testing.T) {
 
 func TestDisconnect_UnpackV5PropertiesInvalid(t *testing.T) {
 	msg := []byte{0, 5, 17, 0, 0}
-	fh := fixedHeader{
-		packetType:      DISCONNECT,
-		remainingLength: len(msg),
-	}
 
-	pkt, err := newPacketDisconnect(fh)
+	opts := options{packetType: DISCONNECT, remainingLength: len(msg)}
+	pkt, err := newPacketDisconnect(opts)
 	require.Nil(t, err)
 	require.NotNil(t, pkt)
 	require.Equal(t, DISCONNECT, pkt.Type())
@@ -267,13 +243,13 @@ func TestDisconnect_Size(t *testing.T) {
 
 	t.Run("V5-Properties", func(t *testing.T) {
 		msg := []byte{0, 5, 17, 0, 0, 0, 30}
-		fh := fixedHeader{
+		opts := options{
 			packetType:      DISCONNECT,
 			remainingLength: len(msg),
 			size:            2,
 		}
 
-		pkt, err := newPacketDisconnect(fh)
+		pkt, err := newPacketDisconnect(opts)
 		require.Nil(t, err)
 
 		err = pkt.Unpack(bytes.NewBuffer(msg))
@@ -281,4 +257,13 @@ func TestDisconnect_Size(t *testing.T) {
 
 		assert.Equal(t, 9, pkt.Size())
 	})
+}
+
+func TestDisconnect_Timestamp(t *testing.T) {
+	opts := options{packetType: DISCONNECT, remainingLength: 0}
+	pkt, err := newPacketDisconnect(opts)
+	require.Nil(t, err)
+	require.NotNil(t, pkt)
+
+	assert.NotNil(t, pkt.Timestamp())
 }

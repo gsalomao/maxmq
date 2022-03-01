@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"time"
 )
 
 const (
@@ -88,7 +89,8 @@ type Connect struct {
 	// authentication and authorization.
 	Password []byte
 
-	size int
+	size      int
+	timestamp time.Time
 }
 
 // WillQoS indicates the QoS level to be used when publishing the Will Message.
@@ -107,16 +109,17 @@ var protocolNames = map[MQTTVersion][]byte{
 	MQTT50:  {'M', 'Q', 'T', 'T'},
 }
 
-func newPacketConnect(fh fixedHeader) (Packet, error) {
-	if fh.packetType != CONNECT {
+func newPacketConnect(opts options) (Packet, error) {
+	if opts.packetType != CONNECT {
 		return nil, errors.New("packet type is not CONNECT")
 	}
 
-	if fh.controlFlags != 0 {
+	if opts.controlFlags != 0 {
 		return nil, errors.New("invalid Control Flags (CONNECT)")
 	}
 
-	return &Connect{size: fh.size + fh.remainingLength}, nil
+	sz := opts.size + opts.remainingLength
+	return &Connect{size: sz, timestamp: opts.timestamp}, nil
 }
 
 // Pack encodes the packet into bytes and writes it into the io.Writer.
@@ -179,6 +182,11 @@ func (pkt *Connect) Type() Type {
 // Size returns the packet size in bytes.
 func (pkt *Connect) Size() int {
 	return pkt.size
+}
+
+// Timestamp returns the timestamp which the packet was created.
+func (pkt *Connect) Timestamp() time.Time {
+	return pkt.timestamp
 }
 
 func (pkt *Connect) unpackVersion(buf *bytes.Buffer) error {

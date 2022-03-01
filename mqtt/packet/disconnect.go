@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"time"
 )
 
 // Disconnect represents the DISCONNECT Packet from MQTT specifications.
@@ -33,24 +34,26 @@ type Disconnect struct {
 	// Properties represents the DISCONNECT properties (MQTT V5.0 only).
 	Properties *Properties
 
-	size int
+	size      int
+	timestamp time.Time
 }
 
-func newPacketDisconnect(fh fixedHeader) (Packet, error) {
-	if fh.packetType != DISCONNECT {
+func newPacketDisconnect(opts options) (Packet, error) {
+	if opts.packetType != DISCONNECT {
 		return nil, errors.New("packet type is not DISCONNECT")
 	}
 
-	if fh.controlFlags != 0 {
+	if opts.controlFlags != 0 {
 		return nil, errors.New("invalid Control Flags (DISCONNECT)")
 	}
 
 	ver := MQTT311
-	if fh.remainingLength > 0 {
+	if opts.remainingLength > 0 {
 		ver = MQTT50
 	}
 
-	return &Disconnect{Version: ver, size: fh.size + fh.remainingLength}, nil
+	sz := opts.size + opts.remainingLength
+	return &Disconnect{Version: ver, size: sz, timestamp: opts.timestamp}, nil
 }
 
 // NewDisconnect creates a DISCONNECT Packet.
@@ -116,4 +119,9 @@ func (pkt *Disconnect) Type() Type {
 // Size returns the packet size in bytes.
 func (pkt *Disconnect) Size() int {
 	return pkt.size
+}
+
+// Timestamp returns the timestamp which the packet was created.
+func (pkt *Disconnect) Timestamp() time.Time {
+	return pkt.timestamp
 }

@@ -36,12 +36,8 @@ func TestPacket_NewPacket(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(
 			test.name, func(t *testing.T) {
-				fh := fixedHeader{
-					packetType:   test.tp,
-					controlFlags: test.flags,
-				}
-
-				pkt, err := newPacket(fh)
+				opts := options{packetType: test.tp, controlFlags: test.flags}
+				pkt, err := newPacket(opts)
 				require.Nil(t, err)
 				require.NotNil(t, pkt)
 
@@ -52,12 +48,8 @@ func TestPacket_NewPacket(t *testing.T) {
 }
 
 func TestPacket_NewPacketInvalid(t *testing.T) {
-	fh := fixedHeader{
-		packetType:   RESERVED,
-		controlFlags: 0,
-	}
-
-	pkt, err := newPacket(fh)
+	opts := options{packetType: RESERVED, controlFlags: 0}
+	pkt, err := newPacket(opts)
 	assert.NotNil(t, err)
 	assert.Nil(t, pkt)
 }

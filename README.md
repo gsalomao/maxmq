@@ -38,8 +38,8 @@ low-bandwidth, high-latency or unreliable networks.
 - [ ] Multi-server (Cluster)
 - [ ] Automatic network partition healing (Cluster)
 - [ ] Extensible through plugins
-- [ ] WebUI
 - [ ] Metrics support ([Prometheus](https://prometheus.io/))
+- [ ] WebUI
 
 ### Roadmap
 
