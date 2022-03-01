@@ -105,7 +105,7 @@ func TestRunner_RunAndStop(t *testing.T) {
 		done <- true
 	}()
 
-	<-time.After(5 * time.Millisecond)
+	<-time.After(10 * time.Millisecond)
 	assert.Contains(t, logStub.String(), "Listening on [::]:1883")
 	r.Stop()
 

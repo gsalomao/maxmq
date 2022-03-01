@@ -17,292 +17,230 @@
 package mqtt
 
 import (
-	"sync"
-	"sync/atomic"
-
 	"github.com/gsalomao/maxmq/logger"
 	"github.com/gsalomao/maxmq/mqtt/packet"
 	"github.com/prometheus/client_golang/prometheus"
+	"go.uber.org/multierr"
 )
 
 type metrics struct {
-	packet     packetMetrics
-	connection connectionMetrics
-	mutex      sync.Mutex
-	log        *logger.Logger
+	packets     *packetsMetrics
+	bytes       *bytesMetrics
+	connections *connectionsMetrics
+	log         *logger.Logger
 }
 
-type packetMetrics struct {
-	bytesReceived  packetMetric
-	packetReceived packetMetric
-	bytesSent      packetMetric
-	packetSent     packetMetric
+type packetsMetrics struct {
+	received      *prometheus.CounterVec
+	sent          *prometheus.CounterVec
+	receivedTotal prometheus.Counter
+	sentTotal     prometheus.Counter
 }
 
-type packetMetric struct {
-	connect    uint64
-	connack    uint64
-	pingreq    uint64
-	pingresp   uint64
-	disconnect uint64
-	total      uint64
+type bytesMetrics struct {
+	received      *prometheus.CounterVec
+	sent          *prometheus.CounterVec
+	receivedTotal prometheus.Counter
+	sentTotal     prometheus.Counter
 }
 
-type connectionMetrics struct {
-	connectedTotal    uint64
-	disconnectedTotal uint64
-	activeConnections uint64
+type connectionsMetrics struct {
+	connectTotal    prometheus.Counter
+	disconnectTotal prometheus.Counter
+	active          prometheus.Gauge
 }
 
 func newMetrics(log *logger.Logger) *metrics {
-	m := &metrics{log: log}
+	mt := &metrics{log: log}
 
-	err := prometheus.Register(m)
+	mt.packets = newPacketsMetrics("maxmq", "mqtt")
+	mt.bytes = newBytesMetrics("maxmq", "mqtt")
+	mt.connections = newConnectionsMetrics("maxmq", "mqtt")
+
+	if err := mt.registerPacketsMetrics(); err != nil {
+		log.Warn().Msg("MQTT Failed to register metrics: " + err.Error())
+	}
+
+	err := multierr.Combine(mt.registerPacketsMetrics())
+	err = multierr.Combine(err, mt.registerBytesMetrics())
+	err = multierr.Combine(err, mt.registerConnectionsMetrics())
 	if err != nil {
 		log.Warn().Msg("MQTT Failed to register metrics: " + err.Error())
 	}
 
-	return m
+	return mt
 }
 
-// Describe sends all possible descriptors of metrics collected to the provided
-// channel and returns once the last descriptor has been sent.
-func (m *metrics) Describe(desc chan<- *prometheus.Desc) {
-	prometheus.DescribeByCollect(m, desc)
+func newPacketsMetrics(namespace, subsystem string) *packetsMetrics {
+	pm := &packetsMetrics{}
+
+	pm.received = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "packets_received",
+			Help:      "Number of packets received",
+		}, []string{"type"},
+	)
+
+	pm.receivedTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "packets_received_total",
+			Help:      "Total number of packets received",
+		},
+	)
+
+	pm.sent = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "packets_sent",
+			Help:      "Number of packets sent",
+		}, []string{"type"},
+	)
+
+	pm.sentTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "packets_sent_total",
+			Help:      "Total number of packets sent",
+		},
+	)
+
+	return pm
 }
 
-// Collect is called by the Prometheus registry when collecting metrics. The
-// implementation sends each collected metric via the provided channel and
-// returns once the last metric has been sent.
-func (m *metrics) Collect(mt chan<- prometheus.Metric) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+func newBytesMetrics(namespace, subsystem string) *bytesMetrics {
+	bm := &bytesMetrics{}
 
-	m.log.Trace().Msg("MQTT Collecting metrics")
-	m.connection.collect(mt)
-	m.packet.collectPackets(mt)
-	m.packet.collectBytes(mt)
+	bm.received = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "bytes_received",
+			Help:      "Number of bytes received",
+		}, []string{"type"},
+	)
+
+	bm.receivedTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "bytes_received_total",
+			Help:      "Total number of bytes received",
+		},
+	)
+
+	bm.sent = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "bytes_sent",
+			Help:      "Number of bytes sent",
+		}, []string{"type"},
+	)
+
+	bm.sentTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "bytes_sent_total",
+			Help:      "Total number of bytes sent",
+		},
+	)
+
+	return bm
+}
+
+func newConnectionsMetrics(namespace, subsystem string) *connectionsMetrics {
+	cm := &connectionsMetrics{}
+
+	cm.connectTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "connected_total",
+			Help:      "Total number of connections",
+		},
+	)
+
+	cm.disconnectTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "disconnected_total",
+			Help:      "Total number of disconnections",
+		},
+	)
+
+	cm.active = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "active_connections",
+			Help:      "Number of of active connections",
+		},
+	)
+
+	return cm
+}
+
+func (m *metrics) registerPacketsMetrics() error {
+	err := multierr.Combine(prometheus.Register(m.packets.received))
+	err = multierr.Combine(err, prometheus.Register(m.packets.receivedTotal))
+	err = multierr.Combine(err, prometheus.Register(m.packets.sent))
+	err = multierr.Combine(err, prometheus.Register(m.packets.sentTotal))
+
+	return err
+}
+
+func (m *metrics) registerBytesMetrics() error {
+	err := multierr.Combine(prometheus.Register(m.bytes.received))
+	err = multierr.Combine(err, prometheus.Register(m.bytes.receivedTotal))
+	err = multierr.Combine(err, prometheus.Register(m.bytes.sent))
+	err = multierr.Combine(err, prometheus.Register(m.bytes.sentTotal))
+
+	return err
+}
+
+func (m *metrics) registerConnectionsMetrics() error {
+	err := multierr.Combine(prometheus.Register(m.connections.connectTotal))
+	err = multierr.Combine(err,
+		prometheus.Register(m.connections.disconnectTotal))
+	err = multierr.Combine(err, prometheus.Register(m.connections.active))
+
+	return err
 }
 
 func (m *metrics) packetReceived(pkt packet.Packet) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	lb := prometheus.Labels{"type": pkt.Type().String()}
+	m.packets.received.With(lb).Inc()
+	m.packets.receivedTotal.Inc()
 
-	m.packet.received(pkt)
+	sz := float64(pkt.Size())
+	m.bytes.received.With(lb).Add(sz)
+	m.bytes.receivedTotal.Add(sz)
 }
 
 func (m *metrics) packetSent(pkt packet.Packet) {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
+	lb := prometheus.Labels{"type": pkt.Type().String()}
+	m.packets.sent.With(lb).Inc()
+	m.packets.sentTotal.Inc()
 
-	m.packet.sent(pkt)
+	sz := float64(pkt.Size())
+	m.bytes.sent.With(lb).Add(sz)
+	m.bytes.sentTotal.Add(sz)
 }
 
 func (m *metrics) connected() {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-
-	atomic.AddUint64(&m.connection.connectedTotal, 1)
-	atomic.AddUint64(&m.connection.activeConnections, 1)
+	m.connections.connectTotal.Inc()
+	m.connections.active.Inc()
 }
 
 func (m *metrics) disconnected() {
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-
-	atomic.AddUint64(&m.connection.disconnectedTotal, 1)
-	atomic.AddUint64(&m.connection.activeConnections, ^uint64(0))
-}
-
-func (cm connectionMetrics) collect(mt chan<- prometheus.Metric) {
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_connected_total",
-			"Total of clients connected to the MQTT endpoint", nil, nil),
-		prometheus.CounterValue,
-		float64(atomic.LoadUint64(&cm.connectedTotal)),
-	)
-
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_disconnected_total",
-			"Total of clients disconnected with the MQTT endpoint", nil, nil),
-		prometheus.CounterValue,
-		float64(atomic.LoadUint64(&cm.disconnectedTotal)),
-	)
-
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_active_connections",
-			"Number of active connection with the MQTT endpoint", nil, nil),
-		prometheus.GaugeValue,
-		float64(atomic.LoadUint64(&cm.activeConnections)),
-	)
-}
-
-func (pm packetMetrics) collectPackets(mt chan<- prometheus.Metric) {
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_packets_received_total",
-			"Number of MQTT packets received", nil, nil),
-		prometheus.CounterValue,
-		float64(atomic.LoadUint64(&pm.packetReceived.total)),
-	)
-
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_packets_sent_total",
-			"Number of MQTT packets sent", nil, nil),
-		prometheus.CounterValue,
-		float64(atomic.LoadUint64(&pm.packetSent.total)),
-	)
-
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_packets_received",
-			"Number of MQTT packets received", []string{"type"}, nil),
-		prometheus.CounterValue,
-		float64(atomic.LoadUint64(&pm.packetReceived.connect)),
-		"CONNECT",
-	)
-
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_packets_sent",
-			"Number of MQTT packets sent", []string{"type"}, nil),
-		prometheus.CounterValue,
-		float64(atomic.LoadUint64(&pm.packetSent.connack)),
-		"CONNACK",
-	)
-
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_packets_received",
-			"Number of MQTT packets received", []string{"type"}, nil),
-		prometheus.CounterValue,
-		float64(atomic.LoadUint64(&pm.packetReceived.pingreq)),
-		"PINGREQ",
-	)
-
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_packets_sent",
-			"Number of MQTT packets sent", []string{"type"}, nil),
-		prometheus.CounterValue,
-		float64(atomic.LoadUint64(&pm.packetSent.pingresp)),
-		"PINGRESP",
-	)
-
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_packets_received",
-			"Number of MQTT packets received", []string{"type"}, nil),
-		prometheus.CounterValue,
-		float64(atomic.LoadUint64(&pm.packetReceived.disconnect)),
-		"DISCONNECT",
-	)
-
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_packets_sent",
-			"Number of MQTT packets sent", []string{"type"}, nil),
-		prometheus.CounterValue,
-		float64(atomic.LoadUint64(&pm.packetSent.disconnect)),
-		"DISCONNECT",
-	)
-}
-
-func (pm packetMetrics) collectBytes(mt chan<- prometheus.Metric) {
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_bytes_received_total",
-			"Total number of bytes received through MQTT", nil, nil),
-		prometheus.CounterValue,
-		float64(atomic.LoadUint64(&pm.bytesReceived.total)),
-	)
-
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_bytes_sent_total",
-			"Total number of bytes sent through MQTT", nil, nil),
-		prometheus.CounterValue,
-		float64(atomic.LoadUint64(&pm.bytesSent.total)),
-	)
-
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_bytes_received",
-			"Number of MQTT bytes received", []string{"type"}, nil),
-		prometheus.CounterValue,
-		float64(atomic.LoadUint64(&pm.bytesReceived.connect)),
-		"CONNECT",
-	)
-
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_bytes_sent",
-			"Number of MQTT bytes sent", []string{"type"}, nil),
-		prometheus.CounterValue,
-		float64(atomic.LoadUint64(&pm.bytesSent.connack)),
-		"CONNACK",
-	)
-
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_bytes_received",
-			"Number of MQTT bytes received", []string{"type"}, nil),
-		prometheus.CounterValue,
-		float64(atomic.LoadUint64(&pm.bytesReceived.pingreq)),
-		"PINGREQ",
-	)
-
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_bytes_sent",
-			"Number of MQTT bytes sent", []string{"type"}, nil),
-		prometheus.CounterValue,
-		float64(atomic.LoadUint64(&pm.bytesSent.pingresp)),
-		"PINGRESP",
-	)
-
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_bytes_received",
-			"Number of MQTT bytes received", []string{"type"}, nil),
-		prometheus.CounterValue,
-		float64(atomic.LoadUint64(&pm.bytesReceived.disconnect)),
-		"DISCONNECT",
-	)
-
-	mt <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc("maxmq_mqtt_bytes_sent",
-			"Number of MQTT bytes sent", []string{"type"}, nil),
-		prometheus.CounterValue,
-		float64(atomic.LoadUint64(&pm.bytesSent.disconnect)),
-		"DISCONNECT",
-	)
-}
-
-func (pm *packetMetrics) received(pkt packet.Packet) {
-	pktSize := uint64(pkt.Size())
-
-	switch pkt.Type() {
-	case packet.CONNECT:
-		atomic.AddUint64(&pm.packetReceived.connect, 1)
-		atomic.AddUint64(&pm.bytesReceived.connect, pktSize)
-	case packet.CONNACK:
-		atomic.AddUint64(&pm.packetReceived.connack, 1)
-		atomic.AddUint64(&pm.bytesReceived.connack, pktSize)
-	case packet.PINGREQ:
-		atomic.AddUint64(&pm.packetReceived.pingreq, 1)
-		atomic.AddUint64(&pm.bytesReceived.pingreq, pktSize)
-	case packet.PINGRESP:
-		atomic.AddUint64(&pm.packetReceived.pingresp, 1)
-		atomic.AddUint64(&pm.bytesReceived.pingresp, pktSize)
-	case packet.DISCONNECT:
-		atomic.AddUint64(&pm.packetReceived.disconnect, 1)
-		atomic.AddUint64(&pm.bytesReceived.disconnect, pktSize)
-	}
-
-	atomic.AddUint64(&pm.packetReceived.total, 1)
-	atomic.AddUint64(&pm.bytesReceived.total, pktSize)
-}
-
-func (pm *packetMetrics) sent(pkt packet.Packet) {
-	switch pkt.Type() {
-	case packet.CONNECT:
-		atomic.AddUint64(&pm.packetSent.connect, 1)
-	case packet.CONNACK:
-		atomic.AddUint64(&pm.packetSent.connack, 1)
-	case packet.PINGREQ:
-		atomic.AddUint64(&pm.packetSent.pingreq, 1)
-	case packet.PINGRESP:
-		atomic.AddUint64(&pm.packetSent.pingresp, 1)
-	case packet.DISCONNECT:
-		atomic.AddUint64(&pm.packetSent.disconnect, 1)
-	}
-
-	atomic.AddUint64(&pm.packetSent.total, 1)
+	m.connections.disconnectTotal.Inc()
+	m.connections.active.Dec()
 }

@@ -14,7 +14,10 @@ require (
 	github.com/stretchr/testify v1.7.0
 )
 
-require github.com/prometheus/client_golang v1.11.0
+require (
+	github.com/prometheus/client_golang v1.11.0
+	go.uber.org/multierr v1.8.0
+)
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -41,6 +44,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.1.1 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
+	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/sys v0.0.0-20211210111614-af8b64212486 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
