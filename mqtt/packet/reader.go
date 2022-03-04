@@ -26,7 +26,7 @@ import (
 
 // Reader is responsible for read packets.
 type Reader struct {
-	bufReader     bufio.Reader
+	bufReader     *bufio.Reader
 	maxPacketSize int
 }
 
@@ -42,7 +42,7 @@ type ReaderOptions struct {
 // NewReader creates a buffered Reader based on the io.Reader and ReaderOptions.
 func NewReader(r io.Reader, o ReaderOptions) Reader {
 	return Reader{
-		bufReader:     *bufio.NewReaderSize(r, o.BufferSize),
+		bufReader:     bufio.NewReaderSize(r, o.BufferSize),
 		maxPacketSize: o.MaxPacketSize,
 	}
 }
@@ -58,7 +58,7 @@ func (r *Reader) ReadPacket() (Packet, error) {
 	now := time.Now()
 
 	var remainLen int
-	n, err := readVarInteger(&r.bufReader, &remainLen)
+	n, err := readVarInteger(r.bufReader, &remainLen)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func (r *Reader) ReadPacket() (Packet, error) {
 	}
 
 	data := make([]byte, opts.remainingLength)
-	if _, err := io.ReadFull(&r.bufReader, data); err != nil {
+	if _, err := io.ReadFull(r.bufReader, data); err != nil {
 		return nil, errors.New("missing data")
 	}
 
