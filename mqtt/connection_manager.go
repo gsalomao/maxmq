@@ -73,7 +73,7 @@ func NewConnectionManager(
 	return ConnectionManager{
 		conf:           cf,
 		log:            lg,
-		metrics:        newMetrics(lg),
+		metrics:        newMetrics(cf.MetricsEnabled, lg),
 		userProperties: userProps,
 	}
 }
@@ -213,7 +213,7 @@ func (cm *ConnectionManager) handlePacket(
 		return cm.sendPingResp(conn, pkt)
 	case packet.DISCONNECT:
 		cm.Close(conn, false)
-		cm.metrics.disconnectLatency(time.Since(pkt.Timestamp()))
+		cm.metrics.recordDisconnectLatency(time.Since(pkt.Timestamp()))
 		return nil
 	default:
 		return errors.New("invalid packet type: " + pkt.Type().String())
@@ -341,7 +341,7 @@ func (cm *ConnectionManager) sendConnAck(
 	}
 
 	latency := tm.Sub(connect.Timestamp())
-	cm.metrics.connectLatency(latency, int(connAck.ReasonCode))
+	cm.metrics.recordConnectLatency(latency, int(connAck.ReasonCode))
 
 	return nil
 }
@@ -358,7 +358,7 @@ func (cm *ConnectionManager) sendPingResp(
 	}
 
 	latency := tm.Sub(pingReq.Timestamp())
-	cm.metrics.pingLatency(latency)
+	cm.metrics.recordPingLatency(latency)
 
 	return nil
 }

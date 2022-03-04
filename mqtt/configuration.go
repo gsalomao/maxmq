@@ -71,4 +71,7 @@ type Configuration struct {
 	// This property can be used to provide additional information to the Client
 	// including diagnostic information.
 	UserProperties map[string]string
+
+	// Indicate whether the broker exports metrics or not.
+	MetricsEnabled bool
 }

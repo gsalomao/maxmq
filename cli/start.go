@@ -91,6 +91,7 @@ func newBroker(conf config.Config, log *logger.Logger) (*broker.Broker, error) {
 		AllowEmptyClientID:            conf.MQTTAllowEmptyClientID,
 		ClientIDPrefix:                []byte(conf.MQTTClientIDPrefix),
 		UserProperties:                conf.MQTTUserProperties,
+		MetricsEnabled:                conf.MetricsEnabled,
 	}
 
 	cm := mqtt.NewConnectionManager(mqttConf, log)
@@ -110,7 +111,7 @@ func newBroker(conf config.Config, log *logger.Logger) (*broker.Broker, error) {
 		log.Info().
 			Str("Address", conf.MetricsAddress).
 			Str("Path", conf.MetricsPath).
-			Msg("Enabling metrics")
+			Msg("Exporting metrics")
 
 		c := metrics.Configuration{
 			Address: conf.MetricsAddress,
