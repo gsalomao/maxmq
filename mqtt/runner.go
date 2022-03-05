@@ -78,7 +78,7 @@ func (mqtt *Runner) Run() error {
 				break
 			}
 
-			mqtt.log.Debug().
+			mqtt.log.Warn().
 				Msg("MQTT Failed to accept TCP connection: " + err.Error())
 			continue
 		}

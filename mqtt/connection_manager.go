@@ -138,7 +138,7 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 				break
 			}
 
-			cm.log.Warn().
+			cm.log.Info().
 				Str("Address", conn.address).
 				Msg("MQTT Failed to read packet: " + err.Error())
 
