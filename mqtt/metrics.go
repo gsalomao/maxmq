@@ -191,7 +191,7 @@ func newLatenciesMetrics() *latenciesMetrics {
 
 func (m *metrics) registerPacketsMetrics() error {
 	err := prometheus.Register(m.packets.receivedTotal)
-	err = multierr.Combine(prometheus.Register(m.packets.receivedBytes))
+	err = multierr.Combine(err, prometheus.Register(m.packets.receivedBytes))
 	err = multierr.Combine(err, prometheus.Register(m.packets.sentTotal))
 	err = multierr.Combine(err, prometheus.Register(m.packets.sentBytes))
 
