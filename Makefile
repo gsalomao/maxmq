@@ -62,6 +62,12 @@ start-dev: ## Start broker in development mode
 	$(call print_task,"Starting broker in development mode")
 	@reflex -s -d none -r "\.go" -- sh -c "go run $(MAIN_FILE) start"
 
+profile: ## Start broker with CPU/Memory profiler
+	$(call print_task,"Starting broker in profiling mode")
+	@go build -o ${BUILD_DIR}/$(NAME) -ldflags \
+		"-X 'github.com/gsalomao/maxmq/cli.profile=true'" $(MAIN_FILE)
+	@$(BUILD_DIR)/$(NAME) start
+
 ## Test
 test: ## Run tests
 	$(call print_task,"Running tests")

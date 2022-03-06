@@ -38,3 +38,4 @@ go.work
 /maxmq.conf
 /prometheus.yml
 /data
+*.prof

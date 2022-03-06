@@ -17,6 +17,7 @@
 package cli
 
 import (
+	"os"
 	"testing"
 
 	"github.com/gsalomao/maxmq/broker"
@@ -84,4 +85,24 @@ func TestCLI_LoadConfig(t *testing.T) {
 	conf, err := loadConfig(logStub.Logger())
 	require.Nil(t, err)
 	assert.Equal(t, "info", conf.LogLevel)
+}
+
+func TestCLI_StartStopCPUProfile(t *testing.T) {
+	f, err := startCPUProfile()
+	require.Nil(t, err)
+
+	stopCPUProfile()
+	err = f.Close()
+	require.Nil(t, err)
+
+	err = os.Remove(f.Name())
+	require.Nil(t, err)
+}
+
+func TestCLI_SaveHeapProfile(t *testing.T) {
+	err := saveHeapProfile()
+	require.Nil(t, err)
+
+	err = os.Remove("heap.prof")
+	require.Nil(t, err)
 }

@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
+	"runtime/pprof"
 	"syscall"
 
 	"github.com/dimiro1/banner"
@@ -37,6 +39,7 @@ var bannerTemplate = `{{ .Title "MaxMQ" "" 0 }}
 {{ .AnsiColor.BrightCyan }}  A Cloud-Native Message Broker for IoT
 {{ .AnsiColor.Default }}
 `
+var profile = ""
 
 // NewCommandStart creates a command to start the message broker.
 func newCommandStart() *cobra.Command {
@@ -49,6 +52,15 @@ func newCommandStart() *cobra.Command {
 				bannerTemplate)
 
 			log := logger.New(os.Stdout)
+
+			if profile != "" {
+				cpu, err := startCPUProfile()
+				if err != nil {
+					log.Fatal().Msg("Failed to start CPU profile: " +
+						err.Error())
+				}
+				defer func() { _ = cpu.Close() }()
+			}
 
 			conf, err := loadConfig(&log)
 			if err != nil {
@@ -66,6 +78,16 @@ func newCommandStart() *cobra.Command {
 			}
 
 			runBroker(brk, &log)
+
+			if profile != "" {
+				err := saveHeapProfile()
+				if err != nil {
+					log.Fatal().Msg("Failed to save memory profile: " +
+						err.Error())
+				}
+
+				stopCPUProfile()
+			}
 		},
 	}
 
@@ -154,6 +176,38 @@ func loadConfig(log *logger.Logger) (config.Config, error) {
 	}
 
 	return config.LoadConfig()
+}
+
+func startCPUProfile() (*os.File, error) {
+	f, err := os.Create("cpu.prof")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := pprof.StartCPUProfile(f); err != nil {
+		return nil, err
+	}
+
+	return f, nil
+}
+
+func stopCPUProfile() {
+	pprof.StopCPUProfile()
+}
+
+func saveHeapProfile() error {
+	f, err := os.Create("heap.prof")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = f.Close() }()
+
+	runtime.GC()
+	if err := pprof.WriteHeapProfile(f); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func waitOSSignals(brk *broker.Broker) {
