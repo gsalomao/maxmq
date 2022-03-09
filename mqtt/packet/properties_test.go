@@ -180,6 +180,42 @@ func TestProperties_UnpackConnect(t *testing.T) {
 	assert.Equal(t, []byte{'b'}, props.UserProperties[0].Value)
 }
 
+func BenchmarkProperties_UnpackConnect(b *testing.B) {
+	msg := []byte{
+		0,               // property length
+		17, 0, 0, 0, 10, // SessionExpiryInterval
+		33, 0, 50, // ReceiveMaximum
+		39, 0, 0, 0, 200, // MaximumPacketSize
+		34, 0, 50, // TopicAliasMaximum
+		25, 1, // RequestResponseInfo
+		23, 0, // RequestProblemInfo
+		38, 0, 1, 'a', 0, 1, 'b', // UserProperty
+		38, 0, 1, 'c', 0, 1, 'd', // UserProperty
+		21, 0, 2, 'e', 'f', // AuthMethod
+		22, 0, 1, 10, // AuthData
+		24, 0, 0, 0, 15, // WillDelayInterval
+		1, 1, // PayloadFormatIndicator
+		2, 0, 0, 0, 10, // MessageExpiryInterval
+		3, 0, 4, 'j', 's', 'o', 'n', // ContentType
+		8, 0, 1, 'b', // ResponseTopic
+		9, 0, 2, 20, 1, // CorrelationData
+		38, 0, 1, 'a', 0, 1, 'b', // UserProperty
+		0, 1, 'a', // client ID
+	}
+	msg[0] = byte(len(msg)) - 4
+
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		props := Properties{}
+
+		err := props.unpack(bytes.NewBuffer(msg), CONNECT)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func TestProperties_UnpackMalformed(t *testing.T) {
 	props := [][]byte{
 		{38, 0, 1, 'a', 0, 1}, // invalid user property
