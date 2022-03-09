@@ -53,12 +53,48 @@ func TestPacket_ReadPacket(t *testing.T) {
 	<-done
 }
 
-func BenchmarkReader_ReadPacket(b *testing.B) {
+func BenchmarkReader_ReadPacketConnect(b *testing.B) {
 	msg := []byte{
 		0x10, 13, // fixed header
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 0, // variable header
 		0, 1, 'a', // client ID
 	}
+	r := bytes.NewReader(msg)
+	opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
+	reader := packet.NewReader(r, opts)
+
+	b.ReportAllocs()
+
+	for n := 0; n < b.N; n++ {
+		r.Reset(msg)
+		_, err := reader.ReadPacket()
+
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkReader_ReadPacketDisconnect(b *testing.B) {
+	msg := []byte{0xE0, 0}
+	r := bytes.NewReader(msg)
+	opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
+	reader := packet.NewReader(r, opts)
+
+	b.ReportAllocs()
+
+	for n := 0; n < b.N; n++ {
+		r.Reset(msg)
+		_, err := reader.ReadPacket()
+
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkReader_ReadPacketPingReq(b *testing.B) {
+	msg := []byte{0xC0, 0}
 	r := bytes.NewReader(msg)
 	opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
 	reader := packet.NewReader(r, opts)
