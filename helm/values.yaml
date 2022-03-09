@@ -32,8 +32,10 @@ service:
   type: ClusterIP
   # Port for MQTT
   mqtt: 1883
+  # Port for metrics
+  metrics: 8888
   # Service annotations
-  annotations: { }
+  annotations: {}
 
 # MaxMQ configuration stored in /etc/maxmq.conf
 maxmqConfig: {}

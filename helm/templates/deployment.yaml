@@ -34,6 +34,9 @@ spec:
             - name: mqtt
               containerPort: {{ .Values.service.mqtt }}
               protocol: TCP
+            - name: metrics
+              containerPort: {{ .Values.service.metrics }}
+              protocol: TCP
           volumeMounts:
             {{- if .Values.maxmqConfig }}
             - name: maxmqconfig

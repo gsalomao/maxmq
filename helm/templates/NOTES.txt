@@ -16,4 +16,7 @@ APP VERSION: {{ .Chart.AppVersion }}
   export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "maxmq.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
 
 2. Forward MQTT traffic
-  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 1883:1883
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME {{ .Values.service.mqtt }}:{{ .Values.service.mqtt }}
+
+2. Forward metrics traffic
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME {{ .Values.service.metrics }}:{{ .Values.service.metrics }}
