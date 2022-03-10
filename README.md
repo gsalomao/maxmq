@@ -7,11 +7,11 @@
 
 > **_NOTE:_**  This project is under development, DO NOT use it in production.
 
-MaxMQ is a cloud-native and high-performance message broker for IoT, compliant
-with the MQTT 3.1, 3.1.1 and 5.0 specification.
+MaxMQ is an open-source, cloud-native, and high-performance message broker for
+IoT, compliant with the MQTT 3.1, 3.1.1 and 5.0 specification.
 
-MaxMQ is an [Apache 2.0](./LICENSE) licensed distributed and highly scalable
-message broker developed in [Go](https://go.dev/).
+MaxMQ is an [Apache 2.0](./LICENSE) licensed MQTT broker developed in
+[Go](https://go.dev/), and built for vertical and horizontal scaling.
 
 #### What is MQTT?
 
