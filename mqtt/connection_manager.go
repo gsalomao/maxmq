@@ -95,7 +95,7 @@ func (cm *ConnectionManager) NewConnection(nc net.Conn) Connection {
 // Handle handles the Connection.
 func (cm *ConnectionManager) Handle(conn Connection) {
 	defer cm.Close(&conn, true)
-	cm.metrics.connected()
+	cm.metrics.recordConnection()
 
 	cm.log.Debug().
 		Str("Address", conn.address).
@@ -153,7 +153,7 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 			Stringer("PacketType", pkt.Type()).
 			Msg("MQTT Received packet")
 
-		cm.metrics.packetReceived(pkt)
+		cm.metrics.recordPacketReceived(pkt)
 
 		err = cm.handlePacket(pkt, &conn)
 		if err != nil {
@@ -192,7 +192,7 @@ func (cm *ConnectionManager) Close(conn *Connection, force bool) {
 	_ = conn.netConn.Close()
 	conn.connected = false
 	conn.closed = true
-	cm.metrics.disconnected()
+	cm.metrics.recordDisconnection()
 }
 
 func (cm *ConnectionManager) handlePacket(
@@ -383,7 +383,7 @@ func (cm *ConnectionManager) sendPacket(
 		return time.Now(), err
 	}
 
-	cm.metrics.packetSent(pkt)
+	cm.metrics.recordPacketSent(pkt)
 
 	return time.Now(), nil
 }

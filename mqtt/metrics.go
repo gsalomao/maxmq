@@ -53,11 +53,11 @@ type latenciesMetrics struct {
 func newMetrics(enabled bool, log *logger.Logger) *metrics {
 	mt := &metrics{log: log}
 
-	mt.packets = newPacketsMetrics()
-	mt.connections = newConnectionsMetrics()
-	mt.latencies = newLatenciesMetrics()
-
 	if enabled {
+		mt.packets = newPacketsMetrics()
+		mt.connections = newConnectionsMetrics()
+		mt.latencies = newLatenciesMetrics()
+
 		err := mt.registerPacketsMetrics()
 		err = multierr.Combine(err, mt.registerConnectionsMetrics())
 		err = multierr.Combine(err, mt.registerLatenciesMetrics())
@@ -147,9 +147,7 @@ func newConnectionsMetrics() *connectionsMetrics {
 func newLatenciesMetrics() *latenciesMetrics {
 	lm := &latenciesMetrics{}
 	buckets := []float64{
-		0.00010, 0.00025, 0.0005, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25,
-		0.5,
-	}
+		0.00010, 0.00025, 0.0005, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1}
 
 	lm.connectSeconds = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -215,7 +213,11 @@ func (m *metrics) registerLatenciesMetrics() error {
 	return err
 }
 
-func (m *metrics) packetReceived(pkt packet.Packet) {
+func (m *metrics) recordPacketReceived(pkt packet.Packet) {
+	if m.packets == nil {
+		return
+	}
+
 	lb := prometheus.Labels{"type": pkt.Type().String()}
 	sz := float64(pkt.Size())
 
@@ -223,7 +225,11 @@ func (m *metrics) packetReceived(pkt packet.Packet) {
 	m.packets.receivedBytes.With(lb).Add(sz)
 }
 
-func (m *metrics) packetSent(pkt packet.Packet) {
+func (m *metrics) recordPacketSent(pkt packet.Packet) {
+	if m.packets == nil {
+		return
+	}
+
 	lb := prometheus.Labels{"type": pkt.Type().String()}
 	sz := float64(pkt.Size())
 
@@ -231,25 +237,45 @@ func (m *metrics) packetSent(pkt packet.Packet) {
 	m.packets.sentBytes.With(lb).Add(sz)
 }
 
-func (m *metrics) connected() {
+func (m *metrics) recordConnection() {
+	if m.connections == nil {
+		return
+	}
+
 	m.connections.connectTotal.Inc()
 	m.connections.activeConnections.Inc()
 }
 
-func (m *metrics) disconnected() {
+func (m *metrics) recordDisconnection() {
+	if m.connections == nil {
+		return
+	}
+
 	m.connections.disconnectTotal.Inc()
 	m.connections.activeConnections.Dec()
 }
 
 func (m *metrics) recordConnectLatency(d time.Duration, code int) {
+	if m.latencies == nil {
+		return
+	}
+
 	lb := prometheus.Labels{"code": fmt.Sprint(code)}
 	m.latencies.connectSeconds.With(lb).Observe(d.Seconds())
 }
 
 func (m *metrics) recordPingLatency(d time.Duration) {
+	if m.latencies == nil {
+		return
+	}
+
 	m.latencies.pingSeconds.Observe(d.Seconds())
 }
 
 func (m *metrics) recordDisconnectLatency(d time.Duration) {
+	if m.latencies == nil {
+		return
+	}
+
 	m.latencies.disconnectSeconds.Observe(d.Seconds())
 }
