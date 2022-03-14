@@ -86,7 +86,7 @@ func TestConnect_Unpack(t *testing.T) {
 				require.Equal(t, CONNECT, pkt.Type())
 				connPkt, _ := pkt.(*Connect)
 
-				err = pkt.Unpack(bytes.NewBuffer(msg))
+				err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 				require.Nil(t, err)
 				assert.Equal(t, v.version, connPkt.Version)
 				assert.Equal(t, []byte{'a'}, connPkt.ClientID)
@@ -95,21 +95,50 @@ func TestConnect_Unpack(t *testing.T) {
 	}
 }
 
-func BenchmarkConnect_Unpack(b *testing.B) {
+func BenchmarkConnect_UnpackV3(b *testing.B) {
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 60, // variable header
 		0, 1, 'a', // client ID
 	}
 	opts := options{packetType: CONNECT, remainingLength: len(msg)}
 	pkt, _ := newPacketConnect(opts)
+	buf := bytes.NewBuffer(msg)
+	rd := bufio.NewReader(buf)
 
 	b.ReportAllocs()
 
 	for n := 0; n < b.N; n++ {
-		err := pkt.Unpack(bytes.NewBuffer(msg))
+		err := pkt.Unpack(rd)
 		if err != nil {
 			b.Fatal(err)
 		}
+
+		buf = bytes.NewBuffer(msg)
+		rd.Reset(buf)
+	}
+}
+
+func BenchmarkConnect_UnpackV5(b *testing.B) {
+	msg := []byte{
+		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 60, // variable header
+		0,         // property length
+		0, 1, 'a', // client ID
+	}
+	opts := options{packetType: CONNECT, remainingLength: len(msg)}
+	pkt, _ := newPacketConnect(opts)
+	buf := bytes.NewBuffer(msg)
+	rd := bufio.NewReader(buf)
+
+	b.ReportAllocs()
+
+	for n := 0; n < b.N; n++ {
+		err := pkt.Unpack(rd)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		buf = bytes.NewBuffer(msg)
+		rd.Reset(buf)
 	}
 }
 
@@ -119,7 +148,7 @@ func TestConnect_UnpackProtocolNameMissing(t *testing.T) {
 	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
@@ -140,7 +169,7 @@ func TestConnect_UnpackProtocolNameInvalid(t *testing.T) {
 				pkt, err := newPacketConnect(opts)
 				require.Nil(t, err)
 
-				err = pkt.Unpack(bytes.NewBuffer(msg))
+				err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 				assert.NotNil(t, err)
 				assert.NotErrorIs(t, err, ErrV3UnacceptableProtocolVersion)
 			},
@@ -154,7 +183,7 @@ func TestConnect_UnpackVersionMissing(t *testing.T) {
 	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
@@ -167,7 +196,7 @@ func TestConnect_UnpackVersionInvalid(t *testing.T) {
 	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV3UnacceptableProtocolVersion)
 }
@@ -178,7 +207,7 @@ func TestConnect_UnpackFlagsMissing(t *testing.T) {
 	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
@@ -192,7 +221,7 @@ func TestConnect_UnpackFlagsReservedInvalid(t *testing.T) {
 	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
 
@@ -207,7 +236,7 @@ func TestConnect_UnpackFlagsReservedInvalid(t *testing.T) {
 	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
@@ -226,7 +255,7 @@ func TestConnect_UnpackFlagsWillQoS(t *testing.T) {
 	require.Equal(t, CONNECT, pkt.Type())
 	connPkt, _ := pkt.(*Connect)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.Nil(t, err)
 	assert.Equal(t, WillQoS2, connPkt.WillQoS)
 }
@@ -241,7 +270,7 @@ func TestConnect_UnpackFlagsWillQoSInvalid(t *testing.T) {
 	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
 
@@ -256,7 +285,7 @@ func TestConnect_UnpackFlagsWillQoSInvalid(t *testing.T) {
 	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
 
@@ -271,7 +300,7 @@ func TestConnect_UnpackFlagsWillQoSInvalid(t *testing.T) {
 	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
@@ -288,7 +317,7 @@ func TestConnect_UnpackFlagsWillQoSInvalid(t *testing.T) {
 	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
@@ -307,7 +336,7 @@ func TestConnect_UnpackFlagsWillRetain(t *testing.T) {
 	require.Equal(t, CONNECT, pkt.Type())
 	connPkt, _ := pkt.(*Connect)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.Nil(t, err)
 	assert.True(t, connPkt.WillRetain)
 }
@@ -324,7 +353,7 @@ func TestConnect_UnpackFlagsWillRetainInvalid(t *testing.T) {
 	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
 
@@ -341,7 +370,7 @@ func TestConnect_UnpackFlagsWillRetainInvalid(t *testing.T) {
 	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
@@ -357,7 +386,7 @@ func TestConnect_UnpackFlagsUserNamePasswordInvalid(t *testing.T) {
 	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
 
@@ -373,7 +402,7 @@ func TestConnect_UnpackFlagsUserNamePasswordInvalid(t *testing.T) {
 	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
@@ -395,7 +424,7 @@ func TestConnect_UnpackKeepAliveValid(t *testing.T) {
 		require.Equal(t, CONNECT, pkt.Type())
 		connPkt, _ := pkt.(*Connect)
 
-		err = pkt.Unpack(bytes.NewBuffer(msg))
+		err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 		require.Nil(t, err)
 		assert.Equal(t, ka, connPkt.KeepAlive)
 	}
@@ -410,7 +439,7 @@ func TestConnect_UnpackKeepAliveInvalid(t *testing.T) {
 	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	assert.NotNil(t, err)
 
 	// V5.0
@@ -421,7 +450,7 @@ func TestConnect_UnpackKeepAliveInvalid(t *testing.T) {
 	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	assert.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
@@ -438,7 +467,7 @@ func TestConnect_UnpackPropertiesValid(t *testing.T) {
 	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.Nil(t, err)
 
 	require.Equal(t, CONNECT, pkt.Type())
@@ -460,7 +489,7 @@ func TestConnect_UnpackPropertiesMalformed(t *testing.T) {
 	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	assert.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
@@ -494,7 +523,7 @@ func TestConnect_UnpackClientIDValid(t *testing.T) {
 		require.Equal(t, CONNECT, pkt.Type())
 		connPkt, _ := pkt.(*Connect)
 
-		err = pkt.Unpack(bytes.NewBuffer(msg))
+		err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 		require.Nil(t, err)
 		assert.Equal(t, cp, connPkt.ClientID)
 	}
@@ -511,7 +540,7 @@ func TestConnect_UnpackClientIDValid(t *testing.T) {
 	require.Equal(t, CONNECT, pkt.Type())
 	connPkt, _ := pkt.(*Connect)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.Nil(t, err)
 	assert.Equal(t, []byte{}, connPkt.ClientID)
 }
@@ -539,7 +568,7 @@ func TestConnect_UnpackClientIDMalformed(t *testing.T) {
 		pkt, err := newPacketConnect(opts)
 		require.Nil(t, err)
 
-		err = pkt.Unpack(bytes.NewBuffer(msg))
+		err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 		require.NotNil(t, err)
 		assert.NotErrorIs(t, err, ErrV5MalformedPacket)
 
@@ -555,7 +584,7 @@ func TestConnect_UnpackClientIDMalformed(t *testing.T) {
 		pkt, err = newPacketConnect(opts)
 		require.Nil(t, err)
 
-		err = pkt.Unpack(bytes.NewBuffer(msg))
+		err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 		require.NotNil(t, err)
 		assert.ErrorIs(t, err, ErrV5MalformedPacket)
 	}
@@ -586,7 +615,7 @@ func TestConnect_UnpackClientIDMalformed(t *testing.T) {
 		pkt, err := newPacketConnect(opts)
 		require.Nil(t, err)
 
-		err = pkt.Unpack(bytes.NewBuffer(msg))
+		err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 		require.NotNil(t, err)
 		assert.NotErrorIs(t, err, ErrV5MalformedPacket)
 
@@ -602,7 +631,7 @@ func TestConnect_UnpackClientIDMalformed(t *testing.T) {
 		pkt, err = newPacketConnect(opts)
 		require.Nil(t, err)
 
-		err = pkt.Unpack(bytes.NewBuffer(msg))
+		err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 		require.NotNil(t, err)
 		assert.ErrorIs(t, err, ErrV5MalformedPacket)
 	}
@@ -618,7 +647,7 @@ func TestConnect_UnpackClientIDRejected(t *testing.T) {
 	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV3IdentifierRejected)
 
@@ -631,7 +660,7 @@ func TestConnect_UnpackClientIDRejected(t *testing.T) {
 	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV3IdentifierRejected)
 }
@@ -650,7 +679,7 @@ func TestConnect_UnpackWillPropertiesValid(t *testing.T) {
 	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.Nil(t, err)
 
 	require.Equal(t, CONNECT, pkt.Type())
@@ -674,7 +703,7 @@ func TestConnect_UnpackWillPropertiesMalformed(t *testing.T) {
 	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
@@ -704,7 +733,7 @@ func TestConnect_UnpackWillTopicValid(t *testing.T) {
 				require.Equal(t, CONNECT, pkt.Type())
 				connPkt, _ := pkt.(*Connect)
 
-				err = pkt.Unpack(bytes.NewBuffer(msg))
+				err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 				require.Nil(t, err)
 				assert.Equal(t, buf, connPkt.WillTopic)
 			},
@@ -722,7 +751,7 @@ func TestConnect_UnpackWillTopicMissing(t *testing.T) {
 	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
 
@@ -738,7 +767,7 @@ func TestConnect_UnpackWillTopicMissing(t *testing.T) {
 	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
@@ -768,7 +797,7 @@ func TestConnect_UnpackWillMessageValid(t *testing.T) {
 				require.Equal(t, CONNECT, pkt.Type())
 				connPkt, _ := pkt.(*Connect)
 
-				err = pkt.Unpack(bytes.NewBuffer(msg))
+				err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 				require.Nil(t, err)
 				assert.Equal(t, buf, connPkt.WillMessage)
 			},
@@ -788,7 +817,7 @@ func TestConnect_UnpackWillMessageMissing(t *testing.T) {
 	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
 
@@ -805,7 +834,7 @@ func TestConnect_UnpackWillMessageMissing(t *testing.T) {
 	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
@@ -834,7 +863,7 @@ func TestConnect_UnpackUserNameValid(t *testing.T) {
 				require.Equal(t, CONNECT, pkt.Type())
 				connPkt, _ := pkt.(*Connect)
 
-				err = pkt.Unpack(bytes.NewBuffer(msg))
+				err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 				require.Nil(t, err)
 				assert.Equal(t, buf, connPkt.UserName)
 			},
@@ -853,7 +882,7 @@ func TestConnect_UnpackUserNameMissing(t *testing.T) {
 	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
 
@@ -869,7 +898,7 @@ func TestConnect_UnpackUserNameMissing(t *testing.T) {
 	pkt, err = newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
@@ -899,7 +928,7 @@ func TestConnect_UnpackPasswordValid(t *testing.T) {
 				require.Equal(t, CONNECT, pkt.Type())
 				connPkt, _ := pkt.(*Connect)
 
-				err = pkt.Unpack(bytes.NewBuffer(msg))
+				err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 				require.Nil(t, err)
 				assert.Equal(t, buf, connPkt.Password)
 			},
@@ -918,7 +947,7 @@ func TestConnect_UnpackPasswordInvalid(t *testing.T) {
 	pkt, err := newPacketConnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
 }
@@ -930,7 +959,11 @@ func TestConnect_Size(t *testing.T) {
 			0, 1, 'a', // client ID
 		}
 
-		opts := options{packetType: CONNECT, remainingLength: len(msg), size: 2}
+		opts := options{
+			packetType:        CONNECT,
+			remainingLength:   len(msg),
+			fixedHeaderLength: 2,
+		}
 		pkt, err := newPacketConnect(opts)
 		require.Nil(t, err)
 		require.NotNil(t, pkt)
@@ -946,7 +979,11 @@ func TestConnect_Size(t *testing.T) {
 			0, // will property length
 		}
 
-		opts := options{packetType: CONNECT, remainingLength: len(msg), size: 2}
+		opts := options{
+			packetType:        CONNECT,
+			remainingLength:   len(msg),
+			fixedHeaderLength: 2,
+		}
 		pkt, err := newPacketConnect(opts)
 		require.Nil(t, err)
 		require.NotNil(t, pkt)
@@ -963,7 +1000,11 @@ func TestConnect_Size(t *testing.T) {
 			0, // will property length
 		}
 
-		opts := options{packetType: CONNECT, remainingLength: len(msg), size: 2}
+		opts := options{
+			packetType:        CONNECT,
+			remainingLength:   len(msg),
+			fixedHeaderLength: 2,
+		}
 		pkt, err := newPacketConnect(opts)
 		require.Nil(t, err)
 		require.NotNil(t, pkt)

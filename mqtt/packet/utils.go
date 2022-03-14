@@ -19,29 +19,50 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"io"
 	"unicode/utf8"
 )
 
-func readVarInteger(rd io.Reader, val *int) (n int, err error) {
+func decodeVarInteger(r *bufio.Reader, val *int) (n int, err error) {
 	multiplier := 1
-	data := make([]byte, 1)
-
 	for {
-		_, err := rd.Read(data)
+		b, err := r.ReadByte()
 		if err != nil {
 			return 0, errors.New("invalid variable integer")
 		}
 
 		n++
-		*val += int(data[0]&127) * multiplier
+		*val += int(b&127) * multiplier
 		multiplier *= 128
 
 		if multiplier > (128 * 128 * 128) {
 			return 0, errors.New("invalid variable integer")
 		}
 
-		if data[0]&128 == 0 {
+		if b&128 == 0 {
+			break
+		}
+	}
+
+	return
+}
+
+func readVarInteger(buf *bytes.Buffer, val *int) (n int, err error) {
+	multiplier := 1
+	for {
+		b, err := buf.ReadByte()
+		if err != nil {
+			return 0, errors.New("invalid variable integer")
+		}
+
+		n++
+		*val += int(b&127) * multiplier
+		multiplier *= 128
+
+		if multiplier > (128 * 128 * 128) {
+			return 0, errors.New("invalid variable integer")
+		}
+
+		if b&128 == 0 {
 			break
 		}
 	}
@@ -112,7 +133,26 @@ func readBinary(buf *bytes.Buffer, ver MQTTVersion) ([]byte, error) {
 	return val, nil
 }
 
-func writeVarInteger(buf *bufio.Writer, val int) error {
+func encodeVarInteger(buf *bufio.Writer, val int) error {
+	var data byte
+	var err error
+
+	for {
+		data = byte(val % 128)
+
+		val /= 128
+		if val > 0 {
+			data |= 128
+		}
+
+		err = buf.WriteByte(data)
+		if err != nil || val == 0 {
+			return err
+		}
+	}
+}
+
+func writeVarInteger(buf *bytes.Buffer, val int) error {
 	var data byte
 	var err error
 

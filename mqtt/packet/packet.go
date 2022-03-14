@@ -16,7 +16,6 @@ package packet
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"time"
 )
@@ -25,8 +24,8 @@ import (
 type Type byte
 
 const (
-	packetTypeBit   byte = 4
-	controlByteMask byte = 0x0F
+	packetTypeBit        byte = 4
+	controlByteFlagsMask byte = 0x0F
 )
 
 // Control packet type based on the MQTT specifications.
@@ -63,9 +62,9 @@ type Packet interface {
 	// Pack encodes the packet into bytes and writes it into bufio.Writer.
 	Pack(w *bufio.Writer) error
 
-	// Unpack reads the packet bytes from bytes.Buffer and decodes them into the
+	// Unpack reads the packet bytes from bufio.Reader and decodes them into the
 	// packet.
-	Unpack(buf *bytes.Buffer) error
+	Unpack(r *bufio.Reader) error
 
 	// Type returns the packet type.
 	Type() Type
@@ -78,11 +77,11 @@ type Packet interface {
 }
 
 type options struct {
-	packetType      Type
-	controlFlags    byte
-	remainingLength int
-	size            int
-	timestamp       time.Time
+	timestamp         time.Time
+	fixedHeaderLength int
+	remainingLength   int
+	packetType        Type
+	controlFlags      byte
 }
 
 var packetTypeToFactory = map[Type]func(options) (Packet, error){

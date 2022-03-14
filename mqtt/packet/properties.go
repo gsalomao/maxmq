@@ -15,7 +15,6 @@
 package packet
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 )
@@ -161,34 +160,34 @@ const (
 )
 
 type propertyHandler struct {
-	types  map[Type]struct{}
-	unpack func(p *Properties, b *bytes.Buffer) error
+	types map[Type]struct{}
+	read  func(b *bytes.Buffer, p *Properties) error
 }
 
 var propertyHandlers = map[propType]propertyHandler{
 	propPayloadFormatIndicator: {
-		types:  map[Type]struct{}{CONNECT: {}},
-		unpack: unpackPropPayloadFormat,
+		types: map[Type]struct{}{CONNECT: {}},
+		read:  readPropPayloadFormat,
 	},
 	propMessageExpiryInterval: {
-		types:  map[Type]struct{}{CONNECT: {}},
-		unpack: unpackPropMessageExpiryInterval,
+		types: map[Type]struct{}{CONNECT: {}},
+		read:  readPropMessageExpInterval,
 	},
 	propContentType: {
-		types:  map[Type]struct{}{CONNECT: {}},
-		unpack: unpackPropContentType,
+		types: map[Type]struct{}{CONNECT: {}},
+		read:  readPropContentType,
 	},
 	propResponseTopic: {
-		types:  map[Type]struct{}{CONNECT: {}},
-		unpack: unpackPropResponseTopic,
+		types: map[Type]struct{}{CONNECT: {}},
+		read:  readPropResponseTopic,
 	},
 	propCorrelationData: {
-		types:  map[Type]struct{}{CONNECT: {}},
-		unpack: unpackPropCorrelationData,
+		types: map[Type]struct{}{CONNECT: {}},
+		read:  readPropCorrelationData,
 	},
 	propSessionExpiryInterval: {
-		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}, DISCONNECT: {}},
-		unpack: unpackPropSessionExpiryInterval,
+		types: map[Type]struct{}{CONNECT: {}, CONNACK: {}, DISCONNECT: {}},
+		read:  readPropSessionExpiryInterval,
 	},
 	propAssignedClientID: {
 		types: map[Type]struct{}{CONNACK: {}},
@@ -197,24 +196,24 @@ var propertyHandlers = map[propType]propertyHandler{
 		types: map[Type]struct{}{CONNACK: {}},
 	},
 	propAuthMethod: {
-		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}},
-		unpack: unpackPropAuthMethod,
+		types: map[Type]struct{}{CONNECT: {}, CONNACK: {}},
+		read:  readPropAuthMethod,
 	},
 	propAuthData: {
-		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}},
-		unpack: unpackPropAuthData,
+		types: map[Type]struct{}{CONNECT: {}, CONNACK: {}},
+		read:  readPropAuthData,
 	},
 	propRequestProblemInfo: {
-		types:  map[Type]struct{}{CONNECT: {}},
-		unpack: unpackPropRequestProblemInfo,
+		types: map[Type]struct{}{CONNECT: {}},
+		read:  readPropRequestProblemInfo,
 	},
 	propWillDelayInterval: {
-		types:  map[Type]struct{}{CONNECT: {}},
-		unpack: unpackPropWillDelayInterval,
+		types: map[Type]struct{}{CONNECT: {}},
+		read:  readPropWillDelayInterval,
 	},
 	propRequestResponseInfo: {
-		types:  map[Type]struct{}{CONNECT: {}},
-		unpack: unpackPropRequestResponseInfo,
+		types: map[Type]struct{}{CONNECT: {}},
+		read:  readPropRequestResponseInfo,
 	},
 	propResponseInfo: {
 		types: map[Type]struct{}{CONNACK: {}},
@@ -226,12 +225,12 @@ var propertyHandlers = map[propType]propertyHandler{
 		types: map[Type]struct{}{CONNACK: {}, DISCONNECT: {}},
 	},
 	propReceiveMaximum: {
-		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}},
-		unpack: unpackPropReceiveMaximum,
+		types: map[Type]struct{}{CONNECT: {}, CONNACK: {}},
+		read:  readPropReceiveMaximum,
 	},
 	propTopicAliasMaximum: {
-		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}},
-		unpack: unpackPropTopicAliasMaximum,
+		types: map[Type]struct{}{CONNECT: {}, CONNACK: {}},
+		read:  readPropTopicAliasMaximum,
 	},
 	propTopicAlias: {
 		types: map[Type]struct{}{PUBLISH: {}},
@@ -243,12 +242,12 @@ var propertyHandlers = map[propType]propertyHandler{
 		types: map[Type]struct{}{CONNACK: {}},
 	},
 	propUser: {
-		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}, DISCONNECT: {}},
-		unpack: unpackPropertyUser,
+		types: map[Type]struct{}{CONNECT: {}, CONNACK: {}, DISCONNECT: {}},
+		read:  readPropUser,
 	},
 	propMaximumPacketSize: {
-		types:  map[Type]struct{}{CONNECT: {}, CONNACK: {}},
-		unpack: unpackPropertyMaximumPacketSize,
+		types: map[Type]struct{}{CONNECT: {}, CONNACK: {}},
+		read:  readPropMaxPacketSize,
 	},
 	propWildcardSubscriptionAvailable: {
 		types: map[Type]struct{}{CONNACK: {}},
@@ -259,6 +258,257 @@ var propertyHandlers = map[propType]propertyHandler{
 	propSharedSubscriptionAvailable: {
 		types: map[Type]struct{}{CONNACK: {}},
 	},
+}
+
+func writeProperties(buf *bytes.Buffer, p *Properties, t Type) error {
+	if p == nil {
+		return writeVarInteger(buf, 0)
+	}
+
+	b := bytes.Buffer{}
+	pw := propertiesWriter{buf: &b}
+
+	err := pw.load(p, t)
+	if err != nil {
+		return pw.err
+	}
+
+	_ = writeVarInteger(buf, b.Len())
+	_, err = b.WriteTo(buf)
+	return err
+}
+
+func readProperties(b *bytes.Buffer, t Type) (*Properties, error) {
+	var propsLen int
+	_, err := readVarInteger(b, &propsLen)
+	if err != nil {
+		return nil, err
+	}
+	if propsLen == 0 {
+		return nil, nil
+	}
+
+	p := &Properties{}
+	props := bytes.NewBuffer(b.Next(propsLen))
+
+	err = p.unpackProperties(props, t)
+	if err != nil {
+		return nil, err
+	}
+
+	return p, nil
+}
+
+func (p *Properties) unpackProperties(b *bytes.Buffer, t Type) error {
+	for {
+		bt, err := b.ReadByte()
+		if err != nil {
+			break
+		}
+
+		pt := propType(bt)
+
+		handler, ok := propertyHandlers[pt]
+		if !ok || !isValidProperty(handler, t) {
+			return ErrV5MalformedPacket
+		}
+
+		err = handler.read(b, p)
+		if err != nil {
+			return err
+		}
+	}
+
+	if p.AuthData != nil && p.AuthMethod == nil {
+		return ErrV5ProtocolError
+	}
+
+	return nil
+}
+
+func (p *Properties) size(t Type) int {
+	b := bytes.Buffer{}
+	pw := propertiesWriter{buf: &b}
+
+	err := pw.load(p, t)
+	if err != nil {
+		return 0
+	}
+
+	return b.Len()
+}
+
+func isValidProperty(h propertyHandler, t Type) bool {
+	_, ok := h.types[t]
+	return ok
+}
+
+func readPropPayloadFormat(b *bytes.Buffer, p *Properties) error {
+	return readPropByte(
+		b,
+		&p.PayloadFormatIndicator,
+		func(b byte) bool { return b == 0 || b == 1 },
+	)
+}
+
+func readPropMessageExpInterval(b *bytes.Buffer, p *Properties) error {
+	return readPropUint32(b, &p.MessageExpiryInterval, nil)
+}
+
+func readPropContentType(b *bytes.Buffer, p *Properties) error {
+	return readPropertyString(b, &p.ContentType)
+}
+
+func readPropResponseTopic(b *bytes.Buffer, p *Properties) error {
+	return readPropertyString(b, &p.ResponseTopic)
+}
+
+func readPropCorrelationData(b *bytes.Buffer, p *Properties) error {
+	return readPropertyBinary(b, &p.CorrelationData)
+}
+
+func readPropSessionExpiryInterval(b *bytes.Buffer, p *Properties) error {
+	return readPropUint32(b, &p.SessionExpiryInterval, nil)
+}
+
+func readPropAuthMethod(b *bytes.Buffer, p *Properties) error {
+	return readPropertyString(b, &p.AuthMethod)
+}
+
+func readPropAuthData(b *bytes.Buffer, p *Properties) error {
+	return readPropertyBinary(b, &p.AuthData)
+}
+
+func readPropRequestProblemInfo(b *bytes.Buffer, p *Properties) error {
+	return readPropByte(
+		b,
+		&p.RequestProblemInfo,
+		func(b byte) bool { return b == 0 || b == 1 },
+	)
+}
+
+func readPropWillDelayInterval(b *bytes.Buffer, p *Properties) error {
+	return readPropUint32(b, &p.WillDelayInterval, nil)
+}
+
+func readPropRequestResponseInfo(b *bytes.Buffer, p *Properties) error {
+	return readPropByte(
+		b,
+		&p.RequestResponseInfo,
+		func(b byte) bool { return b == 0 || b == 1 },
+	)
+}
+
+func readPropReceiveMaximum(b *bytes.Buffer, p *Properties) error {
+	return readPropUint16(
+		b,
+		&p.ReceiveMaximum,
+		func(u uint16) bool { return u != 0 },
+	)
+}
+
+func readPropTopicAliasMaximum(b *bytes.Buffer, p *Properties) error {
+	return readPropUint16(b, &p.TopicAliasMaximum, nil)
+}
+
+func readPropUser(b *bytes.Buffer, p *Properties) error {
+	kv := make([][]byte, 2)
+
+	for i := 0; i < len(kv); i++ {
+		s, err := readString(b, MQTT50)
+		if err != nil {
+			return err
+		}
+
+		kv[i] = s
+	}
+
+	p.UserProperties = append(p.UserProperties,
+		UserProperty{Key: kv[0], Value: kv[1]})
+
+	return nil
+}
+
+func readPropMaxPacketSize(b *bytes.Buffer, p *Properties) error {
+	return readPropUint32(
+		b,
+		&p.MaximumPacketSize,
+		func(u uint32) bool { return u != 0 },
+	)
+}
+
+func readPropByte(b *bytes.Buffer, v **byte, val func(byte) bool) error {
+	if *v != nil {
+		return ErrV5ProtocolError
+	}
+
+	prop, err := b.ReadByte()
+	if err != nil {
+		return ErrV5MalformedPacket
+	}
+
+	if val != nil && !val(prop) {
+		return ErrV5ProtocolError
+	}
+
+	*v = &prop
+	return nil
+}
+
+func readPropUint16(b *bytes.Buffer, v **uint16, val func(uint16) bool) error {
+	if *v != nil {
+		return ErrV5ProtocolError
+	}
+
+	prop, err := readUint16(b, MQTT50)
+	if err != nil {
+		return err
+	}
+
+	if val != nil && !val(prop) {
+		return ErrV5ProtocolError
+	}
+
+	*v = &prop
+	return nil
+}
+
+func readPropUint32(b *bytes.Buffer, v **uint32, val func(uint32) bool) error {
+	if *v != nil {
+		return ErrV5ProtocolError
+	}
+
+	prop, err := readUint32(b, MQTT50)
+	if err != nil {
+		return err
+	}
+
+	if val != nil && !val(prop) {
+		return ErrV5ProtocolError
+	}
+
+	*v = &prop
+	return nil
+}
+
+func readPropertyString(b *bytes.Buffer, buf *[]byte) error {
+	if *buf != nil {
+		return ErrV5ProtocolError
+	}
+
+	var err error
+	*buf, err = readString(b, MQTT50)
+	return err
+}
+
+func readPropertyBinary(b *bytes.Buffer, buf *[]byte) error {
+	if *buf != nil {
+		return ErrV5ProtocolError
+	}
+
+	var err error
+	*buf, err = readBinary(b, MQTT50)
+	return err
 }
 
 type propertiesWriter struct {
@@ -352,259 +602,4 @@ func (w *propertiesWriter) writeUserProperties(v []UserProperty, t Type) {
 		writeBinary(w.buf, u.Key)
 		writeBinary(w.buf, u.Value)
 	}
-}
-
-func (p *Properties) pack(buf *bytes.Buffer, t Type) error {
-	b := bytes.Buffer{}
-	pw := propertiesWriter{buf: &b}
-
-	err := pw.load(p, t)
-	if err != nil {
-		return pw.err
-	}
-
-	wr := bufio.NewWriterSize(buf, 4 /* max variable integer size */)
-	_ = writeVarInteger(wr, b.Len())
-
-	err = wr.Flush()
-	if err != nil {
-		return err
-	}
-
-	_, err = b.WriteTo(buf)
-	return err
-}
-
-func (p *Properties) unpack(b *bytes.Buffer, t Type) error {
-	var propsLen int
-	_, err := readVarInteger(b, &propsLen)
-	if err != nil {
-		return err
-	}
-	if propsLen == 0 {
-		return nil
-	}
-
-	props := bytes.NewBuffer(b.Next(propsLen))
-	return p.unpackProperties(props, t)
-}
-
-func (p *Properties) unpackProperties(b *bytes.Buffer, t Type) error {
-	for {
-		bt, err := b.ReadByte()
-		if err != nil {
-			break
-		}
-
-		pt := propType(bt)
-
-		handler, ok := propertyHandlers[pt]
-		if !ok || !isValidProperty(handler, t) {
-			return ErrV5MalformedPacket
-		}
-
-		err = handler.unpack(p, b)
-		if err != nil {
-			return err
-		}
-	}
-
-	if p.AuthData != nil && p.AuthMethod == nil {
-		return ErrV5ProtocolError
-	}
-
-	return nil
-}
-
-func (p *Properties) size(t Type) int {
-	b := bytes.Buffer{}
-	pw := propertiesWriter{buf: &b}
-
-	err := pw.load(p, t)
-	if err != nil {
-		return 0
-	}
-
-	return b.Len()
-}
-
-func isValidProperty(h propertyHandler, t Type) bool {
-	_, ok := h.types[t]
-	return ok
-}
-
-func unpackPropPayloadFormat(p *Properties, b *bytes.Buffer) error {
-	return readPropByte(
-		&p.PayloadFormatIndicator,
-		b,
-		func(b byte) bool { return b == 0 || b == 1 },
-	)
-}
-
-func unpackPropMessageExpiryInterval(p *Properties, b *bytes.Buffer) error {
-	return readPropUint32(&p.MessageExpiryInterval, b, nil)
-}
-
-func unpackPropContentType(p *Properties, b *bytes.Buffer) error {
-	return readPropString(&p.ContentType, b)
-}
-
-func unpackPropResponseTopic(p *Properties, b *bytes.Buffer) error {
-	return readPropString(&p.ResponseTopic, b)
-}
-
-func unpackPropCorrelationData(p *Properties, b *bytes.Buffer) error {
-	return readPropBinary(&p.CorrelationData, b)
-}
-
-func unpackPropSessionExpiryInterval(p *Properties, b *bytes.Buffer) error {
-	return readPropUint32(&p.SessionExpiryInterval, b, nil)
-}
-
-func unpackPropAuthMethod(p *Properties, b *bytes.Buffer) error {
-	return readPropString(&p.AuthMethod, b)
-}
-
-func unpackPropAuthData(p *Properties, b *bytes.Buffer) error {
-	return readPropBinary(&p.AuthData, b)
-}
-
-func unpackPropRequestProblemInfo(p *Properties, b *bytes.Buffer) error {
-	return readPropByte(
-		&p.RequestProblemInfo,
-		b,
-		func(b byte) bool { return b == 0 || b == 1 },
-	)
-}
-
-func unpackPropWillDelayInterval(p *Properties, b *bytes.Buffer) error {
-	return readPropUint32(&p.WillDelayInterval, b, nil)
-}
-
-func unpackPropRequestResponseInfo(p *Properties, b *bytes.Buffer) error {
-	return readPropByte(
-		&p.RequestResponseInfo,
-		b,
-		func(b byte) bool { return b == 0 || b == 1 },
-	)
-}
-
-func unpackPropReceiveMaximum(p *Properties, b *bytes.Buffer) error {
-	return readPropUint16(
-		&p.ReceiveMaximum,
-		b,
-		func(u uint16) bool { return u != 0 },
-	)
-}
-
-func unpackPropTopicAliasMaximum(p *Properties, b *bytes.Buffer) error {
-	return readPropUint16(&p.TopicAliasMaximum, b, nil)
-}
-
-func unpackPropertyUser(p *Properties, b *bytes.Buffer) error {
-	kv := make([][]byte, 2)
-
-	for i := 0; i < len(kv); i++ {
-		str, err := readString(b, MQTT50)
-		if err != nil {
-			return err
-		}
-
-		kv[i] = str
-	}
-
-	p.UserProperties = append(p.UserProperties,
-		UserProperty{Key: kv[0], Value: kv[1]})
-
-	return nil
-}
-
-func unpackPropertyMaximumPacketSize(p *Properties, b *bytes.Buffer) error {
-	return readPropUint32(
-		&p.MaximumPacketSize,
-		b,
-		func(u uint32) bool { return u != 0 },
-	)
-}
-
-func readPropByte(v **byte, b *bytes.Buffer, val func(byte) bool) error {
-	if *v != nil {
-		return ErrV5ProtocolError
-	}
-
-	prop, err := b.ReadByte()
-	if err != nil {
-		return ErrV5MalformedPacket
-	}
-
-	if val != nil && !val(prop) {
-		return ErrV5ProtocolError
-	}
-
-	*v = &prop
-	return nil
-}
-
-func readPropUint16(v **uint16, b *bytes.Buffer, val func(uint16) bool) error {
-	if *v != nil {
-		return ErrV5ProtocolError
-	}
-
-	prop, err := readUint16(b, MQTT50)
-	if err != nil {
-		return err
-	}
-
-	if val != nil && !val(prop) {
-		return ErrV5ProtocolError
-	}
-
-	*v = &prop
-	return nil
-}
-
-func readPropUint32(v **uint32, b *bytes.Buffer, val func(uint32) bool) error {
-	if *v != nil {
-		return ErrV5ProtocolError
-	}
-
-	prop, err := readUint32(b, MQTT50)
-	if err != nil {
-		return err
-	}
-
-	if val != nil && !val(prop) {
-		return ErrV5ProtocolError
-	}
-
-	*v = &prop
-	return nil
-}
-
-func readPropString(v *[]byte, b *bytes.Buffer) error {
-	if *v != nil {
-		return ErrV5ProtocolError
-	}
-
-	s, err := readString(b, MQTT50)
-	if err != nil {
-		return err
-	}
-
-	*v = s
-	return nil
-}
-
-func readPropBinary(v *[]byte, b *bytes.Buffer) error {
-	if *v != nil {
-		return ErrV5ProtocolError
-	}
-
-	bt, err := readBinary(b, MQTT50)
-	if err != nil {
-		return err
-	}
-
-	*v = bt
-	return nil
 }

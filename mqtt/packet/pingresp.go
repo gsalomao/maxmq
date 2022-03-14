@@ -16,7 +16,6 @@ package packet
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"time"
 )
@@ -41,10 +40,10 @@ func (pkt *PingResp) Pack(w *bufio.Writer) error {
 	return err
 }
 
-// Unpack reads the packet bytes from bytes.Buffer and decodes them into the
+// Unpack reads the packet bytes from bufio.Reader and decodes them into the
 // packet.
 // It is not supported by the PINGRESP Packet in this broker.
-func (pkt *PingResp) Unpack(_ *bytes.Buffer) error {
+func (pkt *PingResp) Unpack(_ *bufio.Reader) error {
 	return errors.New("unsupported (PINGRESP)")
 }
 

@@ -51,6 +51,7 @@ func TestConnectionManager_ConnectV3(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	conf := newConfiguration()
 	conf.MaxKeepAlive = 600
+	conf.MetricsEnabled = true
 	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
 
 	conn, sConn := net.Pipe()
@@ -951,6 +952,7 @@ func TestConnectionManager_ConnectV5UserProperty(t *testing.T) {
 func TestConnectionManager_PingReq(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	conf := newConfiguration()
+	conf.MetricsEnabled = true
 	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
 
 	conn, sConn := net.Pipe()
@@ -1007,6 +1009,7 @@ func TestConnectionManager_PingReqWithoutConnect(t *testing.T) {
 func TestConnectionManager_Disconnect(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	conf := newConfiguration()
+	conf.MetricsEnabled = true
 	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
 
 	conn, sConn := net.Pipe()

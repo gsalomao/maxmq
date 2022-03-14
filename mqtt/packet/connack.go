@@ -68,18 +68,14 @@ func (pkt *ConnAck) Pack(w *bufio.Writer) error {
 	_ = varHeader.WriteByte(byte(pkt.ReasonCode))
 
 	if pkt.Version == MQTT50 {
-		if pkt.Properties == nil {
-			pkt.Properties = &Properties{}
-		}
-
-		err = pkt.Properties.pack(varHeader, CONNACK)
+		err = writeProperties(varHeader, pkt.Properties, CONNACK)
 		if err != nil {
 			return err
 		}
 	}
 
 	_ = w.WriteByte(byte(CONNACK) << packetTypeBit)
-	_ = writeVarInteger(w, varHeader.Len())
+	_ = encodeVarInteger(w, varHeader.Len())
 	n, err := varHeader.WriteTo(w)
 	pkt.size = 2 + int(n)
 
@@ -89,7 +85,7 @@ func (pkt *ConnAck) Pack(w *bufio.Writer) error {
 // Unpack reads the packet bytes from bytes.Buffer and decodes them into the
 // packet.
 // It is not supported by the CONNACK Packet in this broker.
-func (pkt *ConnAck) Unpack(_ *bytes.Buffer) error {
+func (pkt *ConnAck) Unpack(_ *bufio.Reader) error {
 	return errors.New("unsupported (CONNACK)")
 }
 

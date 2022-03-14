@@ -133,7 +133,7 @@ func TestDisconnect_UnpackV3(t *testing.T) {
 	require.Equal(t, DISCONNECT, pkt.Type())
 
 	var msg []byte
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.Nil(t, err)
 
 	discPkg, ok := pkt.(*Disconnect)
@@ -150,17 +150,17 @@ func TestDisconnect_UnpackV5(t *testing.T) {
 	require.NotNil(t, pkt)
 	require.Equal(t, DISCONNECT, pkt.Type())
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.Nil(t, err)
 
 	discPkg, ok := pkt.(*Disconnect)
 	require.True(t, ok)
 	assert.Equal(t, MQTT50, discPkg.Version)
 	assert.Equal(t, ReasonCodeV5MalformedPacket, discPkg.ReasonCode)
-	require.NotNil(t, discPkg.Properties)
+	require.Nil(t, discPkg.Properties)
 }
 
-func TestDisconnect_UnpackV5NoReasonCode(t *testing.T) {
+func TestDisconnect_UnpackV5MissingReasonCode(t *testing.T) {
 	opts := options{packetType: DISCONNECT, remainingLength: 1}
 	pkt, err := newPacketDisconnect(opts)
 	require.Nil(t, err)
@@ -168,7 +168,7 @@ func TestDisconnect_UnpackV5NoReasonCode(t *testing.T) {
 	require.Equal(t, DISCONNECT, pkt.Type())
 
 	var msg []byte
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
@@ -181,7 +181,7 @@ func TestDisconnect_UnpackV5Properties(t *testing.T) {
 	require.NotNil(t, pkt)
 	require.Equal(t, DISCONNECT, pkt.Type())
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.Nil(t, err)
 
 	discPkg, ok := pkt.(*Disconnect)
@@ -202,7 +202,7 @@ func TestDisconnect_UnpackV5PropertiesInvalid(t *testing.T) {
 	require.NotNil(t, pkt)
 	require.Equal(t, DISCONNECT, pkt.Type())
 
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
@@ -242,15 +242,15 @@ func TestDisconnect_Size(t *testing.T) {
 	t.Run("V5-Properties", func(t *testing.T) {
 		msg := []byte{0, 5, 17, 0, 0, 0, 30}
 		opts := options{
-			packetType:      DISCONNECT,
-			remainingLength: len(msg),
-			size:            2,
+			packetType:        DISCONNECT,
+			remainingLength:   len(msg),
+			fixedHeaderLength: 2,
 		}
 
 		pkt, err := newPacketDisconnect(opts)
 		require.Nil(t, err)
 
-		err = pkt.Unpack(bytes.NewBuffer(msg))
+		err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 		require.Nil(t, err)
 
 		assert.Equal(t, 9, pkt.Size())

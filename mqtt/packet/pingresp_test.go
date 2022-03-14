@@ -59,7 +59,7 @@ func BenchmarkPingResp_Pack(b *testing.B) {
 func TestPingResp_UnpackUnsupported(t *testing.T) {
 	pkt := NewPingResp()
 	buf := &bytes.Buffer{}
-	err := pkt.Unpack(buf)
+	err := pkt.Unpack(bufio.NewReader(buf))
 	require.NotNil(t, err)
 }
 

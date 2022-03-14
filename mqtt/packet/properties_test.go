@@ -22,11 +22,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestProperties_PackEmpty(t *testing.T) {
+func TestProperties_WritePropertiesEmpty(t *testing.T) {
 	buf := &bytes.Buffer{}
-	props := &Properties{}
 
-	err := props.pack(buf, CONNACK)
+	err := writeProperties(buf, nil, CONNACK)
 	require.Nil(t, err)
 	require.NotEmpty(t, buf)
 
@@ -34,7 +33,7 @@ func TestProperties_PackEmpty(t *testing.T) {
 	assert.Equal(t, byte(0), msg[0])
 }
 
-func TestProperties_PackConnAck(t *testing.T) {
+func TestProperties_WritePropertiesConnAck(t *testing.T) {
 	buf := &bytes.Buffer{}
 	props := &Properties{
 		SessionExpiryInterval:         new(uint32),
@@ -70,7 +69,7 @@ func TestProperties_PackConnAck(t *testing.T) {
 	props.AuthMethod = []byte("JWT")
 	props.AuthData = []byte("token")
 
-	err := props.pack(buf, CONNACK)
+	err := writeProperties(buf, props, CONNACK)
 	require.Nil(t, err)
 	require.NotEmpty(t, buf)
 
@@ -96,7 +95,7 @@ func TestProperties_PackConnAck(t *testing.T) {
 	assert.Equal(t, []byte{22, 0, 5, 't', 'o', 'k', 'e', 'n'}, msg[76:84])
 }
 
-func TestProperties_PackDisconnect(t *testing.T) {
+func TestProperties_WritePropertiesDisconnect(t *testing.T) {
 	buf := &bytes.Buffer{}
 	props := &Properties{SessionExpiryInterval: new(uint32)}
 
@@ -108,7 +107,7 @@ func TestProperties_PackDisconnect(t *testing.T) {
 	}
 	props.ServerReference = []byte("srv")
 
-	err := props.pack(buf, DISCONNECT)
+	err := writeProperties(buf, props, DISCONNECT)
 	require.Nil(t, err)
 	require.NotEmpty(t, buf)
 
@@ -120,17 +119,17 @@ func TestProperties_PackDisconnect(t *testing.T) {
 	assert.Equal(t, []byte{28, 0, 3, 's', 'r', 'v'}, msg[27:33])
 }
 
-func TestProperties_PackInvalidProperty(t *testing.T) {
+func TestProperties_WritePropertiesInvalidProperty(t *testing.T) {
 	buf := &bytes.Buffer{}
 	props := &Properties{MaximumQoS: new(byte), ServerKeepAlive: new(uint16)}
 	*props.MaximumQoS = 1
 	*props.ServerKeepAlive = 30
 
-	err := props.pack(buf, CONNECT)
+	err := writeProperties(buf, props, CONNECT)
 	require.NotNil(t, err)
 }
 
-func TestProperties_UnpackConnect(t *testing.T) {
+func TestProperties_ReadPropertiesConnect(t *testing.T) {
 	msg := []byte{
 		0,               // property length
 		17, 0, 0, 0, 10, // SessionExpiryInterval
@@ -154,8 +153,7 @@ func TestProperties_UnpackConnect(t *testing.T) {
 	}
 	msg[0] = byte(len(msg)) - 4
 
-	props := Properties{}
-	err := props.unpack(bytes.NewBuffer(msg), CONNECT)
+	props, err := readProperties(bytes.NewBuffer(msg), CONNECT)
 	require.Nil(t, err)
 
 	assert.Equal(t, uint32(10), *props.SessionExpiryInterval)
@@ -180,7 +178,7 @@ func TestProperties_UnpackConnect(t *testing.T) {
 	assert.Equal(t, []byte{'b'}, props.UserProperties[0].Value)
 }
 
-func BenchmarkProperties_UnpackConnect(b *testing.B) {
+func BenchmarkProperties_ReadPropertiesConnect(b *testing.B) {
 	msg := []byte{
 		0,               // property length
 		17, 0, 0, 0, 10, // SessionExpiryInterval
@@ -207,16 +205,14 @@ func BenchmarkProperties_UnpackConnect(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		props := Properties{}
-
-		err := props.unpack(bytes.NewBuffer(msg), CONNECT)
+		_, err := readProperties(bytes.NewBuffer(msg), CONNECT)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func TestProperties_UnpackMalformed(t *testing.T) {
+func TestProperties_ReadPropertiesMalformed(t *testing.T) {
 	props := [][]byte{
 		{38, 0, 1, 'a', 0, 1}, // invalid user property
 		{1},                   // invalid byte
@@ -233,14 +229,13 @@ func TestProperties_UnpackMalformed(t *testing.T) {
 		msg = append(msg, prop...)
 		msg = append(msg, 0, 1, 'a') // client ID
 
-		props := Properties{}
-		err := props.unpack(bytes.NewBuffer(msg), CONNECT)
+		_, err := readProperties(bytes.NewBuffer(msg), CONNECT)
 		require.NotNil(t, err)
 		assert.ErrorIs(t, err, ErrV5MalformedPacket)
 	}
 }
 
-func TestProperties_UnpackProtocolError(t *testing.T) {
+func TestProperties_ReadPropertiesProtocolError(t *testing.T) {
 	props := [][]byte{
 		{17, 0, 0, 0, 5, 17, 0, 0, 0, 9}, // SessionExpiryInterval
 		{33, 0, 0},                       // ReceiveMaximum
@@ -270,17 +265,13 @@ func TestProperties_UnpackProtocolError(t *testing.T) {
 		msg = append(msg, p...)
 		msg = append(msg, 0, 1, 'a') // client ID
 
-		props := Properties{}
-		err := props.unpack(bytes.NewBuffer(msg), CONNECT)
+		_, err := readProperties(bytes.NewBuffer(msg), CONNECT)
 		assert.ErrorIs(t, err, ErrV5ProtocolError)
 	}
 }
 
-func TestProperties_UnpackInvalidLength(t *testing.T) {
-	var msg []byte
-
-	props := Properties{}
-	err := props.unpack(bytes.NewBuffer(msg), CONNECT)
+func TestProperties_ReadPropertiesInvalidLength(t *testing.T) {
+	_, err := readProperties(bytes.NewBuffer([]byte{}), CONNECT)
 	assert.NotNil(t, err)
 }
 

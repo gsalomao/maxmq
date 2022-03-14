@@ -16,7 +16,6 @@ package packet
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"io"
 	"time"
@@ -56,7 +55,7 @@ func (r *Reader) ReadPacket() (Packet, error) {
 	now := time.Now()
 
 	var remainLen int
-	n, err := readVarInteger(r.bufReader, &remainLen)
+	n, err := decodeVarInteger(r.bufReader, &remainLen)
 	if err != nil {
 		return nil, err
 	}
@@ -66,11 +65,11 @@ func (r *Reader) ReadPacket() (Packet, error) {
 	}
 
 	opts := options{
-		packetType:      Type(ctrlByte >> 4),
-		controlFlags:    ctrlByte & controlByteMask,
-		remainingLength: remainLen,
-		size:            1 + n,
-		timestamp:       now,
+		packetType:        Type(ctrlByte >> 4),
+		controlFlags:      ctrlByte & controlByteFlagsMask,
+		fixedHeaderLength: 1 + n,
+		remainingLength:   remainLen,
+		timestamp:         now,
 	}
 
 	pkt, err := newPacket(opts)
@@ -78,13 +77,7 @@ func (r *Reader) ReadPacket() (Packet, error) {
 		return nil, err
 	}
 
-	data := make([]byte, opts.remainingLength)
-	if _, err := io.ReadFull(r.bufReader, data); err != nil {
-		return nil, errors.New("missing data")
-	}
-
-	buf := bytes.NewBuffer(data)
-	err = pkt.Unpack(buf)
+	err = pkt.Unpack(r.bufReader)
 	if err != nil {
 		return nil, err
 	}

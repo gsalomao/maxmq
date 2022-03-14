@@ -64,7 +64,7 @@ func TestPingReq_Unpack(t *testing.T) {
 	require.Equal(t, PINGREQ, pkt.Type())
 
 	var msg []byte
-	err = pkt.Unpack(bytes.NewBuffer(msg))
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.Nil(t, err)
 }
 
@@ -72,11 +72,12 @@ func BenchmarkPingReq_Unpack(b *testing.B) {
 	var msg []byte
 	opts := options{packetType: PINGREQ, remainingLength: 0}
 	pkt, _ := newPacketPingReq(opts)
+	r := bufio.NewReader(bytes.NewBuffer(msg))
 
 	b.ReportAllocs()
 
 	for n := 0; n < b.N; n++ {
-		err := pkt.Unpack(bytes.NewBuffer(msg))
+		err := pkt.Unpack(r)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -84,7 +85,11 @@ func BenchmarkPingReq_Unpack(b *testing.B) {
 }
 
 func TestPingReq_Size(t *testing.T) {
-	opts := options{packetType: PINGREQ, remainingLength: 0, size: 2}
+	opts := options{
+		packetType:        PINGREQ,
+		remainingLength:   0,
+		fixedHeaderLength: 2,
+	}
 	pkt, err := newPacketPingReq(opts)
 	require.Nil(t, err)
 	require.NotNil(t, pkt)
@@ -93,7 +98,11 @@ func TestPingReq_Size(t *testing.T) {
 }
 
 func TestPingReq_Timestamp(t *testing.T) {
-	opts := options{packetType: PINGREQ, remainingLength: 0, size: 2}
+	opts := options{
+		packetType:        PINGREQ,
+		remainingLength:   0,
+		fixedHeaderLength: 2,
+	}
 	pkt, err := newPacketPingReq(opts)
 	require.Nil(t, err)
 	require.NotNil(t, pkt)

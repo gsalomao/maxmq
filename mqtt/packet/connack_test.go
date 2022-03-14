@@ -46,14 +46,32 @@ func TestConnAck_Pack(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func BenchmarkConnAck_Pack(b *testing.B) {
+func BenchmarkConnAck_PackV3(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
+	pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
+
 	b.ReportAllocs()
 
 	for n := 0; n < b.N; n++ {
 		buf.Reset()
-		pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
+
+		err := pkt.Pack(wr)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkConnAck_PackV5(b *testing.B) {
+	buf := &bytes.Buffer{}
+	wr := bufio.NewWriter(buf)
+	pkt := NewConnAck(MQTT50, ReasonCodeV5Success, false, nil)
+
+	b.ReportAllocs()
+
+	for n := 0; n < b.N; n++ {
+		buf.Reset()
 
 		err := pkt.Pack(wr)
 		if err != nil {
@@ -213,7 +231,7 @@ func TestConnAck_UnpackUnsupported(t *testing.T) {
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
-	err := pkt.Unpack(buf)
+	err := pkt.Unpack(bufio.NewReader(buf))
 	require.NotNil(t, err)
 }
 

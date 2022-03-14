@@ -16,7 +16,6 @@ package packet
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"time"
 )
@@ -40,7 +39,10 @@ func newPacketPingReq(opts options) (Packet, error) {
 		return nil, errors.New("invalid Remain Length (PINGREQ)")
 	}
 
-	return &PingReq{size: opts.size, timestamp: opts.timestamp}, nil
+	return &PingReq{
+		size:      opts.fixedHeaderLength,
+		timestamp: opts.timestamp,
+	}, nil
 }
 
 // Pack encodes the packet into bytes and writes it into the io.Writer.
@@ -49,9 +51,9 @@ func (pkt *PingReq) Pack(_ *bufio.Writer) error {
 	return errors.New("unsupported (PINGREQ)")
 }
 
-// Unpack reads the packet bytes from bytes.Buffer and decodes them into the
+// Unpack reads the packet bytes from bufio.Reader and decodes them into the
 // packet.
-func (pkt *PingReq) Unpack(_ *bytes.Buffer) error {
+func (pkt *PingReq) Unpack(_ *bufio.Reader) error {
 	return nil
 }
 

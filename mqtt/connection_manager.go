@@ -260,11 +260,13 @@ func (cm *ConnectionManager) handlePacketConnect(
 		conn.clientID = generateClientID(cm.conf.ClientIDPrefix)
 
 		if conn.version == packet.MQTT50 {
+			connAck.Properties = getPropertiesOrCreate(connAck.Properties)
 			connAck.Properties.AssignedClientID = conn.clientID
 		}
 	}
 
-	if connAck.Properties != nil {
+	if conn.version == packet.MQTT50 {
+		connAck.Properties = getPropertiesOrCreate(connAck.Properties)
 		connAck.Properties.UserProperties = cm.userProperties
 	}
 

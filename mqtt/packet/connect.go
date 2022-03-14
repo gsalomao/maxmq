@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"io"
 	"time"
 )
 
@@ -87,8 +88,9 @@ type Connect struct {
 	// authentication and authorization.
 	Password []byte
 
-	size      int
-	timestamp time.Time
+	size         int
+	remainLength int
+	timestamp    time.Time
 }
 
 // WillQoS indicates the QoS level to be used when publishing the Will Message.
@@ -116,8 +118,11 @@ func newPacketConnect(opts options) (Packet, error) {
 		return nil, errors.New("invalid Control Flags (CONNECT)")
 	}
 
-	sz := opts.size + opts.remainingLength
-	return &Connect{size: sz, timestamp: opts.timestamp}, nil
+	return &Connect{
+		size:         opts.fixedHeaderLength + opts.remainingLength,
+		remainLength: opts.remainingLength,
+		timestamp:    opts.timestamp,
+	}, nil
 }
 
 // Pack encodes the packet into bytes and writes it into the io.Writer.
@@ -126,9 +131,15 @@ func (pkt *Connect) Pack(_ *bufio.Writer) error {
 	return errors.New("unsupported (CONNECT)")
 }
 
-// Unpack reads the packet bytes from bytes.Buffer and decodes them into the
+// Unpack reads the packet bytes from bufio.Reader and decodes them into the
 // packet.
-func (pkt *Connect) Unpack(buf *bytes.Buffer) error {
+func (pkt *Connect) Unpack(r *bufio.Reader) error {
+	msg := make([]byte, pkt.remainLength)
+	if _, err := io.ReadFull(r, msg); err != nil {
+		return errors.New("missing data")
+	}
+	buf := bytes.NewBuffer(msg)
+
 	err := pkt.unpackVersion(buf)
 	if err != nil {
 		return err
@@ -278,10 +289,7 @@ func (pkt *Connect) unpackProperties(buf *bytes.Buffer) error {
 	}
 
 	var err error
-
-	pkt.Properties = &Properties{}
-
-	err = pkt.Properties.unpack(buf, CONNECT)
+	pkt.Properties, err = readProperties(buf, CONNECT)
 	if err != nil {
 		return err
 	}
@@ -317,9 +325,7 @@ func (pkt *Connect) unpackWill(buf *bytes.Buffer) error {
 	var err error
 
 	if pkt.Version == MQTT50 {
-		pkt.WillProperties = &Properties{}
-
-		err = pkt.WillProperties.unpack(buf, CONNECT)
+		pkt.WillProperties, err = readProperties(buf, CONNECT)
 		if err != nil {
 			return err
 		}

@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"io"
 	"time"
 )
 
@@ -32,8 +33,9 @@ type Disconnect struct {
 	// Properties represents the DISCONNECT properties (MQTT V5.0 only).
 	Properties *Properties
 
-	size      int
-	timestamp time.Time
+	size         int
+	remainLength int
+	timestamp    time.Time
 }
 
 func newPacketDisconnect(opts options) (Packet, error) {
@@ -50,8 +52,12 @@ func newPacketDisconnect(opts options) (Packet, error) {
 		ver = MQTT50
 	}
 
-	sz := opts.size + opts.remainingLength
-	return &Disconnect{Version: ver, size: sz, timestamp: opts.timestamp}, nil
+	return &Disconnect{
+		Version:      ver,
+		size:         opts.fixedHeaderLength + opts.remainingLength,
+		remainLength: opts.remainingLength,
+		timestamp:    opts.timestamp,
+	}, nil
 }
 
 // NewDisconnect creates a DISCONNECT Packet.
@@ -70,39 +76,41 @@ func (pkt *Disconnect) Pack(w *bufio.Writer) error {
 	if pkt.Version == MQTT50 {
 		_ = varHeader.WriteByte(byte(pkt.ReasonCode))
 
-		if pkt.Properties == nil {
-			pkt.Properties = &Properties{}
-		}
-
-		err := pkt.Properties.pack(varHeader, DISCONNECT)
+		err := writeProperties(varHeader, pkt.Properties, DISCONNECT)
 		if err != nil {
 			return err
 		}
 	}
 
 	_ = w.WriteByte(byte(DISCONNECT) << packetTypeBit)
-	_ = writeVarInteger(w, varHeader.Len())
+	_ = encodeVarInteger(w, varHeader.Len())
 	n, err := varHeader.WriteTo(w)
 	pkt.size = 2 + int(n)
 
 	return err
 }
 
-// Unpack reads the packet bytes from bytes.Buffer and decodes them into the
+// Unpack reads the packet bytes from bufio.Reader and decodes them into the
 // packet.
-func (pkt *Disconnect) Unpack(buf *bytes.Buffer) error {
+func (pkt *Disconnect) Unpack(r *bufio.Reader) error {
 	if pkt.Version == MQTT50 {
-		rc, err := buf.ReadByte()
+		rc, err := r.ReadByte()
 		if err != nil {
 			return errors.New("no Reason Code (DISCONNECT)")
 		}
-
 		pkt.ReasonCode = ReasonCode(rc)
-		pkt.Properties = &Properties{}
 
-		err = pkt.Properties.unpack(buf, DISCONNECT)
-		if err != nil {
-			return err
+		if pkt.remainLength > 2 {
+			msg := make([]byte, pkt.remainLength-1)
+			if _, err := io.ReadFull(r, msg); err != nil {
+				return err
+			}
+			buf := bytes.NewBuffer(msg)
+
+			pkt.Properties, err = readProperties(buf, DISCONNECT)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
