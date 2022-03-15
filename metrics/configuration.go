@@ -21,4 +21,7 @@ type Configuration struct {
 
 	// The path where the metrics are exported.
 	Path string
+
+	// Indicate whether the profiling metrics must be exported or not.
+	Profiling bool
 }

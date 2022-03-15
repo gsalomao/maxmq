@@ -29,10 +29,11 @@ func TestCLI_NewBroker(t *testing.T) {
 	t.Run("Valid", func(t *testing.T) {
 		logStub := mocks.NewLoggerStub()
 		conf := config.Config{
-			MQTTTCPAddress: ":1883",
-			MetricsEnabled: true,
-			MetricsAddress: ":8888",
-			MetricsPath:    "/metrics",
+			MQTTTCPAddress:   ":1883",
+			MetricsEnabled:   true,
+			MetricsAddress:   ":8888",
+			MetricsPath:      "/metrics",
+			MetricsProfiling: true,
 		}
 		brk, err := newBroker(conf, logStub.Logger())
 		require.Nil(t, err)

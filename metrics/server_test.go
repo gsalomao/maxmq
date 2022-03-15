@@ -24,12 +24,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMetrics_NewPrometheus(t *testing.T) {
+func TestMetrics_NewServer(t *testing.T) {
 	t.Run("Valid", func(t *testing.T) {
 		logStub := mocks.NewLoggerStub()
 		conf := metrics.Configuration{Address: ":8888", Path: "/metrics"}
 
-		p, err := metrics.NewPrometheus(conf, logStub.Logger())
+		p, err := metrics.NewServer(conf, logStub.Logger())
 		assert.Nil(t, err)
 		assert.NotNil(t, p)
 	})
@@ -38,7 +38,7 @@ func TestMetrics_NewPrometheus(t *testing.T) {
 		logStub := mocks.NewLoggerStub()
 		conf := metrics.Configuration{Address: "", Path: "/metrics"}
 
-		p, err := metrics.NewPrometheus(conf, logStub.Logger())
+		p, err := metrics.NewServer(conf, logStub.Logger())
 		assert.NotNil(t, err)
 		assert.Nil(t, p)
 		assert.Contains(t, err.Error(), "missing address")
@@ -48,7 +48,7 @@ func TestMetrics_NewPrometheus(t *testing.T) {
 		logStub := mocks.NewLoggerStub()
 		conf := metrics.Configuration{Address: ":8888", Path: ""}
 
-		p, err := metrics.NewPrometheus(conf, logStub.Logger())
+		p, err := metrics.NewServer(conf, logStub.Logger())
 		assert.NotNil(t, err)
 		assert.Nil(t, p)
 		assert.Contains(t, err.Error(), "missing path")
@@ -59,7 +59,7 @@ func TestMetrics_RunInvalidAddress(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	conf := metrics.Configuration{Address: ":1", Path: "/metrics"}
 
-	p, err := metrics.NewPrometheus(conf, logStub.Logger())
+	p, err := metrics.NewServer(conf, logStub.Logger())
 	require.Nil(t, err)
 	require.NotNil(t, p)
 
@@ -72,7 +72,7 @@ func TestMetrics_RunAndStop(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	conf := metrics.Configuration{Address: ":8888", Path: "/metrics"}
 
-	p, err := metrics.NewPrometheus(conf, logStub.Logger())
+	p, err := metrics.NewServer(conf, logStub.Logger())
 	require.Nil(t, err)
 	require.NotNil(t, p)
 

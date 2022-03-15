@@ -128,22 +128,23 @@ func newBroker(conf config.Config, log *logger.Logger) (*broker.Broker, error) {
 	brk.AddRunner(r)
 
 	if conf.MetricsEnabled {
-		log.Info().
+		log.Debug().
 			Str("Address", conf.MetricsAddress).
 			Str("Path", conf.MetricsPath).
 			Msg("Exporting metrics")
 
 		c := metrics.Configuration{
-			Address: conf.MetricsAddress,
-			Path:    conf.MetricsPath,
+			Address:   conf.MetricsAddress,
+			Path:      conf.MetricsPath,
+			Profiling: conf.MetricsProfiling,
 		}
 
-		prom, err := metrics.NewPrometheus(c, log)
+		srv, err := metrics.NewServer(c, log)
 		if err != nil {
 			return nil, err
 		}
 
-		brk.AddRunner(prom)
+		brk.AddRunner(srv)
 	}
 
 	return &brk, nil

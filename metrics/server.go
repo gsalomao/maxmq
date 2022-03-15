@@ -19,21 +19,23 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"net/http/pprof"
 	"time"
 
 	"github.com/gsalomao/maxmq/logger"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Prometheus represents a Runner responsible for exporting metrics.
-type Prometheus struct {
-	conf   Configuration
-	server *http.Server
-	log    *logger.Logger
+// Server represents an HTTP server responsible for exporting metrics.
+type Server struct {
+	conf Configuration
+	mux  *http.ServeMux
+	srv  *http.Server
+	log  *logger.Logger
 }
 
-// NewPrometheus creates a Prometheus instance.
-func NewPrometheus(c Configuration, log *logger.Logger) (*Prometheus, error) {
+// NewServer creates a Server instance.
+func NewServer(c Configuration, log *logger.Logger) (*Server, error) {
 	if c.Address == "" {
 		return nil, errors.New("metrics missing address")
 	}
@@ -41,31 +43,38 @@ func NewPrometheus(c Configuration, log *logger.Logger) (*Prometheus, error) {
 		return nil, errors.New("metrics missing path")
 	}
 
-	mux := http.NewServeMux()
-	mux.Handle(c.Path, promhttp.Handler())
-	srv := &http.Server{
+	m := http.NewServeMux()
+	m.Handle(c.Path, promhttp.Handler())
+	if c.Profiling {
+		log.Info().Msg("Profiling metrics enabled")
+		m.HandleFunc("/debug/pprof/", pprof.Index)
+		m.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		m.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		m.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		m.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	}
+
+	s := &http.Server{
 		Addr:         c.Address,
-		Handler:      mux,
+		Handler:      m,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 5 * time.Second,
 	}
 
-	return &Prometheus{conf: c, server: srv, log: log}, nil
+	return &Server{conf: c, srv: s, mux: m, log: log}, nil
 }
 
-// Run starts the execution of the Prometheus.
+// Run starts the execution of the server.
 // Once called, it blocks waiting for connections until it's stopped by the
 // Stop function.
-func (p *Prometheus) Run() error {
-	lsn, err := net.Listen("tcp", p.server.Addr)
+func (p *Server) Run() error {
+	lsn, err := net.Listen("tcp", p.srv.Addr)
 	if err != nil {
 		return err
 	}
 
-	p.log.Info().Msg("Metrics Listening on " + lsn.Addr().String() +
-		p.conf.Path)
-
-	if err := p.server.Serve(lsn); err != http.ErrServerClosed {
+	p.log.Info().Msg("Metrics Listening on " + lsn.Addr().String())
+	if err := p.srv.Serve(lsn); err != http.ErrServerClosed {
 		return err
 	}
 
@@ -73,16 +82,16 @@ func (p *Prometheus) Run() error {
 	return nil
 }
 
-// Stop stops the Prometheus.
+// Stop stops the server.
 // Once called, it unblocks the Run function.
-func (p *Prometheus) Stop() {
+func (p *Server) Stop() {
 	p.log.Debug().Msg("Metrics Stopping server")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := p.server.Shutdown(ctx)
+	err := p.srv.Shutdown(ctx)
 	if err != nil {
-		_ = p.server.Close()
+		_ = p.srv.Close()
 	}
 }
