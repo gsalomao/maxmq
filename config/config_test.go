@@ -34,6 +34,7 @@ func TestConfig_LoadConfig(t *testing.T) {
 	assert.True(t, conf.MetricsEnabled)
 	assert.Equal(t, ":8888", conf.MetricsAddress)
 	assert.Equal(t, "/metrics", conf.MetricsPath)
+	assert.False(t, conf.MetricsProfiling)
 	assert.Equal(t, ":1883", conf.MQTTTCPAddress)
 	assert.Equal(t, 5, conf.MQTTConnectTimeout)
 	assert.Equal(t, 1024, conf.MQTTBufferSize)

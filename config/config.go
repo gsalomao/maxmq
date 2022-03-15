@@ -35,6 +35,9 @@ type Config struct {
 	// The path where the metrics are exported.
 	MetricsPath string `mapstructure:"metrics_path"`
 
+	// Indicate whether the profiling metrics are exported or not.
+	MetricsProfiling bool `mapstructure:"metrics_profiling"`
+
 	// TCP address (<IP>:<port>) that the MQTT will bind to.
 	MQTTTCPAddress string `mapstructure:"mqtt_tcp_address"`
 
@@ -129,6 +132,7 @@ func LoadConfig() (Config, error) {
 	_ = viper.BindEnv("metrics_enabled")
 	_ = viper.BindEnv("metrics_address")
 	_ = viper.BindEnv("metrics_path")
+	_ = viper.BindEnv("metrics_profiling")
 	_ = viper.BindEnv("mqtt_tcp_address")
 	_ = viper.BindEnv("mqtt_connect_timeout")
 	_ = viper.BindEnv("mqtt_buffer_size")
