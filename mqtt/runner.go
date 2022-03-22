@@ -82,9 +82,7 @@ func (mqtt *Runner) Run() error {
 		}
 
 		conn := mqtt.connHandler.NewConnection(tcpConn)
-		mqtt.log.Trace().
-			Str("Address", conn.address).
-			Msg("MQTT New TCP connection")
+		mqtt.log.Trace().Msg("MQTT New TCP connection")
 
 		go mqtt.connHandler.Handle(conn)
 	}

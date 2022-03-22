@@ -83,7 +83,7 @@ func TestMetrics_RunAndStop(t *testing.T) {
 	}()
 
 	<-time.After(5 * time.Millisecond)
-	assert.Contains(t, logStub.String(), "Listening on [::]:8888/metrics")
+	assert.Contains(t, logStub.String(), "Listening on [::]:8888")
 	p.Stop()
 
 	<-done

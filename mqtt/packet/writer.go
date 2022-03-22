@@ -17,27 +17,36 @@ package packet
 import (
 	"bufio"
 	"io"
+	"sync"
 )
 
 // Writer is responsible for write packets.
 type Writer struct {
-	bufWriter *bufio.Writer
+	writerPool sync.Pool
 }
 
-// NewWriter creates a buffered writer based on the io.Writer and buffer size.
-func NewWriter(w io.Writer, bufSize int) Writer {
+// NewWriter creates a buffered writer.
+func NewWriter(bufSize int) Writer {
 	return Writer{
-		bufWriter: bufio.NewWriterSize(w, bufSize),
+		writerPool: sync.Pool{
+			New: func() interface{} {
+				return bufio.NewWriterSize(nil, bufSize)
+			},
+		},
 	}
 }
 
-// WritePacket writes the given Packet into the buffer.
+// WritePacket writes the given Packet into the io.Writer.
 // It returns an error if it fails to write the packet.
-func (w *Writer) WritePacket(pkt Packet) error {
-	err := pkt.Pack(w.bufWriter)
+func (w *Writer) WritePacket(pkt Packet, wr io.Writer) error {
+	bufWr := w.writerPool.Get().(*bufio.Writer)
+	defer w.writerPool.Put(bufWr)
+	bufWr.Reset(wr)
+
+	err := pkt.Pack(bufWr)
 	if err != nil {
 		return err
 	}
 
-	return w.bufWriter.Flush()
+	return bufWr.Flush()
 }

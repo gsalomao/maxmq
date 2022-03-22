@@ -24,13 +24,30 @@ import (
 
 func TestPacketWriter_WritePacket(t *testing.T) {
 	buf := &bytes.Buffer{}
-	wr := NewWriter(buf, 1024)
+	wr := NewWriter(1024)
 
 	pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
-	err := wr.WritePacket(&pkt)
+	err := wr.WritePacket(&pkt, buf)
 	require.Nil(t, err)
 
 	msg := []byte{0x20, 2, 0, 0}
 	assert.NotEmpty(t, buf)
 	assert.Equal(t, msg, buf.Bytes())
+}
+
+func BenchmarkWriter_WritePacket(b *testing.B) {
+	buf := &bytes.Buffer{}
+	wr := NewWriter(1024)
+	pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
+
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+
+		err := wr.WritePacket(&pkt, buf)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
 }

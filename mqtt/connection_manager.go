@@ -27,10 +27,12 @@ import (
 
 // ConnectionManager implements the ConnectionHandler interface.
 type ConnectionManager struct {
-	log            *logger.Logger
 	conf           Configuration
+	log            *logger.Logger
 	metrics        *metrics
 	userProperties []packet.UserProperty
+	reader         packet.Reader
+	writer         packet.Writer
 }
 
 // NewConnectionManager creates a new ConnectionManager.
@@ -46,10 +48,12 @@ func NewConnectionManager(
 	cf.MaxInflightMessages = maxInflightMsgOrDefault(cf.MaxInflightMessages)
 	cf.MaxClientIDLen = maxClientIDLenOrDefault(cf.MaxClientIDLen)
 
-	userProps := make([]packet.UserProperty, 0, len(cf.UserProperties))
+	userProps := make([]packet.UserProperty, len(cf.UserProperties))
+
+	i := 0
 	for k, v := range cf.UserProperties {
-		userProps = append(userProps,
-			packet.UserProperty{Key: []byte(k), Value: []byte(v)})
+		userProps[i] = packet.UserProperty{Key: []byte(k), Value: []byte(v)}
+		i++
 	}
 
 	lg.Trace().
@@ -68,26 +72,25 @@ func NewConnectionManager(
 		Bool("SharedSubscriptionAvailable", cf.SharedSubscriptionAvailable).
 		Msg("MQTT Creating Connection Manager")
 
+	rdOpts := packet.ReaderOptions{
+		BufferSize:    cf.BufferSize,
+		MaxPacketSize: cf.MaxPacketSize,
+	}
+
 	return ConnectionManager{
 		conf:           cf,
 		log:            lg,
 		metrics:        newMetrics(cf.MetricsEnabled, lg),
 		userProperties: userProps,
+		reader:         packet.NewReader(rdOpts),
+		writer:         packet.NewWriter(cf.BufferSize),
 	}
 }
 
 // NewConnection creates a new Connection.
 func (cm *ConnectionManager) NewConnection(nc net.Conn) Connection {
-	rdOpts := packet.ReaderOptions{
-		BufferSize:    cm.conf.BufferSize,
-		MaxPacketSize: cm.conf.MaxPacketSize,
-	}
-
 	return Connection{
 		netConn: nc,
-		reader:  packet.NewReader(nc, rdOpts),
-		writer:  packet.NewWriter(nc, cm.conf.BufferSize),
-		address: nc.RemoteAddr().String(),
 		timeout: uint16(cm.conf.ConnectTimeout),
 	}
 }
@@ -98,7 +101,6 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 	cm.metrics.recordConnection()
 
 	cm.log.Debug().
-		Str("Address", conn.address).
 		Uint16("Timeout", conn.timeout).
 		Msg("MQTT Handling connection")
 
@@ -113,32 +115,26 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 		}
 
 		cm.log.Trace().
-			Str("Address", conn.address).
 			Uint16("Timeout", conn.timeout).
 			Msg("MQTT Waiting packet")
 
-		pkt, err := conn.reader.ReadPacket()
+		pkt, err := cm.reader.ReadPacket(conn.netConn)
 		if err != nil {
 			if err == io.EOF {
-				cm.log.Debug().
-					Str("Address", conn.address).
-					Msg("MQTT Connection was closed")
+				cm.log.Debug().Msg("MQTT Connection was closed")
 				break
 			}
 
 			if errCon, ok := err.(net.Error); ok && errCon.Timeout() {
 				cm.log.Debug().
-					Str("Address", conn.address).
-					Str("ClientID", string(conn.clientID)).
+					Bytes("ClientID", conn.clientID).
 					Bool("Connected", conn.connected).
 					Uint16("Timeout", conn.timeout).
 					Msg("MQTT Timeout - No packet received")
 				break
 			}
 
-			cm.log.Info().
-				Str("Address", conn.address).
-				Msg("MQTT Failed to read packet: " + err.Error())
+			cm.log.Info().Msg("MQTT Failed to read packet: " + err.Error())
 
 			if pktErr, ok := err.(packet.Error); ok {
 				connAck := newConnAck(&conn, pktErr.ReasonCode, false, cm.conf,
@@ -148,18 +144,15 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 			break
 		}
 
-		cm.log.Debug().
-			Str("Address", conn.address).
-			Stringer("PacketType", pkt.Type()).
-			Msg("MQTT Received packet")
-
 		cm.metrics.recordPacketReceived(pkt)
+		cm.log.Debug().
+			Uint8("PacketTypeID", uint8(pkt.Type())).
+			Msg("MQTT Received packet")
 
 		err = cm.handlePacket(pkt, &conn)
 		if err != nil {
 			cm.log.Warn().
-				Str("Address", conn.address).
-				Str("ClientID", string(conn.clientID)).
+				Bytes("ClientID", conn.clientID).
 				Stringer("PacketType", pkt.Type()).
 				Msg("MQTT Failed to process packet: " + err.Error())
 			break
@@ -184,8 +177,7 @@ func (cm *ConnectionManager) Close(conn *Connection, force bool) {
 	}
 
 	cm.log.Debug().
-		Str("Address", conn.address).
-		Str("ClientID", string(conn.clientID)).
+		Bytes("ClientID", conn.clientID).
 		Bool("Force", force).
 		Msg("MQTT Closing connection")
 
@@ -208,8 +200,19 @@ func (cm *ConnectionManager) handlePacket(
 		connPkt, _ := pkt.(*packet.Connect)
 		return cm.handlePacketConnect(connPkt, conn)
 	case packet.PINGREQ:
+		cm.log.Trace().
+			Bytes("ClientID", conn.clientID).
+			Uint8("Version", uint8(conn.version)).
+			Uint16("KeepAlive", conn.timeout).
+			Msg("MQTT Handling PINGREQ Packet")
+
 		return cm.sendPingResp(conn, pkt)
 	case packet.DISCONNECT:
+		cm.log.Trace().
+			Bytes("ClientID", conn.clientID).
+			Uint8("Version", uint8(conn.version)).
+			Msg("MQTT Handling DISCONNECT Packet")
+
 		cm.Close(conn, false)
 		cm.metrics.recordDisconnectLatency(time.Since(pkt.Timestamp()))
 		return nil
@@ -223,9 +226,8 @@ func (cm *ConnectionManager) handlePacketConnect(
 	conn *Connection,
 ) error {
 	cm.log.Trace().
-		Str("Address", conn.address).
-		Str("ClientID", string(connPkt.ClientID)).
-		Str("Version", connPkt.Version.String()).
+		Bytes("ClientID", connPkt.ClientID).
+		Uint8("Version", uint8(connPkt.Version)).
 		Uint16("KeepAlive", connPkt.KeepAlive).
 		Msg("MQTT Handling CONNECT Packet")
 
@@ -281,8 +283,7 @@ func (cm *ConnectionManager) handlePacketConnect(
 	}
 
 	cm.log.Debug().
-		Str("Address", conn.address).
-		Str("ClientID", string(conn.clientID)).
+		Bytes("ClientID", connPkt.ClientID).
 		Uint16("Timeout", conn.timeout).
 		Msg("MQTT Client connected")
 
@@ -342,7 +343,6 @@ func (cm *ConnectionManager) sendConnAck(
 
 	latency := tm.Sub(connect.Timestamp())
 	cm.metrics.recordConnectLatency(latency, int(connAck.ReasonCode))
-
 	return nil
 }
 
@@ -359,7 +359,6 @@ func (cm *ConnectionManager) sendPingResp(
 
 	latency := tm.Sub(pingReq.Timestamp())
 	cm.metrics.recordPingLatency(latency)
-
 	return nil
 }
 
@@ -368,24 +367,21 @@ func (cm *ConnectionManager) sendPacket(
 	pkt packet.Packet,
 ) (time.Time, error) {
 	cm.log.Trace().
-		Str("Address", conn.address).
-		Str("ClientID", string(conn.clientID)).
-		Stringer("PacketType", pkt.Type()).
-		Str("Version", conn.version.String()).
+		Bytes("ClientID", conn.clientID).
+		Uint8("PacketTypeID", uint8(pkt.Type())).
+		Uint8("Version", uint8(conn.version)).
 		Msg("MQTT Sending packet")
 
-	err := conn.writer.WritePacket(pkt)
+	err := cm.writer.WritePacket(pkt, conn.netConn)
 	if err != nil {
 		cm.log.Error().
-			Str("Address", conn.address).
-			Str("ClientID", string(conn.clientID)).
+			Bytes("ClientID", conn.clientID).
 			Stringer("PacketType", pkt.Type()).
-			Str("Version", conn.version.String()).
+			Uint8("Version", uint8(conn.version)).
 			Msg("MQTT Failed to send packet: " + err.Error())
 		return time.Now(), err
 	}
 
 	cm.metrics.recordPacketSent(pkt)
-
 	return time.Now(), nil
 }

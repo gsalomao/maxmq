@@ -16,6 +16,7 @@ package mqtt
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/gsalomao/maxmq/logger"
@@ -25,10 +26,17 @@ import (
 )
 
 type metrics struct {
+	cache       labelCaches
 	packets     *packetsMetrics
 	connections *connectionsMetrics
 	latencies   *latenciesMetrics
 	log         *logger.Logger
+}
+
+type labelCaches struct {
+	mu         sync.RWMutex
+	packetType map[packet.Type]prometheus.Labels
+	code       map[int]prometheus.Labels
 }
 
 type packetsMetrics struct {
@@ -54,6 +62,7 @@ func newMetrics(enabled bool, log *logger.Logger) *metrics {
 	mt := &metrics{log: log}
 
 	if enabled {
+		mt.cache = newCaches()
 		mt.packets = newPacketsMetrics()
 		mt.connections = newConnectionsMetrics()
 		mt.latencies = newLatenciesMetrics()
@@ -67,6 +76,13 @@ func newMetrics(enabled bool, log *logger.Logger) *metrics {
 	}
 
 	return mt
+}
+
+func newCaches() labelCaches {
+	return labelCaches{
+		packetType: map[packet.Type]prometheus.Labels{},
+		code:       map[int]prometheus.Labels{},
+	}
 }
 
 func newPacketsMetrics() *packetsMetrics {
@@ -147,7 +163,8 @@ func newConnectionsMetrics() *connectionsMetrics {
 func newLatenciesMetrics() *latenciesMetrics {
 	lm := &latenciesMetrics{}
 	buckets := []float64{
-		0.00010, 0.00025, 0.0005, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1}
+		0.00010, 0.00025, 0.0005, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1,
+	}
 
 	lm.connectSeconds = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -218,9 +235,19 @@ func (m *metrics) recordPacketReceived(pkt packet.Packet) {
 		return
 	}
 
-	lb := prometheus.Labels{"type": pkt.Type().String()}
-	sz := float64(pkt.Size())
+	m.cache.mu.RLock()
+	lb, ok := m.cache.packetType[pkt.Type()]
+	m.cache.mu.RUnlock()
 
+	if !ok {
+		lb = prometheus.Labels{"type": pkt.Type().String()}
+
+		m.cache.mu.Lock()
+		m.cache.packetType[pkt.Type()] = lb
+		m.cache.mu.Unlock()
+	}
+
+	sz := float64(pkt.Size())
 	m.packets.receivedTotal.With(lb).Inc()
 	m.packets.receivedBytes.With(lb).Add(sz)
 }
@@ -230,9 +257,19 @@ func (m *metrics) recordPacketSent(pkt packet.Packet) {
 		return
 	}
 
-	lb := prometheus.Labels{"type": pkt.Type().String()}
-	sz := float64(pkt.Size())
+	m.cache.mu.RLock()
+	lb, ok := m.cache.packetType[pkt.Type()]
+	m.cache.mu.RUnlock()
 
+	if !ok {
+		lb = prometheus.Labels{"type": pkt.Type().String()}
+
+		m.cache.mu.Lock()
+		m.cache.packetType[pkt.Type()] = lb
+		m.cache.mu.Unlock()
+	}
+
+	sz := float64(pkt.Size())
 	m.packets.sentTotal.With(lb).Inc()
 	m.packets.sentBytes.With(lb).Add(sz)
 }
@@ -260,7 +297,18 @@ func (m *metrics) recordConnectLatency(d time.Duration, code int) {
 		return
 	}
 
-	lb := prometheus.Labels{"code": fmt.Sprint(code)}
+	m.cache.mu.RLock()
+	lb, ok := m.cache.code[code]
+	m.cache.mu.RUnlock()
+
+	if !ok {
+		lb = prometheus.Labels{"code": fmt.Sprint(code)}
+
+		m.cache.mu.Lock()
+		m.cache.code[code] = lb
+		m.cache.mu.Unlock()
+	}
+
 	m.latencies.connectSeconds.With(lb).Observe(d.Seconds())
 }
 

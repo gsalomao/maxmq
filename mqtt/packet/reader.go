@@ -18,12 +18,13 @@ import (
 	"bufio"
 	"errors"
 	"io"
+	"sync"
 	"time"
 )
 
 // Reader is responsible for read packets.
 type Reader struct {
-	bufReader     *bufio.Reader
+	readerPool    sync.Pool
 	maxPacketSize int
 }
 
@@ -36,26 +37,35 @@ type ReaderOptions struct {
 	MaxPacketSize int
 }
 
-// NewReader creates a buffered Reader based on the io.Reader and ReaderOptions.
-func NewReader(r io.Reader, o ReaderOptions) Reader {
+// NewReader creates a buffered Reader using ReaderOptions.
+func NewReader(o ReaderOptions) Reader {
 	return Reader{
-		bufReader:     bufio.NewReaderSize(r, o.BufferSize),
+		readerPool: sync.Pool{
+			New: func() interface{} {
+				return bufio.NewReaderSize(nil, o.BufferSize)
+			},
+		},
 		maxPacketSize: o.MaxPacketSize,
 	}
 }
 
-// ReadPacket reads and unpack the packet from the buffer.
+// ReadPacket reads and unpack a packet from the io.Reader.
 // It returns an error if it fails to read or unpack the packet.
-func (r *Reader) ReadPacket() (Packet, error) {
-	ctrlByte, err := r.bufReader.ReadByte()
+func (r *Reader) ReadPacket(rd io.Reader) (Packet, error) {
+	ctrlByte := make([]byte, 1)
+
+	_, err := rd.Read(ctrlByte)
 	if err != nil {
 		return nil, err
 	}
-
 	now := time.Now()
 
+	bufRd := r.readerPool.Get().(*bufio.Reader)
+	defer r.readerPool.Put(bufRd)
+	bufRd.Reset(rd)
+
 	var remainLen int
-	n, err := decodeVarInteger(r.bufReader, &remainLen)
+	n, err := decodeVarInteger(bufRd, &remainLen)
 	if err != nil {
 		return nil, err
 	}
@@ -65,8 +75,8 @@ func (r *Reader) ReadPacket() (Packet, error) {
 	}
 
 	opts := options{
-		packetType:        Type(ctrlByte >> 4),
-		controlFlags:      ctrlByte & controlByteFlagsMask,
+		packetType:        Type(ctrlByte[0] >> 4),
+		controlFlags:      ctrlByte[0] & controlByteFlagsMask,
 		fixedHeaderLength: 1 + n,
 		remainingLength:   remainLen,
 		timestamp:         now,
@@ -77,7 +87,7 @@ func (r *Reader) ReadPacket() (Packet, error) {
 		return nil, err
 	}
 
-	err = pkt.Unpack(r.bufReader)
+	err = pkt.Unpack(bufRd)
 	if err != nil {
 		return nil, err
 	}

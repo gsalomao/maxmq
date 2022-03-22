@@ -35,9 +35,9 @@ func TestPacket_ReadPacket(t *testing.T) {
 		}()
 
 		opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
-		reader := packet.NewReader(sConn, opts)
+		reader := packet.NewReader(opts)
 
-		pkt, err := reader.ReadPacket()
+		pkt, err := reader.ReadPacket(sConn)
 		assert.Nil(t, err)
 		assert.NotNil(t, pkt)
 	}()
@@ -61,13 +61,13 @@ func BenchmarkReader_ReadPacketConnect(b *testing.B) {
 	}
 	r := bytes.NewReader(msg)
 	opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
-	reader := packet.NewReader(r, opts)
+	reader := packet.NewReader(opts)
 
 	b.ReportAllocs()
 
 	for n := 0; n < b.N; n++ {
 		r.Reset(msg)
-		_, err := reader.ReadPacket()
+		_, err := reader.ReadPacket(r)
 
 		if err != nil {
 			b.Fatal(err)
@@ -79,13 +79,13 @@ func BenchmarkReader_ReadPacketDisconnect(b *testing.B) {
 	msg := []byte{0xE0, 0}
 	r := bytes.NewReader(msg)
 	opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
-	reader := packet.NewReader(r, opts)
+	reader := packet.NewReader(opts)
 
 	b.ReportAllocs()
 
 	for n := 0; n < b.N; n++ {
 		r.Reset(msg)
-		_, err := reader.ReadPacket()
+		_, err := reader.ReadPacket(r)
 
 		if err != nil {
 			b.Fatal(err)
@@ -97,13 +97,13 @@ func BenchmarkReader_ReadPacketPingReq(b *testing.B) {
 	msg := []byte{0xC0, 0}
 	r := bytes.NewReader(msg)
 	opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
-	reader := packet.NewReader(r, opts)
+	reader := packet.NewReader(opts)
 
 	b.ReportAllocs()
 
 	for n := 0; n < b.N; n++ {
 		r.Reset(msg)
-		_, err := reader.ReadPacket()
+		_, err := reader.ReadPacket(r)
 
 		if err != nil {
 			b.Fatal(err)
@@ -121,9 +121,9 @@ func TestPacket_ReadPacketBiggerThanMaxPacketSize(t *testing.T) {
 		}()
 
 		opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 2}
-		reader := packet.NewReader(sConn, opts)
+		reader := packet.NewReader(opts)
 
-		_, err := reader.ReadPacket()
+		_, err := reader.ReadPacket(sConn)
 		require.NotNil(t, err)
 	}()
 
@@ -148,9 +148,9 @@ func TestPacket_ReadPacketError(t *testing.T) {
 		}()
 
 		opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
-		reader := packet.NewReader(sConn, opts)
+		reader := packet.NewReader(opts)
 
-		_, err := reader.ReadPacket()
+		_, err := reader.ReadPacket(sConn)
 		require.NotNil(t, err)
 	}()
 
@@ -196,9 +196,9 @@ func TestPacket_ReadPacketInvalid(t *testing.T) {
 
 			_ = sConn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 			opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
-			reader := packet.NewReader(sConn, opts)
+			reader := packet.NewReader(opts)
 
-			_, err := reader.ReadPacket()
+			_, err := reader.ReadPacket(sConn)
 			require.NotNil(t, err)
 			assert.Contains(t, err.Error(), test.msg)
 		}()

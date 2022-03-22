@@ -23,10 +23,7 @@ import (
 // Connection represents a network connection.
 type Connection struct {
 	clientID  []byte
-	address   string
 	netConn   net.Conn
-	reader    packet.Reader
-	writer    packet.Writer
 	timeout   uint16
 	version   packet.MQTTVersion
 	connected bool
