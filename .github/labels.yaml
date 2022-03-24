@@ -25,22 +25,22 @@
 #
 - name: "🟥 priority: critical"
   color: "b60205"
-  aliases: []
+  aliases: [ ]
   description: Must be fixed ASAP
 
 - name: "🟧 priority: high"
   color: "ff9f1c"
-  aliases: []
+  aliases: [ ]
   description: Stalls work on the project or its dependents
 
 - name: "🟨 priority: medium"
   color: "ffcc00"
-  aliases: []
+  aliases: [ ]
   description: Not blocking but should be fixed soon
 
 - name: "🟩 priority: low"
   color: "cfda2c"
-  aliases: []
+  aliases: [ ]
   description: Low priority and doesn't need to be rushed
 
 #
@@ -48,91 +48,63 @@
 #
 - name: "🏁 status: ready"
   color: "cccccc"
-  aliases: []
+  aliases: [ ]
   description: Ready for work
 
 - name: "🚧 status: blocked"
   color: "999999"
-  aliases: []
+  aliases: [ ]
   description: Blocked & therefore, not ready for work
 
 - name: "🧹 status: not ready"
   color: "666666"
-  aliases: []
+  aliases: [ ]
   description: Needs more details before it can be worked on
-
-- name: "⛔️ status: discarded"
-  color: "eeeeee"
-  aliases: []
-  description: Will not be worked on
 
 - name: "⛔️ status: invalid"
   color: "eeeeee"
-  aliases: []
+  aliases: [ ]
   description: Inappropriate or invalid
 
 - name: "🖇️ status: duplicate"
   color: "eeeeee"
-  aliases: []
+  aliases: [ ]
   description: Indicates similar issues, pull requests, or discussions
 
 #
 # Goal
 #
 - name: "🌟 goal: feature"
-  color: "ffffff"
-  aliases: []
+  color: "357C3C"
+  aliases: [ ]
   description: Addition of new feature
 
 - name: "✨ goal: improvement"
-  color: "ffffff"
-  aliases: []
+  color: "019267"
+  aliases: [ ]
   description: Improvement to an existing feature
 
 - name: "🛠 goal: fix"
-  color: "ffffff"
-  aliases: []
+  color: "146356"
+  aliases: [ ]
   description: Bug fix
-
-#
-# Aspect
-#
-- name: "📕️ aspect: docs"
-  color: "04338c"
-  aliases: []
-  description: Concerns the documentation in the repository
-
-- name: "💻 aspect: code"
-  color: "04338c"
-  aliases: []
-  description: Concerns the software code in the repository
-
-- name: "🕹 aspect: interface"
-  color: "04338c"
-  aliases: []
-  description: Concerns end-users' experience with the software
-
-- name: "🤖 aspect: dx"
-  color: "04338c"
-  aliases: []
-  description: Concerns developers' experience with the codebase
 
 #
 # Talk
 #
 - name: "❓ talk: question"
   color: "f9bbe5"
-  aliases: []
+  aliases: [ ]
   description: Can be resolved with an answer
 
 - name: "💬 talk: discussion"
   color: "f9bbe5"
-  aliases: []
+  aliases: [ ]
   description: Open for discussions and feedback
 
 - name: "💡️ talk: suggestion"
   color: "f9bbe5"
-  aliases: []
+  aliases: [ ]
   description: Any suggestion
 
 #
@@ -140,10 +112,10 @@
 #
 - name: "good first issue"
   color: "7f0799"
-  aliases: []
+  aliases: [ ]
   description: New-contributor friendly
 
 - name: "help wanted"
   color: "7f0799"
-  aliases: []
+  aliases: [ ]
   description: Open to participation from the community
