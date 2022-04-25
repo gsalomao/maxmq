@@ -90,3 +90,19 @@ jobs:
         uses: codecov/codecov-action@v2
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  e2e:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '^1.17.5'
+
+      - name: Install dependencies
+        run: go install gotest.tools/gotestsum@latest
+
+      - name: Run E2E tests
+        run: make e2e

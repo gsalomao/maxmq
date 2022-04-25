@@ -29,7 +29,7 @@ BOLD        = \033[0;1m
 # Build parameters
 VERSION = $(shell git describe --tags --always --dirty | sed -e 's/^v//')
 
-.PHONY: all build coverage
+.PHONY: all build coverage e2e
 
 all: help
 
@@ -93,6 +93,11 @@ coverage: ## Run tests with coverage report
 coverage-html: coverage ## Open the coverage report in the browser
 	$(call print_task,"Opening coverage report")
 	@go tool cover -html coverage/coverage.out
+
+e2e: ## Run end-to-end (E2E) tests
+	$(call print_task,"Running E2E tests")
+	@gotestsum --format testname --packages ./e2e -- -tags=e2e -timeout 30s
+	$(call print_task_result,"Running E2E tests","done")
 
 ## Analyze
 vet: ## Examine source code
