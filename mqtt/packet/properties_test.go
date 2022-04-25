@@ -312,3 +312,32 @@ func TestProperties_Size(t *testing.T) {
 
 	assert.Equal(t, 83, props.size(CONNACK))
 }
+
+func TestProperties_Reset(t *testing.T) {
+	props := &Properties{
+		SessionExpiryInterval:         new(uint32),
+		ReceiveMaximum:                new(uint16),
+		MaximumQoS:                    new(byte),
+		RetainAvailable:               new(byte),
+		MaximumPacketSize:             new(uint32),
+		TopicAliasMaximum:             new(uint16),
+		WildcardSubscriptionAvailable: new(byte),
+		SubscriptionIDAvailable:       new(byte),
+		SharedSubscriptionAvailable:   new(byte),
+		ServerKeepAlive:               new(uint16),
+	}
+
+	props.Reset()
+
+	assert.NotNil(t, props)
+	assert.Nil(t, props.SessionExpiryInterval)
+	assert.Nil(t, props.ReceiveMaximum)
+	assert.Nil(t, props.MaximumQoS)
+	assert.Nil(t, props.RetainAvailable)
+	assert.Nil(t, props.MaximumPacketSize)
+	assert.Nil(t, props.TopicAliasMaximum)
+	assert.Nil(t, props.WildcardSubscriptionAvailable)
+	assert.Nil(t, props.SubscriptionIDAvailable)
+	assert.Nil(t, props.SharedSubscriptionAvailable)
+	assert.Nil(t, props.ServerKeepAlive)
+}

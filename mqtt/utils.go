@@ -105,20 +105,23 @@ func newConnAck(
 	rc packet.ReasonCode,
 	sessionPresent bool,
 	conf Configuration,
-	connProps *packet.Properties,
+	props *packet.Properties,
 ) packet.ConnAck {
 	ver := packet.MQTT311
 	if conn != nil {
 		ver = conn.version
 	}
 
-	var props *packet.Properties
 	if ver == packet.MQTT50 && rc == packet.ReasonCodeV5Success {
-		props = addServerKeepAliveToProperties(nil, conn.timeout, conf)
-		if connProps != nil {
-			props = addSessionExpiryIntervalToProperties(props,
-				connProps.SessionExpiryInterval, conf)
+		var expInterval *uint32
+
+		if props != nil {
+			expInterval = props.SessionExpiryInterval
+			props.Reset()
 		}
+
+		props = addServerKeepAliveToProperties(props, conn.timeout, conf)
+		props = addSessionExpiryIntervalToProperties(props, expInterval, conf)
 		props = addMaxPacketSizeToProperties(props, conf)
 		props = addReceiveMaximumToProperties(props, conf)
 		props = addMaximumQoSToProperties(props, conf)
@@ -166,7 +169,7 @@ func addSessionExpiryIntervalToProperties(
 
 	maxExpInt := conf.MaxSessionExpiryInterval
 
-	if maxExpInt > 0 && *expInt > maxExpInt {
+	if maxExpInt > 0 && expInt != nil && *expInt > maxExpInt {
 		p = getPropertiesOrCreate(p)
 
 		p.SessionExpiryInterval = new(uint32)

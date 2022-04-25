@@ -338,6 +338,36 @@ func (p *Properties) size(t Type) int {
 	return b.Len()
 }
 
+// Reset clears all properties.
+func (p *Properties) Reset() {
+	p.PayloadFormatIndicator = nil
+	p.MessageExpiryInterval = nil
+	p.ContentType = nil
+	p.ResponseTopic = nil
+	p.CorrelationData = nil
+	p.SessionExpiryInterval = nil
+	p.AssignedClientID = nil
+	p.ServerKeepAlive = nil
+	p.AuthMethod = nil
+	p.AuthData = nil
+	p.RequestProblemInfo = nil
+	p.WillDelayInterval = nil
+	p.RequestResponseInfo = nil
+	p.ResponseInfo = nil
+	p.ServerReference = nil
+	p.ReasonString = nil
+	p.ReceiveMaximum = nil
+	p.TopicAliasMaximum = nil
+	p.TopicAlias = nil
+	p.MaximumQoS = nil
+	p.RetainAvailable = nil
+	p.UserProperties = nil
+	p.MaximumPacketSize = nil
+	p.WildcardSubscriptionAvailable = nil
+	p.SubscriptionIDAvailable = nil
+	p.SharedSubscriptionAvailable = nil
+}
+
 func isValidProperty(h propertyHandler, t Type) bool {
 	_, ok := h.types[t]
 	return ok
