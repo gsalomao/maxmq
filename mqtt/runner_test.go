@@ -71,7 +71,7 @@ func TestRunner_RunInvalidTCPAddress(t *testing.T) {
 
 	runner, err := mqtt.NewRunner(
 		mqtt.WithConfiguration(mqtt.Configuration{
-			TCPAddress: ":1",
+			TCPAddress: ".",
 		}),
 		mqtt.WithConnectionHandler(&mockConnHandler),
 		mqtt.WithLogger(logStub.Logger()),
@@ -81,7 +81,6 @@ func TestRunner_RunInvalidTCPAddress(t *testing.T) {
 
 	err = runner.Run()
 	require.NotNil(t, err)
-	assert.Contains(t, err.Error(), "bind: permission denied")
 }
 
 func TestRunner_RunAndStop(t *testing.T) {
