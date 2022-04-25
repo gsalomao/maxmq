@@ -336,6 +336,12 @@ func (cm *ConnectionManager) sendConnAck(
 	connect *packet.Connect,
 	connAck *packet.ConnAck,
 ) error {
+	cm.log.Trace().
+		Bytes("ClientID", conn.clientID).
+		Uint8("PacketTypeID", uint8(connAck.Type())).
+		Uint8("Version", uint8(conn.version)).
+		Msg("MQTT Sending CONNACK Packet")
+
 	tm, err := cm.sendPacket(conn, connAck)
 	if err != nil {
 		return err
@@ -350,6 +356,13 @@ func (cm *ConnectionManager) sendPingResp(
 	conn *Connection,
 	pingReq packet.Packet,
 ) error {
+	cm.log.Trace().
+		Bytes("ClientID", conn.clientID).
+		Uint8("PacketTypeID", uint8(pingReq.Type())).
+		Uint16("Timeout", conn.timeout).
+		Uint8("Version", uint8(conn.version)).
+		Msg("MQTT Sending PINGRESP Packet")
+
 	pingResp := packet.NewPingResp()
 
 	tm, err := cm.sendPacket(conn, &pingResp)
@@ -366,7 +379,7 @@ func (cm *ConnectionManager) sendPacket(
 	conn *Connection,
 	pkt packet.Packet,
 ) (time.Time, error) {
-	cm.log.Trace().
+	cm.log.Debug().
 		Bytes("ClientID", conn.clientID).
 		Uint8("PacketTypeID", uint8(pkt.Type())).
 		Uint8("Version", uint8(conn.version)).
