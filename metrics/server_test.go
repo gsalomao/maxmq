@@ -57,7 +57,7 @@ func TestMetrics_NewServer(t *testing.T) {
 
 func TestMetrics_RunInvalidAddress(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	conf := metrics.Configuration{Address: ":1", Path: "/metrics"}
+	conf := metrics.Configuration{Address: ".", Path: "/metrics"}
 
 	p, err := metrics.NewServer(conf, logStub.Logger())
 	require.Nil(t, err)
@@ -65,7 +65,6 @@ func TestMetrics_RunInvalidAddress(t *testing.T) {
 
 	err = p.Run()
 	require.NotNil(t, err)
-	assert.Contains(t, err.Error(), "bind: permission denied")
 }
 
 func TestMetrics_RunAndStop(t *testing.T) {
