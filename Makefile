@@ -69,22 +69,22 @@ profile: ## Start broker with CPU/Memory profiler
 	@$(BUILD_DIR)/$(NAME) start
 
 ## Test
-test: ## Run tests
-	$(call print_task,"Running tests")
+test: ## Run unit tests
+	$(call print_task,"Running unit tests")
 	@gotestsum --format pkgname --packages ./... -- -timeout 3s
-	$(call print_task_result,"Running tests","done")
+	$(call print_task_result,"Running unit tests","done")
 
-test-dev: ## Run tests in development mode
-	$(call print_task,"Running tests in development mode")
+test-dev: ## Run unit tests in development mode
+	$(call print_task,"Running unit tests in development mode")
 	@gotestsum --format testname --packages ./... --watch -- -timeout 3s
 
-coverage: ## Run tests with coverage report
-	$(call print_task,"Running tests")
+coverage: ## Run unit tests with coverage report
+	$(call print_task,"Running unit tests")
 	@rm -rf ${COVERAGE_DIR}
 	@mkdir -p ${COVERAGE_DIR}
 	@go test -cover -covermode=atomic -race \
 		-coverprofile=$(COVERAGE_DIR)/coverage.out ./...
-	$(call print_task_result,"Running tests","done")
+	$(call print_task_result,"Running unit tests","done")
 
 	$(call print_task,"Generating coverage report")
 	@go tool cover -func $(COVERAGE_DIR)/coverage.out

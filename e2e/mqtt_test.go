@@ -30,25 +30,25 @@ import (
 )
 
 func newBroker() *broker.Broker {
-	mqttConf := mqtt.Configuration{TCPAddress: ":1883"}
+	conf := mqtt.Configuration{TCPAddress: ":1883"}
 	logStub := mocks.NewLoggerStub()
 
-	cm := mqtt.NewConnectionManager(mqttConf, logStub.Logger())
-	r, _ := mqtt.NewRunner(
-		mqtt.WithConfiguration(mqttConf),
+	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
+	l, _ := mqtt.NewListener(
+		mqtt.WithConfiguration(conf),
 		mqtt.WithConnectionHandler(&cm),
 		mqtt.WithLogger(logStub.Logger()),
 	)
 
-	brk := broker.New(logStub.Logger())
-	brk.AddRunner(r)
+	b := broker.New(logStub.Logger())
+	b.AddListener(l)
 
-	return &brk
+	return &b
 }
 
 func TestMqtt_RunBroker(t *testing.T) {
-	brk := newBroker()
-	assert.Nil(t, brk.Start())
+	b := newBroker()
+	assert.Nil(t, b.Start())
 	<-time.After(100 * time.Millisecond)
 
 	stopped := make(chan struct{})
@@ -56,17 +56,17 @@ func TestMqtt_RunBroker(t *testing.T) {
 		defer func() { stopped <- struct{}{} }()
 
 		<-time.After(1 * time.Millisecond)
-		brk.Stop()
+		b.Stop()
 	}()
 
-	assert.Nil(t, brk.Wait())
+	assert.Nil(t, b.Wait())
 	<-stopped
 }
 
 func TestMqtt_Connect(t *testing.T) {
-	brk := newBroker()
-	assert.Nil(t, brk.Start())
-	defer func() { brk.Stop() }()
+	b := newBroker()
+	assert.Nil(t, b.Start())
+	defer func() { b.Stop() }()
 	<-time.After(100 * time.Millisecond)
 
 	opts := paho.NewClientOptions()
@@ -82,9 +82,9 @@ func TestMqtt_Connect(t *testing.T) {
 }
 
 func TestMqtt_Disconnect(t *testing.T) {
-	brk := newBroker()
-	assert.Nil(t, brk.Start())
-	defer func() { brk.Stop() }()
+	b := newBroker()
+	assert.Nil(t, b.Start())
+	defer func() { b.Stop() }()
 	<-time.After(100 * time.Millisecond)
 
 	opts := paho.NewClientOptions()
@@ -104,9 +104,9 @@ func TestMqtt_Disconnect(t *testing.T) {
 }
 
 func TestMqtt_PingReq(t *testing.T) {
-	brk := newBroker()
-	assert.Nil(t, brk.Start())
-	defer func() { brk.Stop() }()
+	b := newBroker()
+	assert.Nil(t, b.Start())
+	defer func() { b.Stop() }()
 	<-time.After(100 * time.Millisecond)
 
 	opts := paho.NewClientOptions()

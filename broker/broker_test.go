@@ -31,16 +31,16 @@ func TestBroker_Start(t *testing.T) {
 	log := logger.New(out)
 	b := broker.New(&log)
 
-	mockRunner := mocks.NewRunnerMock()
-	mockRunner.On("Run")
-	b.AddRunner(mockRunner)
+	mockLsn := mocks.NewListenerMock()
+	mockLsn.On("Listen")
+	b.AddListener(mockLsn)
 
 	err := b.Start()
 	assert.Nil(t, err)
 	assert.Contains(t, out.String(), "Broker started with success")
 }
 
-func TestBroker_StartWithNoRunner(t *testing.T) {
+func TestBroker_StartWithoutListener(t *testing.T) {
 	out := bytes.NewBufferString("")
 	log := logger.New(out)
 
@@ -48,7 +48,7 @@ func TestBroker_StartWithNoRunner(t *testing.T) {
 
 	err := b.Start()
 	assert.NotNil(t, err)
-	assert.Equal(t, err.Error(), "no available runner")
+	assert.Equal(t, err.Error(), "no available listener")
 }
 
 func TestBroker_Stop(t *testing.T) {
@@ -56,10 +56,10 @@ func TestBroker_Stop(t *testing.T) {
 	log := logger.New(out)
 	b := broker.New(&log)
 
-	mockRunner := mocks.NewRunnerMock()
-	mockRunner.On("Run")
-	mockRunner.On("Stop")
-	b.AddRunner(mockRunner)
+	mockLsn := mocks.NewListenerMock()
+	mockLsn.On("Listen")
+	mockLsn.On("Stop")
+	b.AddListener(mockLsn)
 
 	err := b.Start()
 	require.Nil(t, err)
@@ -70,22 +70,22 @@ func TestBroker_Stop(t *testing.T) {
 		done <- true
 	}()
 
-	<-mockRunner.RunningCh
+	<-mockLsn.RunningCh
 	b.Stop()
 
 	<-done
 	assert.Nil(t, err)
 }
 
-func TestBroker_RunnerError(t *testing.T) {
+func TestBroker_ListenerError(t *testing.T) {
 	out := bytes.NewBufferString("")
 	log := logger.New(out)
 	b := broker.New(&log)
 
-	mockRunner := mocks.NewRunnerMock()
-	mockRunner.On("Run")
-	mockRunner.On("Stop")
-	b.AddRunner(mockRunner)
+	mockLsn := mocks.NewListenerMock()
+	mockLsn.On("Listen")
+	mockLsn.On("Stop")
+	b.AddListener(mockLsn)
 
 	err := b.Start()
 	require.Nil(t, err)
@@ -96,8 +96,8 @@ func TestBroker_RunnerError(t *testing.T) {
 		done <- true
 	}()
 
-	<-mockRunner.RunningCh
-	mockRunner.Err = errors.New("any failure")
+	<-mockLsn.RunningCh
+	mockLsn.Err = errors.New("any failure")
 	b.Stop()
 
 	<-done

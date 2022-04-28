@@ -26,16 +26,16 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// Server represents an HTTP server responsible for exporting metrics.
-type Server struct {
+// Listener represents an HTTP server responsible for exporting metrics.
+type Listener struct {
 	conf Configuration
 	mux  *http.ServeMux
 	srv  *http.Server
 	log  *logger.Logger
 }
 
-// NewServer creates a Server instance.
-func NewServer(c Configuration, log *logger.Logger) (*Server, error) {
+// NewListener creates a Metrics Listener instance.
+func NewListener(c Configuration, log *logger.Logger) (*Listener, error) {
 	if c.Address == "" {
 		return nil, errors.New("metrics missing address")
 	}
@@ -61,37 +61,37 @@ func NewServer(c Configuration, log *logger.Logger) (*Server, error) {
 		WriteTimeout: 5 * time.Second,
 	}
 
-	return &Server{conf: c, srv: s, mux: m, log: log}, nil
+	return &Listener{conf: c, srv: s, mux: m, log: log}, nil
 }
 
-// Run starts the execution of the server.
+// Listen starts the execution of the Metrics Listener.
 // Once called, it blocks waiting for connections until it's stopped by the
 // Stop function.
-func (p *Server) Run() error {
-	lsn, err := net.Listen("tcp", p.srv.Addr)
+func (l *Listener) Listen() error {
+	lsn, err := net.Listen("tcp", l.srv.Addr)
 	if err != nil {
 		return err
 	}
 
-	p.log.Info().Msg("Metrics Listening on " + lsn.Addr().String())
-	if err := p.srv.Serve(lsn); err != http.ErrServerClosed {
+	l.log.Info().Msg("Metrics Listening on " + lsn.Addr().String())
+	if err := l.srv.Serve(lsn); err != http.ErrServerClosed {
 		return err
 	}
 
-	p.log.Debug().Msg("Metrics Server stopped with success")
+	l.log.Debug().Msg("Metrics Listener stopped with success")
 	return nil
 }
 
-// Stop stops the server.
-// Once called, it unblocks the Run function.
-func (p *Server) Stop() {
-	p.log.Debug().Msg("Metrics Stopping server")
+// Stop stops the Metrics Listener.
+// Once called, it unblocks the Listen function.
+func (l *Listener) Stop() {
+	l.log.Debug().Msg("Metrics Stopping listener")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := p.srv.Shutdown(ctx)
+	err := l.srv.Shutdown(ctx)
 	if err != nil {
-		_ = p.srv.Close()
+		_ = l.srv.Close()
 	}
 }

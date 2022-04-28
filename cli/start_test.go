@@ -35,9 +35,10 @@ func TestCLI_NewBroker(t *testing.T) {
 			MetricsPath:      "/metrics",
 			MetricsProfiling: true,
 		}
-		brk, err := newBroker(conf, logStub.Logger())
+
+		b, err := newBroker(conf, logStub.Logger())
 		require.Nil(t, err)
-		require.NotNil(t, brk)
+		require.NotNil(t, b)
 	})
 
 	t.Run("InvalidMetrics", func(t *testing.T) {
@@ -48,21 +49,22 @@ func TestCLI_NewBroker(t *testing.T) {
 			MetricsAddress: "",
 			MetricsPath:    "",
 		}
-		brk, err := newBroker(conf, logStub.Logger())
+
+		b, err := newBroker(conf, logStub.Logger())
 		require.NotNil(t, err)
-		require.Nil(t, brk)
+		require.Nil(t, b)
 	})
 }
 
 func TestCLI_RunBroker(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 
-	mockRunner := mocks.NewRunnerMock()
-	mockRunner.On("Run")
-	mockRunner.On("Stop")
+	mockLsn := mocks.NewListenerMock()
+	mockLsn.On("Listen")
+	mockLsn.On("Stop")
 
-	brk := broker.New(logStub.Logger())
-	brk.AddRunner(mockRunner)
+	b := broker.New(logStub.Logger())
+	b.AddListener(mockLsn)
 
 	done := make(chan bool)
 	go func() {
@@ -70,20 +72,21 @@ func TestCLI_RunBroker(t *testing.T) {
 			done <- true
 		}()
 
-		runBroker(&brk, logStub.Logger())
+		runBroker(&b, logStub.Logger())
 		assert.Contains(t, logStub.String(), "Starting broker")
 	}()
 
-	<-mockRunner.RunningCh
-	brk.Stop()
+	<-mockLsn.RunningCh
+	b.Stop()
 	<-done
 }
 
 func TestCLI_LoadConfig(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	conf, err := loadConfig(logStub.Logger())
+
+	c, err := loadConfig(logStub.Logger())
 	require.Nil(t, err)
-	assert.Equal(t, "info", conf.LogLevel)
+	assert.Equal(t, "info", c.LogLevel)
 }
 
 func TestCLI_StartStopCPUProfile(t *testing.T) {

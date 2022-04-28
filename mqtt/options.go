@@ -18,27 +18,27 @@ import (
 	"github.com/gsalomao/maxmq/logger"
 )
 
-// OptionsFn represents a function which sets an option in the MQTT Runner.
-type OptionsFn func(mqtt *Runner)
+// OptionsFn represents a function which sets an option in the MQTT Listener.
+type OptionsFn func(l *Listener)
 
-// WithConfiguration sets the MQTT configuration into the MQTT Runner.
+// WithConfiguration sets the MQTT configuration into the MQTT Listener.
 func WithConfiguration(cf Configuration) OptionsFn {
-	return func(mqtt *Runner) {
-		mqtt.conf = &cf
+	return func(l *Listener) {
+		l.conf = &cf
 	}
 }
 
 // WithConnectionHandler sets the given ConnectionHandler into the MQTT
-// Runner.
+// Listener.
 func WithConnectionHandler(ch ConnectionHandler) OptionsFn {
-	return func(mqtt *Runner) {
-		mqtt.connHandler = ch
+	return func(l *Listener) {
+		l.connHandler = ch
 	}
 }
 
-// WithLogger sets the given Logger into the MQTT Runner.
+// WithLogger sets the given Logger into the MQTT Listener.
 func WithLogger(log *logger.Logger) OptionsFn {
-	return func(mqtt *Runner) {
-		mqtt.log = log
+	return func(l *Listener) {
+		l.log = log
 	}
 }

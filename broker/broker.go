@@ -23,10 +23,10 @@ import (
 
 // Broker represents the message broker.
 type Broker struct {
-	log     *logger.Logger
-	wg      sync.WaitGroup
-	runners []Runner
-	err     error
+	log       *logger.Logger
+	wg        sync.WaitGroup
+	listeners []Listener
+	err       error
 }
 
 // New creates a new broker.
@@ -36,42 +36,42 @@ func New(log *logger.Logger) Broker {
 	}
 }
 
-// AddRunner adds a runner to the broker.
-func (b *Broker) AddRunner(r Runner) {
-	b.runners = append(b.runners, r)
+// AddListener adds a listener to the broker.
+func (b *Broker) AddListener(l Listener) {
+	b.listeners = append(b.listeners, l)
 }
 
-// Start starts the broker running all runners.
+// Start starts the broker running all listeners.
 func (b *Broker) Start() error {
 	b.log.Info().Msg("Starting broker")
 
-	if len(b.runners) == 0 {
-		return errors.New("no available runner")
+	if len(b.listeners) == 0 {
+		return errors.New("no available listener")
 	}
 
-	for _, r := range b.runners {
+	for _, lsn := range b.listeners {
 		b.wg.Add(1)
-		go func(r Runner) {
+		go func(l Listener) {
 			defer b.wg.Done()
 
-			err := r.Run()
+			err := l.Listen()
 			if err != nil {
 				b.err = err
 			}
-		}(r)
+		}(lsn)
 	}
 
 	b.log.Info().Msg("Broker started with success")
 	return nil
 }
 
-// Stop stops the broker stopping all runners.
+// Stop stops the broker stopping all listeners.
 func (b *Broker) Stop() {
 	b.log.Info().Msg("Stopping broker")
 	b.wg.Add(1)
 
-	for _, r := range b.runners {
-		r.Stop()
+	for _, l := range b.listeners {
+		l.Stop()
 	}
 
 	b.log.Info().Msg("Broker stopped with success")

@@ -22,9 +22,9 @@ import (
 	"github.com/gsalomao/maxmq/logger"
 )
 
-// Runner is responsible to implement the MQTT protocol conform the v3.1.1
+// Listener is responsible to implement the MQTT protocol conform the v3.1.1
 // and v5.0 specifications.
-type Runner struct {
+type Listener struct {
 	log         *logger.Logger
 	conf        *Configuration
 	tcpLsn      net.Listener
@@ -33,83 +33,83 @@ type Runner struct {
 	mtx         sync.Mutex
 }
 
-// NewRunner creates a new MQTT Runner with the given options.
-func NewRunner(opts ...OptionsFn) (*Runner, error) {
-	mqtt := &Runner{}
+// NewListener creates a new MQTT Listener with the given options.
+func NewListener(opts ...OptionsFn) (*Listener, error) {
+	l := &Listener{}
 
 	for _, fn := range opts {
-		fn(mqtt)
+		fn(l)
 	}
 
-	if mqtt.log == nil {
+	if l.log == nil {
 		return nil, errors.New("missing logger")
 	}
-	if mqtt.conf == nil {
+	if l.conf == nil {
 		return nil, errors.New("missing configuration")
 	}
-	if mqtt.connHandler == nil {
+	if l.connHandler == nil {
 		return nil, errors.New("missing connection handler")
 	}
 
-	return mqtt, nil
+	return l, nil
 }
 
-// Run starts the execution of the MQTT Runner.
+// Listen starts the execution of the MQTT Listener.
 // Once called, it blocks waiting for connections until it's stopped by the
 // Stop function.
-func (mqtt *Runner) Run() error {
-	lsn, err := net.Listen("tcp", mqtt.conf.TCPAddress)
+func (l *Listener) Listen() error {
+	tcpLsn, err := net.Listen("tcp", l.conf.TCPAddress)
 	if err != nil {
 		return err
 	}
 
-	mqtt.log.Info().Msg("MQTT Listening on " + lsn.Addr().String())
-	mqtt.tcpLsn = lsn
-	mqtt.setRunningState(true)
+	l.log.Info().Msg("MQTT Listening on " + tcpLsn.Addr().String())
+	l.tcpLsn = tcpLsn
+	l.setRunningState(true)
 
 	for {
-		mqtt.log.Trace().Msg("MQTT Waiting for TCP connection")
+		l.log.Trace().Msg("MQTT Waiting for TCP connection")
 
-		tcpConn, err := mqtt.tcpLsn.Accept()
+		tcpConn, err := l.tcpLsn.Accept()
 		if err != nil {
-			if !mqtt.isRunning() {
+			if !l.isRunning() {
 				break
 			}
 
-			mqtt.log.Warn().
+			l.log.Warn().
 				Msg("MQTT Failed to accept TCP connection: " + err.Error())
 			continue
 		}
 
-		conn := mqtt.connHandler.NewConnection(tcpConn)
-		mqtt.log.Trace().Msg("MQTT New TCP connection")
+		conn := l.connHandler.NewConnection(tcpConn)
+		l.log.Trace().Msg("MQTT New TCP connection")
 
-		go mqtt.connHandler.Handle(conn)
+		go l.connHandler.Handle(conn)
 	}
 
-	mqtt.log.Debug().Msg("MQTT Runner stopped with success")
+	l.log.Debug().Msg("MQTT Listener stopped with success")
 	return nil
 }
 
-// Stop stops the MQTT Runner.
+// Stop stops the MQTT Listener.
 // Once called, it unblocks the Run function.
-func (mqtt *Runner) Stop() {
-	mqtt.log.Debug().Msg("MQTT Stopping runner")
+func (l *Listener) Stop() {
+	l.log.Debug().Msg("MQTT Stopping listener")
 
-	mqtt.setRunningState(false)
-	_ = mqtt.tcpLsn.Close()
+	l.setRunningState(false)
+	_ = l.tcpLsn.Close()
 }
 
-func (mqtt *Runner) setRunningState(st bool) {
-	mqtt.mtx.Lock()
-	defer mqtt.mtx.Unlock()
+func (l *Listener) setRunningState(st bool) {
+	l.mtx.Lock()
+	defer l.mtx.Unlock()
 
-	mqtt.running = st
+	l.running = st
 }
 
-func (mqtt *Runner) isRunning() bool {
-	mqtt.mtx.Lock()
-	defer mqtt.mtx.Unlock()
+func (l *Listener) isRunning() bool {
+	l.mtx.Lock()
+	defer l.mtx.Unlock()
 
-	return mqtt.running
+	return l.running
 }

@@ -14,11 +14,11 @@
 
 package broker
 
-// Runner is any runnable interface which the broker is able to manage.
-type Runner interface {
-	// Run runs the runner and must block until the runner stops.
-	Run() error
+// Listener is an interface for network listeners.
+type Listener interface {
+	// Listen starts listening and block until the listener stops.
+	Listen() error
 
-	// Stop stops the runner unblocking the Run function.
+	// Stop stops the listener unblocking the Listen function.
 	Stop()
 }

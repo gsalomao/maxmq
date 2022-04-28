@@ -70,12 +70,12 @@ func newCommandStart() *cobra.Command {
 				log.Fatal().Msg("Failed to set log severity: " + err.Error())
 			}
 
-			brk, err := newBroker(conf, &log)
+			b, err := newBroker(conf, &log)
 			if err != nil {
 				log.Fatal().Msg("Failed to create broker: " + err.Error())
 			}
 
-			runBroker(brk, &log)
+			runBroker(b, &log)
 
 			if profile != "" {
 				err := saveHeapProfile()
@@ -115,7 +115,7 @@ func newBroker(conf config.Config, log *logger.Logger) (*broker.Broker, error) {
 	}
 
 	cm := mqtt.NewConnectionManager(mqttConf, log)
-	r, err := mqtt.NewRunner(
+	l, err := mqtt.NewListener(
 		mqtt.WithConfiguration(mqttConf),
 		mqtt.WithConnectionHandler(&cm),
 		mqtt.WithLogger(log),
@@ -124,8 +124,8 @@ func newBroker(conf config.Config, log *logger.Logger) (*broker.Broker, error) {
 		return nil, err
 	}
 
-	brk := broker.New(log)
-	brk.AddRunner(r)
+	b := broker.New(log)
+	b.AddListener(l)
 
 	if conf.MetricsEnabled {
 		log.Debug().
@@ -133,32 +133,32 @@ func newBroker(conf config.Config, log *logger.Logger) (*broker.Broker, error) {
 			Str("Path", conf.MetricsPath).
 			Msg("Exporting metrics")
 
-		c := metrics.Configuration{
+		mtConf := metrics.Configuration{
 			Address:   conf.MetricsAddress,
 			Path:      conf.MetricsPath,
 			Profiling: conf.MetricsProfiling,
 		}
 
-		srv, err := metrics.NewServer(c, log)
+		l, err := metrics.NewListener(mtConf, log)
 		if err != nil {
 			return nil, err
 		}
 
-		brk.AddRunner(srv)
+		b.AddListener(l)
 	}
 
-	return &brk, nil
+	return &b, nil
 }
 
-func runBroker(brk *broker.Broker, log *logger.Logger) {
-	err := brk.Start()
+func runBroker(b *broker.Broker, log *logger.Logger) {
+	err := b.Start()
 	if err != nil {
 		log.Fatal().Msg("Failed to start broker: " + err.Error())
 	}
 
-	go waitOSSignals(brk)
+	go waitOSSignals(b)
 
-	err = brk.Wait()
+	err = b.Wait()
 	if err != nil {
 		log.Error().Msg("Broker stopped with error: " + err.Error())
 	}

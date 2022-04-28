@@ -16,34 +16,34 @@ package mocks
 
 import "github.com/stretchr/testify/mock"
 
-// RunnerMock is responsible to mock the broker.Runner.
-type RunnerMock struct {
+// ListenerMock is responsible to mock the broker.Listener.
+type ListenerMock struct {
 	mock.Mock
 	RunningCh chan bool
 	StopCh    chan bool
 	Err       error
 }
 
-// NewRunnerMock creates a RunnerMock.
-func NewRunnerMock() *RunnerMock {
-	return &RunnerMock{
+// NewListenerMock creates a ListenerMock.
+func NewListenerMock() *ListenerMock {
+	return &ListenerMock{
 		RunningCh: make(chan bool),
 		StopCh:    make(chan bool),
 	}
 }
 
-// Run runs the runner.
-func (r *RunnerMock) Run() error {
-	r.Called()
+// Listen starts the listener.
+func (l *ListenerMock) Listen() error {
+	l.Called()
 
-	r.RunningCh <- true
-	<-r.StopCh
+	l.RunningCh <- true
+	<-l.StopCh
 
-	return r.Err
+	return l.Err
 }
 
-// Stop stops the runner unblocking the Run function.
-func (r *RunnerMock) Stop() {
-	r.Called()
-	r.StopCh <- true
+// Stop stops the listener unblocking the Listen function.
+func (l *ListenerMock) Stop() {
+	l.Called()
+	l.StopCh <- true
 }

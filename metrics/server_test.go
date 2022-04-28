@@ -29,18 +29,18 @@ func TestMetrics_NewServer(t *testing.T) {
 		logStub := mocks.NewLoggerStub()
 		conf := metrics.Configuration{Address: ":8888", Path: "/metrics"}
 
-		p, err := metrics.NewServer(conf, logStub.Logger())
+		l, err := metrics.NewListener(conf, logStub.Logger())
 		assert.Nil(t, err)
-		assert.NotNil(t, p)
+		assert.NotNil(t, l)
 	})
 
 	t.Run("MissingAddress", func(t *testing.T) {
 		logStub := mocks.NewLoggerStub()
 		conf := metrics.Configuration{Address: "", Path: "/metrics"}
 
-		p, err := metrics.NewServer(conf, logStub.Logger())
+		l, err := metrics.NewListener(conf, logStub.Logger())
 		assert.NotNil(t, err)
-		assert.Nil(t, p)
+		assert.Nil(t, l)
 		assert.Contains(t, err.Error(), "missing address")
 	})
 
@@ -48,9 +48,9 @@ func TestMetrics_NewServer(t *testing.T) {
 		logStub := mocks.NewLoggerStub()
 		conf := metrics.Configuration{Address: ":8888", Path: ""}
 
-		p, err := metrics.NewServer(conf, logStub.Logger())
+		l, err := metrics.NewListener(conf, logStub.Logger())
 		assert.NotNil(t, err)
-		assert.Nil(t, p)
+		assert.Nil(t, l)
 		assert.Contains(t, err.Error(), "missing path")
 	})
 }
@@ -59,11 +59,11 @@ func TestMetrics_RunInvalidAddress(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	conf := metrics.Configuration{Address: ".", Path: "/metrics"}
 
-	p, err := metrics.NewServer(conf, logStub.Logger())
+	l, err := metrics.NewListener(conf, logStub.Logger())
 	require.Nil(t, err)
-	require.NotNil(t, p)
+	require.NotNil(t, l)
 
-	err = p.Run()
+	err = l.Listen()
 	require.NotNil(t, err)
 }
 
@@ -71,19 +71,19 @@ func TestMetrics_RunAndStop(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 	conf := metrics.Configuration{Address: ":8888", Path: "/metrics"}
 
-	p, err := metrics.NewServer(conf, logStub.Logger())
+	l, err := metrics.NewListener(conf, logStub.Logger())
 	require.Nil(t, err)
-	require.NotNil(t, p)
+	require.NotNil(t, l)
 
 	done := make(chan bool)
 	go func() {
-		err = p.Run()
+		err = l.Listen()
 		done <- true
 	}()
 
 	<-time.After(5 * time.Millisecond)
 	assert.Contains(t, logStub.String(), "Listening on [::]:8888")
-	p.Stop()
+	l.Stop()
 
 	<-done
 	assert.Nil(t, err)
