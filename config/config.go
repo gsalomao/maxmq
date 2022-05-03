@@ -160,6 +160,7 @@ func LoadConfig() (Config, error) {
 		MQTTConnectTimeout:       5,
 		MQTTBufferSize:           1024,
 		MQTTMaxPacketSize:        65536,
+		MQTTSessionExpiration:    7200,
 		MQTTMaxInflightMessages:  20,
 		MQTTMaximumQoS:           2,
 		MQTTMaxTopicAlias:        10,
