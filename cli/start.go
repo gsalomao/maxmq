@@ -28,6 +28,7 @@ import (
 	"github.com/gsalomao/maxmq/logger"
 	"github.com/gsalomao/maxmq/metrics"
 	"github.com/gsalomao/maxmq/mqtt"
+	"github.com/gsalomao/maxmq/mqtt/store"
 	"github.com/mattn/go-colorable"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -114,7 +115,8 @@ func newBroker(conf config.Config, log *logger.Logger) (*broker.Broker, error) {
 		MetricsEnabled:                conf.MetricsEnabled,
 	}
 
-	cm := mqtt.NewConnectionManager(mqttConf, log)
+	st := store.NewMemorySessionStore(log)
+	cm := mqtt.NewConnectionManager(mqttConf, st, log)
 	l, err := mqtt.NewListener(
 		mqtt.WithConfiguration(mqttConf),
 		mqtt.WithConnectionHandler(&cm),

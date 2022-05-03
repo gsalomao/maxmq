@@ -24,6 +24,7 @@ import (
 	"github.com/gsalomao/maxmq/broker"
 	"github.com/gsalomao/maxmq/mocks"
 	"github.com/gsalomao/maxmq/mqtt"
+	"github.com/gsalomao/maxmq/mqtt/store"
 	"github.com/stretchr/testify/assert"
 
 	paho "github.com/eclipse/paho.mqtt.golang"
@@ -32,8 +33,9 @@ import (
 func newBroker() *broker.Broker {
 	conf := mqtt.Configuration{TCPAddress: ":1883"}
 	logStub := mocks.NewLoggerStub()
+	store := store.NewMemorySessionStore(logStub.Logger())
 
-	cm := mqtt.NewConnectionManager(conf, logStub.Logger())
+	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 	l, _ := mqtt.NewListener(
 		mqtt.WithConfiguration(conf),
 		mqtt.WithConnectionHandler(&cm),

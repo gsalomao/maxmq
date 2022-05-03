@@ -25,9 +25,13 @@ import (
 	"go.uber.org/multierr"
 )
 
+// ClientID represents the MQTT Client ID.
+type ClientID []byte
+
 // Connection represents a network connection.
 type Connection struct {
-	clientID  []byte
+	clientID  ClientID
+	session   Session
 	netConn   net.Conn
 	timeout   uint16
 	version   packet.MQTTVersion
@@ -52,11 +56,13 @@ type ConnectionManager struct {
 	userProperties []packet.UserProperty
 	reader         packet.Reader
 	writer         packet.Writer
+	sessionStore   SessionStore
 }
 
 // NewConnectionManager creates a new ConnectionManager.
 func NewConnectionManager(
 	cf Configuration,
+	st SessionStore,
 	lg *logger.Logger,
 ) ConnectionManager {
 	cf.BufferSize = bufferSizeOrDefault(cf.BufferSize)
@@ -88,6 +94,7 @@ func NewConnectionManager(
 		userProperties: userProps,
 		reader:         packet.NewReader(rdOpts),
 		writer:         packet.NewWriter(cf.BufferSize),
+		sessionStore:   st,
 	}
 }
 
@@ -259,11 +266,19 @@ func (cm *ConnectionManager) handlePacketConnect(
 		return multierr.Combine(err, errSendConnAck)
 	}
 
+	// Get the session expiry interval before create ConnAck, as the Properties
+	// from Connect Packet is reset and reused to create the ConnAck Packet.
+	sessionExp := getSessionExpiryInterval(connPkt,
+		cm.conf.MaxSessionExpiryInterval)
+
 	code := packet.ReasonCodeV3ConnectionAccepted
 	connAck := newConnAck(conn, code, false, cm.conf, connPkt.Properties)
+	connPkt.Properties = nil
 
+	genID := false
 	if len(connPkt.ClientID) == 0 {
 		conn.clientID = generateClientID(cm.conf.ClientIDPrefix)
+		genID = true
 
 		if conn.version == packet.MQTT50 {
 			connAck.Properties = getPropertiesOrCreate(connAck.Properties)
@@ -271,12 +286,18 @@ func (cm *ConnectionManager) handlePacketConnect(
 		}
 	}
 
+	var err error
+	conn.session, err = cm.findOrCreateSession(conn.clientID, sessionExp, genID)
+	if err != nil {
+		return err
+	}
+
 	if conn.version == packet.MQTT50 {
 		connAck.Properties = getPropertiesOrCreate(connAck.Properties)
 		connAck.Properties.UserProperties = cm.userProperties
 	}
 
-	err := cm.sendConnAck(conn, connPkt, &connAck)
+	err = cm.sendConnAck(conn, connPkt, &connAck)
 	if err != nil {
 		return err
 	}
@@ -312,7 +333,7 @@ func (cm *ConnectionManager) checkKeepAlive(pkt *packet.Connect) error {
 func (cm *ConnectionManager) checkClientID(pkt *packet.Connect) *packet.Error {
 	cIDLen := len(pkt.ClientID)
 
-	if !cm.conf.AllowEmptyClientID && cIDLen == 0 {
+	if cIDLen == 0 && !cm.conf.AllowEmptyClientID {
 		if pkt.Version == packet.MQTT50 {
 			return packet.ErrV5InvalidClientID
 		}
@@ -401,4 +422,32 @@ func (cm *ConnectionManager) sendPacket(
 
 	cm.metrics.recordPacketSent(pkt)
 	return time.Now(), nil
+}
+
+func (cm *ConnectionManager) findOrCreateSession(id ClientID,
+	expiration uint32, generatedID bool) (Session, error) {
+
+	var session Session
+	var err error
+	var found bool
+
+	if !generatedID {
+		session, err = cm.sessionStore.GetSession(id)
+		if err == nil {
+			found = true
+		} else if err != ErrSessionNotFound {
+			return session, err
+		}
+	}
+	if !found {
+		session = Session{ExpiryInterval: expiration}
+	}
+
+	session.ConnectedAt = time.Now().Unix()
+	err = cm.sessionStore.SaveSession(id, session)
+	if err != nil {
+		return session, err
+	}
+
+	return session, nil
 }
