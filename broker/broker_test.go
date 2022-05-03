@@ -21,17 +21,43 @@ import (
 
 	"github.com/gsalomao/maxmq/broker"
 	"github.com/gsalomao/maxmq/logger"
-	"github.com/gsalomao/maxmq/mocks"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
+
+type listenerMock struct {
+	mock.Mock
+	RunningCh chan bool
+	StopCh    chan bool
+	Err       error
+}
+
+func newListenerMock() *listenerMock {
+	return &listenerMock{
+		RunningCh: make(chan bool),
+		StopCh:    make(chan bool),
+	}
+}
+
+func (l *listenerMock) Listen() error {
+	l.Called()
+	l.RunningCh <- true
+	<-l.StopCh
+	return l.Err
+}
+
+func (l *listenerMock) Stop() {
+	l.Called()
+	l.StopCh <- true
+}
 
 func TestBroker_Start(t *testing.T) {
 	out := bytes.NewBufferString("")
 	log := logger.New(out)
 	b := broker.New(&log)
 
-	mockLsn := mocks.NewListenerMock()
+	mockLsn := newListenerMock()
 	mockLsn.On("Listen")
 	b.AddListener(mockLsn)
 
@@ -56,7 +82,7 @@ func TestBroker_Stop(t *testing.T) {
 	log := logger.New(out)
 	b := broker.New(&log)
 
-	mockLsn := mocks.NewListenerMock()
+	mockLsn := newListenerMock()
 	mockLsn.On("Listen")
 	mockLsn.On("Stop")
 	b.AddListener(mockLsn)
@@ -82,7 +108,7 @@ func TestBroker_ListenerError(t *testing.T) {
 	log := logger.New(out)
 	b := broker.New(&log)
 
-	mockLsn := mocks.NewListenerMock()
+	mockLsn := newListenerMock()
 	mockLsn.On("Listen")
 	mockLsn.On("Stop")
 	b.AddListener(mockLsn)

@@ -26,10 +26,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type connectionHandlerMock struct {
+	mock.Mock
+}
+
+func (m *connectionHandlerMock) NewConnection(nc net.Conn) mqtt.Connection {
+	m.Called(nc)
+	return mqtt.Connection{}
+}
+
+func (m *connectionHandlerMock) Handle(conn mqtt.Connection) {
+	ret := m.Called(conn)
+	if fn, ok := ret.Get(0).(func()); ok {
+		fn()
+	}
+}
+
 func TestListener_New(t *testing.T) {
 	t.Run("MissingConfiguration", func(t *testing.T) {
 		logStub := mocks.NewLoggerStub()
-		mockConnHandler := mocks.ConnectionHandlerMock{}
+		mockConnHandler := connectionHandlerMock{}
 
 		_, err := mqtt.NewListener(
 			mqtt.WithConnectionHandler(&mockConnHandler),
@@ -41,7 +57,7 @@ func TestListener_New(t *testing.T) {
 	})
 
 	t.Run("MissingLogger", func(t *testing.T) {
-		mockConnHandler := mocks.ConnectionHandlerMock{}
+		mockConnHandler := connectionHandlerMock{}
 
 		_, err := mqtt.NewListener(
 			mqtt.WithConfiguration(mqtt.Configuration{}),
@@ -66,7 +82,7 @@ func TestListener_New(t *testing.T) {
 }
 
 func TestListener_RunInvalidTCPAddress(t *testing.T) {
-	mockConnHandler := mocks.ConnectionHandlerMock{}
+	mockConnHandler := connectionHandlerMock{}
 	logStub := mocks.NewLoggerStub()
 
 	l, err := mqtt.NewListener(
@@ -83,7 +99,7 @@ func TestListener_RunInvalidTCPAddress(t *testing.T) {
 
 func TestListener_RunAndStop(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
-	mockConnHandler := mocks.ConnectionHandlerMock{}
+	mockConnHandler := connectionHandlerMock{}
 
 	l, err := mqtt.NewListener(
 		mqtt.WithConfiguration(mqtt.Configuration{TCPAddress: ":1883"}),
@@ -111,7 +127,7 @@ func TestListener_Accept(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 
 	handled := make(chan bool)
-	mockConnHandler := mocks.ConnectionHandlerMock{}
+	mockConnHandler := connectionHandlerMock{}
 	mockConnHandler.On("NewConnection", mock.Anything)
 	mockConnHandler.On("Handle", mock.Anything).
 		Return(func() { handled <- true })

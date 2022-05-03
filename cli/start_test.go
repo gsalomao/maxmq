@@ -22,8 +22,35 @@ import (
 	"github.com/gsalomao/maxmq/config"
 	"github.com/gsalomao/maxmq/mocks"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
+
+type listenerMock struct {
+	mock.Mock
+	RunningCh chan bool
+	StopCh    chan bool
+	Err       error
+}
+
+func newListenerMock() *listenerMock {
+	return &listenerMock{
+		RunningCh: make(chan bool),
+		StopCh:    make(chan bool),
+	}
+}
+
+func (l *listenerMock) Listen() error {
+	l.Called()
+	l.RunningCh <- true
+	<-l.StopCh
+	return l.Err
+}
+
+func (l *listenerMock) Stop() {
+	l.Called()
+	l.StopCh <- true
+}
 
 func TestCLI_NewBroker(t *testing.T) {
 	t.Run("Valid", func(t *testing.T) {
@@ -59,7 +86,7 @@ func TestCLI_NewBroker(t *testing.T) {
 func TestCLI_RunBroker(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 
-	mockLsn := mocks.NewListenerMock()
+	mockLsn := newListenerMock()
 	mockLsn.On("Listen")
 	mockLsn.On("Stop")
 
