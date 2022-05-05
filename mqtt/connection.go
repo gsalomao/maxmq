@@ -226,7 +226,11 @@ func (cm *ConnectionManager) handlePacket(
 
 		cm.Close(conn, false)
 		err := cm.sessionStore.DeleteSession(conn.clientID, conn.session)
-		if err != nil {
+		if err == nil {
+			cm.log.Debug().
+				Bytes("ClientID", conn.clientID).
+				Msg("MQTT Session deleted with success")
+		} else {
 			cm.log.Error().
 				Bytes("ClientID", conn.clientID).
 				Msg("MQTT Failed to delete session: " + err.Error())
@@ -447,14 +451,30 @@ func (cm *ConnectionManager) findOrCreateSession(id ClientID,
 		}
 	}
 	if !found {
+		cm.log.Debug().
+			Bytes("ClientID", id).
+			Msg("MQTT Session not found")
 		session = Session{ExpiryInterval: expiration}
+	} else {
+		cm.log.Debug().
+			Bytes("ClientID", id).
+			Int64("ConnectedAt", session.ConnectedAt).
+			Msg("MQTT Session found")
 	}
 
 	session.ConnectedAt = time.Now().Unix()
 	err = cm.sessionStore.SaveSession(id, session)
 	if err != nil {
+		cm.log.Error().
+			Bytes("ClientID", id).
+			Msg("MQTT Failed to save session: " + err.Error())
 		return session, err
 	}
+
+	cm.log.Debug().
+		Bytes("ClientID", id).
+		Uint32("ExpiryInterval", session.ExpiryInterval).
+		Msg("MQTT Session saved with success")
 
 	return session, nil
 }

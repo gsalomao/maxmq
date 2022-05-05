@@ -115,7 +115,7 @@ func newBroker(conf config.Config, log *logger.Logger) (*broker.Broker, error) {
 		MetricsEnabled:                conf.MetricsEnabled,
 	}
 
-	st := store.NewMemorySessionStore(log)
+	st := store.NewMemorySessionStore()
 	cm := mqtt.NewConnectionManager(mqttConf, st, log)
 	l, err := mqtt.NewListener(
 		mqtt.WithConfiguration(mqttConf),

@@ -15,49 +15,55 @@
 package store
 
 import (
-	"github.com/gsalomao/maxmq/logger"
+	"sync"
+
 	"github.com/gsalomao/maxmq/mqtt"
 )
 
 // MemorySessionStore represents a store where the sessions are saved in
 // memory.
 type MemorySessionStore struct {
-	log *logger.Logger
+	mu       sync.RWMutex
+	sessions map[string]mqtt.Session
 }
 
 // NewMemorySessionStore creates a MemorySessionStore.
-func NewMemorySessionStore(log *logger.Logger) *MemorySessionStore {
-	return &MemorySessionStore{log: log}
+func NewMemorySessionStore() *MemorySessionStore {
+	return &MemorySessionStore{
+		sessions: make(map[string]mqtt.Session),
+	}
 }
 
 // GetSession gets the session from in-memory session store.
 func (s *MemorySessionStore) GetSession(id mqtt.ClientID) (mqtt.Session,
 	error) {
-	s.log.Debug().
-		Bytes("ClientID", id).
-		Msg("MQTT No session found in memory")
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
-	return mqtt.Session{}, mqtt.ErrSessionNotFound
+	session, ok := s.sessions[string(id)]
+	if !ok {
+		return mqtt.Session{}, mqtt.ErrSessionNotFound
+	}
+
+	return session, nil
 }
 
 // SaveSession saves the session into the in-memory session store.
 func (s *MemorySessionStore) SaveSession(id mqtt.ClientID,
 	session mqtt.Session) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	s.log.Debug().
-		Bytes("ClientID", id).
-		Uint32("ExpiryInterval", session.ExpiryInterval).
-		Msg("MQTT Session saved in memory")
-
+	s.sessions[string(id)] = session
 	return nil
 }
 
 // DeleteSession deletes the session from the in-memory session store.
 func (s *MemorySessionStore) DeleteSession(id mqtt.ClientID,
 	_ mqtt.Session) error {
-	s.log.Debug().
-		Bytes("ClientID", id).
-		Msg("MQTT Session deleted from memory")
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
+	delete(s.sessions, string(id))
 	return nil
 }
