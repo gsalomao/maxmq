@@ -225,6 +225,13 @@ func (cm *ConnectionManager) handlePacket(
 			Msg("MQTT Handling DISCONNECT Packet")
 
 		cm.Close(conn, false)
+		err := cm.sessionStore.DeleteSession(conn.clientID, conn.session)
+		if err != nil {
+			cm.log.Error().
+				Bytes("ClientID", conn.clientID).
+				Msg("MQTT Failed to delete session: " + err.Error())
+		}
+
 		cm.metrics.recordDisconnectLatency(time.Since(pkt.Timestamp()))
 		return nil
 	default:

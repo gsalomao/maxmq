@@ -47,6 +47,12 @@ func (s *sessionStoreMock) SaveSession(id mqtt.ClientID,
 	return args.Error(0)
 }
 
+func (s *sessionStoreMock) DeleteSession(id mqtt.ClientID,
+	ss mqtt.Session) error {
+	args := s.Called(id, ss)
+	return args.Error(0)
+}
+
 func newConfiguration() mqtt.Configuration {
 	return mqtt.Configuration{
 		TCPAddress:                    ":1883",
@@ -1333,6 +1339,7 @@ func TestConnectionManager_Disconnect(t *testing.T) {
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
 	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("DeleteSession", mock.Anything, mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 

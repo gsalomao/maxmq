@@ -36,4 +36,7 @@ type SessionStore interface {
 
 	// SaveSession saves the session into the store.
 	SaveSession(id ClientID, s Session) error
+
+	// DeleteSession deletes the session from the store.
+	DeleteSession(id ClientID, s Session) error
 }

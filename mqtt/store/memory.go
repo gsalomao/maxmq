@@ -51,3 +51,13 @@ func (s *MemorySessionStore) SaveSession(id mqtt.ClientID,
 
 	return nil
 }
+
+// DeleteSession deletes the session from the in-memory session store.
+func (s *MemorySessionStore) DeleteSession(id mqtt.ClientID,
+	_ mqtt.Session) error {
+	s.log.Debug().
+		Bytes("ClientID", id).
+		Msg("MQTT Session deleted from memory")
+
+	return nil
+}
