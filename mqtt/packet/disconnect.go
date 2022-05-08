@@ -24,18 +24,24 @@ import (
 
 // Disconnect represents the DISCONNECT Packet from MQTT specifications.
 type Disconnect struct {
+	// Properties represents the DISCONNECT properties (MQTT V5.0 only).
+	Properties *Properties
+
+	// timestamp represents the timestamp which the packet was created.
+	timestamp time.Time
+
+	// size represents the number of bytes in the packet.
+	size int
+
+	// remainLength represents the number of bytes in the packet excluding the
+	// fixed header.
+	remainLength int
+
 	// Version represents the MQTT version.
 	Version MQTTVersion
 
 	// ReasonCode represents the reason code based on the MQTT specifications.
 	ReasonCode ReasonCode
-
-	// Properties represents the DISCONNECT properties (MQTT V5.0 only).
-	Properties *Properties
-
-	size         int
-	remainLength int
-	timestamp    time.Time
 }
 
 func newPacketDisconnect(opts options) (Packet, error) {

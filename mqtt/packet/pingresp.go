@@ -22,8 +22,8 @@ import (
 
 // PingResp represents the PINGRESP Packet from MQTT specifications.
 type PingResp struct {
-	size      int
 	timestamp time.Time
+	size      int
 }
 
 // NewPingResp creates a PINGRESP Packet.

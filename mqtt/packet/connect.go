@@ -35,44 +35,8 @@ const (
 
 // Connect represents the CONNECT Packet from MQTT specifications.
 type Connect struct {
-	// Version represents the MQTT version.
-	Version MQTTVersion
-
-	// CleanSession indicates if the session is temporary or not.
-	CleanSession bool
-
-	// WillFlag indicates that, if the Connect request is accepted, and the Will
-	// Message MUST be stored on the broker and associated with the connection.
-	WillFlag bool
-
-	// WillQoS indicates the QoS level to be used when publishing the Will
-	// Message.
-	WillQoS WillQoS
-
-	// WillRetain indicates if the Will Message is to be Retained when it is
-	// published.
-	WillRetain bool
-
-	// UserNameFlag indicates if the UserName is present on the message or not.
-	UserNameFlag bool
-
-	// PasswordFlag indicates if the Password is present on the message or not.
-	PasswordFlag bool
-
-	// KeepAlive is a time interval, measured in seconds, that is permitted to
-	// elapse between the point at which the Client finishes transmitting one
-	// Control Packet and the point it starts sending the next.
-	KeepAlive uint16
-
-	// Properties represents the CONNECT properties.
-	Properties *Properties
-
 	// ClientID identifies the client to the broker.
 	ClientID []byte
-
-	// WillProperties defines the Application Message properties to be sent with
-	// the Will Message when it is published.
-	WillProperties *Properties
 
 	// WillTopic represents the topic which the Will Message will be published.
 	WillTopic []byte
@@ -88,9 +52,51 @@ type Connect struct {
 	// authentication and authorization.
 	Password []byte
 
-	size         int
+	// Properties represents the CONNECT properties (MQTT V5.0 only).
+	Properties *Properties
+
+	// WillProperties defines the Application Message properties to be sent with
+	// the Will Message when it is published.
+	WillProperties *Properties
+
+	// timestamp represents the timestamp which the packet was created.
+	timestamp time.Time
+
+	// size represents the number of bytes in the packet.
+	size int
+
+	// remainLength represents the number of bytes in the packet excluding the
+	// fixed header.
 	remainLength int
-	timestamp    time.Time
+
+	// KeepAlive is a time interval, measured in seconds, that is permitted to
+	// elapse between the point at which the Client finishes transmitting one
+	// Control Packet and the point it starts sending the next.
+	KeepAlive uint16
+
+	// Version represents the MQTT version.
+	Version MQTTVersion
+
+	// WillQoS indicates the QoS level to be used when publishing the Will
+	// Message.
+	WillQoS WillQoS
+
+	// CleanSession indicates if the session is temporary or not.
+	CleanSession bool
+
+	// WillFlag indicates that, if the Connect request is accepted, and the Will
+	// Message MUST be stored on the broker and associated with the connection.
+	WillFlag bool
+
+	// WillRetain indicates if the Will Message is to be Retained when it is
+	// published.
+	WillRetain bool
+
+	// UserNameFlag indicates if the UserName is present on the message or not.
+	UserNameFlag bool
+
+	// PasswordFlag indicates if the Password is present on the message or not.
+	PasswordFlag bool
 }
 
 // WillQoS indicates the QoS level to be used when publishing the Will Message.

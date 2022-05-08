@@ -34,22 +34,22 @@ var (
 		Reason:     "client ID not allowed",
 	}
 
-	// ErrV5MalformedPacket indicates that data within the CONNECT packet could
-	// not be correctly parsed.
+	// ErrV5MalformedPacket indicates that data within the packet could not be
+	// correctly parsed.
 	ErrV5MalformedPacket = &Error{
 		ReasonCode: ReasonCodeV5MalformedPacket,
 		Reason:     "malformed packet",
 	}
 
-	// ErrV5ProtocolError indicates that data in the CONNECT packet does not
-	// conform with the V5.x specification.
+	// ErrV5ProtocolError indicates that data in the packet does not conform
+	// with the V5.x specification.
 	ErrV5ProtocolError = &Error{
 		ReasonCode: ReasonCodeV5ProtocolError,
 		Reason:     "protocol error",
 	}
 
-	// ErrV5InvalidClientID indicates that client ID in the CONNECT packet is
-	// valid, but it is not allowed by the broker.
+	// ErrV5InvalidClientID indicates that client ID in the packet is valid, but
+	// it is not allowed by the broker.
 	ErrV5InvalidClientID = &Error{
 		ReasonCode: ReasonCodeV5InvalidClientID,
 		Reason:     "invalid client identifier",

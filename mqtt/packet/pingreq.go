@@ -22,8 +22,8 @@ import (
 
 // PingReq represents the PINGREQ Packet from MQTT specifications.
 type PingReq struct {
-	size      int
 	timestamp time.Time
+	size      int
 }
 
 func newPacketPingReq(opts options) (Packet, error) {

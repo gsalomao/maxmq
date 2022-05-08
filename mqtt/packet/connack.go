@@ -23,6 +23,15 @@ import (
 
 // ConnAck represents the CONNACK Packet from MQTT specifications.
 type ConnAck struct {
+	// Properties represents the CONNACK properties (MQTT V5.0 only).
+	Properties *Properties
+
+	// timestamp represents the timestamp which the packet was created.
+	timestamp time.Time
+
+	// size represents the number of bytes in the packet.
+	size int
+
 	// Version represents the MQTT version.
 	Version MQTTVersion
 
@@ -32,12 +41,6 @@ type ConnAck struct {
 	// SessionPresent indicates if there is already a session associated with
 	// the Client ID.
 	SessionPresent bool
-
-	// Properties represents the CONNACK properties (MQTT V5.0 only).
-	Properties *Properties
-
-	size      int
-	timestamp time.Time
 }
 
 // NewConnAck creates a CONNACK Packet.
