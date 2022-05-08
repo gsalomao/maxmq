@@ -220,9 +220,11 @@ var propertyHandlers = map[propType]propertyHandler{
 	},
 	propServerReference: {
 		types: map[Type]struct{}{CONNACK: {}, DISCONNECT: {}},
+		read:  readServerReference,
 	},
 	propReasonString: {
 		types: map[Type]struct{}{CONNACK: {}, DISCONNECT: {}},
+		read:  readPropReasonString,
 	},
 	propReceiveMaximum: {
 		types: map[Type]struct{}{CONNECT: {}, CONNACK: {}},
@@ -465,6 +467,14 @@ func readPropMaxPacketSize(b *bytes.Buffer, p *Properties) error {
 		&p.MaximumPacketSize,
 		func(u uint32) bool { return u != 0 },
 	)
+}
+
+func readPropReasonString(b *bytes.Buffer, p *Properties) error {
+	return readPropertyString(b, &p.ReasonString)
+}
+
+func readServerReference(b *bytes.Buffer, p *Properties) error {
+	return readPropertyString(b, &p.ServerReference)
 }
 
 func readPropByte(b *bytes.Buffer, v **byte, val func(byte) bool) error {

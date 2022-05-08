@@ -212,6 +212,27 @@ func BenchmarkProperties_ReadPropertiesConnect(b *testing.B) {
 	}
 }
 
+func TestProperties_ReadPropertiesDisconnect(t *testing.T) {
+	msg := []byte{
+		0,               // property length
+		17, 0, 0, 0, 10, // SessionExpiryInterval
+		31, 0, 2, 'r', 's', // ReasonString
+		38, 0, 1, 'a', 0, 1, 'b', // UserProperty
+		38, 0, 1, 'c', 0, 1, 'd', // UserProperty
+		28, 0, 2, 'e', 'f', // ServerReference
+	}
+	msg[0] = byte(len(msg)) - 1
+
+	props, err := readProperties(bytes.NewBuffer(msg), DISCONNECT)
+	require.Nil(t, err)
+
+	assert.Equal(t, uint32(10), *props.SessionExpiryInterval)
+	assert.Equal(t, []byte("rs"), props.ReasonString)
+	assert.Equal(t, []byte{'a'}, props.UserProperties[0].Key)
+	assert.Equal(t, []byte{'b'}, props.UserProperties[0].Value)
+	assert.Equal(t, []byte("ef"), props.ServerReference)
+}
+
 func TestProperties_ReadPropertiesMalformed(t *testing.T) {
 	props := [][]byte{
 		{38, 0, 1, 'a', 0, 1}, // invalid user property
