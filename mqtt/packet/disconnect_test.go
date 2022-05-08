@@ -160,6 +160,16 @@ func TestDisconnect_UnpackV5(t *testing.T) {
 	require.Nil(t, discPkg.Properties)
 }
 
+func TestDisconnect_UnpackInvalidLength(t *testing.T) {
+	msg := []byte{0x81, 0}
+	opts := options{packetType: DISCONNECT, remainingLength: 10}
+	pkt, err := newPacketDisconnect(opts)
+	require.Nil(t, err)
+
+	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	require.NotNil(t, err)
+}
+
 func TestDisconnect_UnpackV5MissingReasonCode(t *testing.T) {
 	opts := options{packetType: DISCONNECT, remainingLength: 1}
 	pkt, err := newPacketDisconnect(opts)

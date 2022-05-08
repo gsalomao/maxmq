@@ -76,6 +76,28 @@ type Packet interface {
 	Timestamp() time.Time
 }
 
+// Topic represents the MQTT topic.
+type Topic struct {
+	// Name represents the topic name.
+	Name []byte
+
+	// QoS represents the QoS level of the subscription.
+	QoS uint8
+
+	// RetainHandling indicates whether the retained message are sent when the
+	// subscription is established or not.
+	RetainHandling byte
+
+	// RetainAsPublished indicates whether the RETAIN flag is kept when messages
+	// are forwarded using this subscription or not.
+	RetainAsPublished bool
+
+	// NoLocal indicates whether the messages must not be forwarded to a
+	// connection with a client ID equal to the client ID of the publishing
+	// connection or not.
+	NoLocal bool
+}
+
 type options struct {
 	timestamp         time.Time
 	fixedHeaderLength int
@@ -89,6 +111,7 @@ var packetTypeToFactory = map[Type]func(options) (Packet, error){
 	CONNECT:    newPacketConnect,
 	PINGREQ:    newPacketPingReq,
 	DISCONNECT: newPacketDisconnect,
+	SUBSCRIBE:  newPacketSubscribe,
 }
 
 func newPacket(opts options) (Packet, error) {

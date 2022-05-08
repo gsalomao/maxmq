@@ -29,12 +29,17 @@ func TestPacket_NewPacket(t *testing.T) {
 	}{
 		{tp: CONNECT, flags: 0, name: "CONNECT"},
 		{tp: PINGREQ, flags: 0, name: "PINGREQ"},
+		{tp: SUBSCRIBE, flags: 2, name: "SUBSCRIBE"},
 	}
 
 	for _, test := range testCases {
 		t.Run(
 			test.name, func(t *testing.T) {
-				opts := options{packetType: test.tp, controlFlags: test.flags}
+				opts := options{
+					packetType:   test.tp,
+					controlFlags: test.flags,
+					version:      MQTT311,
+				}
 				pkt, err := newPacket(opts)
 				require.Nil(t, err)
 				require.NotNil(t, pkt)
