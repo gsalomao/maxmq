@@ -40,6 +40,9 @@ type Properties struct {
 	// Message.
 	CorrelationData []byte
 
+	// SubscriptionIdentifier represents the identifier of the subscription.
+	SubscriptionIdentifier *int
+
 	// SessionExpiryInterval represents the time, in seconds, which the broker
 	// must store the Session State after the network connection is closed.
 	SessionExpiryInterval *uint32
@@ -136,6 +139,7 @@ const (
 	propContentType                   propType = 0x03
 	propResponseTopic                 propType = 0x08
 	propCorrelationData               propType = 0x09
+	propSubscriptionIdentifier        propType = 0x0B
 	propSessionExpiryInterval         propType = 0x11
 	propAssignedClientID              propType = 0x12
 	propServerKeepAlive               propType = 0x13
@@ -184,6 +188,10 @@ var propertyHandlers = map[propType]propertyHandler{
 	propCorrelationData: {
 		types: map[Type]struct{}{CONNECT: {}},
 		read:  readPropCorrelationData,
+	},
+	propSubscriptionIdentifier: {
+		types: map[Type]struct{}{SUBSCRIBE: {}},
+		read:  readPropSubscriptionIdentifier,
 	},
 	propSessionExpiryInterval: {
 		types: map[Type]struct{}{CONNECT: {}, CONNACK: {}, DISCONNECT: {}},
@@ -244,8 +252,9 @@ var propertyHandlers = map[propType]propertyHandler{
 		types: map[Type]struct{}{CONNACK: {}},
 	},
 	propUser: {
-		types: map[Type]struct{}{CONNECT: {}, CONNACK: {}, DISCONNECT: {}},
-		read:  readPropUser,
+		types: map[Type]struct{}{CONNECT: {}, CONNACK: {}, DISCONNECT: {},
+			SUBSCRIBE: {}},
+		read: readPropUser,
 	},
 	propMaximumPacketSize: {
 		types: map[Type]struct{}{CONNECT: {}, CONNACK: {}},
@@ -388,15 +397,15 @@ func readPropMessageExpInterval(b *bytes.Buffer, p *Properties) error {
 }
 
 func readPropContentType(b *bytes.Buffer, p *Properties) error {
-	return readPropertyString(b, &p.ContentType)
+	return readPropString(b, &p.ContentType)
 }
 
 func readPropResponseTopic(b *bytes.Buffer, p *Properties) error {
-	return readPropertyString(b, &p.ResponseTopic)
+	return readPropString(b, &p.ResponseTopic)
 }
 
 func readPropCorrelationData(b *bytes.Buffer, p *Properties) error {
-	return readPropertyBinary(b, &p.CorrelationData)
+	return readPropBinary(b, &p.CorrelationData)
 }
 
 func readPropSessionExpiryInterval(b *bytes.Buffer, p *Properties) error {
@@ -404,11 +413,11 @@ func readPropSessionExpiryInterval(b *bytes.Buffer, p *Properties) error {
 }
 
 func readPropAuthMethod(b *bytes.Buffer, p *Properties) error {
-	return readPropertyString(b, &p.AuthMethod)
+	return readPropString(b, &p.AuthMethod)
 }
 
 func readPropAuthData(b *bytes.Buffer, p *Properties) error {
-	return readPropertyBinary(b, &p.AuthData)
+	return readPropBinary(b, &p.AuthData)
 }
 
 func readPropRequestProblemInfo(b *bytes.Buffer, p *Properties) error {
@@ -470,11 +479,17 @@ func readPropMaxPacketSize(b *bytes.Buffer, p *Properties) error {
 }
 
 func readPropReasonString(b *bytes.Buffer, p *Properties) error {
-	return readPropertyString(b, &p.ReasonString)
+	return readPropString(b, &p.ReasonString)
 }
 
 func readServerReference(b *bytes.Buffer, p *Properties) error {
-	return readPropertyString(b, &p.ServerReference)
+	return readPropString(b, &p.ServerReference)
+}
+
+func readPropSubscriptionIdentifier(b *bytes.Buffer, p *Properties) error {
+	return readPropVarInteger(b, &p.SubscriptionIdentifier, func(v int) bool {
+		return v >= 1 && v <= 268435455
+	})
 }
 
 func readPropByte(b *bytes.Buffer, v **byte, val func(byte) bool) error {
@@ -531,7 +546,7 @@ func readPropUint32(b *bytes.Buffer, v **uint32, val func(uint32) bool) error {
 	return nil
 }
 
-func readPropertyString(b *bytes.Buffer, buf *[]byte) error {
+func readPropString(b *bytes.Buffer, buf *[]byte) error {
 	if *buf != nil {
 		return ErrV5ProtocolError
 	}
@@ -541,7 +556,7 @@ func readPropertyString(b *bytes.Buffer, buf *[]byte) error {
 	return err
 }
 
-func readPropertyBinary(b *bytes.Buffer, buf *[]byte) error {
+func readPropBinary(b *bytes.Buffer, buf *[]byte) error {
 	if *buf != nil {
 		return ErrV5ProtocolError
 	}
@@ -549,6 +564,24 @@ func readPropertyBinary(b *bytes.Buffer, buf *[]byte) error {
 	var err error
 	*buf, err = readBinary(b, MQTT50)
 	return err
+}
+
+func readPropVarInteger(b *bytes.Buffer, v **int, val func(int) bool) error {
+	if *v != nil {
+		return ErrV5ProtocolError
+	}
+
+	*v = new(int)
+	_, err := readVarInteger(b, *v)
+	if err != nil {
+		return err
+	}
+
+	if val != nil && !val(**v) {
+		return ErrV5ProtocolError
+	}
+
+	return nil
 }
 
 type propertiesWriter struct {
