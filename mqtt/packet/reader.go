@@ -51,7 +51,7 @@ func NewReader(o ReaderOptions) Reader {
 
 // ReadPacket reads and unpack a packet from the io.Reader.
 // It returns an error if it fails to read or unpack the packet.
-func (r *Reader) ReadPacket(rd io.Reader) (Packet, error) {
+func (r *Reader) ReadPacket(rd io.Reader, ver MQTTVersion) (Packet, error) {
 	ctrlByte := make([]byte, 1)
 
 	_, err := rd.Read(ctrlByte)
@@ -80,6 +80,7 @@ func (r *Reader) ReadPacket(rd io.Reader) (Packet, error) {
 		fixedHeaderLength: 1 + n,
 		remainingLength:   remainLen,
 		timestamp:         now,
+		version:           ver,
 	}
 
 	pkt, err := newPacket(opts)

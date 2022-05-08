@@ -129,7 +129,7 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 			Uint16("Timeout", conn.timeout).
 			Msg("MQTT Waiting packet")
 
-		pkt, err := cm.reader.ReadPacket(conn.netConn)
+		pkt, err := cm.reader.ReadPacket(conn.netConn, conn.version)
 		if err != nil {
 			if err == io.EOF {
 				cm.log.Debug().Msg("MQTT Connection was closed")

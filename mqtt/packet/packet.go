@@ -81,6 +81,7 @@ type options struct {
 	fixedHeaderLength int
 	remainingLength   int
 	packetType        Type
+	version           MQTTVersion
 	controlFlags      byte
 }
 

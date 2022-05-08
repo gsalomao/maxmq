@@ -37,7 +37,7 @@ func TestPacket_ReadPacket(t *testing.T) {
 		opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
 		reader := packet.NewReader(opts)
 
-		pkt, err := reader.ReadPacket(sConn)
+		pkt, err := reader.ReadPacket(sConn, 0)
 		assert.Nil(t, err)
 		assert.NotNil(t, pkt)
 	}()
@@ -67,7 +67,7 @@ func BenchmarkReader_ReadPacketConnect(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		r.Reset(msg)
-		_, err := reader.ReadPacket(r)
+		_, err := reader.ReadPacket(r, 0)
 
 		if err != nil {
 			b.Fatal(err)
@@ -85,7 +85,7 @@ func BenchmarkReader_ReadPacketDisconnect(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		r.Reset(msg)
-		_, err := reader.ReadPacket(r)
+		_, err := reader.ReadPacket(r, packet.MQTT311)
 
 		if err != nil {
 			b.Fatal(err)
@@ -103,7 +103,7 @@ func BenchmarkReader_ReadPacketPingReq(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		r.Reset(msg)
-		_, err := reader.ReadPacket(r)
+		_, err := reader.ReadPacket(r, packet.MQTT31)
 
 		if err != nil {
 			b.Fatal(err)
@@ -123,7 +123,7 @@ func TestPacket_ReadPacketBiggerThanMaxPacketSize(t *testing.T) {
 		opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 2}
 		reader := packet.NewReader(opts)
 
-		_, err := reader.ReadPacket(sConn)
+		_, err := reader.ReadPacket(sConn, packet.MQTT50)
 		require.NotNil(t, err)
 	}()
 
@@ -150,7 +150,7 @@ func TestPacket_ReadPacketError(t *testing.T) {
 		opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
 		reader := packet.NewReader(opts)
 
-		_, err := reader.ReadPacket(sConn)
+		_, err := reader.ReadPacket(sConn, packet.MQTT311)
 		require.NotNil(t, err)
 	}()
 
@@ -198,7 +198,7 @@ func TestPacket_ReadPacketInvalid(t *testing.T) {
 			opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
 			reader := packet.NewReader(opts)
 
-			_, err := reader.ReadPacket(sConn)
+			_, err := reader.ReadPacket(sConn, packet.MQTT311)
 			require.NotNil(t, err)
 			assert.Contains(t, err.Error(), test.msg)
 		}()
