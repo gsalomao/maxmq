@@ -49,21 +49,19 @@ func (s *MemorySessionStore) GetSession(id mqtt.ClientID) (mqtt.Session,
 }
 
 // SaveSession saves the session into the in-memory session store.
-func (s *MemorySessionStore) SaveSession(id mqtt.ClientID,
-	session mqtt.Session) error {
+func (s *MemorySessionStore) SaveSession(session mqtt.Session) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.sessions[string(id)] = session
+	s.sessions[string(session.ClientID)] = session
 	return nil
 }
 
 // DeleteSession deletes the session from the in-memory session store.
-func (s *MemorySessionStore) DeleteSession(id mqtt.ClientID,
-	_ mqtt.Session) error {
+func (s *MemorySessionStore) DeleteSession(session mqtt.Session) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	delete(s.sessions, string(id))
+	delete(s.sessions, string(session.ClientID))
 	return nil
 }

@@ -41,15 +41,13 @@ func (s *sessionStoreMock) GetSession(id mqtt.ClientID) (mqtt.Session, error) {
 	return ss.(mqtt.Session), args.Error(1)
 }
 
-func (s *sessionStoreMock) SaveSession(id mqtt.ClientID,
-	ss mqtt.Session) error {
-	args := s.Called(id, ss)
+func (s *sessionStoreMock) SaveSession(session mqtt.Session) error {
+	args := s.Called(session)
 	return args.Error(0)
 }
 
-func (s *sessionStoreMock) DeleteSession(id mqtt.ClientID,
-	ss mqtt.Session) error {
-	args := s.Called(id, ss)
+func (s *sessionStoreMock) DeleteSession(session mqtt.Session) error {
+	args := s.Called(session)
 	return args.Error(0)
 }
 
@@ -83,7 +81,7 @@ func TestConnectionManager_ConnectV3(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 
@@ -125,7 +123,7 @@ func TestConnectionManager_ConnectV3NewSession(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", clientId).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", clientId,
+	store.On("SaveSession",
 		mock.MatchedBy(func(s mqtt.Session) bool {
 			connectedAt := time.Unix(s.ConnectedAt, 0)
 			assert.True(t,
@@ -172,7 +170,7 @@ func TestConnectionManager_ConnectV3ExistingSession(t *testing.T) {
 	}
 	store := &sessionStoreMock{}
 	store.On("GetSession", clientId).Return(session, nil)
-	store.On("SaveSession", clientId,
+	store.On("SaveSession",
 		mock.MatchedBy(func(s mqtt.Session) bool {
 			connectedAt := time.Unix(s.ConnectedAt, 0)
 			assert.True(t,
@@ -290,7 +288,7 @@ func TestConnectionManager_ConnectV311AllowEmptyClientID(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{
 		AllowEmptyClientID: true,
@@ -367,7 +365,7 @@ func TestConnectionManager_ConnectV5(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(mqtt.Configuration{
 		MaximumQoS:                    3,     // invalid: will be changed to 2
@@ -419,7 +417,7 @@ func TestConnectionManager_ConnectV5WithSessionExpiryInterval(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything,
+	store.On("SaveSession",
 		mock.MatchedBy(func(s mqtt.Session) bool {
 			assert.Equal(t, uint32(100), s.ExpiryInterval)
 			return true
@@ -460,7 +458,7 @@ func TestConnectionManager_ConnectV5WithoutSessionExpiryInterval(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything,
+	store.On("SaveSession",
 		mock.MatchedBy(func(s mqtt.Session) bool {
 			assert.Equal(t, uint32(0), s.ExpiryInterval)
 			return true
@@ -578,7 +576,7 @@ func TestConnectionManager_ConnectV5AssignClientID(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 
@@ -621,7 +619,7 @@ func TestConnectionManager_ConnectV5AssignClientIDWithPrefix(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 
@@ -717,7 +715,7 @@ func TestConnectionManager_ConnectV5MaxKeepAlive(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 
@@ -759,7 +757,7 @@ func TestConnectionManager_ConnectV5MaxSessionExpiryInterval(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 
@@ -806,7 +804,7 @@ func TestConnectionManager_ConnectV5ReceiveMaximum(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 
@@ -852,7 +850,7 @@ func TestConnectionManager_ConnectV5ReceiveMaximumZero(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 
@@ -894,7 +892,7 @@ func TestConnectionManager_ConnectV5ReceiveMaximumMax(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 
@@ -936,7 +934,7 @@ func TestConnectionManager_ConnectV5MaxPacketSize(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 
@@ -978,7 +976,7 @@ func TestConnectionManager_ConnectV5MaximumQoS(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 
@@ -1020,7 +1018,7 @@ func TestConnectionManager_ConnectV5TopicAliasMaximum(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 
@@ -1062,7 +1060,7 @@ func TestConnectionManager_ConnectV5RetainAvailable(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 
@@ -1104,7 +1102,7 @@ func TestConnectionManager_ConnectV5WildcardSubsAvailable(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 
@@ -1146,7 +1144,7 @@ func TestConnectionManager_ConnectV5SubscriptionIDAvailable(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 
@@ -1188,7 +1186,7 @@ func TestConnectionManager_ConnectV5SharedSubscriptionAvailable(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 	conn, sConn := net.Pipe()
@@ -1229,7 +1227,7 @@ func TestConnectionManager_ConnectV5UserProperty(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 	conn, sConn := net.Pipe()
@@ -1273,7 +1271,7 @@ func TestConnectionManager_PingReq(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 
@@ -1338,8 +1336,8 @@ func TestConnectionManager_Disconnect(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
-	store.On("DeleteSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
+	store.On("DeleteSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 
@@ -1428,7 +1426,7 @@ func TestConnectionManager_ReadTimeout(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("GetSession", mock.Anything).Return(mqtt.Session{},
 		mqtt.ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything, mock.Anything).Return(nil)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	cm := mqtt.NewConnectionManager(newConfiguration(), store, logStub.Logger())
 

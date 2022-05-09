@@ -21,6 +21,9 @@ var ErrSessionNotFound = errors.New("session not found")
 
 // Session stores the MQTT session.
 type Session struct {
+	// ClientID represents the ID of the client owner of the session.
+	ClientID ClientID
+
 	// ConnectedAt represents the timestamp which the session was created.
 	ConnectedAt int64
 
@@ -35,8 +38,8 @@ type SessionStore interface {
 	GetSession(id ClientID) (Session, error)
 
 	// SaveSession saves the session into the store.
-	SaveSession(id ClientID, s Session) error
+	SaveSession(s Session) error
 
 	// DeleteSession deletes the session from the store.
-	DeleteSession(id ClientID, s Session) error
+	DeleteSession(s Session) error
 }

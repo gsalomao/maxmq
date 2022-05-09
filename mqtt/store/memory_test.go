@@ -37,10 +37,11 @@ func TestMemorySessionStore_SaveSession(t *testing.T) {
 
 	id := mqtt.ClientID{'a'}
 	session := mqtt.Session{
+		ClientID:       id,
 		ConnectedAt:    time.Now().Unix(),
 		ExpiryInterval: 60,
 	}
-	err := s.SaveSession(id, session)
+	err := s.SaveSession(session)
 	require.Nil(t, err)
 
 	savedSession, err := s.GetSession(id)
@@ -53,14 +54,15 @@ func TestMemorySessionStore_DeleteSession(t *testing.T) {
 
 	id := mqtt.ClientID{'a'}
 	session := mqtt.Session{
+		ClientID:       id,
 		ConnectedAt:    time.Now().Unix(),
 		ExpiryInterval: 60,
 	}
-	_ = s.SaveSession(id, session)
+	_ = s.SaveSession(session)
 	_, err := s.GetSession(id)
 	require.Nil(t, err)
 
-	err = s.DeleteSession(id, session)
+	err = s.DeleteSession(session)
 	require.Nil(t, err)
 
 	_, err = s.GetSession(id)

@@ -30,7 +30,6 @@ type ClientID []byte
 
 // Connection represents a network connection.
 type Connection struct {
-	clientID  ClientID
 	session   Session
 	netConn   net.Conn
 	timeout   uint16
@@ -138,7 +137,7 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 
 			if errCon, ok := err.(net.Error); ok && errCon.Timeout() {
 				cm.log.Debug().
-					Bytes("ClientID", conn.clientID).
+					Bytes("ClientID", conn.session.ClientID).
 					Bool("Connected", conn.connected).
 					Uint16("Timeout", conn.timeout).
 					Msg("MQTT Timeout - No packet received")
@@ -163,7 +162,7 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 		err = cm.handlePacket(pkt, &conn)
 		if err != nil {
 			cm.log.Warn().
-				Bytes("ClientID", conn.clientID).
+				Bytes("ClientID", conn.session.ClientID).
 				Stringer("PacketType", pkt.Type()).
 				Msg("MQTT Failed to process packet: " + err.Error())
 			break
@@ -188,7 +187,7 @@ func (cm *ConnectionManager) Close(conn *Connection, force bool) {
 	}
 
 	cm.log.Debug().
-		Bytes("ClientID", conn.clientID).
+		Bytes("ClientID", conn.session.ClientID).
 		Bool("Force", force).
 		Msg("MQTT Closing connection")
 
@@ -212,7 +211,7 @@ func (cm *ConnectionManager) handlePacket(
 		return cm.handlePacketConnect(connPkt, conn)
 	case packet.PINGREQ:
 		cm.log.Trace().
-			Bytes("ClientID", conn.clientID).
+			Bytes("ClientID", conn.session.ClientID).
 			Uint8("Version", uint8(conn.version)).
 			Uint16("KeepAlive", conn.timeout).
 			Msg("MQTT Handling PINGREQ Packet")
@@ -220,19 +219,19 @@ func (cm *ConnectionManager) handlePacket(
 		return cm.sendPingResp(conn, pkt)
 	case packet.DISCONNECT:
 		cm.log.Trace().
-			Bytes("ClientID", conn.clientID).
+			Bytes("ClientID", conn.session.ClientID).
 			Uint8("Version", uint8(conn.version)).
 			Msg("MQTT Handling DISCONNECT Packet")
 
 		cm.Close(conn, false)
-		err := cm.sessionStore.DeleteSession(conn.clientID, conn.session)
+		err := cm.sessionStore.DeleteSession(conn.session)
 		if err == nil {
 			cm.log.Debug().
-				Bytes("ClientID", conn.clientID).
+				Bytes("ClientID", conn.session.ClientID).
 				Msg("MQTT Session deleted with success")
 		} else {
 			cm.log.Error().
-				Bytes("ClientID", conn.clientID).
+				Bytes("ClientID", conn.session.ClientID).
 				Msg("MQTT Failed to delete session: " + err.Error())
 		}
 
@@ -253,7 +252,7 @@ func (cm *ConnectionManager) handlePacketConnect(
 		Uint16("KeepAlive", connPkt.KeepAlive).
 		Msg("MQTT Handling CONNECT Packet")
 
-	conn.clientID = connPkt.ClientID
+	clientID := connPkt.ClientID
 	conn.version = connPkt.Version
 	conn.timeout = connPkt.KeepAlive
 
@@ -282,30 +281,30 @@ func (cm *ConnectionManager) handlePacketConnect(
 	sessionExp := getSessionExpiryInterval(connPkt,
 		cm.conf.MaxSessionExpiryInterval)
 
-	code := packet.ReasonCodeV3ConnectionAccepted
-	connAck := newConnAck(conn, code, false, cm.conf, connPkt.Properties)
-	connPkt.Properties = nil
+	var err error
+	generatedID := false
 
-	genID := false
 	if len(connPkt.ClientID) == 0 {
-		conn.clientID = generateClientID(cm.conf.ClientIDPrefix)
-		genID = true
-
-		if conn.version == packet.MQTT50 {
-			connAck.Properties = getPropertiesOrCreate(connAck.Properties)
-			connAck.Properties.AssignedClientID = conn.clientID
-		}
+		clientID = generateClientID(cm.conf.ClientIDPrefix)
+		generatedID = true
 	}
 
-	var err error
-	conn.session, err = cm.findOrCreateSession(conn.clientID, sessionExp, genID)
+	conn.session, err = cm.findOrCreateSession(clientID, sessionExp)
 	if err != nil {
 		return err
 	}
 
+	code := packet.ReasonCodeV3ConnectionAccepted
+	connAck := newConnAck(conn, code, false, cm.conf, connPkt.Properties)
+	connPkt.Properties = nil
+
 	if conn.version == packet.MQTT50 {
 		connAck.Properties = getPropertiesOrCreate(connAck.Properties)
 		connAck.Properties.UserProperties = cm.userProperties
+
+		if generatedID {
+			connAck.Properties.AssignedClientID = clientID
+		}
 	}
 
 	err = cm.sendConnAck(conn, connPkt, &connAck)
@@ -373,7 +372,7 @@ func (cm *ConnectionManager) sendConnAck(
 	connAck *packet.ConnAck,
 ) error {
 	cm.log.Trace().
-		Bytes("ClientID", conn.clientID).
+		Bytes("ClientID", conn.session.ClientID).
 		Uint8("PacketTypeID", uint8(connAck.Type())).
 		Uint8("Version", uint8(conn.version)).
 		Msg("MQTT Sending CONNACK Packet")
@@ -393,7 +392,7 @@ func (cm *ConnectionManager) sendPingResp(
 	pingReq packet.Packet,
 ) error {
 	cm.log.Trace().
-		Bytes("ClientID", conn.clientID).
+		Bytes("ClientID", conn.session.ClientID).
 		Uint8("PacketTypeID", uint8(pingReq.Type())).
 		Uint16("Timeout", conn.timeout).
 		Uint8("Version", uint8(conn.version)).
@@ -416,7 +415,7 @@ func (cm *ConnectionManager) sendPacket(
 	pkt packet.Packet,
 ) (time.Time, error) {
 	cm.log.Debug().
-		Bytes("ClientID", conn.clientID).
+		Bytes("ClientID", conn.session.ClientID).
 		Uint8("PacketTypeID", uint8(pkt.Type())).
 		Uint8("Version", uint8(conn.version)).
 		Msg("MQTT Sending packet")
@@ -424,7 +423,7 @@ func (cm *ConnectionManager) sendPacket(
 	err := cm.writer.WritePacket(pkt, conn.netConn)
 	if err != nil {
 		cm.log.Error().
-			Bytes("ClientID", conn.clientID).
+			Bytes("ClientID", conn.session.ClientID).
 			Stringer("PacketType", pkt.Type()).
 			Uint8("Version", uint8(conn.version)).
 			Msg("MQTT Failed to send packet: " + err.Error())
@@ -436,25 +435,25 @@ func (cm *ConnectionManager) sendPacket(
 }
 
 func (cm *ConnectionManager) findOrCreateSession(id ClientID,
-	expiration uint32, generatedID bool) (Session, error) {
+	expiration uint32) (Session, error) {
 
 	var session Session
 	var err error
-	var found bool
 
-	if !generatedID {
-		session, err = cm.sessionStore.GetSession(id)
-		if err == nil {
-			found = true
-		} else if err != ErrSessionNotFound {
+	session, err = cm.sessionStore.GetSession(id)
+	if err != nil {
+		if err != ErrSessionNotFound {
 			return session, err
 		}
-	}
-	if !found {
+
 		cm.log.Debug().
 			Bytes("ClientID", id).
 			Msg("MQTT Session not found")
-		session = Session{ExpiryInterval: expiration}
+
+		session = Session{
+			ClientID:       id,
+			ExpiryInterval: expiration,
+		}
 	} else {
 		cm.log.Debug().
 			Bytes("ClientID", id).
@@ -463,7 +462,7 @@ func (cm *ConnectionManager) findOrCreateSession(id ClientID,
 	}
 
 	session.ConnectedAt = time.Now().Unix()
-	err = cm.sessionStore.SaveSession(id, session)
+	err = cm.sessionStore.SaveSession(session)
 	if err != nil {
 		cm.log.Error().
 			Bytes("ClientID", id).
