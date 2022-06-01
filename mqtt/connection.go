@@ -16,6 +16,7 @@ package mqtt
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"time"
@@ -44,7 +45,7 @@ type ConnectionHandler interface {
 	NewConnection(nc net.Conn) Connection
 
 	// Handle handles the Connection.
-	Handle(conn Connection)
+	Handle(conn Connection) error
 }
 
 // ConnectionManager implements the ConnectionHandler interface.
@@ -106,7 +107,7 @@ func (cm *ConnectionManager) NewConnection(nc net.Conn) Connection {
 }
 
 // Handle handles the Connection.
-func (cm *ConnectionManager) Handle(conn Connection) {
+func (cm *ConnectionManager) Handle(conn Connection) error {
 	defer cm.Close(&conn, true)
 	cm.metrics.recordConnection()
 
@@ -121,7 +122,7 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 		if err != nil {
 			cm.log.Error().
 				Msg("MQTT Failed to set read deadline: " + err.Error())
-			break
+			return errors.New("failed to set read deadline: " + err.Error())
 		}
 
 		cm.log.Trace().
@@ -132,7 +133,7 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 		if err != nil {
 			if err == io.EOF {
 				cm.log.Debug().Msg("MQTT Connection was closed")
-				break
+				return nil
 			}
 
 			if errCon, ok := err.(net.Error); ok && errCon.Timeout() {
@@ -141,7 +142,7 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 					Bool("Connected", conn.connected).
 					Uint16("Timeout", conn.timeout).
 					Msg("MQTT Timeout - No packet received")
-				break
+				return errors.New("timeout - no packet received")
 			}
 
 			cm.log.Info().Msg("MQTT Failed to read packet: " + err.Error())
@@ -151,7 +152,7 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 					nil)
 				_, _ = cm.sendPacket(&conn, &connAck)
 			}
-			break
+			return errors.New("failed to read packet: " + err.Error())
 		}
 
 		cm.metrics.recordPacketReceived(pkt)
@@ -165,13 +166,12 @@ func (cm *ConnectionManager) Handle(conn Connection) {
 				Bytes("ClientID", conn.session.ClientID).
 				Stringer("PacketType", pkt.Type()).
 				Msg("MQTT Failed to process packet: " + err.Error())
-			break
+			return errors.New("failed to process packet: " + err.Error())
 		}
 
 		if !conn.connected {
-			break
+			return nil
 		}
-
 		deadline = nextConnectionDeadline(conn)
 	}
 }
@@ -202,7 +202,7 @@ func (cm *ConnectionManager) handlePacket(
 	conn *Connection,
 ) error {
 	if !conn.connected && pkt.Type() != packet.CONNECT {
-		return errors.New("unexpected packet type")
+		return fmt.Errorf("received %v before CONNECT", pkt.Type())
 	}
 
 	switch pkt.Type() {
