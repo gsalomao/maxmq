@@ -57,6 +57,16 @@ const (
 	MQTT50
 )
 
+// QoS represents the Quality of Service level.
+type QoS byte
+
+// QoS levels.
+const (
+	QoS0 QoS = iota
+	QoS1
+	QoS2
+)
+
 // Packet represents the MQTT packet.
 type Packet interface {
 	// Pack encodes the packet into bytes and writes it into bufio.Writer.
@@ -82,7 +92,7 @@ type Topic struct {
 	Name []byte
 
 	// QoS represents the QoS level of the subscription.
-	QoS uint8
+	QoS QoS
 
 	// RetainHandling indicates whether the retained message are sent when the
 	// subscription is established or not.

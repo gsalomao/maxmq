@@ -82,11 +82,11 @@ func TestSubscribe_UnpackV3(t *testing.T) {
 	assert.Equal(t, uint16(10), subPkt.PacketID)
 	require.Equal(t, 3, len(subPkt.Topics))
 	assert.Equal(t, []byte{'a', '/', 'b'}, subPkt.Topics[0].Name)
-	assert.Equal(t, uint8(1), subPkt.Topics[0].QoS)
+	assert.Equal(t, QoS1, subPkt.Topics[0].QoS)
 	assert.Equal(t, []byte{'c', '/', 'd', '/', 'e'}, subPkt.Topics[1].Name)
-	assert.Equal(t, uint8(0), subPkt.Topics[1].QoS)
+	assert.Equal(t, QoS0, subPkt.Topics[1].QoS)
 	assert.Equal(t, []byte{'a', '/', '#'}, subPkt.Topics[2].Name)
-	assert.Equal(t, uint8(2), subPkt.Topics[2].QoS)
+	assert.Equal(t, QoS2, subPkt.Topics[2].QoS)
 	assert.Nil(t, subPkt.Properties)
 }
 
@@ -115,7 +115,7 @@ func TestSubscribe_UnpackV5(t *testing.T) {
 	assert.Equal(t, uint16(25), subPkt.PacketID)
 	require.Equal(t, 1, len(subPkt.Topics))
 	assert.Equal(t, []byte{'a', '/', 'b'}, subPkt.Topics[0].Name)
-	assert.Equal(t, uint8(2), subPkt.Topics[0].QoS)
+	assert.Equal(t, QoS2, subPkt.Topics[0].QoS)
 	assert.Equal(t, byte(2), subPkt.Topics[0].RetainHandling)
 	assert.True(t, subPkt.Topics[0].RetainAsPublished)
 	assert.True(t, subPkt.Topics[0].NoLocal)
