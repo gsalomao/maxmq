@@ -67,7 +67,7 @@ type Error struct {
 
 // Error returns a string with the error code and the reason of the error.
 func (err Error) Error() string {
-	return fmt.Sprintf("%d (%s)", err.ReasonCode, err.Reason)
+	return fmt.Sprintf("%s (code=%d)", err.Reason, err.ReasonCode)
 }
 
 func newErrMalformedPacket(v MQTTVersion, msg string) error {

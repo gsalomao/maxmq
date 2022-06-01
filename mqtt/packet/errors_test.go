@@ -23,5 +23,5 @@ import (
 
 func TestPacketError_ErrorMessage(t *testing.T) {
 	err := packet.ErrV5MalformedPacket
-	assert.Equal(t, "129 (malformed packet)", err.Error())
+	assert.Equal(t, "malformed packet (code=129)", err.Error())
 }
