@@ -25,7 +25,7 @@ import (
 )
 
 func TestMemorySessionStore_GetSession(t *testing.T) {
-	s := store.NewMemorySessionStore()
+	s := store.NewMemoryStore()
 
 	id := mqtt.ClientID{'a'}
 	_, err := s.GetSession(id)
@@ -33,7 +33,7 @@ func TestMemorySessionStore_GetSession(t *testing.T) {
 }
 
 func TestMemorySessionStore_SaveSession(t *testing.T) {
-	s := store.NewMemorySessionStore()
+	s := store.NewMemoryStore()
 
 	id := mqtt.ClientID{'a'}
 	session := mqtt.Session{
@@ -50,7 +50,7 @@ func TestMemorySessionStore_SaveSession(t *testing.T) {
 }
 
 func TestMemorySessionStore_DeleteSession(t *testing.T) {
-	s := store.NewMemorySessionStore()
+	s := store.NewMemoryStore()
 
 	id := mqtt.ClientID{'a'}
 	session := mqtt.Session{

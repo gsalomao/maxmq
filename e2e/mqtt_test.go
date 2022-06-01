@@ -33,7 +33,7 @@ import (
 func newBroker() *broker.Broker {
 	conf := mqtt.Configuration{TCPAddress: ":1883"}
 	logStub := mocks.NewLoggerStub()
-	store := store.NewMemorySessionStore()
+	store := store.NewMemoryStore()
 
 	cm := mqtt.NewConnectionManager(conf, store, logStub.Logger())
 	l, _ := mqtt.NewListener(

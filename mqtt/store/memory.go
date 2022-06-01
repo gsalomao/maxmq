@@ -20,22 +20,21 @@ import (
 	"github.com/gsalomao/maxmq/mqtt"
 )
 
-// MemorySessionStore represents a store where the sessions are saved in
-// memory.
-type MemorySessionStore struct {
+// MemoryStore represents a store where data are saved in memory.
+type MemoryStore struct {
 	mu       sync.RWMutex
 	sessions map[string]mqtt.Session
 }
 
-// NewMemorySessionStore creates a MemorySessionStore.
-func NewMemorySessionStore() *MemorySessionStore {
-	return &MemorySessionStore{
+// NewMemoryStore creates a MemoryStore.
+func NewMemoryStore() *MemoryStore {
+	return &MemoryStore{
 		sessions: make(map[string]mqtt.Session),
 	}
 }
 
 // GetSession gets the session from in-memory session store.
-func (s *MemorySessionStore) GetSession(id mqtt.ClientID) (mqtt.Session,
+func (s *MemoryStore) GetSession(id mqtt.ClientID) (mqtt.Session,
 	error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -49,7 +48,7 @@ func (s *MemorySessionStore) GetSession(id mqtt.ClientID) (mqtt.Session,
 }
 
 // SaveSession saves the session into the in-memory session store.
-func (s *MemorySessionStore) SaveSession(session mqtt.Session) error {
+func (s *MemoryStore) SaveSession(session mqtt.Session) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -58,7 +57,7 @@ func (s *MemorySessionStore) SaveSession(session mqtt.Session) error {
 }
 
 // DeleteSession deletes the session from the in-memory session store.
-func (s *MemorySessionStore) DeleteSession(session mqtt.Session) error {
+func (s *MemoryStore) DeleteSession(session mqtt.Session) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
