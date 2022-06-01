@@ -35,11 +35,9 @@ func (m *connectionHandlerMock) NewConnection(nc net.Conn) mqtt.Connection {
 	return mqtt.Connection{}
 }
 
-func (m *connectionHandlerMock) Handle(conn mqtt.Connection) {
+func (m *connectionHandlerMock) Handle(conn mqtt.Connection) error {
 	ret := m.Called(conn)
-	if fn, ok := ret.Get(0).(func()); ok {
-		fn()
-	}
+	return ret.Error(0)
 }
 
 func TestListener_New(t *testing.T) {
@@ -130,7 +128,8 @@ func TestListener_Accept(t *testing.T) {
 	mockConnHandler := connectionHandlerMock{}
 	mockConnHandler.On("NewConnection", mock.Anything)
 	mockConnHandler.On("Handle", mock.Anything).
-		Return(func() { handled <- true })
+		Run(func(args mock.Arguments) { handled <- true }).
+		Return(nil)
 
 	l, err := mqtt.NewListener(
 		mqtt.WithConfiguration(mqtt.Configuration{TCPAddress: ":1883"}),

@@ -25,25 +25,32 @@ import (
 )
 
 func TestConnAck_Pack(t *testing.T) {
-	pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
-	require.NotNil(t, pkt)
-	require.Equal(t, CONNACK, pkt.Type())
-
-	buf := &bytes.Buffer{}
-	wr := bufio.NewWriter(buf)
-
-	err := pkt.Pack(wr)
-	assert.Nil(t, err)
-
-	err = wr.Flush()
-	assert.Nil(t, err)
-
-	msg := []byte{
-		0x20, 2, // fixed header
-		0, 0, // variable header
+	tests := []struct {
+		ver  MQTTVersion
+		code ReasonCode
+		msg  []byte
+	}{
+		{MQTT31, ReasonCodeV3ConnectionAccepted, []byte{0x20, 2, 0, 0}},
+		{MQTT311, ReasonCodeV3NotAuthorized, []byte{0x20, 2, 0, 5}},
+		{MQTT50, ReasonCodeV5Success, []byte{0x20, 3, 0, 0, 0}},
+		{MQTT50, ReasonCodeV5UnspecifiedError, []byte{0x20, 3, 0, 0x80, 0}},
 	}
 
-	assert.Equal(t, msg, buf.Bytes())
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%v-%v", tt.ver, tt.code), func(t *testing.T) {
+			pkt := NewConnAck(tt.ver, tt.code, false, nil)
+			buf := &bytes.Buffer{}
+			wr := bufio.NewWriter(buf)
+
+			err := pkt.Pack(wr)
+			assert.Nil(t, err)
+
+			err = wr.Flush()
+			assert.Nil(t, err)
+
+			assert.Equal(t, tt.msg, buf.Bytes())
+		})
+	}
 }
 
 func BenchmarkConnAck_PackV3(b *testing.B) {
@@ -77,35 +84,6 @@ func BenchmarkConnAck_PackV5(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-	}
-}
-
-func TestConnAck_PackReturnCode(t *testing.T) {
-	tests := []struct {
-		ver  MQTTVersion
-		code ReasonCode
-		msg  []byte
-	}{
-		{MQTT31, ReasonCodeV3ConnectionAccepted, []byte{0x20, 2, 0, 0}},
-		{MQTT311, ReasonCodeV3NotAuthorized, []byte{0x20, 2, 0, 5}},
-		{MQTT50, ReasonCodeV5Success, []byte{0x20, 3, 0, 0, 0}},
-		{MQTT50, ReasonCodeV5UnspecifiedError, []byte{0x20, 3, 0, 0x80, 0}},
-	}
-
-	for _, tt := range tests {
-		t.Run(fmt.Sprintf("%v-%v", tt.ver, tt.code), func(t *testing.T) {
-			pkt := NewConnAck(tt.ver, tt.code, false, nil)
-			buf := &bytes.Buffer{}
-			wr := bufio.NewWriter(buf)
-
-			err := pkt.Pack(wr)
-			assert.Nil(t, err)
-
-			err = wr.Flush()
-			assert.Nil(t, err)
-
-			assert.Equal(t, tt.msg, buf.Bytes())
-		})
 	}
 }
 
@@ -182,28 +160,7 @@ func TestConnAck_PackV5InvalidProperty(t *testing.T) {
 	assert.Empty(t, buf)
 }
 
-func TestConnAck_PackV5WithoutProperties(t *testing.T) {
-	pkt := NewConnAck(MQTT50, ReasonCodeV5Success, false, nil)
-	require.NotNil(t, pkt)
-
-	buf := &bytes.Buffer{}
-	wr := bufio.NewWriter(buf)
-
-	err := pkt.Pack(wr)
-	assert.Nil(t, err)
-
-	err = wr.Flush()
-	assert.Nil(t, err)
-
-	msg := []byte{
-		0x20, 3, // fixed header
-		0, 0, // variable header
-		0, // property length
-	}
-	assert.Equal(t, msg, buf.Bytes())
-}
-
-func TestConnAck_PackV3WithoutProperties(t *testing.T) {
+func TestConnAck_PackV3PropertiesIgnored(t *testing.T) {
 	props := &Properties{SessionExpiryInterval: new(uint32)}
 	*props.SessionExpiryInterval = 30
 
