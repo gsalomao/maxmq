@@ -67,6 +67,9 @@ const (
 	QoS2
 )
 
+// ID represents the packet ID
+type ID uint16
+
 // Packet represents the MQTT packet.
 type Packet interface {
 	// Pack encodes the packet into bytes and writes it into bufio.Writer.

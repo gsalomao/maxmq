@@ -22,6 +22,18 @@ const (
 	// ReasonCodeV3ConnectionAccepted indicates that connection was accepted.
 	ReasonCodeV3ConnectionAccepted ReasonCode = 0x00
 
+	// ReasonCodeV3GrantedQoS0 indicates that the subscription was accepted and
+	// the maximum QoS sent will be QoS 0.
+	ReasonCodeV3GrantedQoS0 ReasonCode = 0x00
+
+	// ReasonCodeV3GrantedQoS1 indicates that the subscription was accepted and
+	// the maximum QoS sent will be QoS 1.
+	ReasonCodeV3GrantedQoS1 ReasonCode = 0x01
+
+	// ReasonCodeV3GrantedQoS2 indicates that the subscription was accepted and
+	// any received QoS will be sent.
+	ReasonCodeV3GrantedQoS2 ReasonCode = 0x02
+
 	// ReasonCodeV3UnacceptableProtocolVersion indicates that the broker does
 	// not support the level of the MQTT protocol.
 	ReasonCodeV3UnacceptableProtocolVersion ReasonCode = 0x01
@@ -41,6 +53,9 @@ const (
 	// ReasonCodeV3NotAuthorized indicates that the client is not authorized to
 	// connect.
 	ReasonCodeV3NotAuthorized ReasonCode = 0x05
+
+	// ReasonCodeV3Failure indicates that an error happened.
+	ReasonCodeV3Failure ReasonCode = 0x80
 )
 
 const (
