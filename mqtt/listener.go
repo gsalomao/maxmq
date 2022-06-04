@@ -87,7 +87,7 @@ func (l *Listener) Listen() error {
 		go func() {
 			err = l.connHandler.Handle(conn)
 			if err != nil {
-				l.log.Error().
+				l.log.Warn().
 					Msg("MQTT Failed to handle connection: " + err.Error())
 			}
 		}()
