@@ -79,7 +79,7 @@ func TestSubscribe_UnpackV3(t *testing.T) {
 	require.Nil(t, err)
 
 	assert.Equal(t, MQTT311, subPkt.Version)
-	assert.Equal(t, uint16(10), subPkt.PacketID)
+	assert.Equal(t, ID(10), subPkt.PacketID)
 	require.Equal(t, 3, len(subPkt.Topics))
 	assert.Equal(t, []byte{'a', '/', 'b'}, subPkt.Topics[0].Name)
 	assert.Equal(t, QoS1, subPkt.Topics[0].QoS)
@@ -112,7 +112,7 @@ func TestSubscribe_UnpackV5(t *testing.T) {
 	require.Nil(t, err)
 
 	assert.Equal(t, MQTT50, subPkt.Version)
-	assert.Equal(t, uint16(25), subPkt.PacketID)
+	assert.Equal(t, ID(25), subPkt.PacketID)
 	require.Equal(t, 1, len(subPkt.Topics))
 	assert.Equal(t, []byte{'a', '/', 'b'}, subPkt.Topics[0].Name)
 	assert.Equal(t, QoS2, subPkt.Topics[0].QoS)

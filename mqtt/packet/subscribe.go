@@ -41,7 +41,7 @@ type Subscribe struct {
 	remainLength int
 
 	// PacketID represents the packet identifier.
-	PacketID uint16
+	PacketID ID
 
 	// Version represents the MQTT version.
 	Version MQTTVersion
@@ -82,8 +82,8 @@ func (pkt *Subscribe) Unpack(r *bufio.Reader) error {
 	}
 	buf := bytes.NewBuffer(msg)
 
-	var err error
-	pkt.PacketID, err = readUint16(buf, pkt.Version)
+	id, err := readUint16(buf, pkt.Version)
+	pkt.PacketID = ID(id)
 	if err != nil {
 		return err
 	}
