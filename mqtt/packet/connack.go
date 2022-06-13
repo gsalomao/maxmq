@@ -58,29 +58,31 @@ func NewConnAck(
 
 // Pack encodes the packet into bytes and writes it into the io.Writer.
 func (pkt *ConnAck) Pack(w *bufio.Writer) error {
-	varHeader := &bytes.Buffer{}
-	var err error
-
-	// Acknowledge Flags
-	if pkt.SessionPresent && pkt.Version != MQTT31 {
-		_ = varHeader.WriteByte(1)
-	} else {
-		_ = varHeader.WriteByte(0)
-	}
-
-	_ = varHeader.WriteByte(byte(pkt.ReasonCode))
+	buf := &bytes.Buffer{}
 
 	if pkt.Version == MQTT50 {
-		err = writeProperties(varHeader, pkt.Properties, CONNACK)
+		err := writeProperties(buf, pkt.Properties, CONNACK)
 		if err != nil {
 			return err
 		}
 	}
 
+	pktLen := buf.Len() + 2 // +2 for ack flags and reason code
+
 	_ = w.WriteByte(byte(CONNACK) << packetTypeBit)
-	_ = encodeVarInteger(w, varHeader.Len())
-	n, err := varHeader.WriteTo(w)
-	pkt.size = 2 + int(n)
+	_ = encodeVarInteger(w, pktLen)
+
+	// Acknowledge Flags
+	if pkt.SessionPresent && pkt.Version != MQTT31 {
+		_ = w.WriteByte(1)
+	} else {
+		_ = w.WriteByte(0)
+	}
+
+	_ = w.WriteByte(byte(pkt.ReasonCode))
+
+	_, err := buf.WriteTo(w)
+	pkt.size = pktLen + 2 // +2 for paket type and length
 
 	return err
 }
