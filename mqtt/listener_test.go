@@ -15,6 +15,7 @@
 package mqtt_test
 
 import (
+	"errors"
 	"net"
 	"testing"
 	"time"
@@ -30,13 +31,8 @@ type connectionHandlerMock struct {
 	mock.Mock
 }
 
-func (m *connectionHandlerMock) NewConnection(nc net.Conn) mqtt.Connection {
-	m.Called(nc)
-	return mqtt.Connection{}
-}
-
-func (m *connectionHandlerMock) Handle(conn mqtt.Connection) error {
-	ret := m.Called(conn)
+func (m *connectionHandlerMock) Handle(nc net.Conn) error {
+	ret := m.Called(nc)
 	return ret.Error(0)
 }
 
@@ -121,12 +117,11 @@ func TestListener_RunAndStop(t *testing.T) {
 	assert.Contains(t, logStub.String(), "Listener stopped with success")
 }
 
-func TestListener_Accept(t *testing.T) {
+func TestListener_HandleConnection(t *testing.T) {
 	logStub := mocks.NewLoggerStub()
 
 	handled := make(chan bool)
 	mockConnHandler := connectionHandlerMock{}
-	mockConnHandler.On("NewConnection", mock.Anything)
 	mockConnHandler.On("Handle", mock.Anything).
 		Run(func(args mock.Arguments) { handled <- true }).
 		Return(nil)
@@ -147,9 +142,40 @@ func TestListener_Accept(t *testing.T) {
 	<-time.After(time.Millisecond)
 	conn, err := net.Dial("tcp", ":1883")
 	require.Nil(t, err)
-	defer func() {
-		_ = conn.Close()
+	defer func() { _ = conn.Close() }()
+
+	<-handled
+	l.Stop()
+	<-done
+	assert.Nil(t, err)
+}
+
+func TestListener_HandleConnectionFailure(t *testing.T) {
+	logStub := mocks.NewLoggerStub()
+
+	handled := make(chan bool)
+	mockConnHandler := connectionHandlerMock{}
+	mockConnHandler.On("Handle", mock.Anything).
+		Run(func(args mock.Arguments) { handled <- true }).
+		Return(errors.New("failed to handle connection"))
+
+	l, err := mqtt.NewListener(
+		mqtt.WithConfiguration(mqtt.Configuration{TCPAddress: ":1883"}),
+		mqtt.WithConnectionHandler(&mockConnHandler),
+		mqtt.WithLogger(logStub.Logger()),
+	)
+	require.Nil(t, err)
+
+	done := make(chan bool)
+	go func() {
+		err = l.Listen()
+		done <- true
 	}()
+
+	<-time.After(time.Millisecond)
+	conn, err := net.Dial("tcp", ":1883")
+	require.Nil(t, err)
+	defer func() { _ = conn.Close() }()
 
 	<-handled
 	l.Stop()

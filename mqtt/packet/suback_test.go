@@ -54,6 +54,8 @@ func TestSubAck_Pack(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%v-%v", tt.ver, tt.id), func(t *testing.T) {
 			pkt := NewSubAck(tt.id, tt.ver, tt.cds, nil)
+			assert.Equal(t, SUBACK, pkt.Type())
+
 			buf := &bytes.Buffer{}
 			wr := bufio.NewWriter(buf)
 

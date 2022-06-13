@@ -69,30 +69,42 @@ func maxInflightMsgOrDefault(im int) int {
 	return im
 }
 
-func maxClientIDLenOrDefault(cIDLen int) int {
-	if cIDLen < 23 || cIDLen > 65535 {
+func maxClientIDLenOrDefault(idLen int) int {
+	if idLen < 23 || idLen > 65535 {
 		return 23
 	}
 
-	return cIDLen
+	return idLen
 }
 
-func generateClientID(prefix []byte) []byte {
-	pLen := len(prefix)
-	cID := make([]byte, pLen+20)
+func getClientID(p *packet.Connect, prefix []byte) (id ClientID, created bool) {
+	if len(p.ClientID) > 0 {
+		return p.ClientID, false
+	}
 
-	if pLen > 0 {
-		_ = copy(cID, prefix)
+	prefixLen := len(prefix)
+	id = make([]byte, prefixLen+20)
+
+	if prefixLen > 0 {
+		_ = copy(id, prefix)
 	}
 
 	guid := xid.New()
-	_ = guid.Encode(cID[pLen:])
-	return cID
+	_ = guid.Encode(id[prefixLen:])
+	return id, true
+}
+
+func assignClientID(p *packet.ConnAck, s Session, id ClientID, created bool) {
+	if s.Version == packet.MQTT50 && created {
+		props := getPropertiesOrCreate(p.Properties)
+		props.AssignedClientID = id
+		p.Properties = props
+	}
 }
 
 func nextConnectionDeadline(conn Connection) time.Time {
-	if conn.timeout > 0 {
-		timeout := math.Ceil(float64(conn.timeout) * 1.5)
+	if conn.client.keepAlive > 0 {
+		timeout := math.Ceil(float64(conn.client.keepAlive) * 1.5)
 		return time.Now().Add(time.Duration(timeout) * time.Second)
 	}
 
@@ -101,18 +113,15 @@ func nextConnectionDeadline(conn Connection) time.Time {
 }
 
 func newConnAck(
-	conn *Connection,
-	rc packet.ReasonCode,
+	version packet.MQTTVersion,
+	code packet.ReasonCode,
+	keepAlive uint16,
 	sessionPresent bool,
-	conf Configuration,
+	conf *Configuration,
 	props *packet.Properties,
+	userProps []packet.UserProperty,
 ) packet.ConnAck {
-	ver := packet.MQTT311
-	if conn != nil {
-		ver = conn.version
-	}
-
-	if ver == packet.MQTT50 && rc == packet.ReasonCodeV5Success {
+	if version == packet.MQTT50 && code == packet.ReasonCodeV5Success {
 		var expInterval *uint32
 
 		if props != nil {
@@ -120,7 +129,8 @@ func newConnAck(
 			props.Reset()
 		}
 
-		props = addServerKeepAliveToProperties(props, conn.timeout, conf)
+		props = getPropertiesOrCreate(props)
+		props = addServerKeepAliveToProperties(props, keepAlive, conf)
 		props = addSessionExpiryIntervalToProperties(props, expInterval, conf)
 		props = addMaxPacketSizeToProperties(props, conf)
 		props = addReceiveMaximumToProperties(props, conf)
@@ -130,9 +140,10 @@ func newConnAck(
 		props = addWildcardSubscriptionAvailableToProperties(props, conf)
 		props = addSubscriptionIDAvailableToProperties(props, conf)
 		props = addSharedSubscriptionAvailableToProperties(props, conf)
+		props.UserProperties = userProps
 	}
 
-	return packet.NewConnAck(ver, rc, sessionPresent, props)
+	return packet.NewConnAck(version, code, sessionPresent, props)
 }
 
 func getPropertiesOrCreate(p *packet.Properties) *packet.Properties {
@@ -146,9 +157,11 @@ func getPropertiesOrCreate(p *packet.Properties) *packet.Properties {
 func addServerKeepAliveToProperties(
 	p *packet.Properties,
 	keepAlive uint16,
-	conf Configuration,
+	conf *Configuration,
 ) *packet.Properties {
-	if conf.MaxKeepAlive > 0 && keepAlive > uint16(conf.MaxKeepAlive) {
+	if conf.MaxKeepAlive > 0 &&
+		(keepAlive == 0 || keepAlive > uint16(conf.MaxKeepAlive)) {
+
 		p = getPropertiesOrCreate(p)
 
 		p.ServerKeepAlive = new(uint16)
@@ -161,7 +174,7 @@ func addServerKeepAliveToProperties(
 func addSessionExpiryIntervalToProperties(
 	p *packet.Properties,
 	expInt *uint32,
-	conf Configuration,
+	conf *Configuration,
 ) *packet.Properties {
 	if expInt == nil {
 		return p
@@ -181,7 +194,7 @@ func addSessionExpiryIntervalToProperties(
 
 func addReceiveMaximumToProperties(
 	p *packet.Properties,
-	conf Configuration,
+	conf *Configuration,
 ) *packet.Properties {
 	if conf.MaxInflightMessages > 0 && conf.MaxInflightMessages < 65535 {
 		p = getPropertiesOrCreate(p)
@@ -195,9 +208,9 @@ func addReceiveMaximumToProperties(
 
 func addMaxPacketSizeToProperties(
 	p *packet.Properties,
-	conf Configuration,
+	conf *Configuration,
 ) *packet.Properties {
-	if conf.MaxPacketSize != 268435456 {
+	if conf.MaxPacketSize > 0 && conf.MaxPacketSize < 268435456 {
 		p = getPropertiesOrCreate(p)
 
 		p.MaximumPacketSize = new(uint32)
@@ -209,7 +222,7 @@ func addMaxPacketSizeToProperties(
 
 func addMaximumQoSToProperties(
 	p *packet.Properties,
-	conf Configuration,
+	conf *Configuration,
 ) *packet.Properties {
 	if conf.MaximumQoS < 2 {
 		p = getPropertiesOrCreate(p)
@@ -223,7 +236,7 @@ func addMaximumQoSToProperties(
 
 func addTopicAliasMaxToProperties(
 	p *packet.Properties,
-	conf Configuration,
+	conf *Configuration,
 ) *packet.Properties {
 	if conf.MaxTopicAlias > 0 {
 		p = getPropertiesOrCreate(p)
@@ -237,17 +250,12 @@ func addTopicAliasMaxToProperties(
 
 func addRetainAvailableToProperties(
 	p *packet.Properties,
-	conf Configuration,
+	conf *Configuration,
 ) *packet.Properties {
 	if !conf.RetainAvailable {
-		var available byte
-		if conf.RetainAvailable {
-			available = 1
-		}
-
 		p = getPropertiesOrCreate(p)
 		p.RetainAvailable = new(byte)
-		*p.RetainAvailable = available
+		*p.RetainAvailable = 0
 	}
 
 	return p
@@ -255,17 +263,12 @@ func addRetainAvailableToProperties(
 
 func addWildcardSubscriptionAvailableToProperties(
 	p *packet.Properties,
-	conf Configuration,
+	conf *Configuration,
 ) *packet.Properties {
 	if !conf.WildcardSubscriptionAvailable {
-		var available byte
-		if conf.WildcardSubscriptionAvailable {
-			available = 1
-		}
-
 		p = getPropertiesOrCreate(p)
 		p.WildcardSubscriptionAvailable = new(byte)
-		*p.WildcardSubscriptionAvailable = available
+		*p.WildcardSubscriptionAvailable = 0
 	}
 
 	return p
@@ -273,17 +276,12 @@ func addWildcardSubscriptionAvailableToProperties(
 
 func addSubscriptionIDAvailableToProperties(
 	p *packet.Properties,
-	conf Configuration,
+	conf *Configuration,
 ) *packet.Properties {
 	if !conf.SubscriptionIDAvailable {
-		var available byte
-		if conf.SubscriptionIDAvailable {
-			available = 1
-		}
-
 		p = getPropertiesOrCreate(p)
 		p.SubscriptionIDAvailable = new(byte)
-		*p.SubscriptionIDAvailable = available
+		*p.SubscriptionIDAvailable = 0
 	}
 
 	return p
@@ -291,17 +289,12 @@ func addSubscriptionIDAvailableToProperties(
 
 func addSharedSubscriptionAvailableToProperties(
 	p *packet.Properties,
-	conf Configuration,
+	conf *Configuration,
 ) *packet.Properties {
 	if !conf.SharedSubscriptionAvailable {
-		var available byte
-		if conf.SharedSubscriptionAvailable {
-			available = 1
-		}
-
 		p = getPropertiesOrCreate(p)
 		p.SharedSubscriptionAvailable = new(byte)
-		*p.SharedSubscriptionAvailable = available
+		*p.SharedSubscriptionAvailable = 0
 	}
 
 	return p

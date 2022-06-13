@@ -39,6 +39,8 @@ func TestConnAck_Pack(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%v-%v", tt.ver, tt.code), func(t *testing.T) {
 			pkt := NewConnAck(tt.ver, tt.code, false, nil)
+			assert.Equal(t, CONNACK, pkt.Type())
+
 			buf := &bytes.Buffer{}
 			wr := bufio.NewWriter(buf)
 

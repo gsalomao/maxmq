@@ -81,11 +81,9 @@ func (l *Listener) Listen() error {
 			continue
 		}
 
-		conn := l.connHandler.NewConnection(tcpConn)
 		l.log.Trace().Msg("MQTT New TCP connection")
-
 		go func() {
-			err = l.connHandler.Handle(conn)
+			err = l.connHandler.Handle(tcpConn)
 			if err != nil {
 				l.log.Warn().
 					Msg("MQTT Failed to handle connection: " + err.Error())

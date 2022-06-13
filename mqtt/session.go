@@ -14,22 +14,32 @@
 
 package mqtt
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/gsalomao/maxmq/mqtt/packet"
+)
 
 // ErrSessionNotFound indicates that the session was not found in the store.
 var ErrSessionNotFound = errors.New("session not found")
+
+// ErrSessionExpired indicates that the session has expired.
+var ErrSessionExpired = errors.New("session expired")
 
 // Session stores the MQTT session.
 type Session struct {
 	// ClientID represents the ID of the client owner of the session.
 	ClientID ClientID
 
-	// ConnectedAt represents the timestamp which the session was created.
+	// ConnectedAt represents the timestamp of the last connection.
 	ConnectedAt int64
 
 	// ExpiryInterval represents the interval, in seconds, which the session
 	// expires.
 	ExpiryInterval uint32
+
+	// Version represents the MQTT version.
+	Version packet.MQTTVersion
 }
 
 // SessionStore is responsible for manage sessions in the store.
