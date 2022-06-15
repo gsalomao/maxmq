@@ -43,18 +43,18 @@ func newConfiguration() Configuration {
 		MaxClientIDLen:                65535,
 		AllowEmptyClientID:            true,
 		UserProperties:                map[string]string{},
+		MetricsEnabled:                true,
 	}
 }
 
-func newConnectionManager(conf Configuration) ConnectionManager {
-	logStub := mocks.NewLoggerStub()
+func createConnectionManager(conf Configuration) connectionManager {
+	logger := mocks.NewLoggerStub()
 	store := &sessionStoreMock{}
-	store.On("GetSession", mock.Anything).Return(Session{},
-		ErrSessionNotFound)
+	store.On("GetSession", mock.Anything).Return(nil, ErrSessionNotFound)
 	store.On("SaveSession", mock.Anything).Return(nil)
 	store.On("DeleteSession", mock.Anything).Return(nil)
 
-	return NewConnectionManager(conf, store, logStub.Logger())
+	return newConnectionManager(&conf, store, logger.Logger())
 }
 
 func TestConnectionManager_DefaultValues(t *testing.T) {
@@ -67,7 +67,7 @@ func TestConnectionManager_DefaultValues(t *testing.T) {
 	conf.MaxInflightMessages = 1000000
 	conf.MaxClientIDLen = 0
 
-	cm := newConnectionManager(conf)
+	cm := createConnectionManager(conf)
 	assert.Equal(t, 1024, cm.conf.BufferSize)
 	assert.Equal(t, 268435456, cm.conf.MaxPacketSize)
 	assert.Equal(t, 5, cm.conf.ConnectTimeout)
@@ -80,12 +80,12 @@ func TestConnectionManager_DefaultValues(t *testing.T) {
 func TestConnectionManager_Handle(t *testing.T) {
 	conf := newConfiguration()
 	conf.UserProperties = map[string]string{"k1": "v1"}
-	cm := newConnectionManager(conf)
+	cm := createConnectionManager(conf)
 
 	conn, sConn := net.Pipe()
 	done := make(chan bool)
 	go func() {
-		err := cm.Handle(sConn)
+		err := cm.handle(sConn)
 		assert.Nil(t, err)
 		done <- true
 	}()
@@ -101,50 +101,60 @@ func TestConnectionManager_Handle(t *testing.T) {
 	resp := []byte{0x20, 2, 0, 0}
 	assert.Equal(t, resp, out)
 
-	<-time.After(100 * time.Microsecond)
+	msg = []byte{0xC0, 0}
+	_, err = conn.Write(msg)
+	require.Nil(t, err)
+
+	out = make([]byte, 2)
+	_, err = conn.Read(out)
+	require.Nil(t, err)
+
+	resp = []byte{0xD0, 0}
+	assert.Equal(t, resp, out)
+
+	<-time.After(200 * time.Microsecond)
 	_ = conn.Close()
 	<-done
 }
 
 func TestConnectionManager_HandleNetConnClosed(t *testing.T) {
 	conf := newConfiguration()
-	cm := newConnectionManager(conf)
+	cm := createConnectionManager(conf)
 
 	conn, sConn := net.Pipe()
 	done := make(chan bool)
 	go func() {
-		err := cm.Handle(sConn)
+		err := cm.handle(sConn)
 		assert.Nil(t, err)
 		done <- true
 	}()
 
 	<-time.After(time.Millisecond)
 	_ = conn.Close()
-
 	<-done
 }
 
 func TestConnectionManager_HandleSetDeadlineFailure(t *testing.T) {
 	conf := newConfiguration()
-	cm := newConnectionManager(conf)
+	cm := createConnectionManager(conf)
 
 	conn, sConn := net.Pipe()
 	_ = conn.Close()
 
-	err := cm.Handle(sConn)
+	err := cm.handle(sConn)
 	assert.NotNil(t, err)
 }
 
 func TestConnectionManager_HandleReadFailure(t *testing.T) {
 	conf := newConfiguration()
-	cm := newConnectionManager(conf)
+	cm := createConnectionManager(conf)
 
 	conn, sConn := net.Pipe()
 	defer func() { _ = conn.Close() }()
 
 	done := make(chan bool)
 	go func() {
-		err := cm.Handle(sConn)
+		err := cm.handle(sConn)
 		assert.NotNil(t, err)
 		done <- true
 	}()
@@ -157,14 +167,14 @@ func TestConnectionManager_HandleReadFailure(t *testing.T) {
 func TestConnectionManager_KeepAliveExceeded(t *testing.T) {
 	conf := newConfiguration()
 	conf.ConnectTimeout = 1
-	cm := newConnectionManager(conf)
+	cm := createConnectionManager(conf)
 
 	conn, sConn := net.Pipe()
 	defer func() { _ = conn.Close() }()
 
 	done := make(chan bool)
 	go func() {
-		err := cm.Handle(sConn)
+		err := cm.handle(sConn)
 		assert.NotNil(t, err)
 		done <- true
 	}()
@@ -182,15 +192,16 @@ func TestConnectionManager_KeepAliveExceeded(t *testing.T) {
 	<-done
 }
 
-func TestConnectionManager_HandleFailure(t *testing.T) {
+func TestConnectionManager_HandleWritePacketFailure(t *testing.T) {
 	conf := newConfiguration()
 	conf.MetricsEnabled = true
-	cm := newConnectionManager(conf)
+
+	cm := createConnectionManager(conf)
 	conn, sConn := net.Pipe()
 
 	done := make(chan bool)
 	go func() {
-		err := cm.Handle(sConn)
+		err := cm.handle(sConn)
 		assert.NotNil(t, err)
 		done <- true
 	}()
@@ -202,15 +213,37 @@ func TestConnectionManager_HandleFailure(t *testing.T) {
 	<-done
 }
 
-func TestConnectionManager_HandleDisconnected(t *testing.T) {
+func TestConnectionManager_HandleInvalidPacket(t *testing.T) {
 	conf := newConfiguration()
-	cm := newConnectionManager(conf)
+	conf.MetricsEnabled = true
+
+	cm := createConnectionManager(conf)
 	conn, sConn := net.Pipe()
 	defer func() { _ = conn.Close() }()
 
 	done := make(chan bool)
 	go func() {
-		err := cm.Handle(sConn)
+		err := cm.handle(sConn)
+		assert.NotNil(t, err)
+		done <- true
+	}()
+
+	msg := []byte{0xC0, 0}
+	_, err := conn.Write(msg)
+	require.Nil(t, err)
+	<-done
+}
+
+func TestConnectionManager_HandleDisconnect(t *testing.T) {
+	conf := newConfiguration()
+	conf.MetricsEnabled = false
+	cm := createConnectionManager(conf)
+	conn, sConn := net.Pipe()
+	defer func() { _ = conn.Close() }()
+
+	done := make(chan bool)
+	go func() {
+		err := cm.handle(sConn)
 		assert.Nil(t, err)
 		done <- true
 	}()

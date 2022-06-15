@@ -12,38 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mqtt_test
+package mqtt
 
 import (
-	"errors"
 	"net"
 	"testing"
 	"time"
 
 	"github.com/gsalomao/maxmq/mocks"
-	"github.com/gsalomao/maxmq/mqtt"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-type connectionHandlerMock struct {
-	mock.Mock
-}
-
-func (m *connectionHandlerMock) Handle(nc net.Conn) error {
-	ret := m.Called(nc)
-	return ret.Error(0)
-}
-
 func TestListener_New(t *testing.T) {
 	t.Run("MissingConfiguration", func(t *testing.T) {
-		logStub := mocks.NewLoggerStub()
-		mockConnHandler := connectionHandlerMock{}
+		logger := mocks.NewLoggerStub()
+		store := sessionStoreMock{}
 
-		_, err := mqtt.NewListener(
-			mqtt.WithConnectionHandler(&mockConnHandler),
-			mqtt.WithLogger(logStub.Logger()),
+		_, err := NewListener(
+			WithSessionStore(&store),
+			WithLogger(logger.Logger()),
 		)
 
 		require.NotNil(t, err)
@@ -51,38 +39,38 @@ func TestListener_New(t *testing.T) {
 	})
 
 	t.Run("MissingLogger", func(t *testing.T) {
-		mockConnHandler := connectionHandlerMock{}
+		store := sessionStoreMock{}
 
-		_, err := mqtt.NewListener(
-			mqtt.WithConfiguration(mqtt.Configuration{}),
-			mqtt.WithConnectionHandler(&mockConnHandler),
+		_, err := NewListener(
+			WithConfiguration(Configuration{}),
+			WithSessionStore(&store),
 		)
 
 		require.NotNil(t, err)
 		assert.Equal(t, "missing logger", err.Error())
 	})
 
-	t.Run("MissingConnectionHandler", func(t *testing.T) {
-		logStub := mocks.NewLoggerStub()
+	t.Run("MissingSessionStore", func(t *testing.T) {
+		logger := mocks.NewLoggerStub()
 
-		_, err := mqtt.NewListener(
-			mqtt.WithConfiguration(mqtt.Configuration{}),
-			mqtt.WithLogger(logStub.Logger()),
+		_, err := NewListener(
+			WithConfiguration(Configuration{}),
+			WithLogger(logger.Logger()),
 		)
 
 		require.NotNil(t, err)
-		assert.Equal(t, "missing connection handler", err.Error())
+		assert.Equal(t, "missing session store", err.Error())
 	})
 }
 
 func TestListener_RunInvalidTCPAddress(t *testing.T) {
-	mockConnHandler := connectionHandlerMock{}
-	logStub := mocks.NewLoggerStub()
+	store := sessionStoreMock{}
+	logger := mocks.NewLoggerStub()
 
-	l, err := mqtt.NewListener(
-		mqtt.WithConfiguration(mqtt.Configuration{TCPAddress: "."}),
-		mqtt.WithConnectionHandler(&mockConnHandler),
-		mqtt.WithLogger(logStub.Logger()),
+	l, err := NewListener(
+		WithConfiguration(Configuration{TCPAddress: "."}),
+		WithSessionStore(&store),
+		WithLogger(logger.Logger()),
 	)
 	require.Nil(t, err)
 	require.NotNil(t, l)
@@ -92,13 +80,13 @@ func TestListener_RunInvalidTCPAddress(t *testing.T) {
 }
 
 func TestListener_RunAndStop(t *testing.T) {
-	logStub := mocks.NewLoggerStub()
-	mockConnHandler := connectionHandlerMock{}
+	store := sessionStoreMock{}
+	logger := mocks.NewLoggerStub()
 
-	l, err := mqtt.NewListener(
-		mqtt.WithConfiguration(mqtt.Configuration{TCPAddress: ":1883"}),
-		mqtt.WithConnectionHandler(&mockConnHandler),
-		mqtt.WithLogger(logStub.Logger()),
+	l, err := NewListener(
+		WithConfiguration(Configuration{TCPAddress: ":1883"}),
+		WithSessionStore(&store),
+		WithLogger(logger.Logger()),
 	)
 	require.Nil(t, err)
 
@@ -109,27 +97,22 @@ func TestListener_RunAndStop(t *testing.T) {
 	}()
 
 	<-time.After(10 * time.Millisecond)
-	assert.Contains(t, logStub.String(), "Listening on [::]:1883")
+	assert.Contains(t, logger.String(), "Listening on [::]:1883")
 	l.Stop()
 
 	<-done
 	assert.Nil(t, err)
-	assert.Contains(t, logStub.String(), "Listener stopped with success")
+	assert.Contains(t, logger.String(), "Listener stopped with success")
 }
 
 func TestListener_HandleConnection(t *testing.T) {
-	logStub := mocks.NewLoggerStub()
+	logger := mocks.NewLoggerStub()
+	store := sessionStoreMock{}
 
-	handled := make(chan bool)
-	mockConnHandler := connectionHandlerMock{}
-	mockConnHandler.On("Handle", mock.Anything).
-		Run(func(args mock.Arguments) { handled <- true }).
-		Return(nil)
-
-	l, err := mqtt.NewListener(
-		mqtt.WithConfiguration(mqtt.Configuration{TCPAddress: ":1883"}),
-		mqtt.WithConnectionHandler(&mockConnHandler),
-		mqtt.WithLogger(logStub.Logger()),
+	l, err := NewListener(
+		WithConfiguration(Configuration{TCPAddress: ":1883"}),
+		WithSessionStore(&store),
+		WithLogger(logger.Logger()),
 	)
 	require.Nil(t, err)
 
@@ -144,25 +127,19 @@ func TestListener_HandleConnection(t *testing.T) {
 	require.Nil(t, err)
 	defer func() { _ = conn.Close() }()
 
-	<-handled
 	l.Stop()
 	<-done
 	assert.Nil(t, err)
 }
 
 func TestListener_HandleConnectionFailure(t *testing.T) {
-	logStub := mocks.NewLoggerStub()
+	logger := mocks.NewLoggerStub()
+	store := sessionStoreMock{}
 
-	handled := make(chan bool)
-	mockConnHandler := connectionHandlerMock{}
-	mockConnHandler.On("Handle", mock.Anything).
-		Run(func(args mock.Arguments) { handled <- true }).
-		Return(errors.New("failed to handle connection"))
-
-	l, err := mqtt.NewListener(
-		mqtt.WithConfiguration(mqtt.Configuration{TCPAddress: ":1883"}),
-		mqtt.WithConnectionHandler(&mockConnHandler),
-		mqtt.WithLogger(logStub.Logger()),
+	l, err := NewListener(
+		WithConfiguration(Configuration{TCPAddress: ":1883"}),
+		WithSessionStore(&store),
+		WithLogger(logger.Logger()),
 	)
 	require.Nil(t, err)
 
@@ -177,7 +154,6 @@ func TestListener_HandleConnectionFailure(t *testing.T) {
 	require.Nil(t, err)
 	defer func() { _ = conn.Close() }()
 
-	<-handled
 	l.Stop()
 	<-done
 	assert.Nil(t, err)

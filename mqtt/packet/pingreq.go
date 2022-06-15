@@ -67,7 +67,8 @@ func (pkt *PingReq) Size() int {
 	return pkt.size
 }
 
-// Timestamp returns the timestamp which the packet was created.
+// Timestamp returns the timestamp of the moment which the packet has been
+// received.
 func (pkt *PingReq) Timestamp() time.Time {
 	return pkt.timestamp
 }

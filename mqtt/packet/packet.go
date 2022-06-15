@@ -85,7 +85,8 @@ type Packet interface {
 	// Size returns the packet size in bytes.
 	Size() int
 
-	// Timestamp returns the timestamp which the packet was created.
+	// Timestamp returns the timestamp of the moment which the packet has been
+	// received or has been sent.
 	Timestamp() time.Time
 }
 

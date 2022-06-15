@@ -23,32 +23,32 @@ import (
 // MemoryStore represents a store where data are saved in memory.
 type MemoryStore struct {
 	mu       sync.RWMutex
-	sessions map[string]mqtt.Session
+	sessions map[string]*mqtt.Session
 }
 
 // NewMemoryStore creates a MemoryStore.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		sessions: make(map[string]mqtt.Session),
+		sessions: make(map[string]*mqtt.Session),
 	}
 }
 
 // GetSession gets the session from in-memory session store.
-func (s *MemoryStore) GetSession(id mqtt.ClientID) (mqtt.Session,
+func (s *MemoryStore) GetSession(id mqtt.ClientID) (*mqtt.Session,
 	error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	session, ok := s.sessions[string(id)]
 	if !ok {
-		return mqtt.Session{}, mqtt.ErrSessionNotFound
+		return &mqtt.Session{}, mqtt.ErrSessionNotFound
 	}
 
 	return session, nil
 }
 
 // SaveSession saves the session into the in-memory session store.
-func (s *MemoryStore) SaveSession(session mqtt.Session) error {
+func (s *MemoryStore) SaveSession(session *mqtt.Session) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -57,7 +57,7 @@ func (s *MemoryStore) SaveSession(session mqtt.Session) error {
 }
 
 // DeleteSession deletes the session from the in-memory session store.
-func (s *MemoryStore) DeleteSession(session mqtt.Session) error {
+func (s *MemoryStore) DeleteSession(session *mqtt.Session) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

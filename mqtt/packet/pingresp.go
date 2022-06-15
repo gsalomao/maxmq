@@ -28,13 +28,14 @@ type PingResp struct {
 
 // NewPingResp creates a PINGRESP Packet.
 func NewPingResp() PingResp {
-	return PingResp{timestamp: time.Now()}
+	return PingResp{}
 }
 
 // Pack encodes the packet into bytes and writes it into the io.Writer.
 func (pkt *PingResp) Pack(w *bufio.Writer) error {
 	_ = w.WriteByte(byte(PINGRESP) << packetTypeBit)
 	err := w.WriteByte(0)
+	pkt.timestamp = time.Now()
 	pkt.size = 2
 
 	return err
@@ -57,7 +58,7 @@ func (pkt *PingResp) Size() int {
 	return pkt.size
 }
 
-// Timestamp returns the timestamp which the packet was created.
+// Timestamp returns the timestamp of the moment the packet has been sent.
 func (pkt *PingResp) Timestamp() time.Time {
 	return pkt.timestamp
 }

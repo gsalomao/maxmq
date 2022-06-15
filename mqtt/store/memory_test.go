@@ -41,12 +41,12 @@ func TestMemorySessionStore_SaveSession(t *testing.T) {
 		ConnectedAt:    time.Now().Unix(),
 		ExpiryInterval: 60,
 	}
-	err := s.SaveSession(session)
+	err := s.SaveSession(&session)
 	require.Nil(t, err)
 
 	savedSession, err := s.GetSession(id)
 	require.Nil(t, err)
-	assert.Equal(t, session, savedSession)
+	assert.Equal(t, session, *savedSession)
 }
 
 func TestMemorySessionStore_DeleteSession(t *testing.T) {
@@ -58,11 +58,11 @@ func TestMemorySessionStore_DeleteSession(t *testing.T) {
 		ConnectedAt:    time.Now().Unix(),
 		ExpiryInterval: 60,
 	}
-	_ = s.SaveSession(session)
+	_ = s.SaveSession(&session)
 	_, err := s.GetSession(id)
 	require.Nil(t, err)
 
-	err = s.DeleteSession(session)
+	err = s.DeleteSession(&session)
 	require.Nil(t, err)
 
 	_, err = s.GetSession(id)

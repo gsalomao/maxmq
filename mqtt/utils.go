@@ -16,7 +16,6 @@ package mqtt
 
 import (
 	"math"
-	"time"
 
 	"github.com/gsalomao/maxmq/mqtt/packet"
 	"github.com/rs/xid"
@@ -94,28 +93,18 @@ func getClientID(p *packet.Connect, prefix []byte) (id ClientID, created bool) {
 	return id, true
 }
 
-func assignClientID(p *packet.ConnAck, s Session, id ClientID, created bool) {
+func addAssignedClientID(p *packet.ConnAck, s *Session, created bool) {
 	if s.Version == packet.MQTT50 && created {
 		props := getPropertiesOrCreate(p.Properties)
-		props.AssignedClientID = id
+		props.AssignedClientID = s.ClientID
 		p.Properties = props
 	}
-}
-
-func nextConnectionDeadline(conn Connection) time.Time {
-	if conn.client.keepAlive > 0 {
-		timeout := math.Ceil(float64(conn.client.keepAlive) * 1.5)
-		return time.Now().Add(time.Duration(timeout) * time.Second)
-	}
-
-	// Zero value of time to disable the timeout
-	return time.Time{}
 }
 
 func newConnAck(
 	version packet.MQTTVersion,
 	code packet.ReasonCode,
-	keepAlive uint16,
+	keepAlive int,
 	sessionPresent bool,
 	conf *Configuration,
 	props *packet.Properties,
@@ -156,11 +145,11 @@ func getPropertiesOrCreate(p *packet.Properties) *packet.Properties {
 
 func addServerKeepAliveToProperties(
 	p *packet.Properties,
-	keepAlive uint16,
+	keepAlive int,
 	conf *Configuration,
 ) *packet.Properties {
 	if conf.MaxKeepAlive > 0 &&
-		(keepAlive == 0 || keepAlive > uint16(conf.MaxKeepAlive)) {
+		(keepAlive == 0 || keepAlive > conf.MaxKeepAlive) {
 
 		p = getPropertiesOrCreate(p)
 

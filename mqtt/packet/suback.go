@@ -50,7 +50,6 @@ func NewSubAck(id ID, v MQTTVersion, c []ReasonCode, p *Properties) SubAck {
 		Version:     v,
 		ReasonCodes: c,
 		Properties:  p,
-		timestamp:   time.Now(),
 	}
 }
 
@@ -74,11 +73,12 @@ func (pkt *SubAck) Pack(w *bufio.Writer) error {
 	_ = w.WriteByte(byte(pkt.PacketID))
 
 	_, err := buf.WriteTo(w)
-	pkt.size = pktLen + 2 // +2 for packet type and variable length
-
 	for _, code := range pkt.ReasonCodes {
 		_ = w.WriteByte(byte(code))
 	}
+
+	pkt.timestamp = time.Now()
+	pkt.size = pktLen + 2 // +2 for packet type and variable length
 
 	return err
 }
@@ -100,7 +100,7 @@ func (pkt *SubAck) Size() int {
 	return pkt.size
 }
 
-// Timestamp returns the timestamp which the packet was created.
+// Timestamp returns the timestamp of the moment the packet has been sent.
 func (pkt *SubAck) Timestamp() time.Time {
 	return pkt.timestamp
 }

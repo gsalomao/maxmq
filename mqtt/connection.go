@@ -17,42 +17,45 @@ package mqtt
 import (
 	"errors"
 	"io"
+	"math"
 	"net"
 	"time"
 
 	"github.com/gsalomao/maxmq/logger"
 	"github.com/gsalomao/maxmq/mqtt/packet"
+	"go.uber.org/multierr"
 )
 
-// Connection represents a network connection.
-type Connection struct {
+type connection struct {
 	netConn net.Conn
-	client  client
+	session Session
+	closed  bool
 }
 
-// ConnectionHandler is responsible for handle connections.
-type ConnectionHandler interface {
-	// Handle handles the network connection.
-	Handle(nc net.Conn) error
+func (c *connection) nextConnectionDeadline() time.Time {
+	if c.session.KeepAlive > 0 {
+		timeout := math.Ceil(float64(c.session.KeepAlive) * 1.5)
+		return time.Now().Add(time.Duration(timeout) * time.Second)
+	}
+
+	// Zero value of time to disable the timeout
+	return time.Time{}
 }
 
-// ConnectionManager implements the ConnectionHandler interface.
-type ConnectionManager struct {
-	conf           Configuration
+type connectionManager struct {
+	conf           *Configuration
 	log            *logger.Logger
 	metrics        *metrics
-	userProperties []packet.UserProperty
 	reader         packet.Reader
 	writer         packet.Writer
-	sessionStore   SessionStore
+	sessionManager sessionManager
 }
 
-// NewConnectionManager creates a new ConnectionManager.
-func NewConnectionManager(
-	cf Configuration,
+func newConnectionManager(
+	cf *Configuration,
 	st SessionStore,
 	lg *logger.Logger,
-) ConnectionManager {
+) connectionManager {
 	cf.BufferSize = bufferSizeOrDefault(cf.BufferSize)
 	cf.MaxPacketSize = maxPacketSizeOrDefault(cf.MaxPacketSize)
 	cf.ConnectTimeout = connectTimeoutOrDefault(cf.ConnectTimeout)
@@ -72,30 +75,28 @@ func NewConnectionManager(
 		MaxPacketSize: cf.MaxPacketSize,
 	}
 
-	return ConnectionManager{
+	m := newMetrics(cf.MetricsEnabled, lg)
+	return connectionManager{
 		conf:           cf,
 		log:            lg,
-		metrics:        newMetrics(cf.MetricsEnabled, lg),
-		userProperties: userProps,
+		metrics:        m,
 		reader:         packet.NewReader(rdOpts),
 		writer:         packet.NewWriter(cf.BufferSize),
-		sessionStore:   st,
+		sessionManager: newSessionManager(cf, m, userProps, st, lg),
 	}
 }
 
-// Handle handles the network connection.
-func (cm *ConnectionManager) Handle(nc net.Conn) error {
-	conn := cm.newConnection(nc)
-	defer conn.client.close(true)
+func (cm *connectionManager) handle(nc net.Conn) error {
+	conn := cm.createConnection(nc)
+	defer cm.closeConnection(&conn, true)
 
 	cm.metrics.recordConnection()
 	cm.log.Debug().
-		Uint16("Timeout", conn.client.keepAlive).
+		Int("Timeout", conn.session.KeepAlive).
 		Msg("MQTT Handling connection")
 
 	deadline := time.Now()
-	deadline = deadline.Add(time.Duration(conn.client.keepAlive) * time.Second)
-	session := &conn.client.session
+	deadline = deadline.Add(time.Duration(conn.session.KeepAlive) * time.Second)
 
 	for {
 		err := conn.netConn.SetReadDeadline(deadline)
@@ -106,62 +107,151 @@ func (cm *ConnectionManager) Handle(nc net.Conn) error {
 		}
 
 		cm.log.Trace().
-			Uint16("Timeout", conn.client.keepAlive).
+			Int("Timeout", conn.session.KeepAlive).
 			Msg("MQTT Waiting packet")
 
-		pkt, err := cm.reader.ReadPacket(conn.netConn, session.Version)
+		pkt, err := cm.readPacket(&conn)
 		if err != nil {
 			if err == io.EOF {
-				cm.log.Debug().Msg("MQTT Connection was closed")
 				return nil
 			}
-
-			if errCon, ok := err.(net.Error); ok && errCon.Timeout() {
-				cm.log.Debug().
-					Bytes("ClientID", session.ClientID).
-					Bool("Connected", conn.client.connected).
-					Uint16("Timeout", conn.client.keepAlive).
-					Msg("MQTT Timeout - No packet received")
-				return errors.New("timeout - no packet received")
-			}
-
-			cm.log.Info().Msg("MQTT Failed to read packet: " + err.Error())
-			return errors.New("failed to read packet: " + err.Error())
+			return err
 		}
 
-		cm.metrics.recordPacketReceived(pkt)
-		cm.log.Debug().
-			Uint8("PacketTypeID", uint8(pkt.Type())).
-			Msg("MQTT Received packet")
-
-		err = conn.client.handlePacket(pkt)
+		err = cm.handlePacket(&conn, pkt)
 		if err != nil {
-			cm.log.Warn().
-				Bytes("ClientID", session.ClientID).
-				Stringer("PacketType", pkt.Type()).
-				Msg("MQTT Failed to process packet: " + err.Error())
-			return errors.New("failed to process packet: " + err.Error())
+			return err
 		}
 
-		if !conn.client.connected {
+		if !conn.session.connected {
+			cm.closeConnection(&conn, false)
 			return nil
 		}
-		deadline = nextConnectionDeadline(conn)
+
+		deadline = conn.nextConnectionDeadline()
 	}
 }
 
-func (cm *ConnectionManager) newConnection(nc net.Conn) Connection {
-	return Connection{
+func (cm *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
+	err error) {
+
+	pkt, err = cm.reader.ReadPacket(conn.netConn, conn.session.Version)
+	if err != nil {
+		if err == io.EOF {
+			cm.log.Debug().Msg("MQTT Connection was closed")
+			return
+		}
+
+		if errCon, ok := err.(net.Error); ok && errCon.Timeout() {
+			cm.log.Debug().
+				Bytes("ClientID", conn.session.ClientID).
+				Bool("Connected", conn.session.connected).
+				Int("Timeout", conn.session.KeepAlive).
+				Msg("MQTT Timeout - No packet received")
+			return nil, errors.New("timeout - no packet received")
+		}
+
+		cm.log.Info().Msg("MQTT Failed to read packet: " + err.Error())
+		return nil, errors.New("failed to read packet: " + err.Error())
+	}
+
+	cm.metrics.recordPacketReceived(pkt)
+	cm.log.Debug().
+		Uint8("PacketTypeID", uint8(pkt.Type())).
+		Msg("MQTT Received packet")
+	return
+}
+
+func (cm *connectionManager) handlePacket(conn *connection,
+	pkt packet.Packet) error {
+
+	reply, err := cm.sessionManager.handlePacket(&conn.session, pkt)
+	if err != nil {
+		cm.log.Warn().
+			Bytes("ClientID", conn.session.ClientID).
+			Stringer("PacketType", pkt.Type()).
+			Msg("MQTT Failed to handle packet: " + err.Error())
+		err = errors.New("failed to handle packet: " + err.Error())
+	}
+
+	if reply != nil {
+		errReply := cm.replyPacket(pkt, reply, conn)
+		if errReply != nil {
+			err = multierr.Combine(err,
+				errors.New("failed to send packet: "+errReply.Error()))
+		}
+	}
+
+	return err
+}
+
+func (cm *connectionManager) createConnection(nc net.Conn) connection {
+	return connection{
 		netConn: nc,
-		client: newClient(clientOptions{
-			log:            cm.log,
-			metrics:        cm.metrics,
-			conf:           &cm.conf,
-			writer:         &cm.writer,
-			userProperties: cm.userProperties,
-			sessionStore:   cm.sessionStore,
-			netConn:        nc,
-			keepAlive:      uint16(cm.conf.ConnectTimeout),
-		}),
+		session: newSession(cm.conf.ConnectTimeout),
+	}
+}
+
+func (cm *connectionManager) closeConnection(conn *connection, force bool) {
+	if conn.closed {
+		return
+	}
+
+	if tcp, ok := conn.netConn.(*net.TCPConn); ok && force {
+		_ = tcp.SetLinger(0)
+	}
+
+	cm.log.Debug().
+		Bytes("ClientID", conn.session.ClientID).
+		Bool("Force", force).
+		Msg("MQTT Closing connection")
+
+	_ = conn.netConn.Close()
+	conn.closed = true
+	cm.sessionManager.disconnectSession(&conn.session)
+	cm.metrics.recordDisconnection()
+}
+
+func (cm *connectionManager) replyPacket(pkt packet.Packet, reply packet.Packet,
+	c *connection) error {
+
+	cm.log.Trace().
+		Bytes("ClientID", c.session.ClientID).
+		Uint8("PacketTypeID", uint8(reply.Type())).
+		Uint8("Version", uint8(c.session.Version)).
+		Msg("MQTT Sending packet")
+
+	err := cm.writer.WritePacket(reply, c.netConn)
+	if err != nil {
+		cm.log.Warn().
+			Bytes("ClientID", c.session.ClientID).
+			Stringer("PacketType", reply.Type()).
+			Uint8("Version", uint8(c.session.Version)).
+			Msg("MQTT Failed to send packet: " + err.Error())
+		err = multierr.Combine(err,
+			errors.New("failed to send packet: "+err.Error()))
+	} else {
+		cm.recordLatencyMetrics(pkt, reply)
+		cm.metrics.recordPacketSent(reply)
+		cm.log.Debug().
+			Bytes("ClientID", c.session.ClientID).
+			Uint8("PacketTypeID", uint8(reply.Type())).
+			Uint8("Version", uint8(c.session.Version)).
+			Msg("MQTT Packet sent")
+	}
+
+	return err
+}
+
+func (cm *connectionManager) recordLatencyMetrics(pkt packet.Packet,
+	reply packet.Packet) {
+
+	latency := reply.Timestamp().Sub(pkt.Timestamp())
+
+	if pkt.Type() == packet.CONNECT && reply.Type() == packet.CONNACK {
+		connAck := reply.(*packet.ConnAck)
+		cm.metrics.recordConnectLatency(latency, int(connAck.ReasonCode))
+	} else if pkt.Type() == packet.PINGREQ && reply.Type() == packet.PINGRESP {
+		cm.metrics.recordPingLatency(latency)
 	}
 }

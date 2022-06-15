@@ -113,7 +113,8 @@ func (pkt *Subscribe) Size() int {
 	return pkt.size
 }
 
-// Timestamp returns the timestamp which the packet was created.
+// Timestamp returns the timestamp of the moment which the packet has been
+// received.
 func (pkt *Subscribe) Timestamp() time.Time {
 	return pkt.timestamp
 }

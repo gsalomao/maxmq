@@ -28,11 +28,10 @@ func WithConfiguration(cf Configuration) OptionsFn {
 	}
 }
 
-// WithConnectionHandler sets the given ConnectionHandler into the MQTT
-// Listener.
-func WithConnectionHandler(ch ConnectionHandler) OptionsFn {
+// WithSessionStore sets the given SessionStore into the MQTT Listener.
+func WithSessionStore(st SessionStore) OptionsFn {
 	return func(l *Listener) {
-		l.connHandler = ch
+		l.sessionStore = st
 	}
 }
 

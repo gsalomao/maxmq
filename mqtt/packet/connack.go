@@ -52,7 +52,6 @@ func NewConnAck(
 		ReasonCode:     c,
 		SessionPresent: sessionPresent,
 		Properties:     p,
-		timestamp:      time.Now(),
 	}
 }
 
@@ -82,6 +81,7 @@ func (pkt *ConnAck) Pack(w *bufio.Writer) error {
 	_ = w.WriteByte(byte(pkt.ReasonCode))
 
 	_, err := buf.WriteTo(w)
+	pkt.timestamp = time.Now()
 	pkt.size = pktLen + 2 // +2 for paket type and length
 
 	return err
@@ -104,7 +104,7 @@ func (pkt *ConnAck) Size() int {
 	return pkt.size
 }
 
-// Timestamp returns the timestamp which the packet was created.
+// Timestamp returns the timestamp of the moment the packet has been sent.
 func (pkt *ConnAck) Timestamp() time.Time {
 	return pkt.timestamp
 }

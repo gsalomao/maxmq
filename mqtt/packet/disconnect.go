@@ -91,6 +91,7 @@ func (pkt *Disconnect) Pack(w *bufio.Writer) error {
 	_ = w.WriteByte(byte(DISCONNECT) << packetTypeBit)
 	_ = encodeVarInteger(w, varHeader.Len())
 	n, err := varHeader.WriteTo(w)
+	pkt.timestamp = time.Now()
 	pkt.size = 2 + int(n)
 
 	return err
@@ -133,7 +134,8 @@ func (pkt *Disconnect) Size() int {
 	return pkt.size
 }
 
-// Timestamp returns the timestamp which the packet was created.
+// Timestamp returns the timestamp of the moment which the packet has been
+// received or has been sent.
 func (pkt *Disconnect) Timestamp() time.Time {
 	return pkt.timestamp
 }
