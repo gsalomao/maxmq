@@ -160,6 +160,90 @@ func TestSessionManager_HandleConnectExistingSession(t *testing.T) {
 	}
 }
 
+func TestSessionManager_HandleConnectCleanSessionNoExisting(t *testing.T) {
+	testCases := []struct {
+		version packet.MQTTVersion
+		code    packet.ReasonCode
+	}{
+		{version: packet.MQTT31, code: packet.ReasonCodeV3ConnectionAccepted},
+		{version: packet.MQTT311, code: packet.ReasonCodeV3ConnectionAccepted},
+		{version: packet.MQTT50, code: packet.ReasonCodeV5Success},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.version.String(), func(t *testing.T) {
+			conf := newConfiguration()
+			clientID := ClientID{'a'}
+			pkt := packet.Connect{ClientID: clientID, Version: test.version,
+				CleanSession: true}
+
+			s := newSession(conf.ConnectTimeout)
+			sm := createSessionManager(conf)
+
+			store := &sessionStoreMock{}
+			store.On("GetSession", clientID).Return(nil, ErrSessionNotFound)
+			sm.store = store
+
+			reply, err := sm.handlePacket(&s, &pkt)
+			assert.Nil(t, err)
+			assert.NotNil(t, reply)
+			assert.Equal(t, packet.CONNACK, reply.Type())
+
+			connAck := reply.(*packet.ConnAck)
+			assert.Equal(t, test.version, connAck.Version)
+			assert.Equal(t, test.code, connAck.ReasonCode)
+			assert.False(t, connAck.SessionPresent)
+		})
+	}
+}
+
+func TestSessionManager_HandleConnectCleanSessionExisting(t *testing.T) {
+	testCases := []struct {
+		version packet.MQTTVersion
+		code    packet.ReasonCode
+	}{
+		{version: packet.MQTT31, code: packet.ReasonCodeV3ConnectionAccepted},
+		{version: packet.MQTT311, code: packet.ReasonCodeV3ConnectionAccepted},
+		{version: packet.MQTT50, code: packet.ReasonCodeV5Success},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.version.String(), func(t *testing.T) {
+			conf := newConfiguration()
+			clientID := ClientID{'a'}
+			pkt := packet.Connect{ClientID: clientID, Version: test.version,
+				CleanSession: true}
+
+			s := newSession(conf.ConnectTimeout)
+			sm := createSessionManager(conf)
+
+			store := &sessionStoreMock{}
+			session := Session{
+				ClientID:       clientID,
+				ConnectedAt:    time.Now().Add(-1 * time.Minute).Unix(),
+				ExpiryInterval: conf.MaxSessionExpiryInterval,
+				Version:        test.version,
+			}
+
+			store.On("GetSession", clientID).Return(&session, nil)
+			store.On("DeleteSession", mock.Anything).Return(nil)
+			sm.store = store
+
+			reply, err := sm.handlePacket(&s, &pkt)
+			assert.Nil(t, err)
+			assert.NotNil(t, reply)
+			assert.Equal(t, packet.CONNACK, reply.Type())
+
+			connAck := reply.(*packet.ConnAck)
+			assert.Equal(t, test.version, connAck.Version)
+			assert.Equal(t, test.code, connAck.ReasonCode)
+			assert.False(t, connAck.SessionPresent)
+
+			store.AssertCalled(t, "DeleteSession", mock.Anything)
+		})
+	}
+}
+
 func TestSessionManager_HandleConnectFailedToGetSession(t *testing.T) {
 	testCases := []struct {
 		version packet.MQTTVersion

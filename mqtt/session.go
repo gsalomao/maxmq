@@ -59,6 +59,9 @@ type Session struct {
 	// Version represents the MQTT version.
 	Version packet.MQTTVersion
 
+	// CleanSession indicates if the session is temporary or not.
+	CleanSession bool
+
 	connected bool
 	restored  bool
 }
@@ -112,9 +115,10 @@ func (m *sessionManager) handleConnect(s *Session,
 	pkt *packet.Connect) (packet.Packet, error) {
 
 	m.log.Trace().
+		Bool("CleanSession", pkt.CleanSession).
 		Bytes("ClientID", pkt.ClientID).
-		Uint8("Version", uint8(pkt.Version)).
 		Uint16("KeepAlive", pkt.KeepAlive).
+		Uint8("Version", uint8(pkt.Version)).
 		Msg("MQTT Received CONNECT packet")
 
 	if pktErr := m.checkPacketConnect(pkt); pktErr != nil {
@@ -123,23 +127,34 @@ func (m *sessionManager) handleConnect(s *Session,
 		return &connAck, pktErr
 	}
 
-	version := pkt.Version
 	id, idCreated := getClientID(pkt, m.conf.ClientIDPrefix)
 	exp := getSessionExpiryInterval(pkt, m.conf.MaxSessionExpiryInterval)
 
-	err := m.restoreSession(s, id, version, exp)
+	s.ClientID = id
+	s.Version = pkt.Version
+	s.CleanSession = pkt.CleanSession
+	s.ExpiryInterval = exp
+	s.ConnectedAt = time.Now().UnixMilli()
+
+	var err error
+	if pkt.CleanSession {
+		err = m.deleteSessionIfExists(id)
+	} else {
+		err = m.updateSession(s)
+	}
 	if err != nil {
 		return nil, err
 	}
 
 	m.log.Info().
+		Bool("CleanSession", s.CleanSession).
 		Bytes("ClientID", s.ClientID).
 		Uint8("Version", uint8(s.Version)).
 		Int("KeepAlive", s.KeepAlive).
 		Msg("MQTT Client connected")
 
 	code := packet.ReasonCodeV3ConnectionAccepted
-	connAck := newConnAck(version, code, int(pkt.KeepAlive), s.restored,
+	connAck := newConnAck(s.Version, code, int(pkt.KeepAlive), s.restored,
 		m.conf, pkt.Properties, m.userProperties)
 
 	addAssignedClientID(&connAck, s, idCreated)
@@ -183,21 +198,25 @@ func (m *sessionManager) handleDisconnect(s *Session,
 		Msg("MQTT Received DISCONNECT packet")
 
 	m.disconnectSession(s)
-	err := m.store.DeleteSession(s)
-	if err == nil {
-		m.log.Debug().
-			Bytes("ClientID", s.ClientID).
-			Msg("MQTT Session deleted with success")
-	} else {
-		m.log.Error().
-			Bytes("ClientID", s.ClientID).
-			Msg("MQTT Failed to delete session: " + err.Error())
+
+	if !s.CleanSession {
+		err := m.store.DeleteSession(s)
+		if err == nil {
+			m.log.Debug().
+				Bytes("ClientID", s.ClientID).
+				Msg("MQTT Session deleted with success")
+		} else {
+			m.log.Error().
+				Bytes("ClientID", s.ClientID).
+				Msg("MQTT Failed to delete session: " + err.Error())
+		}
 	}
 
 	latency := time.Since(pkt.Timestamp())
 	m.metrics.recordDisconnectLatency(latency)
 
 	m.log.Info().
+		Bool("CleanSession", s.CleanSession).
 		Bytes("ClientID", s.ClientID).
 		Uint8("Version", uint8(s.Version)).
 		Msg("MQTT Client disconnected")
@@ -260,42 +279,40 @@ func (m *sessionManager) checkClientID(pkt *packet.Connect) *packet.Error {
 	return nil
 }
 
-func (m *sessionManager) restoreSession(s *Session, id ClientID,
-	version packet.MQTTVersion, exp uint32) error {
-
+func (m *sessionManager) findSession(id ClientID) (*Session, error) {
 	session, err := m.store.GetSession(id)
 	if err != nil {
 		if err == ErrSessionNotFound {
 			m.log.Debug().
 				Bytes("ClientID", id).
-				Uint8("Version", uint8(version)).
 				Msg("MQTT Session not found")
-		} else {
-			m.log.Error().
-				Bytes("ClientID", id).
-				Uint8("Version", uint8(version)).
-				Msg("MQTT Failed to get session: " + err.Error())
-			return err
+			return nil, nil
 		}
 
-		session = &Session{
-			ClientID:       id,
-			ExpiryInterval: exp,
-		}
-	} else {
-		session.restored = true
-		m.log.Debug().
-			Bytes("ClientID", session.ClientID).
-			Int64("ConnectedAt", session.ConnectedAt).
-			Uint32("ExpiryInterval", session.ExpiryInterval).
-			Uint8("Version", uint8(session.Version)).
-			Msg("MQTT Session found")
+		m.log.Error().
+			Bytes("ClientID", id).
+			Msg("MQTT Failed to get session: " + err.Error())
+		return nil, err
 	}
 
-	s.ClientID = session.ClientID
-	s.restored = session.restored
-	s.Version = version
-	s.ConnectedAt = time.Now().UnixMilli()
+	m.log.Debug().
+		Bytes("ClientID", session.ClientID).
+		Int64("ConnectedAt", session.ConnectedAt).
+		Uint32("ExpiryInterval", session.ExpiryInterval).
+		Uint8("Version", uint8(session.Version)).
+		Msg("MQTT Session found")
+
+	return session, nil
+}
+
+func (m *sessionManager) updateSession(s *Session) error {
+	session, err := m.findSession(s.ClientID)
+	if err != nil {
+		return err
+	}
+	if session != nil {
+		s.restored = true
+	}
 
 	err = m.store.SaveSession(s)
 	if err != nil {
@@ -312,6 +329,43 @@ func (m *sessionManager) restoreSession(s *Session, id ClientID,
 		Uint32("ExpiryInterval", s.ExpiryInterval).
 		Uint8("Version", uint8(s.Version)).
 		Msg("MQTT Session saved with success")
+	return nil
+}
+
+func (m *sessionManager) deleteSessionIfExists(id ClientID) error {
+	session, err := m.findSession(id)
+	if err != nil {
+		return err
+	}
+	if session == nil {
+		return nil
+	}
+
+	m.log.Trace().
+		Bytes("ClientID", session.ClientID).
+		Int64("ConnectedAt", session.ConnectedAt).
+		Uint32("ExpiryInterval", session.ExpiryInterval).
+		Uint8("Version", uint8(session.Version)).
+		Msg("MQTT Deleting session")
+
+	err = m.store.DeleteSession(session)
+	if err != nil {
+		m.log.Error().
+			Bytes("ClientID", session.ClientID).
+			Int64("ConnectedAt", session.ConnectedAt).
+			Uint32("ExpiryInterval", session.ExpiryInterval).
+			Uint8("Version", uint8(session.Version)).
+			Msg("MQTT Failed to delete session: " + err.Error())
+		return err
+	}
+
+	m.log.Debug().
+		Bytes("ClientID", session.ClientID).
+		Int64("ConnectedAt", session.ConnectedAt).
+		Uint32("ExpiryInterval", session.ExpiryInterval).
+		Uint8("Version", uint8(session.Version)).
+		Msg("MQTT Session deleted with success")
+
 	return nil
 }
 
