@@ -115,7 +115,7 @@ func (m *sessionManager) handleConnect(s *Session,
 		Bytes("ClientID", pkt.ClientID).
 		Uint8("Version", uint8(pkt.Version)).
 		Uint16("KeepAlive", pkt.KeepAlive).
-		Msg("MQTT Received CONNECT Packet")
+		Msg("MQTT Received CONNECT packet")
 
 	if pktErr := m.checkPacketConnect(pkt); pktErr != nil {
 		connAck := newConnAck(pkt.Version, pktErr.ReasonCode, s.KeepAlive,
@@ -132,6 +132,12 @@ func (m *sessionManager) handleConnect(s *Session,
 		return nil, err
 	}
 
+	m.log.Info().
+		Bytes("ClientID", s.ClientID).
+		Uint8("Version", uint8(s.Version)).
+		Int("KeepAlive", s.KeepAlive).
+		Msg("MQTT Client connected")
+
 	code := packet.ReasonCodeV3ConnectionAccepted
 	connAck := newConnAck(version, code, int(pkt.KeepAlive), s.restored,
 		m.conf, pkt.Properties, m.userProperties)
@@ -144,10 +150,11 @@ func (m *sessionManager) handleConnect(s *Session,
 		s.KeepAlive = int(*connAck.Properties.ServerKeepAlive)
 	}
 
-	m.log.Debug().
+	m.log.Trace().
 		Bytes("ClientID", s.ClientID).
-		Int("KeepAlive", s.KeepAlive).
-		Msg("MQTT Client connected")
+		Bool("SessionPresent", connAck.SessionPresent).
+		Uint8("Version", uint8(connAck.Version)).
+		Msg("MQTT Sending CONNACK packet")
 
 	return &connAck, nil
 }
@@ -157,9 +164,13 @@ func (m *sessionManager) handlePingReq(s *Session) (packet.Packet, error) {
 		Bytes("ClientID", s.ClientID).
 		Uint8("Version", uint8(s.Version)).
 		Int("KeepAlive", s.KeepAlive).
-		Msg("MQTT Received PINGREQ Packet")
+		Msg("MQTT Received PINGREQ packet")
 
 	pkt := packet.NewPingResp()
+	m.log.Trace().
+		Bytes("ClientID", s.ClientID).
+		Msg("MQTT Sending PINGRESP packet")
+
 	return &pkt, nil
 }
 
@@ -169,7 +180,7 @@ func (m *sessionManager) handleDisconnect(s *Session,
 	m.log.Trace().
 		Bytes("ClientID", s.ClientID).
 		Uint8("Version", uint8(s.Version)).
-		Msg("MQTT Received DISCONNECT Packet")
+		Msg("MQTT Received DISCONNECT packet")
 
 	m.disconnectSession(s)
 	err := m.store.DeleteSession(s)
@@ -185,6 +196,11 @@ func (m *sessionManager) handleDisconnect(s *Session,
 
 	latency := time.Since(pkt.Timestamp())
 	m.metrics.recordDisconnectLatency(latency)
+
+	m.log.Info().
+		Bytes("ClientID", s.ClientID).
+		Uint8("Version", uint8(s.Version)).
+		Msg("MQTT Client disconnected")
 
 	return nil, nil
 }
@@ -269,7 +285,10 @@ func (m *sessionManager) restoreSession(s *Session, id ClientID,
 	} else {
 		session.restored = true
 		m.log.Debug().
-			Bytes("ClientID", id).
+			Bytes("ClientID", session.ClientID).
+			Int64("ConnectedAt", session.ConnectedAt).
+			Uint32("ExpiryInterval", session.ExpiryInterval).
+			Uint8("Version", uint8(session.Version)).
 			Msg("MQTT Session found")
 	}
 

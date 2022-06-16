@@ -138,7 +138,9 @@ func (cm *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 	pkt, err = cm.reader.ReadPacket(conn.netConn, conn.session.Version)
 	if err != nil {
 		if err == io.EOF {
-			cm.log.Debug().Msg("MQTT Connection was closed")
+			cm.log.Debug().
+				Bytes("ClientID", conn.session.ClientID).
+				Msg("MQTT Network connection was closed")
 			return
 		}
 
@@ -157,6 +159,8 @@ func (cm *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 
 	cm.metrics.recordPacketReceived(pkt)
 	cm.log.Debug().
+		Bytes("ClientID", conn.session.ClientID).
+		Bool("Connected", conn.session.connected).
 		Uint8("PacketTypeID", uint8(pkt.Type())).
 		Msg("MQTT Received packet")
 	return
@@ -197,19 +201,24 @@ func (cm *connectionManager) closeConnection(conn *connection, force bool) {
 		return
 	}
 
-	if tcp, ok := conn.netConn.(*net.TCPConn); ok && force {
-		_ = tcp.SetLinger(0)
-	}
-
-	cm.log.Debug().
+	cm.log.Trace().
 		Bytes("ClientID", conn.session.ClientID).
 		Bool("Force", force).
 		Msg("MQTT Closing connection")
+
+	if tcp, ok := conn.netConn.(*net.TCPConn); ok && force {
+		_ = tcp.SetLinger(0)
+	}
 
 	_ = conn.netConn.Close()
 	conn.closed = true
 	cm.sessionManager.disconnectSession(&conn.session)
 	cm.metrics.recordDisconnection()
+
+	cm.log.Debug().
+		Bytes("ClientID", conn.session.ClientID).
+		Bool("Force", force).
+		Msg("MQTT Connection closed")
 }
 
 func (cm *connectionManager) replyPacket(pkt packet.Packet, reply packet.Packet,
