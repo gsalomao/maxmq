@@ -71,22 +71,25 @@ func newSession(keepAlive int) Session {
 }
 
 type sessionManager struct {
+	pubSub         pubSub
+	store          SessionStore
 	conf           *Configuration
 	metrics        *metrics
 	log            *logger.Logger
-	store          SessionStore
 	userProperties []packet.UserProperty
 }
 
-func newSessionManager(c *Configuration, m *metrics, p []packet.UserProperty,
-	s SessionStore, l *logger.Logger) sessionManager {
+func newSessionManager(conf *Configuration, metrics *metrics,
+	props []packet.UserProperty, store SessionStore,
+	log *logger.Logger) sessionManager {
 
 	return sessionManager{
-		conf:           c,
-		metrics:        m,
-		userProperties: p,
-		store:          s,
-		log:            l,
+		pubSub:         newPubSub(metrics, log),
+		store:          store,
+		conf:           conf,
+		metrics:        metrics,
+		userProperties: props,
+		log:            log,
 	}
 }
 
@@ -103,6 +106,9 @@ func (m *sessionManager) handlePacket(s *Session,
 		return m.handleConnect(s, connPkt)
 	case packet.PINGREQ:
 		return m.handlePingReq(s)
+	case packet.SUBSCRIBE:
+		subPkt, _ := pkt.(*packet.Subscribe)
+		return m.handleSubscribe(s, subPkt)
 	case packet.DISCONNECT:
 		disconnect := pkt.(*packet.Disconnect)
 		return m.handleDisconnect(s, disconnect)
@@ -187,6 +193,37 @@ func (m *sessionManager) handlePingReq(s *Session) (packet.Packet, error) {
 		Msg("MQTT Sending PINGRESP packet")
 
 	return &pkt, nil
+}
+
+func (m *sessionManager) handleSubscribe(session *Session,
+	pkt *packet.Subscribe) (packet.Packet, error) {
+	m.log.Trace().
+		Bytes("ClientID", session.ClientID).
+		Uint16("PacketID", uint16(pkt.PacketID)).
+		Int("NumberOfTopics", len(pkt.Topics)).
+		Uint8("Version", uint8(pkt.Version)).
+		Msg("MQTT Received SUBSCRIBE packet")
+
+	codes := make([]packet.ReasonCode, 0, len(pkt.Topics))
+
+	for _, topic := range pkt.Topics {
+		sub, err := m.pubSub.subscribe(session, topic)
+		if err == nil {
+			codes = append(codes, packet.ReasonCode(sub.QoS))
+		} else {
+			codes = append(codes, packet.ReasonCodeV3Failure)
+		}
+	}
+
+	subAck := packet.NewSubAck(pkt.PacketID, pkt.Version, codes, nil)
+	m.log.Trace().
+		Bytes("ClientID", session.ClientID).
+		Uint16("PacketID", uint16(pkt.PacketID)).
+		Int("NumberOfTopics", len(pkt.Topics)).
+		Uint8("Version", uint8(pkt.Version)).
+		Msg("MQTT Sending SUBACK packet")
+
+	return &subAck, nil
 }
 
 func (m *sessionManager) handleDisconnect(s *Session,

@@ -26,6 +26,7 @@ import (
 	"github.com/gsalomao/maxmq/mqtt"
 	"github.com/gsalomao/maxmq/mqtt/store"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	paho "github.com/eclipse/paho.mqtt.golang"
 )
@@ -82,28 +83,6 @@ func TestMqtt_Connect(t *testing.T) {
 	assert.True(t, c.IsConnectionOpen())
 }
 
-func TestMqtt_Disconnect(t *testing.T) {
-	b := newBroker()
-	assert.Nil(t, b.Start())
-	defer func() { b.Stop() }()
-	<-time.After(100 * time.Millisecond)
-
-	opts := paho.NewClientOptions()
-	opts.AddBroker("tcp://localhost:1883")
-	opts.SetClientID("paho-client")
-	c := paho.NewClient(opts)
-
-	token := c.Connect()
-	token.WaitTimeout(100 * time.Millisecond)
-	assert.True(t, c.IsConnected())
-	assert.True(t, c.IsConnectionOpen())
-	<-time.After(100 * time.Millisecond)
-
-	c.Disconnect(1)
-	<-time.After(100 * time.Millisecond)
-	assert.False(t, c.IsConnected())
-}
-
 func TestMqtt_PingReq(t *testing.T) {
 	b := newBroker()
 	assert.Nil(t, b.Start())
@@ -121,11 +100,63 @@ func TestMqtt_PingReq(t *testing.T) {
 
 	token := c.Connect()
 	token.WaitTimeout(100 * time.Millisecond)
-	assert.True(t, c.IsConnected())
-	assert.True(t, c.IsConnectionOpen())
+	require.True(t, c.IsConnected())
+	require.True(t, c.IsConnectionOpen())
 
 	// Wait enough time to client sends PINGREQ packet
 	<-time.After(5 * time.Second)
 	assert.True(t, c.IsConnected())
 	assert.True(t, c.IsConnectionOpen())
+}
+
+func TestMqtt_Subscribe(t *testing.T) {
+	b := newBroker()
+	assert.Nil(t, b.Start())
+	defer func() { b.Stop() }()
+	<-time.After(100 * time.Millisecond)
+
+	opts := paho.NewClientOptions()
+	opts.AddBroker("tcp://localhost:1883")
+	opts.SetClientID("paho-client")
+	opts.SetKeepAlive(2 * time.Second)
+	opts.SetConnectTimeout(1 * time.Second)
+	opts.SetPingTimeout(1 * time.Second)
+	opts.SetAutoReconnect(false)
+	c := paho.NewClient(opts)
+
+	token := c.Connect()
+	token.WaitTimeout(100 * time.Millisecond)
+	require.True(t, c.IsConnected())
+	require.True(t, c.IsConnectionOpen())
+
+	topicFilters := make(map[string]byte)
+	topicFilters["temp"] = 0
+	topicFilters["sensor/#"] = 1
+	topicFilters["data/+/raw"] = 2
+
+	token = c.SubscribeMultiple(topicFilters, nil)
+	assert.True(t, token.WaitTimeout(100*time.Millisecond))
+	assert.Nil(t, token.Error())
+}
+
+func TestMqtt_Disconnect(t *testing.T) {
+	b := newBroker()
+	assert.Nil(t, b.Start())
+	defer func() { b.Stop() }()
+	<-time.After(100 * time.Millisecond)
+
+	opts := paho.NewClientOptions()
+	opts.AddBroker("tcp://localhost:1883")
+	opts.SetClientID("paho-client")
+	c := paho.NewClient(opts)
+
+	token := c.Connect()
+	token.WaitTimeout(100 * time.Millisecond)
+	require.True(t, c.IsConnected())
+	require.True(t, c.IsConnectionOpen())
+	<-time.After(100 * time.Millisecond)
+
+	c.Disconnect(1)
+	<-time.After(100 * time.Millisecond)
+	assert.False(t, c.IsConnected())
 }

@@ -798,6 +798,124 @@ func TestSessionManager_HandlePingReqWithoutConnect(t *testing.T) {
 	assert.Nil(t, reply)
 }
 
+func TestSessionManager_HandleSubscribe(t *testing.T) {
+	testCases := []struct {
+		id      packet.ID
+		version packet.MQTTVersion
+		topic   string
+		qos     packet.QoS
+	}{
+		{id: 1, version: packet.MQTT31, topic: "data", qos: packet.QoS0},
+		{id: 2, version: packet.MQTT311, topic: "data/temp", qos: packet.QoS1},
+		{id: 3, version: packet.MQTT50, topic: "data/temp/#", qos: packet.QoS2},
+	}
+
+	conf := newConfiguration()
+	s := newSession(conf.ConnectTimeout)
+
+	for _, test := range testCases {
+		testName := fmt.Sprintf("%v-%v-%s-%v", test.id, test.version.String(),
+			test.topic, test.qos)
+
+		t.Run(testName, func(t *testing.T) {
+			sm := createSessionManager(conf)
+
+			err := connectClient(&sm, &s, test.version)
+			require.Nil(t, err)
+
+			sub := packet.Subscribe{PacketID: test.id, Version: test.version,
+				Topics: []packet.Topic{{Name: []byte(test.topic),
+					QoS: test.qos}}}
+
+			reply, err := sm.handlePacket(&s, &sub)
+			assert.Nil(t, err)
+			require.NotNil(t, reply)
+			require.Equal(t, packet.SUBACK, reply.Type())
+
+			subAck := reply.(*packet.SubAck)
+			assert.Equal(t, test.id, subAck.PacketID)
+			assert.Equal(t, test.version, subAck.Version)
+			assert.Len(t, subAck.ReasonCodes, 1)
+			assert.Equal(t, packet.ReasonCode(test.qos), subAck.ReasonCodes[0])
+		})
+	}
+}
+
+func TestSessionManager_HandleSubscribeError(t *testing.T) {
+	testCases := []struct {
+		id      packet.ID
+		version packet.MQTTVersion
+		topic   string
+		qos     packet.QoS
+	}{
+		{id: 1, version: packet.MQTT31, topic: "data#", qos: packet.QoS0},
+		{id: 2, version: packet.MQTT311, topic: "data+", qos: packet.QoS1},
+		{id: 3, version: packet.MQTT50, topic: "data/#/temp", qos: packet.QoS2},
+	}
+
+	conf := newConfiguration()
+	s := newSession(conf.ConnectTimeout)
+
+	for _, test := range testCases {
+		testName := fmt.Sprintf("%v-%v-%s-%v", test.id, test.version.String(),
+			test.topic, test.qos)
+
+		t.Run(testName, func(t *testing.T) {
+			sm := createSessionManager(conf)
+
+			err := connectClient(&sm, &s, test.version)
+			require.Nil(t, err)
+
+			sub := packet.Subscribe{PacketID: test.id, Version: test.version,
+				Topics: []packet.Topic{{Name: []byte(test.topic),
+					QoS: test.qos}}}
+
+			reply, err := sm.handlePacket(&s, &sub)
+			assert.Nil(t, err)
+			require.NotNil(t, reply)
+			require.Equal(t, packet.SUBACK, reply.Type())
+
+			subAck := reply.(*packet.SubAck)
+			assert.Equal(t, test.id, subAck.PacketID)
+			assert.Equal(t, test.version, subAck.Version)
+			assert.Len(t, subAck.ReasonCodes, 1)
+			assert.Equal(t, packet.ReasonCodeV3Failure, subAck.ReasonCodes[0])
+		})
+	}
+}
+
+func TestSessionManager_HandleSubscribeMultipleTopics(t *testing.T) {
+	conf := newConfiguration()
+	s := newSession(conf.ConnectTimeout)
+	sm := createSessionManager(conf)
+
+	err := connectClient(&sm, &s, packet.MQTT311)
+	require.Nil(t, err)
+
+	sub := packet.Subscribe{PacketID: 5, Version: packet.MQTT311,
+		Topics: []packet.Topic{
+			{Name: []byte("data/temp/0"), QoS: packet.QoS0},
+			{Name: []byte("data/temp#"), QoS: packet.QoS0},
+			{Name: []byte("data/temp/1"), QoS: packet.QoS1},
+			{Name: []byte("data/temp/2"), QoS: packet.QoS2},
+		},
+	}
+
+	reply, err := sm.handlePacket(&s, &sub)
+	assert.Nil(t, err)
+	require.NotNil(t, reply)
+	require.Equal(t, packet.SUBACK, reply.Type())
+
+	subAck := reply.(*packet.SubAck)
+	assert.Equal(t, sub.PacketID, subAck.PacketID)
+	assert.Equal(t, sub.Version, subAck.Version)
+	assert.Len(t, subAck.ReasonCodes, 4)
+	assert.Equal(t, packet.ReasonCode(packet.QoS0), subAck.ReasonCodes[0])
+	assert.Equal(t, packet.ReasonCodeV3Failure, subAck.ReasonCodes[1])
+	assert.Equal(t, packet.ReasonCode(packet.QoS1), subAck.ReasonCodes[2])
+	assert.Equal(t, packet.ReasonCode(packet.QoS2), subAck.ReasonCodes[3])
+}
+
 func TestSessionManager_HandleDisconnect(t *testing.T) {
 	conf := newConfiguration()
 	s := newSession(conf.ConnectTimeout)
