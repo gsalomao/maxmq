@@ -253,7 +253,7 @@ var propertyHandlers = map[propType]propertyHandler{
 	},
 	propUser: {
 		types: map[Type]struct{}{CONNECT: {}, CONNACK: {}, DISCONNECT: {},
-			SUBSCRIBE: {}, SUBACK: {}},
+			SUBSCRIBE: {}, SUBACK: {}, UNSUBSCRIBE: {}},
 		read: readPropUser,
 	},
 	propMaximumPacketSize: {

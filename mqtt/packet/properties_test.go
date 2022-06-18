@@ -271,6 +271,21 @@ func TestProperties_ReadPropertiesSubscribe(t *testing.T) {
 	assert.Equal(t, []byte{'b'}, props.UserProperties[0].Value)
 }
 
+func TestProperties_ReadPropertiesUnsubscribe(t *testing.T) {
+	msg := []byte{
+		0,                        // property length
+		38, 0, 1, 'a', 0, 1, 'b', // UserProperty
+		38, 0, 1, 'c', 0, 1, 'd', // UserProperty
+	}
+	msg[0] = byte(len(msg)) - 1
+
+	props, err := readProperties(bytes.NewBuffer(msg), UNSUBSCRIBE)
+	require.Nil(t, err)
+
+	assert.Equal(t, []byte{'a'}, props.UserProperties[0].Key)
+	assert.Equal(t, []byte{'b'}, props.UserProperties[0].Value)
+}
+
 func TestProperties_ReadPropertiesMalformed(t *testing.T) {
 	props := [][]byte{
 		{38, 0, 1, 'a', 0, 1}, // invalid user property

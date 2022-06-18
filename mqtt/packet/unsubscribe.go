@@ -1,0 +1,134 @@
+// Copyright 2022 The MaxMQ Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package packet
+
+import (
+	"bufio"
+	"bytes"
+	"errors"
+	"io"
+	"time"
+)
+
+// Unsubscribe represents the UNSUBSCRIBE Packet from MQTT specifications.
+type Unsubscribe struct {
+	// Topics represents the list of topics to unsubscribe.
+	Topics [][]byte
+
+	// Properties represents the SUBSCRIBE properties (MQTT V5.0 only).
+	Properties *Properties
+
+	// timestamp represents the timestamp which the packet was created.
+	timestamp time.Time
+
+	// size represents the number of bytes in the packet.
+	size int
+
+	// remainLength represents the number of bytes in the packet excluding the
+	// fixed header.
+	remainLength int
+
+	// PacketID represents the packet identifier.
+	PacketID ID
+
+	// Version represents the MQTT version.
+	Version MQTTVersion
+}
+
+func newPacketUnsubscribe(opts options) (Packet, error) {
+	if opts.packetType != UNSUBSCRIBE {
+		return nil, errors.New("packet type is not UNSUBSCRIBE")
+	}
+	if opts.controlFlags != 2 {
+		return nil, errors.New("invalid Control Flags (UNSUBSCRIBE)")
+	}
+	if opts.version < MQTT31 || opts.version > MQTT50 {
+		return nil, errors.New("invalid version (UNSUBSCRIBE)")
+	}
+
+	return &Unsubscribe{
+		Version:      opts.version,
+		Topics:       make([][]byte, 0),
+		size:         opts.fixedHeaderLength + opts.remainingLength,
+		remainLength: opts.remainingLength,
+		timestamp:    opts.timestamp,
+	}, nil
+}
+
+// Pack encodes the packet into bytes and writes it into the io.Writer.
+// It is not supported by the UNSUBSCRIBE Packet in this broker.
+func (pkt *Unsubscribe) Pack(_ *bufio.Writer) error {
+	return errors.New("unsupported (UNSUBSCRIBE)")
+}
+
+// Unpack reads the packet bytes from bufio.Reader and decodes them into the
+// packet.
+func (pkt *Unsubscribe) Unpack(r *bufio.Reader) error {
+	msg := make([]byte, pkt.remainLength)
+	if _, err := io.ReadFull(r, msg); err != nil {
+		return errors.New("missing data")
+	}
+	buf := bytes.NewBuffer(msg)
+
+	id, err := readUint16(buf, pkt.Version)
+	pkt.PacketID = ID(id)
+	if err != nil {
+		return err
+	}
+
+	if pkt.Version == MQTT50 {
+		pkt.Properties, err = readProperties(buf, UNSUBSCRIBE)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = pkt.unpackTopics(buf)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Type returns the packet type.
+func (pkt *Unsubscribe) Type() Type {
+	return UNSUBSCRIBE
+}
+
+// Size returns the packet size in bytes.
+func (pkt *Unsubscribe) Size() int {
+	return pkt.size
+}
+
+// Timestamp returns the timestamp of the moment which the packet has been
+// received.
+func (pkt *Unsubscribe) Timestamp() time.Time {
+	return pkt.timestamp
+}
+
+func (pkt *Unsubscribe) unpackTopics(buf *bytes.Buffer) error {
+	for {
+		topic, err := readString(buf, pkt.Version)
+		if err != nil {
+			return err
+		}
+
+		pkt.Topics = append(pkt.Topics, topic)
+		if buf.Len() == 0 {
+			return nil
+		}
+	}
+}
