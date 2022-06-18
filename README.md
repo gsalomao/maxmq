@@ -22,12 +22,11 @@ low-bandwidth, high-latency or unreliable networks.
 
 ### Features
 
-- [ ] MQTT 3.1, 3.1.1 and 5.0 protocol specification support
-    * QoS0, QoS1, QoS2 message support
-    * Persistent and offline message support
-    * Retained message support
-    * Last Will message support
-- [ ] Standard TCP
+- [ ] MQTT 3.1, 3.1.1 and 5.0 protocol *(Coming soon)*
+- [ ] Metrics support ([Prometheus](https://prometheus.io/)) *(Coming soon)*
+
+### Roadmap
+
 - [ ] MQTT over WebSocket
 - [ ] SSL / TLS
 - [ ] `$SYS` support
@@ -38,16 +37,18 @@ low-bandwidth, high-latency or unreliable networks.
 - [ ] Multi-server (Cluster)
 - [ ] Automatic network partition healing (Cluster)
 - [ ] Extensible through plugins
-- [ ] Metrics support ([Prometheus](https://prometheus.io/))
 - [ ] WebUI
-
-### Roadmap
-
 - [ ] Redis, MySQL, PostgreSQL, MongoDB, HTTP authentication
 - [ ] MQTT bridge support
 - [ ] MQTT-SN protocol support
 - [ ] CoAP protocol support
 
-## Licenses
+## Contributing
 
-This project is released under [Apache 2.0 License](./LICENSE).
+Please follow the 
+[MaxMQ Contributing Guide](https://github.com/gsalomao/maxmq/blob/master/CONTRIBUTING.md)
+
+## License
+
+This project is released under 
+[Apache 2.0 License](https://github.com/gsalomao/maxmq/blob/master/LICENSE).
