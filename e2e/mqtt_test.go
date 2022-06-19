@@ -136,7 +136,15 @@ func TestMqtt_Subscribe(t *testing.T) {
 
 	token = c.SubscribeMultiple(topicFilters, nil)
 	assert.True(t, token.WaitTimeout(100*time.Millisecond))
-	assert.Nil(t, token.Error())
+
+	subToken := token.(*paho.SubscribeToken)
+	assert.Nil(t, subToken.Error())
+
+	results := subToken.Result()
+	require.Len(t, results, 3)
+	assert.Equal(t, byte(0), results["temp"])
+	assert.Equal(t, byte(1), results["sensor/#"])
+	assert.Equal(t, byte(2), results["data/+/raw"])
 }
 
 func TestMqtt_Disconnect(t *testing.T) {
