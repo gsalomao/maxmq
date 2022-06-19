@@ -43,7 +43,7 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic) (Subscription,
 
 	sub := Subscription{
 		Session:           session,
-		TopicFilter:       topic.Name,
+		TopicFilter:       string(topic.Name),
 		QoS:               topic.QoS,
 		RetainHandling:    topic.RetainHandling,
 		RetainAsPublished: topic.RetainAsPublished,

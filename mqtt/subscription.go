@@ -15,6 +15,7 @@
 package mqtt
 
 import (
+	"bytes"
 	"errors"
 	"strings"
 	"sync"
@@ -32,7 +33,7 @@ type Subscription struct {
 	Session *Session
 
 	// TopicFilter is the MQTT Topic Filter.
-	TopicFilter []byte
+	TopicFilter string
 
 	// QoS is the Quality of Service level of the subscription.
 	QoS packet.QoS
@@ -71,7 +72,7 @@ func (t *subscriptionTrie) insert(sub Subscription) error {
 		return errors.New("empty topic filter")
 	}
 
-	words := strings.Split(string(sub.TopicFilter), "/")
+	words := strings.Split(sub.TopicFilter, "/")
 	nodes := t.nodes
 	var node *subscriptionNode
 
@@ -95,6 +96,10 @@ func (t *subscriptionTrie) insert(sub Subscription) error {
 	}
 
 	for node.subscription != nil {
+		if sameSubscription(node.subscription, &sub) {
+			break
+		}
+
 		if node.next == nil {
 			node.next = newSubscriptionNode()
 		}
@@ -116,4 +121,13 @@ func validateTopicWord(word string, isLastWord bool) error {
 	}
 
 	return nil
+}
+
+func sameSubscription(sub1 *Subscription, sub2 *Subscription) bool {
+	if bytes.Equal(sub1.Session.ClientID, sub2.Session.ClientID) &&
+		sub1.TopicFilter == sub2.TopicFilter {
+		return true
+	}
+
+	return false
 }

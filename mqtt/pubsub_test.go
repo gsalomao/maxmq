@@ -45,7 +45,7 @@ func TestPubSub_Subscribe(t *testing.T) {
 
 			sub, err := ps.subscribe(&session, test)
 			assert.Nil(t, err)
-			assert.Equal(t, test.Name, sub.TopicFilter)
+			assert.Equal(t, string(test.Name), sub.TopicFilter)
 			assert.Equal(t, test.QoS, sub.QoS)
 			assert.Equal(t, test.RetainHandling, sub.RetainHandling)
 			assert.Equal(t, test.RetainAsPublished, sub.RetainAsPublished)

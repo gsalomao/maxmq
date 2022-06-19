@@ -30,9 +30,7 @@ func addSubscriptions(trie *subscriptionTrie, session *Session, prefix string,
 
 	sub := Subscription{Session: session}
 	for i := 0; i < numOfTopics; i++ {
-		topic := prefix + fmt.Sprint(i)
-		sub.TopicFilter = []byte(topic)
-
+		sub.TopicFilter = prefix + fmt.Sprint(i)
 		err := trie.insert(sub)
 		if err != nil {
 			return err
@@ -44,7 +42,7 @@ func addSubscriptions(trie *subscriptionTrie, session *Session, prefix string,
 func checkTrie(t *testing.T, trie *subscriptionTrie, sub Subscription,
 	id ClientID) {
 
-	words := strings.Split(string(sub.TopicFilter), "/")
+	words := strings.Split(sub.TopicFilter, "/")
 	nodes := trie.nodes
 
 	for i, word := range words {
@@ -86,7 +84,7 @@ func TestSubscriptionTrie_Insert(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test, func(t *testing.T) {
-			sub := Subscription{Session: &session, TopicFilter: []byte(test),
+			sub := Subscription{Session: &session, TopicFilter: test,
 				QoS: packet.QoS0}
 
 			trie := newSubscriptionTrie()
@@ -115,9 +113,9 @@ func BenchmarkSubscriptionTrie_Insert(b *testing.B) {
 func TestSubscriptionTrie_InsertMultipleSubscriptions(t *testing.T) {
 	session := Session{ClientID: ClientID("id")}
 	subscriptions := []Subscription{
-		{Session: &session, TopicFilter: []byte("topic/0"), QoS: packet.QoS0},
-		{Session: &session, TopicFilter: []byte("topic/1"), QoS: packet.QoS1},
-		{Session: &session, TopicFilter: []byte("topic/2"), QoS: packet.QoS2},
+		{Session: &session, TopicFilter: "topic/0", QoS: packet.QoS0},
+		{Session: &session, TopicFilter: "topic/1", QoS: packet.QoS1},
+		{Session: &session, TopicFilter: "topic/2", QoS: packet.QoS2},
 	}
 	trie := newSubscriptionTrie()
 
@@ -137,13 +135,13 @@ func TestSubscriptionTrie_InsertSubscriptionsSameTopic(t *testing.T) {
 	subscriptions := []Subscription{
 		{Session: &Session{ClientID: ClientID("0")}, RetainHandling: 0,
 			RetainAsPublished: false, NoLocal: false,
-			TopicFilter: []byte("topic"), QoS: packet.QoS0},
+			TopicFilter: "topic", QoS: packet.QoS0},
 		{Session: &Session{ClientID: ClientID("1")}, RetainHandling: 1,
 			RetainAsPublished: false, NoLocal: true,
-			TopicFilter: []byte("topic"), QoS: packet.QoS1},
+			TopicFilter: "topic", QoS: packet.QoS1},
 		{Session: &Session{ClientID: ClientID("2")}, RetainHandling: 2,
 			RetainAsPublished: true, NoLocal: false,
-			TopicFilter: []byte("topic"), QoS: packet.QoS2},
+			TopicFilter: "topic", QoS: packet.QoS2},
 	}
 
 	trie := newSubscriptionTrie()
@@ -164,7 +162,7 @@ func TestSubscriptionTrie_InsertTopicFilterWithWildcard(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test, func(t *testing.T) {
 			session := Session{ClientID: ClientID("id")}
-			sub := Subscription{Session: &session, TopicFilter: []byte(test),
+			sub := Subscription{Session: &session, TopicFilter: test,
 				QoS: packet.QoS0}
 
 			trie := newSubscriptionTrie()
@@ -182,7 +180,7 @@ func TestSubscriptionTrie_InsertInvalidTopicFilter(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test, func(t *testing.T) {
 			session := Session{ClientID: ClientID("id")}
-			sub := Subscription{Session: &session, TopicFilter: []byte(test),
+			sub := Subscription{Session: &session, TopicFilter: test,
 				QoS: packet.QoS0}
 
 			trie := newSubscriptionTrie()
@@ -190,4 +188,29 @@ func TestSubscriptionTrie_InsertInvalidTopicFilter(t *testing.T) {
 			assert.NotNil(t, err)
 		})
 	}
+}
+
+func TestSubscriptionTrie_InsertSameTopicFilter(t *testing.T) {
+	session := Session{ClientID: ClientID("id")}
+	subscriptions := []Subscription{
+		{Session: &session, TopicFilter: "data", QoS: packet.QoS0},
+		{Session: &session, TopicFilter: "data", QoS: packet.QoS1},
+		{Session: &session, TopicFilter: "data", QoS: packet.QoS2},
+	}
+	trie := newSubscriptionTrie()
+
+	err := trie.insert(subscriptions[0])
+	require.Nil(t, err)
+	err = trie.insert(subscriptions[1])
+	require.Nil(t, err)
+	err = trie.insert(subscriptions[2])
+	require.Nil(t, err)
+
+	require.Len(t, trie.nodes, 1)
+	sub := trie.nodes["data"]
+	require.NotNil(t, sub.subscription)
+	assert.Equal(t, subscriptions[0].TopicFilter, sub.subscription.TopicFilter)
+	assert.Equal(t, subscriptions[2].QoS, sub.subscription.QoS)
+	assert.Nil(t, sub.next)
+	assert.Empty(t, sub.children)
 }
