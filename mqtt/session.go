@@ -34,7 +34,8 @@ type SessionStore interface {
 	// GetSession gets the session from the store.
 	GetSession(id ClientID) (*Session, error)
 
-	// SaveSession saves the session into the store.
+	// SaveSession creates the session into the store if it doesn't exist or
+	// update the existing session.
 	SaveSession(s *Session) error
 
 	// DeleteSession deletes the session from the store.
@@ -52,6 +53,9 @@ type Session struct {
 	// ConnectedAt represents the timestamp of the last connection.
 	ConnectedAt int64
 
+	// Subscriptions contains all subscriptions for the session.
+	Subscriptions map[string]Subscription
+
 	// ExpiryInterval represents the interval, in seconds, which the session
 	// expires.
 	ExpiryInterval uint32
@@ -67,7 +71,10 @@ type Session struct {
 }
 
 func newSession(keepAlive int) Session {
-	return Session{KeepAlive: keepAlive}
+	return Session{
+		KeepAlive:     keepAlive,
+		Subscriptions: make(map[string]Subscription),
+	}
 }
 
 type sessionManager struct {
@@ -208,11 +215,25 @@ func (m *sessionManager) handleSubscribe(session *Session,
 
 	for _, topic := range pkt.Topics {
 		sub, err := m.pubSub.subscribe(session, topic)
-		if err == nil {
-			codes = append(codes, packet.ReasonCode(sub.QoS))
-		} else {
+		if err != nil {
 			codes = append(codes, packet.ReasonCodeV3Failure)
+			continue
 		}
+
+		oldSub, ok := session.Subscriptions[sub.TopicFilter]
+		session.Subscriptions[sub.TopicFilter] = sub
+
+		err = m.store.SaveSession(session)
+		if err != nil {
+			if ok {
+				session.Subscriptions[sub.TopicFilter] = oldSub
+			}
+
+			codes = append(codes, packet.ReasonCodeV3Failure)
+			continue
+		}
+
+		codes = append(codes, packet.ReasonCode(sub.QoS))
 	}
 
 	subAck := packet.NewSubAck(pkt.PacketID, pkt.Version, codes, nil)
