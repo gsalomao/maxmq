@@ -231,8 +231,9 @@ var propertyHandlers = map[propType]propertyHandler{
 		read:  readServerReference,
 	},
 	propReasonString: {
-		types: map[Type]struct{}{CONNACK: {}, DISCONNECT: {}, SUBACK: {}},
-		read:  readPropReasonString,
+		types: map[Type]struct{}{CONNACK: {}, DISCONNECT: {}, SUBACK: {},
+			UNSUBACK: {}},
+		read: readPropReasonString,
 	},
 	propReceiveMaximum: {
 		types: map[Type]struct{}{CONNECT: {}, CONNACK: {}},
@@ -253,7 +254,7 @@ var propertyHandlers = map[propType]propertyHandler{
 	},
 	propUser: {
 		types: map[Type]struct{}{CONNECT: {}, CONNACK: {}, DISCONNECT: {},
-			SUBSCRIBE: {}, SUBACK: {}, UNSUBSCRIBE: {}},
+			SUBSCRIBE: {}, SUBACK: {}, UNSUBSCRIBE: {}, UNSUBACK: {}},
 		read: readPropUser,
 	},
 	propMaximumPacketSize: {

@@ -24,37 +24,37 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSubAck_Pack(t *testing.T) {
+func TestUnsubAck_Pack(t *testing.T) {
 	tests := []struct {
-		id  ID
-		ver MQTTVersion
-		cds []ReasonCode
-		msg []byte
+		id      ID
+		version MQTTVersion
+		codes   []ReasonCode
+		msg     []byte
 	}{
 		{
-			id:  1,
-			ver: MQTT31,
-			cds: []ReasonCode{ReasonCodeV3GrantedQoS0},
-			msg: []byte{0x90, 3, 0, 1, 0},
+			id:      1,
+			version: MQTT31,
+			codes:   nil,
+			msg:     []byte{0xB0, 2, 0, 1},
 		},
 		{
-			id:  2,
-			ver: MQTT311,
-			cds: []ReasonCode{ReasonCodeV3GrantedQoS0, ReasonCodeV3GrantedQoS2},
-			msg: []byte{0x90, 4, 0, 2, 0, 2},
+			id:      2,
+			version: MQTT311,
+			codes:   nil,
+			msg:     []byte{0xB0, 2, 0, 2},
 		},
 		{
-			id:  3,
-			ver: MQTT50,
-			cds: []ReasonCode{ReasonCodeV5GrantedQoS1},
-			msg: []byte{0x90, 4, 0, 3, 0, 1},
+			id:      3,
+			version: MQTT50,
+			codes:   []ReasonCode{ReasonCodeV5Success},
+			msg:     []byte{0xB0, 4, 0, 3, 0, 0},
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(fmt.Sprintf("%v-%v", tt.ver, tt.id), func(t *testing.T) {
-			pkt := NewSubAck(tt.id, tt.ver, tt.cds, nil)
-			assert.Equal(t, SUBACK, pkt.Type())
+		t.Run(fmt.Sprintf("%v-%v", tt.version, tt.id), func(t *testing.T) {
+			pkt := NewUnsubAck(tt.id, tt.version, tt.codes, nil)
+			assert.Equal(t, UNSUBACK, pkt.Type())
 
 			buf := &bytes.Buffer{}
 			wr := bufio.NewWriter(buf)
@@ -70,10 +70,10 @@ func TestSubAck_Pack(t *testing.T) {
 	}
 }
 
-func BenchmarkSubAck_PackV3(b *testing.B) {
+func BenchmarkUnsubAck_PackV3(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
-	pkt := NewSubAck(4, MQTT311, []ReasonCode{0, 1, 2}, nil)
+	pkt := NewUnsubAck(4, MQTT311, nil, nil)
 
 	b.ReportAllocs()
 
@@ -87,10 +87,10 @@ func BenchmarkSubAck_PackV3(b *testing.B) {
 	}
 }
 
-func BenchmarkSubAck_PackV5(b *testing.B) {
+func BenchmarkUnsubAck_PackV5(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
-	pkt := NewSubAck(4, MQTT50, []ReasonCode{0, 1, 2}, nil)
+	pkt := NewUnsubAck(4, MQTT50, []ReasonCode{0, 17, 128}, nil)
 
 	b.ReportAllocs()
 
@@ -104,11 +104,11 @@ func BenchmarkSubAck_PackV5(b *testing.B) {
 	}
 }
 
-func TestSubAck_PackV5Properties(t *testing.T) {
+func TestUnsubAck_PackV5Properties(t *testing.T) {
 	props := &Properties{}
 	props.ReasonString = []byte("abc")
 
-	pkt := NewSubAck(5, MQTT50, []ReasonCode{1, 0, 2}, props)
+	pkt := NewUnsubAck(5, MQTT50, []ReasonCode{0, 17, 128}, props)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -120,15 +120,15 @@ func TestSubAck_PackV5Properties(t *testing.T) {
 	err = wr.Flush()
 	assert.Nil(t, err)
 
-	msg := []byte{0x90, 12, 0, 5, 6, 31, 0, 3, 'a', 'b', 'c', 1, 0, 2}
+	msg := []byte{0xB0, 12, 0, 5, 6, 31, 0, 3, 'a', 'b', 'c', 0, 17, 128}
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestSubAck_PackV5InvalidProperty(t *testing.T) {
+func TestUnsubAck_PackV5InvalidProperty(t *testing.T) {
 	props := &Properties{TopicAlias: new(uint16)}
 	*props.TopicAlias = 10
 
-	pkt := NewSubAck(5, MQTT50, []ReasonCode{1, 0, 2}, props)
+	pkt := NewUnsubAck(5, MQTT50, []ReasonCode{0, 17, 128}, props)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -142,8 +142,8 @@ func TestSubAck_PackV5InvalidProperty(t *testing.T) {
 	assert.Empty(t, buf)
 }
 
-func TestSubAck_UnpackUnsupported(t *testing.T) {
-	pkt := NewSubAck(4, MQTT311, []ReasonCode{0, 1, 2}, nil)
+func TestUnsubAck_UnpackUnsupported(t *testing.T) {
+	pkt := NewUnsubAck(4, MQTT311, nil, nil)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -151,15 +151,15 @@ func TestSubAck_UnpackUnsupported(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestSubAck_Size(t *testing.T) {
+func TestUnsubAck_Size(t *testing.T) {
 	t.Run("Unknown", func(t *testing.T) {
-		pkt := NewSubAck(4, MQTT311, []ReasonCode{0, 1, 2}, nil)
+		pkt := NewUnsubAck(4, MQTT311, nil, nil)
 		require.NotNil(t, pkt)
 		assert.Equal(t, 0, pkt.Size())
 	})
 
 	t.Run("V3", func(t *testing.T) {
-		pkt := NewSubAck(4, MQTT311, []ReasonCode{0, 1, 2}, nil)
+		pkt := NewUnsubAck(4, MQTT311, nil, nil)
 		require.NotNil(t, pkt)
 
 		buf := &bytes.Buffer{}
@@ -168,11 +168,11 @@ func TestSubAck_Size(t *testing.T) {
 		err := pkt.Pack(wr)
 		require.Nil(t, err)
 
-		assert.Equal(t, 7, pkt.Size())
+		assert.Equal(t, 4, pkt.Size())
 	})
 
 	t.Run("V5", func(t *testing.T) {
-		pkt := NewSubAck(4, MQTT50, []ReasonCode{0, 1, 2}, nil)
+		pkt := NewUnsubAck(4, MQTT50, []ReasonCode{0, 17, 128}, nil)
 		require.NotNil(t, pkt)
 
 		buf := &bytes.Buffer{}
@@ -188,7 +188,7 @@ func TestSubAck_Size(t *testing.T) {
 		props := &Properties{}
 		props.ReasonString = []byte("abc")
 
-		pkt := NewSubAck(5, MQTT50, []ReasonCode{1, 0, 2}, props)
+		pkt := NewUnsubAck(5, MQTT50, []ReasonCode{0, 128}, props)
 		require.NotNil(t, pkt)
 
 		buf := &bytes.Buffer{}
@@ -197,12 +197,12 @@ func TestSubAck_Size(t *testing.T) {
 		err := pkt.Pack(wr)
 		require.Nil(t, err)
 
-		assert.Equal(t, 14, pkt.Size())
+		assert.Equal(t, 13, pkt.Size())
 	})
 }
 
-func TestSubAck_Timestamp(t *testing.T) {
-	pkt := NewSubAck(4, MQTT50, []ReasonCode{0}, nil)
+func TestUnsubAck_Timestamp(t *testing.T) {
+	pkt := NewUnsubAck(4, MQTT50, []ReasonCode{0}, nil)
 	require.NotNil(t, pkt)
 	assert.NotNil(t, pkt.Timestamp())
 }
