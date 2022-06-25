@@ -25,52 +25,39 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func addSubscriptions(trie *subscriptionTrie, session *Session, prefix string,
-	numOfTopics int) error {
-
-	sub := Subscription{Session: session}
-	for i := 0; i < numOfTopics; i++ {
-		sub.TopicFilter = prefix + fmt.Sprint(i)
-		err := trie.insert(sub)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func checkTrie(t *testing.T, trie *subscriptionTrie, sub Subscription,
+func assertSubscription(t *testing.T, trie *subscriptionTrie, sub Subscription,
 	id ClientID) {
 
 	words := strings.Split(sub.TopicFilter, "/")
-	nodes := trie.nodes
+	nodes := trie.root.children
 
 	for i, word := range words {
 		n, ok := nodes[word]
 		require.True(t, ok)
 
 		if i == len(words)-1 {
-			for {
-				require.NotNil(t, n.subscription)
-				require.NotNil(t, n.subscription.Session)
-				assert.Empty(t, n.children)
+			assert.Empty(t, n.children)
+			require.NotNil(t, n.subscription)
+			subscription := n.subscription
 
-				if bytes.Equal(id, n.subscription.Session.ClientID) {
-					assert.Equal(t, sub.QoS, n.subscription.QoS)
+			for {
+				require.NotNil(t, subscription.Session)
+
+				if bytes.Equal(id, subscription.Session.ClientID) {
+					assert.Equal(t, sub.QoS, subscription.QoS)
 					assert.Equal(t, sub.RetainHandling,
-						n.subscription.RetainHandling)
+						subscription.RetainHandling)
 					assert.Equal(t, sub.RetainAsPublished,
-						n.subscription.RetainAsPublished)
-					assert.Equal(t, sub.NoLocal, n.subscription.NoLocal)
+						subscription.RetainAsPublished)
+					assert.Equal(t, sub.NoLocal, subscription.NoLocal)
 					break
 				} else {
-					assert.NotNil(t, n.next)
-					n = n.next
+					assert.NotNil(t, subscription.next)
+					subscription = subscription.next
 				}
 			}
 		} else {
 			assert.Nil(t, n.subscription)
-			assert.Empty(t, n.next)
 			require.NotEmpty(t, n.children)
 			nodes = n.children
 		}
@@ -90,20 +77,22 @@ func TestSubscriptionTrie_Insert(t *testing.T) {
 			trie := newSubscriptionTrie()
 			err := trie.insert(sub)
 			assert.Nil(t, err)
-			require.Len(t, trie.nodes, 1)
-			checkTrie(t, &trie, sub, session.ClientID)
+			require.Len(t, trie.root.children, 1)
+			assertSubscription(t, &trie, sub, session.ClientID)
 		})
 	}
 }
 
 func BenchmarkSubscriptionTrie_Insert(b *testing.B) {
-	session := Session{ClientID: ClientID("id")}
 	b.ReportAllocs()
+	session := Session{ClientID: ClientID("id")}
+	trie := newSubscriptionTrie()
 
 	for i := 0; i < b.N; i++ {
-		trie := newSubscriptionTrie()
+		sub := Subscription{Session: &session}
+		sub.TopicFilter = "sensor/temp/" + fmt.Sprint(i)
 
-		err := addSubscriptions(&trie, &session, "sensor/temp/", 1000)
+		err := trie.insert(sub)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -126,9 +115,9 @@ func TestSubscriptionTrie_InsertMultipleSubscriptions(t *testing.T) {
 	err = trie.insert(subscriptions[2])
 	require.Nil(t, err)
 
-	checkTrie(t, &trie, subscriptions[0], session.ClientID)
-	checkTrie(t, &trie, subscriptions[1], session.ClientID)
-	checkTrie(t, &trie, subscriptions[2], session.ClientID)
+	assertSubscription(t, &trie, subscriptions[0], session.ClientID)
+	assertSubscription(t, &trie, subscriptions[1], session.ClientID)
+	assertSubscription(t, &trie, subscriptions[2], session.ClientID)
 }
 
 func TestSubscriptionTrie_InsertSubscriptionsSameTopic(t *testing.T) {
@@ -151,7 +140,7 @@ func TestSubscriptionTrie_InsertSubscriptionsSameTopic(t *testing.T) {
 		require.Nil(t, err)
 	}
 	for _, sub := range subscriptions {
-		checkTrie(t, &trie, sub, sub.Session.ClientID)
+		assertSubscription(t, &trie, sub, sub.Session.ClientID)
 	}
 }
 
@@ -168,7 +157,7 @@ func TestSubscriptionTrie_InsertTopicFilterWithWildcard(t *testing.T) {
 			trie := newSubscriptionTrie()
 			err := trie.insert(sub)
 			assert.Nil(t, err)
-			checkTrie(t, &trie, sub, sub.Session.ClientID)
+			assertSubscription(t, &trie, sub, sub.Session.ClientID)
 		})
 	}
 }
@@ -206,11 +195,169 @@ func TestSubscriptionTrie_InsertSameTopicFilter(t *testing.T) {
 	err = trie.insert(subscriptions[2])
 	require.Nil(t, err)
 
-	require.Len(t, trie.nodes, 1)
-	sub := trie.nodes["data"]
-	require.NotNil(t, sub.subscription)
-	assert.Equal(t, subscriptions[0].TopicFilter, sub.subscription.TopicFilter)
-	assert.Equal(t, subscriptions[2].QoS, sub.subscription.QoS)
+	require.Len(t, trie.root.children, 1)
+	node := trie.root.children["data"]
+	require.NotNil(t, node.subscription)
+
+	sub := node.subscription
+	require.NotNil(t, sub)
+	assert.Equal(t, subscriptions[0].TopicFilter, sub.TopicFilter)
+	assert.Equal(t, subscriptions[2].QoS, sub.QoS)
 	assert.Nil(t, sub.next)
-	assert.Empty(t, sub.children)
+	assert.Empty(t, node.children)
+}
+
+func TestSubscriptionTrie_Remove(t *testing.T) {
+	testCases := []string{"a", "/topic", "topic/level", "topic/level/3",
+		"topic//test"}
+	session := Session{ClientID: ClientID("id")}
+
+	for _, test := range testCases {
+		t.Run(test, func(t *testing.T) {
+			sub := Subscription{Session: &session, TopicFilter: test,
+				QoS: packet.QoS0}
+
+			trie := newSubscriptionTrie()
+			err := trie.insert(sub)
+			require.Nil(t, err)
+
+			err = trie.remove(session.ClientID, sub.TopicFilter)
+			assert.Nil(t, err)
+			assert.Empty(t, trie.root.children)
+		})
+	}
+}
+
+func BenchmarkSubscriptionTrie_Remove(b *testing.B) {
+	b.ReportAllocs()
+	session := Session{ClientID: ClientID("id")}
+	trie := newSubscriptionTrie()
+
+	for i := 0; i < b.N; i++ {
+		sub := Subscription{Session: &session}
+		sub.TopicFilter = "sensor/temp/" + fmt.Sprint(i)
+
+		err := trie.insert(sub)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	for i := 0; i < b.N; i++ {
+		err := trie.remove(session.ClientID, "sensor/temp/"+fmt.Sprint(i))
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func TestSubscriptionTrie_RemoveNoExisting(t *testing.T) {
+	testCases := []struct {
+		topics []string
+	}{
+		{topics: []string{"a", "b"}},
+		{topics: []string{"/topic", "/data"}},
+		{topics: []string{"/topic/level", "/topic/data"}},
+		{topics: []string{"/topic/level/#", "/topic/level/2"}},
+	}
+	session := Session{ClientID: ClientID("id")}
+
+	for _, test := range testCases {
+		t.Run(fmt.Sprintf("%s-%s", test.topics[0], test.topics[1]),
+			func(t *testing.T) {
+				trie := newSubscriptionTrie()
+
+				sub1 := Subscription{Session: &session,
+					TopicFilter: test.topics[0], QoS: packet.QoS0}
+				err := trie.insert(sub1)
+				require.Nil(t, err)
+
+				err = trie.remove(session.ClientID, test.topics[1])
+				assert.Equal(t, ErrSubscriptionNotFound, err)
+
+				assertSubscription(t, &trie, sub1, session.ClientID)
+			})
+	}
+}
+
+func TestSubscriptionTrie_RemoveAllChildren(t *testing.T) {
+	testCases := []struct {
+		topics []string
+	}{
+		{topics: []string{"a", "b"}},
+		{topics: []string{"/topic", "/data"}},
+		{topics: []string{"/topic/level", "/topic/data"}},
+		{topics: []string{"/topic/+/1", "/topic/+/2"}},
+	}
+	session := Session{ClientID: ClientID("id")}
+
+	for _, test := range testCases {
+		t.Run(fmt.Sprintf("%s-%s", test.topics[0], test.topics[1]),
+			func(t *testing.T) {
+				trie := newSubscriptionTrie()
+
+				sub1 := Subscription{Session: &session,
+					TopicFilter: test.topics[0], QoS: packet.QoS0}
+				err := trie.insert(sub1)
+				require.Nil(t, err)
+
+				sub2 := Subscription{Session: &session,
+					TopicFilter: test.topics[1], QoS: packet.QoS0}
+				err = trie.insert(sub2)
+				require.Nil(t, err)
+
+				err = trie.remove(session.ClientID, sub2.TopicFilter)
+				assert.Nil(t, err)
+
+				assertSubscription(t, &trie, sub1, session.ClientID)
+			})
+	}
+}
+
+func TestSubscriptionTrie_RemoveSameTopicFilter(t *testing.T) {
+	sessions := []Session{
+		{ClientID: ClientID("id-0")},
+		{ClientID: ClientID("id-1")},
+		{ClientID: ClientID("id-2")},
+	}
+	subscriptions := []Subscription{
+		{Session: &sessions[0], TopicFilter: "data/#", QoS: packet.QoS0},
+		{Session: &sessions[1], TopicFilter: "data/#", QoS: packet.QoS1},
+		{Session: &sessions[2], TopicFilter: "data/#", QoS: packet.QoS2},
+	}
+	trie := newSubscriptionTrie()
+
+	err := trie.insert(subscriptions[0])
+	require.Nil(t, err)
+	err = trie.insert(subscriptions[1])
+	require.Nil(t, err)
+	err = trie.insert(subscriptions[2])
+	require.Nil(t, err)
+	require.Len(t, trie.root.children, 1)
+
+	err = trie.remove(sessions[1].ClientID, subscriptions[1].TopicFilter)
+	assert.Nil(t, err)
+	assert.Len(t, trie.root.children, 1)
+
+	err = trie.remove(sessions[0].ClientID, subscriptions[0].TopicFilter)
+	assert.Nil(t, err)
+	assert.Len(t, trie.root.children, 1)
+
+	err = trie.remove(sessions[2].ClientID, subscriptions[2].TopicFilter)
+	assert.Nil(t, err)
+	assert.Empty(t, trie.root.children)
+}
+
+func TestSubscriptionTrie_RemoveSameTopicDifferentSession(t *testing.T) {
+	session := Session{ClientID: ClientID("id-0")}
+	sub := Subscription{Session: &session, TopicFilter: "data"}
+	trie := newSubscriptionTrie()
+
+	err := trie.insert(sub)
+	require.Nil(t, err)
+
+	err = trie.remove(ClientID("id-1"), sub.TopicFilter)
+	assert.Equal(t, ErrSubscriptionNotFound, err)
+
+	assertSubscription(t, &trie, sub, session.ClientID)
 }

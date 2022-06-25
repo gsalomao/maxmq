@@ -27,8 +27,13 @@ import (
 // Subscription has an invalid wildcard.
 var ErrSubscriptionInvalidWildcard = errors.New("invalid wildcard")
 
+// ErrSubscriptionNotFound indicates that the subscription was not found.
+var ErrSubscriptionNotFound = errors.New("subscription not found")
+
 // Subscription represents a MQTT subscription.
 type Subscription struct {
+	next *Subscription
+
 	// Session is the session which subscribed.
 	Session *Session
 
@@ -48,23 +53,13 @@ type Subscription struct {
 	NoLocal bool
 }
 
-type subscriptionNode struct {
-	subscription *Subscription
-	next         *subscriptionNode
-	children     map[string]*subscriptionNode
-}
-
-func newSubscriptionNode() *subscriptionNode {
-	return &subscriptionNode{children: make(map[string]*subscriptionNode)}
-}
-
 type subscriptionTrie struct {
-	nodes map[string]*subscriptionNode
+	root  *subscriptionNode
 	mutex sync.RWMutex
 }
 
 func newSubscriptionTrie() subscriptionTrie {
-	return subscriptionTrie{nodes: make(map[string]*subscriptionNode)}
+	return subscriptionTrie{root: newSubscriptionNode()}
 }
 
 func (t *subscriptionTrie) insert(sub Subscription) error {
@@ -73,11 +68,11 @@ func (t *subscriptionTrie) insert(sub Subscription) error {
 	}
 
 	words := strings.Split(sub.TopicFilter, "/")
-	nodes := t.nodes
-	var node *subscriptionNode
-
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
+
+	nodes := t.root.children
+	var node *subscriptionNode
 
 	for i, word := range words {
 		lastLevel := i == len(words)-1
@@ -95,18 +90,106 @@ func (t *subscriptionTrie) insert(sub Subscription) error {
 		nodes = child.children
 	}
 
-	for node.subscription != nil {
-		if sameSubscription(node.subscription, &sub) {
+	node.insert(&sub)
+	return nil
+}
+
+func (t *subscriptionTrie) remove(id ClientID, topic string) error {
+	words := strings.Split(topic, "/")
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+
+	nodes := t.root.children
+	stack := make([]*subscriptionNode, 0, len(words)+1) // +1 (root node)
+	stack = append(stack, t.root)
+
+	for i, word := range words {
+		node, ok := nodes[word]
+		if !ok {
+			return ErrSubscriptionNotFound
+		}
+
+		if i == len(words)-1 {
+			err := node.remove(id)
+			if err != nil {
+				return err
+			}
+		}
+
+		stack = append(stack, node)
+		nodes = node.children
+	}
+
+	for len(stack) > 1 {
+		n := stack[len(stack)-1]
+		parent := stack[len(stack)-2]
+		stack = stack[:len(stack)-1]
+
+		if n.subscription == nil && len(n.children) == 0 {
+			delete(parent.children, words[len(words)-1])
+			words = words[:len(words)-1]
+		}
+	}
+
+	return nil
+}
+
+type subscriptionNode struct {
+	subscription *Subscription
+	children     map[string]*subscriptionNode
+}
+
+func newSubscriptionNode() *subscriptionNode {
+	return &subscriptionNode{children: make(map[string]*subscriptionNode)}
+}
+
+func (n *subscriptionNode) insert(sub *Subscription) {
+	var parent *Subscription
+	subscription := n.subscription
+
+	for subscription != nil {
+		if sameSubscription(sub, subscription) {
 			break
 		}
 
-		if node.next == nil {
-			node.next = newSubscriptionNode()
-		}
-		node = node.next
+		parent = subscription
+		subscription = subscription.next
 	}
 
-	node.subscription = &sub
+	if parent != nil {
+		parent.next = sub
+	} else {
+		n.subscription = sub
+	}
+}
+
+func (n *subscriptionNode) remove(id ClientID) error {
+	var parent *Subscription
+	sub := n.subscription
+
+	for sub != nil {
+		if bytes.Equal(id, sub.Session.ClientID) {
+			break
+		}
+
+		parent = sub
+		sub = sub.next
+	}
+
+	if sub == nil {
+		return ErrSubscriptionNotFound
+	}
+
+	if parent == nil {
+		if sub.next == nil {
+			n.subscription = nil
+		} else {
+			n.subscription = sub.next
+		}
+	} else {
+		parent.next = sub.next
+	}
+
 	return nil
 }
 

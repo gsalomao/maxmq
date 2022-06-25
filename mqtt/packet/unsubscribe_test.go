@@ -82,9 +82,9 @@ func TestUnsubscribe_UnpackV3(t *testing.T) {
 	assert.Equal(t, MQTT311, unsubPkt.Version)
 	assert.Equal(t, ID(10), unsubPkt.PacketID)
 	require.Len(t, unsubPkt.Topics, 3)
-	assert.Equal(t, []byte{'a', '/', 'b'}, unsubPkt.Topics[0])
-	assert.Equal(t, []byte{'c', '/', 'd', '/', 'e'}, unsubPkt.Topics[1])
-	assert.Equal(t, []byte{'a', '/', '#'}, unsubPkt.Topics[2])
+	assert.Equal(t, "a/b", unsubPkt.Topics[0])
+	assert.Equal(t, "c/d/e", unsubPkt.Topics[1])
+	assert.Equal(t, "a/#", unsubPkt.Topics[2])
 	assert.Nil(t, unsubPkt.Properties)
 }
 
@@ -142,7 +142,7 @@ func TestUnsubscribe_UnpackV5(t *testing.T) {
 	assert.Equal(t, MQTT50, unsubPkt.Version)
 	assert.Equal(t, ID(25), unsubPkt.PacketID)
 	require.Len(t, unsubPkt.Topics, 1)
-	assert.Equal(t, []byte{'a', '/', 'b'}, unsubPkt.Topics[0])
+	assert.Equal(t, "a/b", unsubPkt.Topics[0])
 }
 
 func BenchmarkUnsubscribe_UnpackV5(b *testing.B) {

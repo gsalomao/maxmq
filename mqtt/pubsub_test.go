@@ -20,6 +20,7 @@ import (
 	"github.com/gsalomao/maxmq/mocks"
 	"github.com/gsalomao/maxmq/mqtt/packet"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func createPubSub() pubSub {
@@ -61,4 +62,43 @@ func TestPubSub_SubscribeError(t *testing.T) {
 
 	_, err := ps.subscribe(&session, topic)
 	assert.NotNil(t, err)
+}
+
+func TestPubSub_Unsubscribe(t *testing.T) {
+	testCases := []packet.Topic{
+		{Name: []byte("sensor")},
+		{Name: []byte("sensor/temp")},
+		{Name: []byte("sensor/temp/2")},
+	}
+
+	for _, test := range testCases {
+		t.Run(string(test.Name), func(t *testing.T) {
+			session := Session{ClientID: ClientID("a")}
+			ps := createPubSub()
+
+			sub, err := ps.subscribe(&session, test)
+			require.Nil(t, err)
+
+			err = ps.unsubscribe(session.ClientID, sub.TopicFilter)
+			assert.Nil(t, err)
+		})
+	}
+}
+
+func TestPubSub_UnsubscribeSubscriptionNotFound(t *testing.T) {
+	testCases := []packet.Topic{
+		{Name: []byte("sensor")},
+		{Name: []byte("sensor/temp")},
+		{Name: []byte("sensor/temp/2")},
+	}
+
+	for _, test := range testCases {
+		t.Run(string(test.Name), func(t *testing.T) {
+			session := Session{ClientID: ClientID("a")}
+			ps := createPubSub()
+
+			err := ps.unsubscribe(session.ClientID, string(test.Name))
+			assert.Equal(t, ErrSubscriptionNotFound, err)
+		})
+	}
 }

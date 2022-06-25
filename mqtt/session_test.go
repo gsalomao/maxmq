@@ -93,6 +93,18 @@ func connectClient(m *sessionManager, s *Session, v packet.MQTTVersion) error {
 	return err
 }
 
+func subscribe(sm *sessionManager, session *Session, topics []packet.Topic,
+	version packet.MQTTVersion) error {
+
+	sub := packet.Subscribe{PacketID: 5, Version: version, Topics: topics}
+	_, err := sm.handlePacket(session, &sub)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func TestSessionManager_HandleConnectNewSession(t *testing.T) {
 	testCases := []struct {
 		version packet.MQTTVersion
@@ -969,6 +981,164 @@ func TestSessionManager_HandleSubscribeMultipleTopics(t *testing.T) {
 	assert.Equal(t, packet.ReasonCodeV3Failure, subAck.ReasonCodes[1])
 	assert.Equal(t, packet.ReasonCode(packet.QoS1), subAck.ReasonCodes[2])
 	assert.Equal(t, packet.ReasonCode(packet.QoS2), subAck.ReasonCodes[3])
+}
+
+func TestSessionManager_HandleUnsubscribe(t *testing.T) {
+	testCases := []struct {
+		id      packet.ID
+		version packet.MQTTVersion
+		topic   string
+		codes   []packet.ReasonCode
+	}{
+		{id: 1, version: packet.MQTT31, topic: "data/0"},
+		{id: 2, version: packet.MQTT311, topic: "data/1"},
+		{id: 3, version: packet.MQTT50, topic: "data/2",
+			codes: []packet.ReasonCode{packet.ReasonCodeV5Success}},
+	}
+
+	conf := newConfiguration()
+	session := newSession(conf.ConnectTimeout)
+
+	for _, test := range testCases {
+		testName := fmt.Sprintf("%v-%v-%s", test.id, test.version.String(),
+			test.topic)
+
+		t.Run(testName, func(t *testing.T) {
+			sm := createSessionManager(conf)
+
+			err := connectClient(&sm, &session, test.version)
+			require.Nil(t, err)
+
+			topics := []packet.Topic{
+				{Name: []byte(test.topic), QoS: packet.QoS0}}
+			err = subscribe(&sm, &session, topics, test.version)
+			require.Nil(t, err)
+
+			unsub := packet.Unsubscribe{PacketID: test.id,
+				Version: test.version, Topics: []string{test.topic}}
+
+			reply, err := sm.handlePacket(&session, &unsub)
+			assert.Nil(t, err)
+			require.NotNil(t, reply)
+			require.Equal(t, packet.UNSUBACK, reply.Type())
+
+			unsubAck := reply.(*packet.UnsubAck)
+			assert.Equal(t, unsub.PacketID, unsubAck.PacketID)
+			assert.Equal(t, unsub.Version, unsubAck.Version)
+
+			if test.version == packet.MQTT50 {
+				assert.Equal(t, test.codes, unsubAck.ReasonCodes)
+			} else {
+				assert.Empty(t, unsubAck.ReasonCodes)
+			}
+		})
+	}
+}
+
+func TestSessionManager_HandleUnsubscribeMissingSubscription(t *testing.T) {
+	testCases := []struct {
+		id      packet.ID
+		version packet.MQTTVersion
+		topic   string
+		codes   []packet.ReasonCode
+	}{
+		{id: 1, version: packet.MQTT31, topic: "data/0"},
+		{id: 2, version: packet.MQTT311, topic: "data/1"},
+		{id: 3, version: packet.MQTT50, topic: "data/2",
+			codes: []packet.ReasonCode{
+				packet.ReasonCodeV5NoSubscriptionExisted}},
+	}
+
+	conf := newConfiguration()
+	session := newSession(conf.ConnectTimeout)
+
+	for _, test := range testCases {
+		testName := fmt.Sprintf("%v-%v-%s", test.id, test.version.String(),
+			test.topic)
+
+		t.Run(testName, func(t *testing.T) {
+			sm := createSessionManager(conf)
+
+			err := connectClient(&sm, &session, test.version)
+			require.Nil(t, err)
+
+			unsub := packet.Unsubscribe{PacketID: test.id,
+				Version: test.version, Topics: []string{test.topic}}
+
+			reply, err := sm.handlePacket(&session, &unsub)
+			assert.Nil(t, err)
+			require.NotNil(t, reply)
+			require.Equal(t, packet.UNSUBACK, reply.Type())
+
+			unsubAck := reply.(*packet.UnsubAck)
+			assert.Equal(t, unsub.PacketID, unsubAck.PacketID)
+			assert.Equal(t, unsub.Version, unsubAck.Version)
+
+			if test.version == packet.MQTT50 {
+				assert.Equal(t, test.codes, unsubAck.ReasonCodes)
+			} else {
+				assert.Empty(t, unsubAck.ReasonCodes)
+			}
+		})
+	}
+}
+
+func TestSessionManager_HandleUnsubscribeMultipleTopics(t *testing.T) {
+	testCases := []struct {
+		id      packet.ID
+		version packet.MQTTVersion
+		codes   []packet.ReasonCode
+	}{
+		{id: 1, version: packet.MQTT31},
+		{id: 2, version: packet.MQTT311},
+		{id: 3, version: packet.MQTT50, codes: []packet.ReasonCode{
+			packet.ReasonCodeV5Success,
+			packet.ReasonCodeV5Success,
+			packet.ReasonCodeV5NoSubscriptionExisted}},
+	}
+
+	conf := newConfiguration()
+	session := newSession(conf.ConnectTimeout)
+
+	for _, test := range testCases {
+		testName := fmt.Sprintf("%v-%v", test.id, test.version.String())
+
+		t.Run(testName, func(t *testing.T) {
+			sm := createSessionManager(conf)
+
+			err := connectClient(&sm, &session, test.version)
+			require.Nil(t, err)
+
+			topics := []packet.Topic{
+				{Name: []byte("data/temp/0"), QoS: packet.QoS0},
+				{Name: []byte("data/temp/1"), QoS: packet.QoS1},
+				{Name: []byte("data/temp/#"), QoS: packet.QoS2},
+			}
+
+			err = subscribe(&sm, &session, topics, test.version)
+			require.Nil(t, err)
+
+			topicNames := []string{"data/temp/0", "data/temp/#", "data/temp/2"}
+			unsub := packet.Unsubscribe{PacketID: test.id,
+				Version: test.version, Topics: topicNames}
+
+			reply, err := sm.handlePacket(&session, &unsub)
+			assert.Nil(t, err)
+
+			require.NotNil(t, reply)
+			require.Equal(t, packet.UNSUBACK, reply.Type())
+
+			unsubAck := reply.(*packet.UnsubAck)
+			assert.Equal(t, unsub.PacketID, unsubAck.PacketID)
+			assert.Equal(t, unsub.Version, unsubAck.Version)
+
+			if test.version == packet.MQTT50 {
+				assert.Equal(t, test.codes, unsubAck.ReasonCodes)
+			} else {
+				assert.Empty(t, unsubAck.ReasonCodes)
+			}
+		})
+	}
 }
 
 func TestSessionManager_HandleDisconnect(t *testing.T) {

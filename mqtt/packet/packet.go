@@ -122,10 +122,11 @@ type options struct {
 }
 
 var packetTypeToFactory = map[Type]func(options) (Packet, error){
-	CONNECT:    newPacketConnect,
-	PINGREQ:    newPacketPingReq,
-	DISCONNECT: newPacketDisconnect,
-	SUBSCRIBE:  newPacketSubscribe,
+	CONNECT:     newPacketConnect,
+	PINGREQ:     newPacketPingReq,
+	DISCONNECT:  newPacketDisconnect,
+	SUBSCRIBE:   newPacketSubscribe,
+	UNSUBSCRIBE: newPacketUnsubscribe,
 }
 
 func newPacket(opts options) (Packet, error) {

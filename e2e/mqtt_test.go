@@ -147,6 +147,40 @@ func TestMqtt_Subscribe(t *testing.T) {
 	assert.Equal(t, byte(2), results["data/+/raw"])
 }
 
+func TestMqtt_Unsubscribe(t *testing.T) {
+	b := newBroker()
+	assert.Nil(t, b.Start())
+	defer func() { b.Stop() }()
+	<-time.After(100 * time.Millisecond)
+
+	opts := paho.NewClientOptions()
+	opts.AddBroker("tcp://localhost:1883")
+	opts.SetClientID("paho-client")
+	opts.SetKeepAlive(2 * time.Second)
+	opts.SetConnectTimeout(1 * time.Second)
+	opts.SetPingTimeout(1 * time.Second)
+	opts.SetAutoReconnect(false)
+	c := paho.NewClient(opts)
+
+	token := c.Connect()
+	token.WaitTimeout(100 * time.Millisecond)
+	require.True(t, c.IsConnected())
+	require.True(t, c.IsConnectionOpen())
+
+	topicFilters := make(map[string]byte)
+	topicFilters["temp"] = 0
+	topicFilters["sensor/#"] = 1
+	topicFilters["data/+/raw"] = 2
+
+	token = c.SubscribeMultiple(topicFilters, nil)
+	require.True(t, token.WaitTimeout(100*time.Millisecond))
+	require.Nil(t, token.Error())
+
+	token = c.Unsubscribe("temp")
+	require.True(t, token.WaitTimeout(100*time.Millisecond))
+	require.Nil(t, token.Error())
+}
+
 func TestMqtt_Disconnect(t *testing.T) {
 	b := newBroker()
 	assert.Nil(t, b.Start())

@@ -25,7 +25,7 @@ import (
 // Unsubscribe represents the UNSUBSCRIBE Packet from MQTT specifications.
 type Unsubscribe struct {
 	// Topics represents the list of topics to unsubscribe.
-	Topics [][]byte
+	Topics []string
 
 	// Properties represents the SUBSCRIBE properties (MQTT V5.0 only).
 	Properties *Properties
@@ -60,7 +60,7 @@ func newPacketUnsubscribe(opts options) (Packet, error) {
 
 	return &Unsubscribe{
 		Version:      opts.version,
-		Topics:       make([][]byte, 0),
+		Topics:       make([]string, 0),
 		size:         opts.fixedHeaderLength + opts.remainingLength,
 		remainLength: opts.remainingLength,
 		timestamp:    opts.timestamp,
@@ -126,7 +126,7 @@ func (pkt *Unsubscribe) unpackTopics(buf *bytes.Buffer) error {
 			return err
 		}
 
-		pkt.Topics = append(pkt.Topics, topic)
+		pkt.Topics = append(pkt.Topics, string(topic))
 		if buf.Len() == 0 {
 			return nil
 		}

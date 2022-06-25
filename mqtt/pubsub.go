@@ -74,3 +74,26 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic) (Subscription,
 
 	return sub, nil
 }
+
+func (p *pubSub) unsubscribe(id ClientID, topic string) error {
+	p.log.Trace().
+		Bytes("ClientID", id).
+		Str("TopicFilter", topic).
+		Msg("MQTT Unsubscribing to topic")
+
+	err := p.trie.remove(id, topic)
+	if err != nil {
+		p.log.Warn().
+			Bytes("ClientID", id).
+			Str("TopicFilter", topic).
+			Msg("MQTT Failed to remove subscription: " + err.Error())
+		return err
+	}
+
+	p.log.Debug().
+		Bytes("ClientID", id).
+		Str("TopicFilter", topic).
+		Msg("MQTT Unsubscribed to topic")
+
+	return err
+}

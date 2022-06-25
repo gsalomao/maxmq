@@ -116,6 +116,9 @@ func (m *sessionManager) handlePacket(s *Session,
 	case packet.SUBSCRIBE:
 		subPkt, _ := pkt.(*packet.Subscribe)
 		return m.handleSubscribe(s, subPkt)
+	case packet.UNSUBSCRIBE:
+		unsubPkt, _ := pkt.(*packet.Unsubscribe)
+		return m.handleUnsubscribe(s, unsubPkt)
 	case packet.DISCONNECT:
 		disconnect := pkt.(*packet.Disconnect)
 		return m.handleDisconnect(s, disconnect)
@@ -245,6 +248,45 @@ func (m *sessionManager) handleSubscribe(session *Session,
 		Msg("MQTT Sending SUBACK packet")
 
 	return &subAck, nil
+}
+
+func (m *sessionManager) handleUnsubscribe(session *Session,
+	pkt *packet.Unsubscribe) (packet.Packet, error) {
+
+	m.log.Trace().
+		Bytes("ClientID", session.ClientID).
+		Uint16("PacketID", uint16(pkt.PacketID)).
+		Int("NumberOfTopics", len(pkt.Topics)).
+		Uint8("Version", uint8(pkt.Version)).
+		Msg("MQTT Received UNSUBSCRIBE packet")
+
+	var codes []packet.ReasonCode
+	if pkt.Version == packet.MQTT50 {
+		codes = make([]packet.ReasonCode, 0, len(pkt.Topics))
+	}
+
+	for _, topic := range pkt.Topics {
+		err := m.pubSub.unsubscribe(session.ClientID, topic)
+		if pkt.Version == packet.MQTT50 {
+			code := packet.ReasonCodeV5UnspecifiedError
+			if err == nil {
+				code = packet.ReasonCodeV5Success
+			} else if err == ErrSubscriptionNotFound {
+				code = packet.ReasonCodeV5NoSubscriptionExisted
+			}
+			codes = append(codes, code)
+		}
+	}
+
+	unsubAck := packet.NewUnsubAck(pkt.PacketID, pkt.Version, codes, nil)
+	m.log.Trace().
+		Bytes("ClientID", session.ClientID).
+		Uint16("PacketID", uint16(pkt.PacketID)).
+		Int("NumberOfTopics", len(pkt.Topics)).
+		Uint8("Version", uint8(pkt.Version)).
+		Msg("MQTT Sending UNSUBACK packet")
+
+	return &unsubAck, nil
 }
 
 func (m *sessionManager) handleDisconnect(s *Session,
