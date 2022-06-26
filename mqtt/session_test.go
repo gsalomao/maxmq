@@ -1052,10 +1052,13 @@ func TestSessionManager_HandleUnsubscribe(t *testing.T) {
 			err := connectClient(&sm, &session, test.version, false)
 			require.Nil(t, err)
 
-			topics := []packet.Topic{
-				{Name: []byte(test.topic), QoS: packet.QoS0}}
+			topics := []packet.Topic{{Name: []byte(test.topic)}}
 			err = subscribe(&sm, &session, topics, test.version)
 			require.Nil(t, err)
+
+			store := &sessionStoreMock{}
+			store.On("SaveSession", mock.Anything).Return(nil)
+			sm.store = store
 
 			unsub := packet.Unsubscribe{PacketID: test.id,
 				Version: test.version, Topics: []string{test.topic}}
@@ -1074,8 +1077,70 @@ func TestSessionManager_HandleUnsubscribe(t *testing.T) {
 			} else {
 				assert.Empty(t, unsubAck.ReasonCodes)
 			}
+
+			store.AssertExpectations(t)
 		})
 	}
+}
+
+func TestSessionManager_HandleUnsubscribeCleanSession(t *testing.T) {
+	conf := newConfiguration()
+	session := newSession(conf.ConnectTimeout)
+
+	sm := createSessionManager(conf)
+
+	err := connectClient(&sm, &session, packet.MQTT311, true)
+	require.Nil(t, err)
+
+	topics := []packet.Topic{{Name: []byte("test")}}
+	err = subscribe(&sm, &session, topics, packet.MQTT311)
+	require.Nil(t, err)
+
+	store := &sessionStoreMock{}
+	sm.store = store
+
+	unsub := packet.Unsubscribe{PacketID: 1, Version: packet.MQTT311,
+		Topics: []string{"test"}}
+
+	reply, err := sm.handlePacket(&session, &unsub)
+	assert.Nil(t, err)
+	require.NotNil(t, reply)
+	require.Equal(t, packet.UNSUBACK, reply.Type())
+
+	unsubAck := reply.(*packet.UnsubAck)
+	assert.Equal(t, unsub.PacketID, unsubAck.PacketID)
+	assert.Equal(t, unsub.Version, unsubAck.Version)
+	assert.Empty(t, unsubAck.ReasonCodes)
+
+	store.AssertExpectations(t)
+}
+
+func TestSessionManager_HandleUnsubscribeSaveSessionError(t *testing.T) {
+	conf := newConfiguration()
+	session := newSession(conf.ConnectTimeout)
+
+	sm := createSessionManager(conf)
+
+	err := connectClient(&sm, &session, packet.MQTT311, false)
+	require.Nil(t, err)
+
+	topics := []packet.Topic{{Name: []byte("test")}}
+	err = subscribe(&sm, &session, topics, packet.MQTT311)
+	require.Nil(t, err)
+
+	store := &sessionStoreMock{}
+	store.On("SaveSession",
+		mock.Anything).Return(errors.New("failed to save session"))
+	sm.store = store
+
+	unsub := packet.Unsubscribe{PacketID: 1, Version: packet.MQTT311,
+		Topics: []string{"test"}}
+
+	reply, err := sm.handlePacket(&session, &unsub)
+	assert.NotNil(t, err)
+	require.Nil(t, reply)
+
+	store.AssertExpectations(t)
 }
 
 func TestSessionManager_HandleUnsubscribeMissingSubscription(t *testing.T) {

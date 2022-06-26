@@ -293,15 +293,24 @@ func (m *sessionManager) handleUnsubscribe(session *Session,
 	}
 
 	for _, topic := range pkt.Topics {
+		code := packet.ReasonCodeV5UnspecifiedError
 		err := m.pubSub.unsubscribe(session.ClientID, topic)
+		if err == nil {
+			code = packet.ReasonCodeV5Success
+			delete(session.Subscriptions, topic)
+		} else if err == ErrSubscriptionNotFound {
+			code = packet.ReasonCodeV5NoSubscriptionExisted
+		}
+
 		if pkt.Version == packet.MQTT50 {
-			code := packet.ReasonCodeV5UnspecifiedError
-			if err == nil {
-				code = packet.ReasonCodeV5Success
-			} else if err == ErrSubscriptionNotFound {
-				code = packet.ReasonCodeV5NoSubscriptionExisted
-			}
 			codes = append(codes, code)
+		}
+	}
+
+	if !session.CleanSession {
+		err := m.updateSession(session)
+		if err != nil {
+			return nil, err
 		}
 	}
 
