@@ -4,7 +4,7 @@ ignore=body-is-missing
 ignore-stdin=true
 
 [title-max-length]
-line-length=50
+line-length=72
 
 [title-must-not-contain-word]
 words=wip,WIP
