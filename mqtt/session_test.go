@@ -87,9 +87,12 @@ func checkConnect(t *testing.T, conf Configuration, pkt *packet.Connect,
 	return connAck
 }
 
-func connectClient(m *sessionManager, s *Session, v packet.MQTTVersion) error {
-	pkt := packet.Connect{ClientID: ClientID{'a'}, Version: v}
-	_, err := m.handlePacket(s, &pkt)
+func connectClient(sm *sessionManager, session *Session,
+	version packet.MQTTVersion, cleanSession bool) error {
+
+	pkt := packet.Connect{ClientID: ClientID{'a'}, Version: version,
+		CleanSession: cleanSession}
+	_, err := sm.handlePacket(session, &pkt)
 	return err
 }
 
@@ -797,7 +800,7 @@ func TestSessionManager_HandlePingReq(t *testing.T) {
 	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
-	err := connectClient(&sm, &session, packet.MQTT311)
+	err := connectClient(&sm, &session, packet.MQTT311, false)
 	require.Nil(t, err)
 
 	pingReq := packet.PingReq{}
@@ -840,7 +843,7 @@ func TestSessionManager_HandleSubscribe(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			sm := createSessionManager(conf)
 
-			err := connectClient(&sm, &session, test.version)
+			err := connectClient(&sm, &session, test.version, false)
 			require.Nil(t, err)
 
 			store := &sessionStoreMock{}
@@ -867,6 +870,34 @@ func TestSessionManager_HandleSubscribe(t *testing.T) {
 	}
 }
 
+func TestSessionManager_HandleSubscribeCleanSession(t *testing.T) {
+	conf := newConfiguration()
+	session := newSession(conf.ConnectTimeout)
+	sm := createSessionManager(conf)
+
+	err := connectClient(&sm, &session, packet.MQTT311, true)
+	require.Nil(t, err)
+
+	store := &sessionStoreMock{}
+	sm.store = store
+
+	sub := packet.Subscribe{PacketID: 1, Version: packet.MQTT311,
+		Topics: []packet.Topic{{Name: []byte("data/#")}}}
+
+	reply, err := sm.handlePacket(&session, &sub)
+	assert.Nil(t, err)
+	require.NotNil(t, reply)
+	require.Equal(t, packet.SUBACK, reply.Type())
+
+	subAck := reply.(*packet.SubAck)
+	assert.Equal(t, sub.PacketID, subAck.PacketID)
+	assert.Equal(t, sub.Version, subAck.Version)
+	assert.Len(t, subAck.ReasonCodes, 1)
+	assert.Equal(t, packet.ReasonCodeV3GrantedQoS0, subAck.ReasonCodes[0])
+
+	store.AssertExpectations(t)
+}
+
 func TestSessionManager_HandleSubscribeError(t *testing.T) {
 	testCases := []struct {
 		id      packet.ID
@@ -889,7 +920,7 @@ func TestSessionManager_HandleSubscribeError(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			sm := createSessionManager(conf)
 
-			err := connectClient(&sm, &session, test.version)
+			err := connectClient(&sm, &session, test.version, false)
 			require.Nil(t, err)
 
 			sub := packet.Subscribe{PacketID: test.id, Version: test.version,
@@ -915,34 +946,24 @@ func TestSessionManager_HandleSubscribeSaveSessionError(t *testing.T) {
 	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
-	err := connectClient(&sm, &session, packet.MQTT311)
+	err := connectClient(&sm, &session, packet.MQTT311, false)
 	require.Nil(t, err)
-
-	sub := packet.Subscribe{PacketID: 1, Version: packet.MQTT311,
-		Topics: []packet.Topic{{Name: []byte("topic"), QoS: packet.QoS0}}}
-
-	reply, err := sm.handlePacket(&session, &sub)
-	require.Nil(t, err)
-	require.NotNil(t, reply)
-	require.Equal(t, packet.SUBACK, reply.Type())
-
-	subAck := reply.(*packet.SubAck)
-	require.Equal(t, packet.ReasonCodeV3GrantedQoS0, subAck.ReasonCodes[0])
 
 	store := &sessionStoreMock{}
 	store.On("SaveSession",
 		mock.Anything).Return(errors.New("failed to save session"))
+	store.On("GetSession", session.ClientID).Return(&session, nil)
 	sm.store = store
 
-	sub = packet.Subscribe{PacketID: 2, Version: packet.MQTT311,
+	sub := packet.Subscribe{PacketID: 2, Version: packet.MQTT311,
 		Topics: []packet.Topic{{Name: []byte("topic"), QoS: packet.QoS1}}}
 
-	reply, err = sm.handlePacket(&session, &sub)
+	reply, err := sm.handlePacket(&session, &sub)
 	assert.Nil(t, err)
 	require.NotNil(t, reply)
 	require.Equal(t, packet.SUBACK, reply.Type())
 
-	subAck = reply.(*packet.SubAck)
+	subAck := reply.(*packet.SubAck)
 	assert.Equal(t, sub.PacketID, subAck.PacketID)
 	assert.Equal(t, sub.Version, subAck.Version)
 	assert.Len(t, subAck.ReasonCodes, 1)
@@ -951,12 +972,34 @@ func TestSessionManager_HandleSubscribeSaveSessionError(t *testing.T) {
 	store.AssertExpectations(t)
 }
 
+func TestSessionManager_HandleSubscribeSaveAndFindSessionError(t *testing.T) {
+	conf := newConfiguration()
+	session := newSession(conf.ConnectTimeout)
+	sm := createSessionManager(conf)
+
+	err := connectClient(&sm, &session, packet.MQTT311, false)
+	require.Nil(t, err)
+
+	store := &sessionStoreMock{}
+	store.On("SaveSession",
+		mock.Anything).Return(errors.New("failed to save session"))
+	store.On("GetSession", session.ClientID).Return(nil, ErrSessionNotFound)
+	sm.store = store
+
+	sub := packet.Subscribe{PacketID: 2, Version: packet.MQTT311,
+		Topics: []packet.Topic{{Name: []byte("topic"), QoS: packet.QoS1}}}
+
+	reply, err := sm.handlePacket(&session, &sub)
+	assert.NotNil(t, err)
+	assert.Nil(t, reply)
+}
+
 func TestSessionManager_HandleSubscribeMultipleTopics(t *testing.T) {
 	conf := newConfiguration()
 	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
-	err := connectClient(&sm, &session, packet.MQTT311)
+	err := connectClient(&sm, &session, packet.MQTT311, false)
 	require.Nil(t, err)
 
 	sub := packet.Subscribe{PacketID: 5, Version: packet.MQTT311,
@@ -1006,7 +1049,7 @@ func TestSessionManager_HandleUnsubscribe(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			sm := createSessionManager(conf)
 
-			err := connectClient(&sm, &session, test.version)
+			err := connectClient(&sm, &session, test.version, false)
 			require.Nil(t, err)
 
 			topics := []packet.Topic{
@@ -1059,7 +1102,7 @@ func TestSessionManager_HandleUnsubscribeMissingSubscription(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			sm := createSessionManager(conf)
 
-			err := connectClient(&sm, &session, test.version)
+			err := connectClient(&sm, &session, test.version, false)
 			require.Nil(t, err)
 
 			unsub := packet.Unsubscribe{PacketID: test.id,
@@ -1106,7 +1149,7 @@ func TestSessionManager_HandleUnsubscribeMultipleTopics(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			sm := createSessionManager(conf)
 
-			err := connectClient(&sm, &session, test.version)
+			err := connectClient(&sm, &session, test.version, false)
 			require.Nil(t, err)
 
 			topics := []packet.Topic{
@@ -1146,7 +1189,7 @@ func TestSessionManager_HandleDisconnect(t *testing.T) {
 	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
-	err := connectClient(&sm, &session, packet.MQTT50)
+	err := connectClient(&sm, &session, packet.MQTT50, false)
 	require.Nil(t, err)
 
 	store := sm.store.(*sessionStoreMock)
@@ -1163,7 +1206,7 @@ func TestSessionManager_HandleDisconnectFailedToDeleteSession(t *testing.T) {
 	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
-	err := connectClient(&sm, &session, packet.MQTT311)
+	err := connectClient(&sm, &session, packet.MQTT311, false)
 	require.Nil(t, err)
 
 	store := sm.store.(*sessionStoreMock)
@@ -1181,7 +1224,7 @@ func TestSessionManager_HandleHandleInvalidPacket(t *testing.T) {
 	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
-	err := connectClient(&sm, &session, packet.MQTT311)
+	err := connectClient(&sm, &session, packet.MQTT311, false)
 	require.Nil(t, err)
 
 	pkt := packet.PingResp{}
