@@ -53,16 +53,16 @@ type Subscription struct {
 	NoLocal bool
 }
 
-type subscriptionTrie struct {
+type subscriptionTree struct {
 	root  *subscriptionNode
 	mutex sync.RWMutex
 }
 
-func newSubscriptionTrie() subscriptionTrie {
-	return subscriptionTrie{root: newSubscriptionNode()}
+func newSubscriptionTree() subscriptionTree {
+	return subscriptionTree{root: newSubscriptionNode()}
 }
 
-func (t *subscriptionTrie) insert(sub Subscription) error {
+func (t *subscriptionTree) insert(sub Subscription) error {
 	if len(sub.TopicFilter) == 0 {
 		return errors.New("empty topic filter")
 	}
@@ -94,7 +94,7 @@ func (t *subscriptionTrie) insert(sub Subscription) error {
 	return nil
 }
 
-func (t *subscriptionTrie) remove(id ClientID, topic string) error {
+func (t *subscriptionTree) remove(id ClientID, topic string) error {
 	words := strings.Split(topic, "/")
 	t.mutex.Lock()
 	defer t.mutex.Unlock()

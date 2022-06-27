@@ -22,11 +22,11 @@ import (
 type pubSub struct {
 	metrics *metrics
 	log     *logger.Logger
-	trie    subscriptionTrie
+	tree    subscriptionTree
 }
 
 func newPubSub(metrics *metrics, log *logger.Logger) pubSub {
-	return pubSub{metrics: metrics, log: log, trie: newSubscriptionTrie()}
+	return pubSub{metrics: metrics, log: log, tree: newSubscriptionTree()}
 }
 
 func (p *pubSub) subscribe(session *Session, topic packet.Topic) (Subscription,
@@ -50,7 +50,7 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic) (Subscription,
 		NoLocal:           topic.NoLocal,
 	}
 
-	err := p.trie.insert(sub)
+	err := p.tree.insert(sub)
 	if err != nil {
 		p.log.Error().
 			Bytes("ClientID", session.ClientID).
@@ -81,7 +81,7 @@ func (p *pubSub) unsubscribe(id ClientID, topic string) error {
 		Str("TopicFilter", topic).
 		Msg("MQTT Unsubscribing to topic")
 
-	err := p.trie.remove(id, topic)
+	err := p.tree.remove(id, topic)
 	if err != nil {
 		p.log.Warn().
 			Bytes("ClientID", id).
