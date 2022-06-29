@@ -225,10 +225,23 @@ func (m *sessionManager) handleSubscribe(session *Session,
 		Uint8("Version", uint8(pkt.Version)).
 		Msg("MQTT Received SUBSCRIBE packet")
 
+	subscriptionID := getSubscriptionID(pkt.Properties)
+	if subscriptionID > 0 && !m.conf.SubscriptionIDAvailable {
+		m.log.Info().
+			Bytes("ClientID", session.ClientID).
+			Uint16("PacketID", uint16(pkt.PacketID)).
+			Uint8("Version", uint8(pkt.Version)).
+			Msg("MQTT Received SUBSCRIBE with subscription identifier")
+
+		reply := packet.NewDisconnect(session.Version,
+			packet.ReasonCodeV5SubscriptionIDNotSupported, nil)
+		return &reply, packet.ErrV5SubscriptionIDNotSupported
+	}
+
 	codes := make([]packet.ReasonCode, 0, len(pkt.Topics))
 
 	for _, topic := range pkt.Topics {
-		subscription, err := m.pubSub.subscribe(session, topic)
+		subscription, err := m.pubSub.subscribe(session, topic, subscriptionID)
 		if err != nil {
 			codes = append(codes, packet.ReasonCodeV3Failure)
 			continue

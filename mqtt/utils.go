@@ -101,6 +101,13 @@ func addAssignedClientID(p *packet.ConnAck, s *Session, created bool) {
 	}
 }
 
+func getSubscriptionID(props *packet.Properties) uint32 {
+	if props != nil && props.SubscriptionIdentifier != nil {
+		return uint32(*props.SubscriptionIdentifier)
+	}
+	return 0
+}
+
 func newConnAck(
 	version packet.MQTTVersion,
 	code packet.ReasonCode,

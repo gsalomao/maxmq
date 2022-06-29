@@ -29,8 +29,8 @@ func newPubSub(metrics *metrics, log *logger.Logger) pubSub {
 	return pubSub{metrics: metrics, log: log, tree: newSubscriptionTree()}
 }
 
-func (p *pubSub) subscribe(session *Session, topic packet.Topic) (Subscription,
-	error) {
+func (p *pubSub) subscribe(session *Session, topic packet.Topic,
+	subscriptionID uint32) (Subscription, error) {
 
 	p.log.Trace().
 		Bytes("ClientID", session.ClientID).
@@ -38,10 +38,12 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic) (Subscription,
 		Uint8("QoS", byte(topic.QoS)).
 		Bool("RetainAsPublished", topic.RetainAsPublished).
 		Uint8("RetainHandling", topic.RetainHandling).
+		Uint32("SubscriptionID", subscriptionID).
 		Bytes("TopicFilter", topic.Name).
 		Msg("MQTT Subscribing to topic")
 
 	sub := Subscription{
+		ID:                subscriptionID,
 		Session:           session,
 		TopicFilter:       string(topic.Name),
 		QoS:               topic.QoS,
@@ -58,6 +60,7 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic) (Subscription,
 			Uint8("QoS", byte(topic.QoS)).
 			Bool("RetainAsPublished", topic.RetainAsPublished).
 			Uint8("RetainHandling", topic.RetainHandling).
+			Uint32("SubscriptionID", subscriptionID).
 			Bytes("TopicFilter", topic.Name).
 			Msg("MQTT Failed to subscribe to topic")
 		return Subscription{}, err
@@ -69,6 +72,7 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic) (Subscription,
 		Uint8("QoS", byte(topic.QoS)).
 		Bool("RetainAsPublished", topic.RetainAsPublished).
 		Uint8("RetainHandling", topic.RetainHandling).
+		Uint32("SubscriptionID", subscriptionID).
 		Bytes("TopicFilter", topic.Name).
 		Msg("MQTT Subscribed to topic")
 

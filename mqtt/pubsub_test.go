@@ -15,6 +15,7 @@
 package mqtt
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/gsalomao/maxmq/mocks"
@@ -43,9 +44,11 @@ func TestPubSub_Subscribe(t *testing.T) {
 		t.Run(string(test.Name), func(t *testing.T) {
 			session := Session{ClientID: ClientID("a")}
 			ps := createPubSub()
+			subscriptionID := rand.Uint32()
 
-			sub, err := ps.subscribe(&session, test)
+			sub, err := ps.subscribe(&session, test, subscriptionID)
 			assert.Nil(t, err)
+			assert.Equal(t, subscriptionID, sub.ID)
 			assert.Equal(t, string(test.Name), sub.TopicFilter)
 			assert.Equal(t, test.QoS, sub.QoS)
 			assert.Equal(t, test.RetainHandling, sub.RetainHandling)
@@ -60,7 +63,7 @@ func TestPubSub_SubscribeError(t *testing.T) {
 	topic := packet.Topic{Name: []byte("sensor/temp#"), QoS: packet.QoS0}
 	ps := createPubSub()
 
-	_, err := ps.subscribe(&session, topic)
+	_, err := ps.subscribe(&session, topic, 0)
 	assert.NotNil(t, err)
 }
 
@@ -76,7 +79,7 @@ func TestPubSub_Unsubscribe(t *testing.T) {
 			session := Session{ClientID: ClientID("a")}
 			ps := createPubSub()
 
-			sub, err := ps.subscribe(&session, test)
+			sub, err := ps.subscribe(&session, test, 0)
 			require.Nil(t, err)
 
 			err = ps.unsubscribe(session.ClientID, sub.TopicFilter)

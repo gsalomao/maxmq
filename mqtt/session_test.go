@@ -1026,6 +1026,56 @@ func TestSessionManager_HandleSubscribeMultipleTopics(t *testing.T) {
 	assert.Equal(t, packet.ReasonCode(packet.QoS2), subAck.ReasonCodes[3])
 }
 
+func TestSessionManager_HandleSubscribeWithSubID(t *testing.T) {
+	conf := newConfiguration()
+	conf.SubscriptionIDAvailable = true
+
+	session := newSession(conf.ConnectTimeout)
+	sm := createSessionManager(conf)
+
+	err := connectClient(&sm, &session, packet.MQTT50, false)
+	require.Nil(t, err)
+
+	props := &packet.Properties{}
+	props.SubscriptionIdentifier = new(int)
+	*props.SubscriptionIdentifier = 1
+
+	sub := packet.Subscribe{PacketID: 2, Version: packet.MQTT50,
+		Properties: props, Topics: []packet.Topic{{Name: []byte("topic")}}}
+
+	reply, err := sm.handlePacket(&session, &sub)
+	assert.Nil(t, err)
+	require.NotNil(t, reply)
+}
+
+func TestSessionManager_HandleSubscribeWithSubIDError(t *testing.T) {
+	conf := newConfiguration()
+	conf.SubscriptionIDAvailable = false
+
+	session := newSession(conf.ConnectTimeout)
+	sm := createSessionManager(conf)
+
+	err := connectClient(&sm, &session, packet.MQTT50, false)
+	require.Nil(t, err)
+
+	props := &packet.Properties{}
+	props.SubscriptionIdentifier = new(int)
+	*props.SubscriptionIdentifier = 1
+
+	sub := packet.Subscribe{PacketID: 2, Version: packet.MQTT50,
+		Properties: props, Topics: []packet.Topic{{Name: []byte("topic")}}}
+
+	reply, err := sm.handlePacket(&session, &sub)
+	assert.NotNil(t, err)
+	require.NotNil(t, reply)
+	require.Equal(t, packet.DISCONNECT, reply.Type())
+
+	disconnect := reply.(*packet.Disconnect)
+	assert.Equal(t, packet.MQTT50, disconnect.Version)
+	assert.Equal(t, packet.ReasonCodeV5SubscriptionIDNotSupported,
+		disconnect.ReasonCode)
+}
+
 func TestSessionManager_HandleUnsubscribe(t *testing.T) {
 	testCases := []struct {
 		id      packet.ID

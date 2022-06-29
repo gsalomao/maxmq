@@ -54,6 +54,13 @@ var (
 		ReasonCode: ReasonCodeV5InvalidClientID,
 		Reason:     "invalid client identifier",
 	}
+
+	// ErrV5SubscriptionIDNotSupported indicates that the broker does not
+	// support subscription identifiers.
+	ErrV5SubscriptionIDNotSupported = &Error{
+		ReasonCode: ReasonCodeV5SubscriptionIDNotSupported,
+		Reason:     "subscription identifier not supported",
+	}
 )
 
 // Error represents the errors related to the MQTT protocol.
