@@ -200,6 +200,7 @@ func TestSessionManager_HandleConnectCleanSessionNoExisting(t *testing.T) {
 
 			store := &sessionStoreMock{}
 			store.On("GetSession", clientID).Return(nil, ErrSessionNotFound)
+			store.On("SaveSession", mock.Anything).Return(nil)
 			sm.store = store
 
 			reply, err := sm.handlePacket(&session, &pkt)
@@ -247,6 +248,7 @@ func TestSessionManager_HandleConnectCleanSessionExisting(t *testing.T) {
 			store := &sessionStoreMock{}
 			store.On("GetSession", clientID).Return(&s, nil)
 			store.On("DeleteSession", mock.Anything).Return(nil)
+			store.On("SaveSession", mock.Anything).Return(nil)
 			sm.store = store
 
 			reply, err := sm.handlePacket(&session, &pkt)
