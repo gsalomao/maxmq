@@ -212,9 +212,17 @@ func (cm *connectionManager) closeConnection(conn *connection, force bool) {
 
 	_ = conn.netConn.Close()
 	conn.closed = true
-	cm.sessionManager.disconnectSession(&conn.session)
-	cm.metrics.recordDisconnection()
 
+	err := cm.sessionManager.disconnectSession(&conn.session)
+	if err != nil {
+		cm.log.Error().
+			Bytes("ClientID", conn.session.ClientID).
+			Bool("Force", force).
+			Msg("MQTT Error when disconnecting session on close connection: " +
+				err.Error())
+	}
+
+	cm.metrics.recordDisconnection()
 	cm.log.Debug().
 		Bytes("ClientID", conn.session.ClientID).
 		Bool("Force", force).

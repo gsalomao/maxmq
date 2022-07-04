@@ -144,7 +144,8 @@ func (m *sessionManager) handleConnect(session *Session,
 	}
 
 	id, idCreated := getClientID(pkt, m.conf.ClientIDPrefix)
-	exp := getSessionExpiryInterval(pkt, m.conf.MaxSessionExpiryInterval)
+	exp := getSessionExpiryIntervalOnConnect(pkt,
+		m.conf.MaxSessionExpiryInterval)
 
 	session.ClientID = id
 	session.Version = pkt.Version
@@ -347,17 +348,13 @@ func (m *sessionManager) handleDisconnect(session *Session,
 		Msg("MQTT Received DISCONNECT packet")
 
 	if session.Version == packet.MQTT50 {
-		var interval uint32
+		interval := pkt.Properties.SessionExpiryInterval
 
-		if pkt.Properties.SessionExpiryInterval != nil {
-			interval = *pkt.Properties.SessionExpiryInterval
-		}
-
-		if session.ExpiryInterval == 0 && interval > 0 {
+		if interval != nil && *interval > 0 && session.ExpiryInterval == 0 {
 			m.log.Debug().
 				Bytes("ClientID", session.ClientID).
 				Uint8("Version", uint8(session.Version)).
-				Uint32("SessionExpiryInterval", interval).
+				Uint32("SessionExpiryInterval", *interval).
 				Msg("MQTT DISCONNECT with invalid Session Expiry Interval")
 
 			disconnect := packet.NewDisconnect(session.Version,
@@ -365,32 +362,26 @@ func (m *sessionManager) handleDisconnect(session *Session,
 			return &disconnect, packet.ErrV5ProtocolError
 		}
 
-		if interval > 0 {
-			session.ExpiryInterval = interval
+		if interval != nil && *interval != session.ExpiryInterval {
+			session.ExpiryInterval = *interval
 			err := m.updateSession(session)
 			if err != nil {
 				m.log.Error().
 					Bytes("ClientID", session.ClientID).
 					Uint8("Version", uint8(session.Version)).
-					Uint32("SessionExpiryInterval", interval).
+					Uint32("SessionExpiryInterval", *interval).
 					Msg("MQTT Failed to update session on DISCONNECT")
 			}
 		}
 	}
 
-	m.disconnectSession(session)
-
-	if !session.CleanSession {
-		err := m.store.DeleteSession(session)
-		if err == nil {
-			m.log.Debug().
-				Bytes("ClientID", session.ClientID).
-				Msg("MQTT Session deleted with success")
-		} else {
-			m.log.Error().
-				Bytes("ClientID", session.ClientID).
-				Msg("MQTT Failed to delete session: " + err.Error())
-		}
+	err := m.disconnectSession(session)
+	if err != nil {
+		m.log.Error().
+			Bytes("ClientID", session.ClientID).
+			Uint8("Version", uint8(session.Version)).
+			Uint32("SessionExpiryInterval", session.ExpiryInterval).
+			Msg("MQTT Failed to disconnect session on DISCONNECT")
 	}
 
 	latency := time.Since(pkt.Timestamp())
@@ -400,6 +391,7 @@ func (m *sessionManager) handleDisconnect(session *Session,
 		Bool("CleanSession", session.CleanSession).
 		Bytes("ClientID", session.ClientID).
 		Uint8("Version", uint8(session.Version)).
+		Uint32("SessionExpiryInterval", session.ExpiryInterval).
 		Msg("MQTT Client disconnected")
 
 	return nil, nil
@@ -514,6 +506,10 @@ func (m *sessionManager) deleteSessionIfExists(id ClientID) error {
 		return nil
 	}
 
+	return m.deleteSession(session)
+}
+
+func (m *sessionManager) deleteSession(session *Session) error {
 	m.log.Trace().
 		Bytes("ClientID", session.ClientID).
 		Int64("ConnectedAt", session.ConnectedAt).
@@ -521,7 +517,7 @@ func (m *sessionManager) deleteSessionIfExists(id ClientID) error {
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Deleting session")
 
-	err = m.store.DeleteSession(session)
+	err := m.store.DeleteSession(session)
 	if err != nil {
 		m.log.Error().
 			Bytes("ClientID", session.ClientID).
@@ -529,7 +525,7 @@ func (m *sessionManager) deleteSessionIfExists(id ClientID) error {
 			Uint32("ExpiryInterval", session.ExpiryInterval).
 			Uint8("Version", uint8(session.Version)).
 			Msg("MQTT Failed to delete session: " + err.Error())
-		return err
+		return errors.New("failed to delete session")
 	}
 
 	m.log.Debug().
@@ -542,11 +538,18 @@ func (m *sessionManager) deleteSessionIfExists(id ClientID) error {
 	return nil
 }
 
-func (m *sessionManager) disconnectSession(session *Session) {
+func (m *sessionManager) disconnectSession(session *Session) error {
 	if !session.connected {
-		return
+		return nil
 	}
 
 	session.connected = false
 	m.metrics.recordDisconnection()
+
+	if session.CleanSession && (session.Version != packet.MQTT50 ||
+		session.ExpiryInterval == 0) {
+		return m.deleteSession(session)
+	}
+
+	return nil
 }

@@ -296,15 +296,17 @@ func addSharedSubscriptionAvailableToProperties(
 	return p
 }
 
-func getSessionExpiryInterval(p *packet.Connect, maxExp uint32) uint32 {
+func getSessionExpiryIntervalOnConnect(pkt *packet.Connect,
+	maxExp uint32) uint32 {
+
 	sessionExp := uint32(math.MaxUint32)
 
-	if p.Version == packet.MQTT50 {
-		if p.Properties == nil || p.Properties.SessionExpiryInterval == nil {
+	if pkt.Version == packet.MQTT50 {
+		if pkt.Properties == nil || pkt.Properties.SessionExpiryInterval == nil {
 			return 0
 		}
 
-		sessionExp = *p.Properties.SessionExpiryInterval
+		sessionExp = *pkt.Properties.SessionExpiryInterval
 		if maxExp > 0 && sessionExp > maxExp {
 			sessionExp = maxExp
 		}

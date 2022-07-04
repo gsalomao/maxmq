@@ -1301,21 +1301,43 @@ func TestSessionManager_HandleUnsubscribeMultipleTopics(t *testing.T) {
 }
 
 func TestSessionManager_HandleDisconnect(t *testing.T) {
+	testCases := []struct {
+		version      packet.MQTTVersion
+		cleanSession bool
+	}{
+		{version: packet.MQTT31, cleanSession: false},
+		{version: packet.MQTT31, cleanSession: true},
+		{version: packet.MQTT311, cleanSession: false},
+		{version: packet.MQTT311, cleanSession: true},
+		{version: packet.MQTT50, cleanSession: false},
+		{version: packet.MQTT50, cleanSession: true},
+	}
+
 	conf := newConfiguration()
-	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
-	err := connectClient(&sm, &session, packet.MQTT50, false, nil)
-	require.Nil(t, err)
+	for _, test := range testCases {
+		name := fmt.Sprintf("%v-%v", test.version.String(), test.cleanSession)
+		t.Run(name, func(t *testing.T) {
+			session := newSession(conf.ConnectTimeout)
 
-	store := sm.store.(*sessionStoreMock)
-	store.On("DeleteSession", mock.Anything).Return(nil)
+			err := connectClient(&sm, &session, test.version, test.cleanSession,
+				nil)
+			require.Nil(t, err)
 
-	disconnect := packet.Disconnect{Properties: &packet.Properties{}}
-	reply, err := sm.handlePacket(&session, &disconnect)
-	assert.Nil(t, err)
-	assert.Nil(t, reply)
-	store.AssertExpectations(t)
+			store := sm.store.(*sessionStoreMock)
+			if test.cleanSession {
+				store.On("DeleteSession", mock.Anything).Return(nil)
+			}
+
+			disconnect := packet.Disconnect{Properties: &packet.Properties{}}
+			reply, err := sm.handlePacket(&session, &disconnect)
+			assert.Nil(t, err)
+			assert.Nil(t, reply)
+
+			store.AssertExpectations(t)
+		})
+	}
 }
 
 func TestSessionManager_HandleDisconnectExpiryInterval(t *testing.T) {
@@ -1327,13 +1349,12 @@ func TestSessionManager_HandleDisconnectExpiryInterval(t *testing.T) {
 	props.SessionExpiryInterval = new(uint32)
 	*props.SessionExpiryInterval = 600
 
-	err := connectClient(&sm, &session, packet.MQTT50, false, props)
+	err := connectClient(&sm, &session, packet.MQTT50, true, props)
 	require.Nil(t, err)
 	require.Equal(t, uint32(600), session.ExpiryInterval)
 
 	store := &sessionStoreMock{}
 	store.On("SaveSession", mock.Anything).Return(nil)
-	store.On("DeleteSession", mock.Anything).Return(nil)
 	sm.store = store
 
 	props.SessionExpiryInterval = new(uint32)
@@ -1375,12 +1396,13 @@ func TestSessionManager_HandleDisconnectFailedToDeleteSession(t *testing.T) {
 	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
-	err := connectClient(&sm, &session, packet.MQTT311, false, nil)
+	err := connectClient(&sm, &session, packet.MQTT311, true, nil)
 	require.Nil(t, err)
 
-	store := sm.store.(*sessionStoreMock)
+	store := &sessionStoreMock{}
 	store.On("DeleteSession",
 		mock.Anything).Return(errors.New("failed to delete session"))
+	sm.store = store
 
 	disconnect := packet.Disconnect{}
 	reply, err := sm.handlePacket(&session, &disconnect)
