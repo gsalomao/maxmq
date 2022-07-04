@@ -346,6 +346,38 @@ func (m *sessionManager) handleDisconnect(session *Session,
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Received DISCONNECT packet")
 
+	if session.Version == packet.MQTT50 {
+		var interval uint32
+
+		if pkt.Properties.SessionExpiryInterval != nil {
+			interval = *pkt.Properties.SessionExpiryInterval
+		}
+
+		if session.ExpiryInterval == 0 && interval > 0 {
+			m.log.Debug().
+				Bytes("ClientID", session.ClientID).
+				Uint8("Version", uint8(session.Version)).
+				Uint32("SessionExpiryInterval", interval).
+				Msg("MQTT DISCONNECT with invalid Session Expiry Interval")
+
+			disconnect := packet.NewDisconnect(session.Version,
+				packet.ReasonCodeV5ProtocolError, nil)
+			return &disconnect, packet.ErrV5ProtocolError
+		}
+
+		if interval > 0 {
+			session.ExpiryInterval = interval
+			err := m.updateSession(session)
+			if err != nil {
+				m.log.Error().
+					Bytes("ClientID", session.ClientID).
+					Uint8("Version", uint8(session.Version)).
+					Uint32("SessionExpiryInterval", interval).
+					Msg("MQTT Failed to update session on DISCONNECT")
+			}
+		}
+	}
+
 	m.disconnectSession(session)
 
 	if !session.CleanSession {
