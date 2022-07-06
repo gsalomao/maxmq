@@ -854,8 +854,7 @@ func TestSessionManager_HandleSubscribe(t *testing.T) {
 			sm.store = store
 
 			sub := packet.Subscribe{PacketID: test.id, Version: test.version,
-				Topics: []packet.Topic{{Name: []byte(test.topic),
-					QoS: test.qos}}}
+				Topics: []packet.Topic{{Name: test.topic, QoS: test.qos}}}
 
 			reply, err := sm.handlePacket(&session, &sub)
 			assert.Nil(t, err)
@@ -886,7 +885,7 @@ func TestSessionManager_HandleSubscribeCleanSession(t *testing.T) {
 	sm.store = store
 
 	sub := packet.Subscribe{PacketID: 1, Version: packet.MQTT311,
-		Topics: []packet.Topic{{Name: []byte("data/#")}}}
+		Topics: []packet.Topic{{Name: "data/#"}}}
 
 	reply, err := sm.handlePacket(&session, &sub)
 	assert.Nil(t, err)
@@ -928,8 +927,7 @@ func TestSessionManager_HandleSubscribeError(t *testing.T) {
 			require.Nil(t, err)
 
 			sub := packet.Subscribe{PacketID: test.id, Version: test.version,
-				Topics: []packet.Topic{{Name: []byte(test.topic),
-					QoS: test.qos}}}
+				Topics: []packet.Topic{{Name: test.topic, QoS: test.qos}}}
 
 			reply, err := sm.handlePacket(&session, &sub)
 			assert.Nil(t, err)
@@ -960,7 +958,7 @@ func TestSessionManager_HandleSubscribeSaveSessionError(t *testing.T) {
 	sm.store = store
 
 	sub := packet.Subscribe{PacketID: 2, Version: packet.MQTT311,
-		Topics: []packet.Topic{{Name: []byte("topic"), QoS: packet.QoS1}}}
+		Topics: []packet.Topic{{Name: "topic", QoS: packet.QoS1}}}
 
 	reply, err := sm.handlePacket(&session, &sub)
 	assert.Nil(t, err)
@@ -991,7 +989,7 @@ func TestSessionManager_HandleSubscribeSaveAndFindSessionError(t *testing.T) {
 	sm.store = store
 
 	sub := packet.Subscribe{PacketID: 2, Version: packet.MQTT311,
-		Topics: []packet.Topic{{Name: []byte("topic"), QoS: packet.QoS1}}}
+		Topics: []packet.Topic{{Name: "topic", QoS: packet.QoS1}}}
 
 	reply, err := sm.handlePacket(&session, &sub)
 	assert.NotNil(t, err)
@@ -1008,10 +1006,10 @@ func TestSessionManager_HandleSubscribeMultipleTopics(t *testing.T) {
 
 	sub := packet.Subscribe{PacketID: 5, Version: packet.MQTT311,
 		Topics: []packet.Topic{
-			{Name: []byte("data/temp/0"), QoS: packet.QoS0},
-			{Name: []byte("data/temp#"), QoS: packet.QoS0},
-			{Name: []byte("data/temp/1"), QoS: packet.QoS1},
-			{Name: []byte("data/temp/2"), QoS: packet.QoS2},
+			{Name: "data/temp/0", QoS: packet.QoS0},
+			{Name: "data/temp#", QoS: packet.QoS0},
+			{Name: "data/temp/1", QoS: packet.QoS1},
+			{Name: "data/temp/2", QoS: packet.QoS2},
 		},
 	}
 
@@ -1045,7 +1043,7 @@ func TestSessionManager_HandleSubscribeWithSubID(t *testing.T) {
 	*props.SubscriptionIdentifier = 1
 
 	sub := packet.Subscribe{PacketID: 2, Version: packet.MQTT50,
-		Properties: props, Topics: []packet.Topic{{Name: []byte("topic")}}}
+		Properties: props, Topics: []packet.Topic{{Name: "topic"}}}
 
 	reply, err := sm.handlePacket(&session, &sub)
 	assert.Nil(t, err)
@@ -1067,7 +1065,7 @@ func TestSessionManager_HandleSubscribeWithSubIDError(t *testing.T) {
 	*props.SubscriptionIdentifier = 1
 
 	sub := packet.Subscribe{PacketID: 2, Version: packet.MQTT50,
-		Properties: props, Topics: []packet.Topic{{Name: []byte("topic")}}}
+		Properties: props, Topics: []packet.Topic{{Name: "topic"}}}
 
 	reply, err := sm.handlePacket(&session, &sub)
 	assert.NotNil(t, err)
@@ -1106,7 +1104,7 @@ func TestSessionManager_HandleUnsubscribe(t *testing.T) {
 			err := connectClient(&sm, &session, test.version, false, nil)
 			require.Nil(t, err)
 
-			topics := []packet.Topic{{Name: []byte(test.topic)}}
+			topics := []packet.Topic{{Name: test.topic}}
 			err = subscribe(&sm, &session, topics, test.version)
 			require.Nil(t, err)
 
@@ -1146,7 +1144,7 @@ func TestSessionManager_HandleUnsubscribeCleanSession(t *testing.T) {
 	err := connectClient(&sm, &session, packet.MQTT311, true, nil)
 	require.Nil(t, err)
 
-	topics := []packet.Topic{{Name: []byte("test")}}
+	topics := []packet.Topic{{Name: "test"}}
 	err = subscribe(&sm, &session, topics, packet.MQTT311)
 	require.Nil(t, err)
 
@@ -1179,7 +1177,7 @@ func TestSessionManager_HandleUnsubscribeSaveSessionError(t *testing.T) {
 	err := connectClient(&sm, &session, packet.MQTT311, false, nil)
 	require.Nil(t, err)
 
-	topics := []packet.Topic{{Name: []byte("test")}}
+	topics := []packet.Topic{{Name: "test"}}
 	err = subscribe(&sm, &session, topics, packet.MQTT311)
 	require.Nil(t, err)
 
@@ -1273,9 +1271,9 @@ func TestSessionManager_HandleUnsubscribeMultipleTopics(t *testing.T) {
 			require.Nil(t, err)
 
 			topics := []packet.Topic{
-				{Name: []byte("data/temp/0"), QoS: packet.QoS0},
-				{Name: []byte("data/temp/1"), QoS: packet.QoS1},
-				{Name: []byte("data/temp/#"), QoS: packet.QoS2},
+				{Name: "data/temp/0", QoS: packet.QoS0},
+				{Name: "data/temp/1", QoS: packet.QoS1},
+				{Name: "data/temp/#", QoS: packet.QoS2},
 			}
 
 			err = subscribe(&sm, &session, topics, test.version)

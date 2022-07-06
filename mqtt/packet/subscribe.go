@@ -148,7 +148,7 @@ func (pkt *Subscribe) unpackTopics(buf *bytes.Buffer) error {
 		}
 
 		pkt.Topics = append(pkt.Topics, Topic{
-			Name:              topic,
+			Name:              string(topic),
 			QoS:               QoS(opts & 0x03),
 			NoLocal:           (opts & 0x04 >> 2) > 0,
 			RetainAsPublished: (opts & 0x08 >> 3) > 0,

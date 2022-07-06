@@ -39,13 +39,13 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic,
 		Bool("RetainAsPublished", topic.RetainAsPublished).
 		Uint8("RetainHandling", topic.RetainHandling).
 		Uint32("SubscriptionID", subscriptionID).
-		Bytes("TopicFilter", topic.Name).
+		Str("TopicFilter", topic.Name).
 		Msg("MQTT Subscribing to topic")
 
 	sub := Subscription{
 		ID:                subscriptionID,
 		Session:           session,
-		TopicFilter:       string(topic.Name),
+		TopicFilter:       topic.Name,
 		QoS:               topic.QoS,
 		RetainHandling:    topic.RetainHandling,
 		RetainAsPublished: topic.RetainAsPublished,
@@ -61,7 +61,7 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic,
 			Bool("RetainAsPublished", topic.RetainAsPublished).
 			Uint8("RetainHandling", topic.RetainHandling).
 			Uint32("SubscriptionID", subscriptionID).
-			Bytes("TopicFilter", topic.Name).
+			Str("TopicFilter", topic.Name).
 			Msg("MQTT Failed to subscribe to topic")
 		return Subscription{}, err
 	}
@@ -73,7 +73,7 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic,
 		Bool("RetainAsPublished", topic.RetainAsPublished).
 		Uint8("RetainHandling", topic.RetainHandling).
 		Uint32("SubscriptionID", subscriptionID).
-		Bytes("TopicFilter", topic.Name).
+		Str("TopicFilter", topic.Name).
 		Msg("MQTT Subscribed to topic")
 
 	return sub, nil

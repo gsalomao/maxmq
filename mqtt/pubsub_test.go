@@ -32,16 +32,16 @@ func createPubSub() pubSub {
 
 func TestPubSub_Subscribe(t *testing.T) {
 	testCases := []packet.Topic{
-		{Name: []byte("sensor/temp0"), QoS: packet.QoS0,
-			RetainHandling: 0, RetainAsPublished: false, NoLocal: false},
-		{Name: []byte("sensor/temp1"), QoS: packet.QoS1,
-			RetainHandling: 1, RetainAsPublished: false, NoLocal: true},
-		{Name: []byte("sensor/temp2"), QoS: packet.QoS2,
-			RetainHandling: 0, RetainAsPublished: true, NoLocal: false},
+		{Name: "sensor/temp0", QoS: packet.QoS0, RetainHandling: 0,
+			RetainAsPublished: false, NoLocal: false},
+		{Name: "sensor/temp1", QoS: packet.QoS1, RetainHandling: 1,
+			RetainAsPublished: false, NoLocal: true},
+		{Name: "sensor/temp2", QoS: packet.QoS2, RetainHandling: 0,
+			RetainAsPublished: true, NoLocal: false},
 	}
 
 	for _, test := range testCases {
-		t.Run(string(test.Name), func(t *testing.T) {
+		t.Run(test.Name, func(t *testing.T) {
 			session := Session{ClientID: ClientID("a")}
 			ps := createPubSub()
 			subscriptionID := rand.Uint32()
@@ -49,7 +49,7 @@ func TestPubSub_Subscribe(t *testing.T) {
 			sub, err := ps.subscribe(&session, test, subscriptionID)
 			assert.Nil(t, err)
 			assert.Equal(t, subscriptionID, sub.ID)
-			assert.Equal(t, string(test.Name), sub.TopicFilter)
+			assert.Equal(t, test.Name, sub.TopicFilter)
 			assert.Equal(t, test.QoS, sub.QoS)
 			assert.Equal(t, test.RetainHandling, sub.RetainHandling)
 			assert.Equal(t, test.RetainAsPublished, sub.RetainAsPublished)
@@ -60,7 +60,7 @@ func TestPubSub_Subscribe(t *testing.T) {
 
 func TestPubSub_SubscribeError(t *testing.T) {
 	session := Session{ClientID: ClientID("a")}
-	topic := packet.Topic{Name: []byte("sensor/temp#"), QoS: packet.QoS0}
+	topic := packet.Topic{Name: "sensor/temp#", QoS: packet.QoS0}
 	ps := createPubSub()
 
 	_, err := ps.subscribe(&session, topic, 0)
@@ -69,13 +69,13 @@ func TestPubSub_SubscribeError(t *testing.T) {
 
 func TestPubSub_Unsubscribe(t *testing.T) {
 	testCases := []packet.Topic{
-		{Name: []byte("sensor")},
-		{Name: []byte("sensor/temp")},
-		{Name: []byte("sensor/temp/2")},
+		{Name: "sensor"},
+		{Name: "sensor/temp"},
+		{Name: "sensor/temp/2"},
 	}
 
 	for _, test := range testCases {
-		t.Run(string(test.Name), func(t *testing.T) {
+		t.Run(test.Name, func(t *testing.T) {
 			session := Session{ClientID: ClientID("a")}
 			ps := createPubSub()
 
@@ -90,17 +90,17 @@ func TestPubSub_Unsubscribe(t *testing.T) {
 
 func TestPubSub_UnsubscribeSubscriptionNotFound(t *testing.T) {
 	testCases := []packet.Topic{
-		{Name: []byte("sensor")},
-		{Name: []byte("sensor/temp")},
-		{Name: []byte("sensor/temp/2")},
+		{Name: "sensor"},
+		{Name: "sensor/temp"},
+		{Name: "sensor/temp/2"},
 	}
 
 	for _, test := range testCases {
-		t.Run(string(test.Name), func(t *testing.T) {
+		t.Run(test.Name, func(t *testing.T) {
 			session := Session{ClientID: ClientID("a")}
 			ps := createPubSub()
 
-			err := ps.unsubscribe(session.ClientID, string(test.Name))
+			err := ps.unsubscribe(session.ClientID, test.Name)
 			assert.Equal(t, ErrSubscriptionNotFound, err)
 		})
 	}

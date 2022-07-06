@@ -93,7 +93,7 @@ type Packet interface {
 // Topic represents the MQTT topic.
 type Topic struct {
 	// Name represents the topic name.
-	Name []byte
+	Name string
 
 	// QoS represents the QoS level of the subscription.
 	QoS QoS
