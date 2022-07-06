@@ -338,16 +338,14 @@ func (m *sessionManager) handleUnsubscribe(session *Session,
 		}
 	}
 
-	if !session.CleanSession {
-		err := m.saveSession(session)
-		if err != nil {
-			m.log.Error().
-				Bool("CleanSession", session.CleanSession).
-				Bytes("ClientID", session.ClientID).
-				Uint8("Version", uint8(pkt.Version)).
-				Msg("MQTT Failed to save session on UNSUBSCRIBE")
-			return nil, err
-		}
+	err := m.saveSession(session)
+	if err != nil {
+		m.log.Error().
+			Bool("CleanSession", session.CleanSession).
+			Bytes("ClientID", session.ClientID).
+			Uint8("Version", uint8(pkt.Version)).
+			Msg("MQTT Failed to save session on UNSUBSCRIBE")
+		return nil, err
 	}
 
 	unsubAck := packet.NewUnsubAck(pkt.PacketID, pkt.Version, codes, nil)

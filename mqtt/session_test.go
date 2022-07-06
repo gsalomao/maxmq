@@ -1151,6 +1151,7 @@ func TestSessionManager_HandleUnsubscribeCleanSession(t *testing.T) {
 	require.Nil(t, err)
 
 	store := &sessionStoreMock{}
+	store.On("SaveSession", mock.Anything).Return(nil)
 	sm.store = store
 
 	unsub := packet.Unsubscribe{PacketID: 1, Version: packet.MQTT311,
