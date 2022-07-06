@@ -53,9 +53,11 @@ type connectionsMetrics struct {
 }
 
 type latenciesMetrics struct {
-	connectSeconds    *prometheus.HistogramVec
-	pingSeconds       prometheus.Histogram
-	disconnectSeconds prometheus.Histogram
+	connectSeconds     *prometheus.HistogramVec
+	pingSeconds        prometheus.Histogram
+	subscribeSeconds   prometheus.Histogram
+	unsubscribeSeconds prometheus.Histogram
+	disconnectSeconds  prometheus.Histogram
 }
 
 func newMetrics(enabled bool, log *logger.Logger) *metrics {
@@ -161,12 +163,12 @@ func newConnectionsMetrics() *connectionsMetrics {
 }
 
 func newLatenciesMetrics() *latenciesMetrics {
-	lm := &latenciesMetrics{}
+	latencies := &latenciesMetrics{}
 	buckets := []float64{
 		0.00010, 0.00025, 0.0005, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1,
 	}
 
-	lm.connectSeconds = prometheus.NewHistogramVec(
+	latencies.connectSeconds = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "maxmq",
 			Subsystem: "mqtt",
@@ -177,7 +179,7 @@ func newLatenciesMetrics() *latenciesMetrics {
 		}, []string{"code"},
 	)
 
-	lm.pingSeconds = prometheus.NewHistogram(
+	latencies.pingSeconds = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: "maxmq",
 			Subsystem: "mqtt",
@@ -188,7 +190,40 @@ func newLatenciesMetrics() *latenciesMetrics {
 		},
 	)
 
-	lm.disconnectSeconds = prometheus.NewHistogram(
+	latencies.subscribeSeconds = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: "maxmq",
+			Subsystem: "mqtt",
+			Name:      "subscribe_latency_seconds",
+			Help: "Duration in seconds from the time the SUBSCRIBE packet " +
+				"is received until the time the SUBACK packet is sent",
+			Buckets: buckets,
+		},
+	)
+
+	latencies.subscribeSeconds = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: "maxmq",
+			Subsystem: "mqtt",
+			Name:      "subscribe_latency_seconds",
+			Help: "Duration in seconds from the time the SUBSCRIBE packet " +
+				"is received until the time the SUBACK packet is sent",
+			Buckets: buckets,
+		},
+	)
+
+	latencies.unsubscribeSeconds = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: "maxmq",
+			Subsystem: "mqtt",
+			Name:      "unsubscribe_latency_seconds",
+			Help: "Duration in seconds from the time the UNSUBSCRIBE packet " +
+				"is received until the time the UNSUBACK packet is sent",
+			Buckets: buckets,
+		},
+	)
+
+	latencies.disconnectSeconds = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: "maxmq",
 			Subsystem: "mqtt",
@@ -199,7 +234,7 @@ func newLatenciesMetrics() *latenciesMetrics {
 		},
 	)
 
-	return lm
+	return latencies
 }
 
 func (m *metrics) registerPacketsMetrics() error {
@@ -318,6 +353,22 @@ func (m *metrics) recordPingLatency(d time.Duration) {
 	}
 
 	m.latencies.pingSeconds.Observe(d.Seconds())
+}
+
+func (m *metrics) recordSubscribeLatency(d time.Duration) {
+	if m.latencies == nil {
+		return
+	}
+
+	m.latencies.subscribeSeconds.Observe(d.Seconds())
+}
+
+func (m *metrics) recordUnsubscribeLatency(d time.Duration) {
+	if m.latencies == nil {
+		return
+	}
+
+	m.latencies.unsubscribeSeconds.Observe(d.Seconds())
 }
 
 func (m *metrics) recordDisconnectLatency(d time.Duration) {

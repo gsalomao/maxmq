@@ -263,12 +263,18 @@ func (cm *connectionManager) replyPacket(pkt packet.Packet, reply packet.Packet,
 func (cm *connectionManager) recordLatencyMetrics(pkt packet.Packet,
 	reply packet.Packet) {
 
+	pktType := pkt.Type()
+	replyType := reply.Type()
 	latency := reply.Timestamp().Sub(pkt.Timestamp())
 
-	if pkt.Type() == packet.CONNECT && reply.Type() == packet.CONNACK {
+	if pktType == packet.CONNECT && replyType == packet.CONNACK {
 		connAck := reply.(*packet.ConnAck)
 		cm.metrics.recordConnectLatency(latency, int(connAck.ReasonCode))
-	} else if pkt.Type() == packet.PINGREQ && reply.Type() == packet.PINGRESP {
+	} else if pktType == packet.PINGREQ && replyType == packet.PINGRESP {
 		cm.metrics.recordPingLatency(latency)
+	} else if pktType == packet.SUBSCRIBE && replyType == packet.SUBACK {
+		cm.metrics.recordSubscribeLatency(latency)
+	} else if pktType == packet.UNSUBSCRIBE && replyType == packet.UNSUBACK {
+		cm.metrics.recordUnsubscribeLatency(latency)
 	}
 }
