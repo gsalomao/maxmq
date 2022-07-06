@@ -32,7 +32,7 @@ var ErrSessionNotFound = errors.New("session not found")
 // SessionStore is responsible for manage sessions in the store.
 type SessionStore interface {
 	// GetSession gets the session from the store.
-	GetSession(id ClientID) (*Session, error)
+	GetSession(id ClientID) (Session, error)
 
 	// SaveSession creates the session into the store if it doesn't exist or
 	// update the existing session.
@@ -147,22 +147,16 @@ func (m *sessionManager) handleConnect(session *Session,
 	exp := getSessionExpiryIntervalOnConnect(pkt,
 		m.conf.MaxSessionExpiryInterval)
 
-	session.ClientID = id
-	session.Version = pkt.Version
-	session.CleanSession = pkt.CleanSession
-	session.ExpiryInterval = exp
-	session.ConnectedAt = time.Now().UnixMilli()
-
-	s, err := m.findSession(session.ClientID)
-	if err != nil {
+	err := m.loadSession(session, id)
+	if err != nil && err != ErrSessionNotFound {
 		m.log.Error().
 			Bytes("ClientID", pkt.ClientID).
 			Uint8("Version", uint8(pkt.Version)).
-			Msg("MQTT Failed to find session on CONNECT")
+			Msg("MQTT Failed to load session on CONNECT")
 		return nil, err
 	}
 
-	if pkt.CleanSession && s != nil {
+	if err == nil && pkt.CleanSession {
 		err = m.deleteSession(session)
 		if err != nil {
 			m.log.Error().
@@ -173,9 +167,15 @@ func (m *sessionManager) handleConnect(session *Session,
 				Msg("MQTT Failed to delete session on CONNECT")
 			return nil, err
 		}
-	} else if s != nil {
-		session.restored = true
+
+		*session = newSession(session.KeepAlive)
 	}
+
+	session.ClientID = id
+	session.Version = pkt.Version
+	session.CleanSession = pkt.CleanSession
+	session.ExpiryInterval = exp
+	session.ConnectedAt = time.Now().UnixMilli()
 
 	err = m.saveSession(session)
 	if err != nil {
@@ -283,9 +283,8 @@ func (m *sessionManager) handleSubscribe(session *Session,
 			Uint8("Version", uint8(session.Version)).
 			Msg("MQTT Failed to save session on SUBSCRIBE")
 
-		var s *Session
-		s, err = m.findSession(session.ClientID)
-		if err != nil || s == nil {
+		err = m.loadSession(session, session.ClientID)
+		if err != nil {
 			m.log.Error().
 				Bytes("ClientID", session.ClientID).
 				Int64("ConnectedAt", session.ConnectedAt).
@@ -295,7 +294,6 @@ func (m *sessionManager) handleSubscribe(session *Session,
 			return nil, errors.New("failed to restore session")
 		}
 
-		session = s
 		for i := 0; i < len(codes); i++ {
 			codes[i] = packet.ReasonCodeV3Failure
 		}
@@ -374,7 +372,7 @@ func (m *sessionManager) handleDisconnect(session *Session,
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Received DISCONNECT packet")
 
-	if session.Version == packet.MQTT50 {
+	if session.Version == packet.MQTT50 && pkt.Properties != nil {
 		interval := pkt.Properties.SessionExpiryInterval
 
 		if interval != nil && *interval > 0 && session.ExpiryInterval == 0 {
@@ -480,21 +478,34 @@ func (m *sessionManager) checkClientID(pkt *packet.Connect) *packet.Error {
 	return nil
 }
 
-func (m *sessionManager) findSession(id ClientID) (*Session, error) {
-	session, err := m.store.GetSession(id)
+func (m *sessionManager) loadSession(session *Session, id ClientID) error {
+	m.log.Trace().
+		Bytes("ClientID", id).
+		Msg("MQTT Loading session")
+
+	s, err := m.store.GetSession(id)
 	if err != nil {
-		if err == ErrSessionNotFound {
+		if err != ErrSessionNotFound {
+			m.log.Error().
+				Bytes("ClientID", id).
+				Msg("MQTT Failed to get session from store: " + err.Error())
+		} else {
 			m.log.Debug().
 				Bytes("ClientID", id).
 				Msg("MQTT Session not found")
-			return nil, nil
 		}
 
-		m.log.Error().
-			Bytes("ClientID", id).
-			Msg("MQTT Failed to get session: " + err.Error())
-		return nil, err
+		return err
 	}
+
+	session.ClientID = s.ClientID
+	session.Version = s.Version
+	session.CleanSession = s.CleanSession
+	session.KeepAlive = s.KeepAlive
+	session.ExpiryInterval = s.ExpiryInterval
+	session.Subscriptions = s.Subscriptions
+	session.ConnectedAt = s.ConnectedAt
+	session.restored = true
 
 	m.log.Debug().
 		Bool("CleanSession", session.CleanSession).
@@ -504,9 +515,9 @@ func (m *sessionManager) findSession(id ClientID) (*Session, error) {
 		Int("KeepAlive", session.KeepAlive).
 		Int("Subscriptions", len(session.Subscriptions)).
 		Uint8("Version", uint8(session.Version)).
-		Msg("MQTT Session found")
+		Msg("MQTT Session loaded with success")
 
-	return session, nil
+	return nil
 }
 
 func (m *sessionManager) saveSession(session *Session) error {

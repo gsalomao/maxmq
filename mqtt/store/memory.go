@@ -23,25 +23,24 @@ import (
 // MemoryStore represents a store where data are saved in memory.
 type MemoryStore struct {
 	mu       sync.RWMutex
-	sessions map[string]*mqtt.Session
+	sessions map[string]mqtt.Session
 }
 
 // NewMemoryStore creates a MemoryStore.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		sessions: make(map[string]*mqtt.Session),
+		sessions: make(map[string]mqtt.Session),
 	}
 }
 
 // GetSession gets the session from in-memory session store.
-func (s *MemoryStore) GetSession(id mqtt.ClientID) (*mqtt.Session,
-	error) {
+func (s *MemoryStore) GetSession(id mqtt.ClientID) (mqtt.Session, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	session, ok := s.sessions[string(id)]
 	if !ok {
-		return &mqtt.Session{}, mqtt.ErrSessionNotFound
+		return mqtt.Session{}, mqtt.ErrSessionNotFound
 	}
 
 	return session, nil
@@ -52,7 +51,7 @@ func (s *MemoryStore) SaveSession(session *mqtt.Session) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.sessions[string(session.ClientID)] = session
+	s.sessions[string(session.ClientID)] = *session
 	return nil
 }
 

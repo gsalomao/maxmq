@@ -46,7 +46,7 @@ func TestMemorySessionStore_SaveSession(t *testing.T) {
 
 	savedSession, err := s.GetSession(id)
 	require.Nil(t, err)
-	assert.Equal(t, session, *savedSession)
+	assert.Equal(t, session, savedSession)
 }
 
 func TestMemorySessionStore_DeleteSession(t *testing.T) {

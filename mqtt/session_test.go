@@ -31,13 +31,13 @@ type sessionStoreMock struct {
 	mock.Mock
 }
 
-func (s *sessionStoreMock) GetSession(id ClientID) (*Session, error) {
+func (s *sessionStoreMock) GetSession(id ClientID) (Session, error) {
 	args := s.Called(id)
 	ss := args.Get(0)
 	if ss == nil {
-		return &Session{}, args.Error(1)
+		return Session{}, args.Error(1)
 	}
-	return ss.(*Session), args.Error(1)
+	return ss.(Session), args.Error(1)
 }
 
 func (s *sessionStoreMock) SaveSession(session *Session) error {
@@ -53,8 +53,6 @@ func (s *sessionStoreMock) DeleteSession(session *Session) error {
 func createSessionManager(conf Configuration) sessionManager {
 	logger := mocks.NewLoggerStub()
 	store := &sessionStoreMock{}
-	store.On("GetSession", mock.Anything).Return(nil, ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything).Return(nil)
 
 	userProps := make([]packet.UserProperty, 0, len(conf.UserProperties))
 	for k, v := range conf.UserProperties {
@@ -71,6 +69,11 @@ func checkConnect(t *testing.T, conf Configuration, pkt *packet.Connect,
 
 	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
+
+	store := sm.store.(*sessionStoreMock)
+	store.On("GetSession", mock.Anything).Return(Session{},
+		ErrSessionNotFound)
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	reply, err := sm.handlePacket(&session, pkt)
 	if success {
@@ -90,6 +93,16 @@ func checkConnect(t *testing.T, conf Configuration, pkt *packet.Connect,
 func connectClient(sm *sessionManager, session *Session,
 	version packet.MQTTVersion, cleanSession bool,
 	props *packet.Properties) error {
+
+	store := sm.store.(*sessionStoreMock)
+	if cleanSession {
+		store.On("GetSession", mock.Anything).Return(*session,
+			ErrSessionNotFound)
+		store.On("DeleteSession", mock.Anything).Return(nil)
+	} else {
+		store.On("GetSession", mock.Anything).Return(*session, nil)
+	}
+	store.On("SaveSession", mock.Anything).Return(nil)
 
 	pkt := packet.Connect{ClientID: ClientID{'a'}, Version: version,
 		CleanSession: cleanSession, Properties: props}
@@ -156,10 +169,11 @@ func TestSessionManager_HandleConnectExistingSession(t *testing.T) {
 				ConnectedAt:    time.Now().Add(-1 * time.Minute).Unix(),
 				ExpiryInterval: conf.MaxSessionExpiryInterval,
 				Version:        test.version,
+				Subscriptions:  make(map[string]Subscription),
 			}
 
 			store := &sessionStoreMock{}
-			store.On("GetSession", clientID).Return(&s, nil)
+			store.On("GetSession", clientID).Return(s, nil)
 			store.On("SaveSession", mock.Anything).Return(nil)
 			sm.store = store
 
@@ -199,7 +213,8 @@ func TestSessionManager_HandleConnectCleanSessionNoExisting(t *testing.T) {
 			sm := createSessionManager(conf)
 
 			store := &sessionStoreMock{}
-			store.On("GetSession", clientID).Return(nil, ErrSessionNotFound)
+			store.On("GetSession", clientID).Return(Session{},
+				ErrSessionNotFound)
 			store.On("SaveSession", mock.Anything).Return(nil)
 			sm.store = store
 
@@ -243,10 +258,12 @@ func TestSessionManager_HandleConnectCleanSessionExisting(t *testing.T) {
 				ConnectedAt:    time.Now().Add(-1 * time.Minute).Unix(),
 				ExpiryInterval: conf.MaxSessionExpiryInterval,
 				Version:        test.version,
+				Subscriptions:  make(map[string]Subscription),
 			}
+			s.Subscriptions["test"] = Subscription{}
 
 			store := &sessionStoreMock{}
-			store.On("GetSession", clientID).Return(&s, nil)
+			store.On("GetSession", clientID).Return(s, nil)
 			store.On("DeleteSession", mock.Anything).Return(nil)
 			store.On("SaveSession", mock.Anything).Return(nil)
 			sm.store = store
@@ -260,6 +277,7 @@ func TestSessionManager_HandleConnectCleanSessionExisting(t *testing.T) {
 			assert.Equal(t, test.version, connAck.Version)
 			assert.Equal(t, test.code, connAck.ReasonCode)
 			assert.False(t, connAck.SessionPresent)
+			assert.Empty(t, session.Subscriptions)
 
 			store.AssertExpectations(t)
 		})
@@ -283,7 +301,7 @@ func TestSessionManager_HandleConnectFailedToGetSession(t *testing.T) {
 			sm := createSessionManager(conf)
 
 			store := &sessionStoreMock{}
-			store.On("GetSession", mock.Anything).Return(nil,
+			store.On("GetSession", mock.Anything).Return(Session{},
 				errors.New("failed to get session"))
 			sm.store = store
 
@@ -315,13 +333,55 @@ func TestSessionManager_HandleConnectFailedToSaveSession(t *testing.T) {
 			sm := createSessionManager(conf)
 
 			store := &sessionStoreMock{}
-			store.On("GetSession", mock.Anything).Return(nil,
+			store.On("GetSession", mock.Anything).Return(Session{},
 				ErrSessionNotFound)
 			store.On("SaveSession",
 				mock.Anything).Return(errors.New("failed to save session"))
 			sm.store = store
 
 			pkt := packet.Connect{ClientID: clientID, Version: test.version}
+
+			reply, err := sm.handlePacket(&session, &pkt)
+			assert.NotNil(t, err)
+			assert.Nil(t, reply)
+
+			store.AssertExpectations(t)
+		})
+	}
+}
+
+func TestSessionManager_HandleConnectFailedToDeleteSession(t *testing.T) {
+	testCases := []struct {
+		version packet.MQTTVersion
+	}{
+		{version: packet.MQTT31},
+		{version: packet.MQTT311},
+		{version: packet.MQTT50},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.version.String(), func(t *testing.T) {
+			conf := newConfiguration()
+			clientID := ClientID{'a'}
+			session := newSession(conf.ConnectTimeout)
+			sm := createSessionManager(conf)
+
+			s := Session{
+				ClientID:       clientID,
+				ConnectedAt:    time.Now().Add(-1 * time.Minute).Unix(),
+				ExpiryInterval: conf.MaxSessionExpiryInterval,
+				Version:        test.version,
+				Subscriptions:  make(map[string]Subscription),
+			}
+
+			store := &sessionStoreMock{}
+			store.On("GetSession", mock.Anything).Return(s, nil)
+			store.On("DeleteSession", mock.Anything).Return(
+				errors.New("failed to delete session"))
+			sm.store = store
+
+			pkt := packet.Connect{ClientID: clientID, Version: test.version,
+				CleanSession: true}
 
 			reply, err := sm.handlePacket(&session, &pkt)
 			assert.NotNil(t, err)
@@ -837,7 +897,6 @@ func TestSessionManager_HandleSubscribe(t *testing.T) {
 	}
 
 	conf := newConfiguration()
-	session := newSession(conf.ConnectTimeout)
 
 	for _, test := range testCases {
 		testName := fmt.Sprintf("%v-%v-%s-%v", test.id, test.version.String(),
@@ -845,6 +904,7 @@ func TestSessionManager_HandleSubscribe(t *testing.T) {
 
 		t.Run(testName, func(t *testing.T) {
 			sm := createSessionManager(conf)
+			session := newSession(conf.ConnectTimeout)
 
 			err := connectClient(&sm, &session, test.version, false, nil)
 			require.Nil(t, err)
@@ -951,10 +1011,11 @@ func TestSessionManager_HandleSubscribeSaveSessionError(t *testing.T) {
 	err := connectClient(&sm, &session, packet.MQTT311, false, nil)
 	require.Nil(t, err)
 
+	recoverSession := newSession(conf.ConnectTimeout)
 	store := &sessionStoreMock{}
 	store.On("SaveSession",
 		mock.Anything).Return(errors.New("failed to save session"))
-	store.On("GetSession", session.ClientID).Return(&session, nil)
+	store.On("GetSession", session.ClientID).Return(recoverSession, nil)
 	sm.store = store
 
 	sub := packet.Subscribe{PacketID: 2, Version: packet.MQTT311,
@@ -985,7 +1046,8 @@ func TestSessionManager_HandleSubscribeSaveAndFindSessionError(t *testing.T) {
 	store := &sessionStoreMock{}
 	store.On("SaveSession",
 		mock.Anything).Return(errors.New("failed to save session"))
-	store.On("GetSession", session.ClientID).Return(nil, ErrSessionNotFound)
+	store.On("GetSession", session.ClientID).Return(Session{},
+		ErrSessionNotFound)
 	sm.store = store
 
 	sub := packet.Subscribe{PacketID: 2, Version: packet.MQTT311,
@@ -1391,6 +1453,35 @@ func TestSessionManager_HandleDisconnectInvalidExpiryInterval(t *testing.T) {
 	discReply := reply.(*packet.Disconnect)
 	assert.Equal(t, packet.MQTT50, discReply.Version)
 	assert.Equal(t, packet.ReasonCodeV5ProtocolError, discReply.ReasonCode)
+}
+
+func TestSessionManager_HandleDisconnectErrorOnSaveSessionIsOkay(t *testing.T) {
+	conf := newConfiguration()
+	session := newSession(conf.ConnectTimeout)
+	sm := createSessionManager(conf)
+
+	props := &packet.Properties{}
+	props.SessionExpiryInterval = new(uint32)
+	*props.SessionExpiryInterval = 600
+
+	err := connectClient(&sm, &session, packet.MQTT50, true, props)
+	require.Nil(t, err)
+	require.Equal(t, uint32(600), session.ExpiryInterval)
+
+	store := &sessionStoreMock{}
+	store.On("SaveSession",
+		mock.Anything).Return(errors.New("failed to save session"))
+	sm.store = store
+
+	props.SessionExpiryInterval = new(uint32)
+	*props.SessionExpiryInterval = 300
+
+	disconnect := packet.Disconnect{Properties: props}
+	reply, err := sm.handlePacket(&session, &disconnect)
+	assert.Nil(t, err)
+	assert.Nil(t, reply)
+	assert.Equal(t, uint32(300), session.ExpiryInterval)
+	store.AssertExpectations(t)
 }
 
 func TestSessionManager_HandleDisconnectFailedToDeleteSession(t *testing.T) {
