@@ -1031,6 +1031,9 @@ func TestSessionManager_HandleSubscribeSaveSessionError(t *testing.T) {
 	assert.Equal(t, sub.Version, subAck.Version)
 	assert.Len(t, subAck.ReasonCodes, 1)
 	assert.Equal(t, packet.ReasonCodeV3Failure, subAck.ReasonCodes[0])
+	assert.Empty(t, session.Subscriptions)
+	assert.Nil(t, sm.pubSub.tree.root.subscription)
+	assert.Empty(t, sm.pubSub.tree.root.children)
 
 	store.AssertExpectations(t)
 }

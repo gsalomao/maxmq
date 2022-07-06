@@ -283,6 +283,12 @@ func (m *sessionManager) handleSubscribe(session *Session,
 			Uint8("Version", uint8(session.Version)).
 			Msg("MQTT Failed to save session on SUBSCRIBE")
 
+		for i, topic := range pkt.Topics {
+			if codes[i] < packet.ReasonCodeV3Failure {
+				_ = m.pubSub.unsubscribe(session.ClientID, topic.Name)
+			}
+		}
+
 		err = m.loadSession(session, session.ClientID)
 		if err != nil {
 			m.log.Error().
