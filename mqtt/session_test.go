@@ -882,6 +882,7 @@ func TestSessionManager_HandleSubscribeCleanSession(t *testing.T) {
 	require.Nil(t, err)
 
 	store := &sessionStoreMock{}
+	store.On("SaveSession", mock.Anything).Return(nil)
 	sm.store = store
 
 	sub := packet.Subscribe{PacketID: 1, Version: packet.MQTT311,

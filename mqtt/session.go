@@ -270,31 +270,30 @@ func (m *sessionManager) handleSubscribe(session *Session,
 		session.Subscriptions[subscription.TopicFilter] = subscription
 	}
 
-	if !session.CleanSession {
-		err := m.saveSession(session)
-		if err != nil {
-			m.log.Debug().
+	err := m.saveSession(session)
+	if err != nil {
+		m.log.Debug().
+			Bytes("ClientID", session.ClientID).
+			Int64("ConnectedAt", session.ConnectedAt).
+			Uint32("ExpiryInterval", session.ExpiryInterval).
+			Uint8("Version", uint8(session.Version)).
+			Msg("MQTT Recovering session")
+
+		var s *Session
+		s, err = m.findSession(session.ClientID)
+		if err != nil || s == nil {
+			m.log.Error().
 				Bytes("ClientID", session.ClientID).
 				Int64("ConnectedAt", session.ConnectedAt).
 				Uint32("ExpiryInterval", session.ExpiryInterval).
 				Uint8("Version", uint8(session.Version)).
-				Msg("MQTT Recovering session")
+				Msg("MQTT Failed to recover session")
+			return nil, errors.New("failed to recover session")
+		}
 
-			s, err := m.findSession(session.ClientID)
-			if err != nil || s == nil {
-				m.log.Error().
-					Bytes("ClientID", session.ClientID).
-					Int64("ConnectedAt", session.ConnectedAt).
-					Uint32("ExpiryInterval", session.ExpiryInterval).
-					Uint8("Version", uint8(session.Version)).
-					Msg("MQTT Failed to recover session")
-				return nil, errors.New("failed to recover session")
-			}
-
-			session = s
-			for i := 0; i < len(codes); i++ {
-				codes[i] = packet.ReasonCodeV3Failure
-			}
+		session = s
+		for i := 0; i < len(codes); i++ {
+			codes[i] = packet.ReasonCodeV3Failure
 		}
 	}
 
