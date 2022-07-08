@@ -147,7 +147,7 @@ func (m *sessionManager) handleConnect(session *Session,
 	exp := getSessionExpiryIntervalOnConnect(pkt,
 		m.conf.MaxSessionExpiryInterval)
 
-	err := m.loadSession(session, id)
+	err := m.readSession(session, id)
 	if err != nil && err != ErrSessionNotFound {
 		m.log.Error().
 			Bytes("ClientID", pkt.ClientID).
@@ -289,14 +289,14 @@ func (m *sessionManager) handleSubscribe(session *Session,
 			}
 		}
 
-		err = m.loadSession(session, session.ClientID)
+		err = m.readSession(session, session.ClientID)
 		if err != nil {
 			m.log.Error().
 				Bytes("ClientID", session.ClientID).
 				Int64("ConnectedAt", session.ConnectedAt).
 				Uint32("ExpiryInterval", session.ExpiryInterval).
 				Uint8("Version", uint8(session.Version)).
-				Msg("MQTT Failed to recover session on SUBSCRIBE")
+				Msg("MQTT Failed to restore session on SUBSCRIBE")
 			return nil, errors.New("failed to restore session")
 		}
 
@@ -484,21 +484,21 @@ func (m *sessionManager) checkClientID(pkt *packet.Connect) *packet.Error {
 	return nil
 }
 
-func (m *sessionManager) loadSession(session *Session, id ClientID) error {
+func (m *sessionManager) readSession(session *Session, id ClientID) error {
 	m.log.Trace().
 		Bytes("ClientID", id).
-		Msg("MQTT Loading session")
+		Msg("MQTT Reading session from store")
 
 	s, err := m.store.GetSession(id)
 	if err != nil {
 		if err != ErrSessionNotFound {
 			m.log.Error().
 				Bytes("ClientID", id).
-				Msg("MQTT Failed to get session from store: " + err.Error())
+				Msg("MQTT Failed to read session from store: " + err.Error())
 		} else {
 			m.log.Debug().
 				Bytes("ClientID", id).
-				Msg("MQTT Session not found")
+				Msg("MQTT Session not found in the store")
 		}
 
 		return err
@@ -521,7 +521,7 @@ func (m *sessionManager) loadSession(session *Session, id ClientID) error {
 		Int("KeepAlive", session.KeepAlive).
 		Int("Subscriptions", len(session.Subscriptions)).
 		Uint8("Version", uint8(session.Version)).
-		Msg("MQTT Session loaded with success")
+		Msg("MQTT Session read with success")
 
 	return nil
 }
