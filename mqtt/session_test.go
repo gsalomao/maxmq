@@ -260,11 +260,13 @@ func TestSessionManager_ConnectCleanSessionExisting(t *testing.T) {
 				Version:        test.version,
 				Subscriptions:  make(map[string]Subscription),
 			}
-			s.Subscriptions["test"] = Subscription{}
+
+			sub, err := sm.pubSub.subscribe(&s, packet.Topic{Name: "test"}, 1)
+			require.Nil(t, err)
+			s.Subscriptions["test"] = sub
 
 			store := &sessionStoreMock{}
 			store.On("GetSession", clientID).Return(s, nil)
-			store.On("DeleteSession", mock.Anything).Return(nil)
 			store.On("SaveSession", mock.Anything).Return(nil)
 			sm.store = store
 
@@ -277,7 +279,9 @@ func TestSessionManager_ConnectCleanSessionExisting(t *testing.T) {
 			assert.Equal(t, test.version, connAck.Version)
 			assert.Equal(t, test.code, connAck.ReasonCode)
 			assert.False(t, connAck.SessionPresent)
+			assert.Equal(t, clientID, session.ClientID)
 			assert.Empty(t, session.Subscriptions)
+			assert.Empty(t, sm.pubSub.tree.root.children)
 
 			store.AssertExpectations(t)
 		})
@@ -340,48 +344,6 @@ func TestSessionManager_ConnectFailedToSaveSession(t *testing.T) {
 			sm.store = store
 
 			pkt := packet.Connect{ClientID: clientID, Version: test.version}
-
-			reply, err := sm.handlePacket(&session, &pkt)
-			assert.NotNil(t, err)
-			assert.Nil(t, reply)
-
-			store.AssertExpectations(t)
-		})
-	}
-}
-
-func TestSessionManager_ConnectFailedToDeleteSession(t *testing.T) {
-	testCases := []struct {
-		version packet.MQTTVersion
-	}{
-		{version: packet.MQTT31},
-		{version: packet.MQTT311},
-		{version: packet.MQTT50},
-	}
-
-	for _, test := range testCases {
-		t.Run(test.version.String(), func(t *testing.T) {
-			conf := newConfiguration()
-			clientID := ClientID{'a'}
-			session := newSession(conf.ConnectTimeout)
-			sm := createSessionManager(conf)
-
-			s := Session{
-				ClientID:       clientID,
-				ConnectedAt:    time.Now().Add(-1 * time.Minute).Unix(),
-				ExpiryInterval: conf.MaxSessionExpiryInterval,
-				Version:        test.version,
-				Subscriptions:  make(map[string]Subscription),
-			}
-
-			store := &sessionStoreMock{}
-			store.On("GetSession", mock.Anything).Return(s, nil)
-			store.On("DeleteSession", mock.Anything).Return(
-				errors.New("failed to delete session"))
-			sm.store = store
-
-			pkt := packet.Connect{ClientID: clientID, Version: test.version,
-				CleanSession: true}
 
 			reply, err := sm.handlePacket(&session, &pkt)
 			assert.NotNil(t, err)

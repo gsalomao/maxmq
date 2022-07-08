@@ -77,6 +77,12 @@ func newSession(keepAlive int) Session {
 	}
 }
 
+func (s *Session) clean() {
+	s.Subscriptions = make(map[string]Subscription)
+	s.connected = false
+	s.restored = false
+}
+
 type sessionManager struct {
 	pubSub         pubSub
 	store          SessionStore
@@ -157,18 +163,7 @@ func (m *sessionManager) handleConnect(session *Session,
 	}
 
 	if err == nil && pkt.CleanSession {
-		err = m.deleteSession(session)
-		if err != nil {
-			m.log.Error().
-				Bool("CleanSession", pkt.CleanSession).
-				Bytes("ClientID", pkt.ClientID).
-				Uint16("KeepAlive", pkt.KeepAlive).
-				Uint8("Version", uint8(pkt.Version)).
-				Msg("MQTT Failed to delete session on CONNECT")
-			return nil, err
-		}
-
-		*session = newSession(session.KeepAlive)
+		m.cleanSession(session)
 	}
 
 	session.ClientID = id
@@ -487,18 +482,18 @@ func (m *sessionManager) checkClientID(pkt *packet.Connect) *packet.Error {
 func (m *sessionManager) readSession(session *Session, id ClientID) error {
 	m.log.Trace().
 		Bytes("ClientID", id).
-		Msg("MQTT Reading session from store")
+		Msg("MQTT Reading session")
 
 	s, err := m.store.GetSession(id)
 	if err != nil {
 		if err != ErrSessionNotFound {
 			m.log.Error().
 				Bytes("ClientID", id).
-				Msg("MQTT Failed to read session from store: " + err.Error())
+				Msg("MQTT Failed to read session: " + err.Error())
 		} else {
 			m.log.Debug().
 				Bytes("ClientID", id).
-				Msg("MQTT Session not found in the store")
+				Msg("MQTT Session not found")
 		}
 
 		return err
@@ -591,6 +586,20 @@ func (m *sessionManager) deleteSession(session *Session) error {
 		Msg("MQTT Session deleted with success")
 
 	return nil
+}
+
+func (m *sessionManager) cleanSession(session *Session) {
+	for _, sub := range session.Subscriptions {
+		err := m.pubSub.unsubscribe(session.ClientID, sub.TopicFilter)
+		if err != nil {
+			m.log.Error().
+				Bytes("ClientID", session.ClientID).
+				Str("Topic", sub.TopicFilter).
+				Uint8("Version", uint8(session.Version)).
+				Msg("MQTT Failed to unsubscribe when cleaning session")
+		}
+	}
+	session.clean()
 }
 
 func (m *sessionManager) disconnectSession(session *Session) error {
