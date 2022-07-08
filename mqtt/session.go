@@ -612,6 +612,7 @@ func (m *sessionManager) disconnectSession(session *Session) error {
 
 	if session.CleanSession && (session.Version != packet.MQTT50 ||
 		session.ExpiryInterval == 0) {
+		m.cleanSession(session)
 		return m.deleteSession(session)
 	}
 

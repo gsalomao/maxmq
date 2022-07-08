@@ -1343,16 +1343,21 @@ func TestSessionManager_Disconnect(t *testing.T) {
 	}
 
 	conf := newConfiguration()
-	sm := createSessionManager(conf)
 
 	for _, test := range testCases {
 		name := fmt.Sprintf("%v-%v", test.version.String(), test.cleanSession)
 		t.Run(name, func(t *testing.T) {
+			sm := createSessionManager(conf)
 			session := newSession(conf.ConnectTimeout)
 
 			err := connectClient(&sm, &session, test.version, test.cleanSession,
 				nil)
 			require.Nil(t, err)
+
+			sub, err := sm.pubSub.subscribe(&session,
+				packet.Topic{Name: "test"}, 1)
+			require.Nil(t, err)
+			session.Subscriptions["test"] = sub
 
 			store := sm.store.(*sessionStoreMock)
 			if test.cleanSession {
@@ -1363,6 +1368,12 @@ func TestSessionManager_Disconnect(t *testing.T) {
 			reply, err := sm.handlePacket(&session, &disconnect)
 			assert.Nil(t, err)
 			assert.Nil(t, reply)
+
+			if test.cleanSession {
+				assert.Empty(t, sm.pubSub.tree.root.children)
+			} else {
+				assert.NotEmpty(t, sm.pubSub.tree.root.children)
+			}
 
 			store.AssertExpectations(t)
 		})
