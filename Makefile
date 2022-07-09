@@ -44,7 +44,8 @@ build: ## Build application
 
 image: ## Build Docker image
 	$(call print_task,"Building Docker image")
-	@docker build . -t maxmq:latest
+	@docker build . -t maxmq:${VERSION}
+	@docker tag maxmq:${VERSION} maxmq:latest
 	$(call print_task_result,"Building Docker image","done")
 
 clean: ## Clean build folder

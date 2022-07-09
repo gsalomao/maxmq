@@ -12,33 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Argument for Go version
+ARG GO_VERSION=1.18
+
 # Build stage
-FROM golang:1.17-alpine3.15 AS build
-
-RUN apk add --no-cache git make ncurses
-
-# Set terminal colors
-ENV TERM=xterm-256color
+FROM golang:${GO_VERSION} AS build
 
 # Set the Working Directory inside the container
 WORKDIR /tmp/maxmq
 
 # Populate the module cache based on the go.{mod,sum} files.
-COPY go.mod .
-COPY go.sum .
+COPY go.mod go.sum ./
 RUN go mod download
 
 # Build application
 COPY . .
-RUN make build
+RUN CGO_ENABLED=0 make build
 
 # Start fresh from a smaller image
-FROM alpine:3.15
+FROM gcr.io/distroless/static
 LABEL maintainer="Gustavo Salomao <gsalomao.eng@gmail.com>"
-LABEL description="MaxMQ is a cloud-native and high-performance message broker"
-
-# Create user and group
-RUN addgroup -S maxmq && adduser -S maxmq -G maxmq
+LABEL description="Cloud-Native and High-Performance MQTT Broker for IoT"
 
 # Add application from build stage
 COPY --from=build /tmp/maxmq/bin/maxmq /usr/bin/maxmq
