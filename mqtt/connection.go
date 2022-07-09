@@ -26,6 +26,10 @@ import (
 	"go.uber.org/multierr"
 )
 
+// ErrConnectionTimeout indicates that the broker didn't receive any packet
+// within the expected time period.
+var ErrConnectionTimeout = errors.New("timeout - no packet received")
+
 type connection struct {
 	netConn net.Conn
 	session Session
@@ -95,10 +99,8 @@ func (cm *connectionManager) handle(nc net.Conn) error {
 		Int("Timeout", conn.session.KeepAlive).
 		Msg("MQTT Handling connection")
 
-	deadline := time.Now()
-	deadline = deadline.Add(time.Duration(conn.session.KeepAlive) * time.Second)
-
 	for {
+		deadline := conn.nextConnectionDeadline()
 		err := conn.netConn.SetReadDeadline(deadline)
 		if err != nil {
 			cm.log.Error().
@@ -107,7 +109,8 @@ func (cm *connectionManager) handle(nc net.Conn) error {
 		}
 
 		cm.log.Trace().
-			Int("Timeout", conn.session.KeepAlive).
+			Float64("DeadlineIn", time.Until(deadline).Seconds()).
+			Int("KeepAlive", conn.session.KeepAlive).
 			Msg("MQTT Waiting packet")
 
 		pkt, err := cm.readPacket(&conn)
@@ -127,8 +130,6 @@ func (cm *connectionManager) handle(nc net.Conn) error {
 			cm.closeConnection(&conn, false)
 			return nil
 		}
-
-		deadline = conn.nextConnectionDeadline()
 	}
 }
 
@@ -150,7 +151,7 @@ func (cm *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 				Bool("Connected", conn.session.connected).
 				Int("Timeout", conn.session.KeepAlive).
 				Msg("MQTT Timeout - No packet received")
-			return nil, errors.New("timeout - no packet received")
+			return nil, ErrConnectionTimeout
 		}
 
 		cm.log.Info().Msg("MQTT Failed to read packet: " + err.Error())

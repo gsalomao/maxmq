@@ -72,7 +72,8 @@ func (l *Listener) Listen() error {
 	for {
 		l.log.Trace().Msg("MQTT Waiting for TCP connection")
 
-		tcpConn, err := l.tcpLsn.Accept()
+		var tcpConn net.Conn
+		tcpConn, err = l.tcpLsn.Accept()
 		if err != nil {
 			if !l.isRunning() {
 				break
@@ -86,7 +87,7 @@ func (l *Listener) Listen() error {
 		l.log.Trace().Msg("MQTT New TCP connection")
 		go func() {
 			err = l.connManager.handle(tcpConn)
-			if err != nil {
+			if err != nil && err != ErrConnectionTimeout {
 				l.log.Warn().
 					Msg("MQTT Failed to handle connection: " + err.Error())
 			}

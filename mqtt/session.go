@@ -267,6 +267,15 @@ func (m *sessionManager) handleSubscribe(session *Session,
 
 		codes = append(codes, packet.ReasonCode(subscription.QoS))
 		session.Subscriptions[subscription.TopicFilter] = subscription
+
+		m.log.Info().
+			Bytes("ClientID", session.ClientID).
+			Uint16("PacketID", uint16(pkt.PacketID)).
+			Int("NumberOfTopics", len(pkt.Topics)).
+			Int("Subscriptions", len(session.Subscriptions)).
+			Str("TopicFilter", topic.Name).
+			Uint8("Version", uint8(pkt.Version)).
+			Msg("MQTT Client subscribed to topic")
 	}
 
 	err := m.saveSession(session)
@@ -281,6 +290,14 @@ func (m *sessionManager) handleSubscribe(session *Session,
 		for i, topic := range pkt.Topics {
 			if codes[i] < packet.ReasonCodeV3Failure {
 				_ = m.pubSub.unsubscribe(session.ClientID, topic.Name)
+				m.log.Info().
+					Bytes("ClientID", session.ClientID).
+					Uint16("PacketID", uint16(pkt.PacketID)).
+					Int("NumberOfTopics", len(pkt.Topics)).
+					Int("Subscriptions", len(session.Subscriptions)).
+					Str("TopicFilter", topic.Name).
+					Uint8("Version", uint8(pkt.Version)).
+					Msg("MQTT Client unsubscribed to topic")
 			}
 		}
 
@@ -334,6 +351,14 @@ func (m *sessionManager) handleUnsubscribe(session *Session,
 		if err == nil {
 			code = packet.ReasonCodeV5Success
 			delete(session.Subscriptions, topic)
+			m.log.Info().
+				Bytes("ClientID", session.ClientID).
+				Uint16("PacketID", uint16(pkt.PacketID)).
+				Int("NumberOfTopics", len(pkt.Topics)).
+				Int("Subscriptions", len(session.Subscriptions)).
+				Str("TopicFilter", topic).
+				Uint8("Version", uint8(pkt.Version)).
+				Msg("MQTT Client unsubscribed to topic")
 		} else if err == ErrSubscriptionNotFound {
 			code = packet.ReasonCodeV5NoSubscriptionExisted
 		}
