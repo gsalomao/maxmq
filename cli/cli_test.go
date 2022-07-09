@@ -31,7 +31,8 @@ func TestCLI_Run(t *testing.T) {
 		{
 			name: "Usage",
 			in:   "",
-			out:  "MaxMQ is a Cloud-Native Message Broker for IoT",
+			out: "MaxMQ is a Cloud-Native and High-Performance MQTT Broker " +
+				"for IoT.",
 		},
 		{
 			name: "Version",

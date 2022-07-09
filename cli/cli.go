@@ -31,14 +31,14 @@ var version = "0.0.0"
 
 // New creates an instance of the command line interface.
 func New(out io.Writer, args []string) CLI {
+	description := "MaxMQ is a Cloud-Native and High-Performance MQTT Broker " +
+		"for IoT."
 	cli := CLI{
 		rootCmd: &cobra.Command{
 			Use:     "maxmq",
 			Version: version,
 			Short:   "MaxMQ is a message broker for IoT",
-			Long: `MaxMQ is a Cloud-Native Message Broker for IoT designed for High Performance
-and High Availability.
-`,
+			Long:    description,
 		},
 	}
 
