@@ -26,11 +26,12 @@ import (
 )
 
 type metrics struct {
-	cache       labelCaches
-	packets     *packetsMetrics
-	connections *connectionsMetrics
-	latencies   *latenciesMetrics
-	log         *logger.Logger
+	cache         labelCaches
+	packets       *packetsMetrics
+	connections   *connectionsMetrics
+	subscriptions *subscriptionsMetrics
+	latencies     *latenciesMetrics
+	log           *logger.Logger
 }
 
 type labelCaches struct {
@@ -47,9 +48,13 @@ type packetsMetrics struct {
 }
 
 type connectionsMetrics struct {
-	connectTotal      prometheus.Counter
-	disconnectTotal   prometheus.Counter
-	activeConnections prometheus.Gauge
+	connectTotal    prometheus.Counter
+	disconnectTotal prometheus.Counter
+}
+
+type subscriptionsMetrics struct {
+	subscribeTotal   prometheus.Counter
+	unsubscribeTotal prometheus.Counter
 }
 
 type latenciesMetrics struct {
@@ -61,23 +66,25 @@ type latenciesMetrics struct {
 }
 
 func newMetrics(enabled bool, log *logger.Logger) *metrics {
-	mt := &metrics{log: log}
+	m := &metrics{log: log}
 
 	if enabled {
-		mt.cache = newCaches()
-		mt.packets = newPacketsMetrics()
-		mt.connections = newConnectionsMetrics()
-		mt.latencies = newLatenciesMetrics()
+		m.cache = newCaches()
+		m.packets = newPacketsMetrics()
+		m.connections = newConnectionsMetrics()
+		m.subscriptions = newSubscriptionsMetrics()
+		m.latencies = newLatenciesMetrics()
 
-		err := mt.registerPacketsMetrics()
-		err = multierr.Combine(err, mt.registerConnectionsMetrics())
-		err = multierr.Combine(err, mt.registerLatenciesMetrics())
+		err := m.registerPacketsMetrics()
+		err = multierr.Combine(err, m.registerConnectionsMetrics())
+		err = multierr.Combine(err, m.registerSubscriptionsMetrics())
+		err = multierr.Combine(err, m.registerLatenciesMetrics())
 		if err != nil {
 			log.Error().Msg("MQTT Failed to register metrics: " + err.Error())
 		}
 	}
 
-	return mt
+	return m
 }
 
 func newCaches() labelCaches {
@@ -88,9 +95,9 @@ func newCaches() labelCaches {
 }
 
 func newPacketsMetrics() *packetsMetrics {
-	pm := &packetsMetrics{}
+	p := &packetsMetrics{}
 
-	pm.receivedTotal = prometheus.NewCounterVec(
+	p.receivedTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "maxmq",
 			Subsystem: "mqtt",
@@ -99,7 +106,7 @@ func newPacketsMetrics() *packetsMetrics {
 		}, []string{"type"},
 	)
 
-	pm.receivedBytes = prometheus.NewCounterVec(
+	p.receivedBytes = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "maxmq",
 			Subsystem: "mqtt",
@@ -108,7 +115,7 @@ func newPacketsMetrics() *packetsMetrics {
 		}, []string{"type"},
 	)
 
-	pm.sentTotal = prometheus.NewCounterVec(
+	p.sentTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "maxmq",
 			Subsystem: "mqtt",
@@ -117,7 +124,7 @@ func newPacketsMetrics() *packetsMetrics {
 		}, []string{"type"},
 	)
 
-	pm.sentBytes = prometheus.NewCounterVec(
+	p.sentBytes = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "maxmq",
 			Subsystem: "mqtt",
@@ -126,13 +133,13 @@ func newPacketsMetrics() *packetsMetrics {
 		}, []string{"type"},
 	)
 
-	return pm
+	return p
 }
 
 func newConnectionsMetrics() *connectionsMetrics {
-	cm := &connectionsMetrics{}
+	c := &connectionsMetrics{}
 
-	cm.connectTotal = prometheus.NewCounter(
+	c.connectTotal = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: "maxmq",
 			Subsystem: "mqtt",
@@ -141,7 +148,7 @@ func newConnectionsMetrics() *connectionsMetrics {
 		},
 	)
 
-	cm.disconnectTotal = prometheus.NewCounter(
+	c.disconnectTotal = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: "maxmq",
 			Subsystem: "mqtt",
@@ -150,16 +157,31 @@ func newConnectionsMetrics() *connectionsMetrics {
 		},
 	)
 
-	cm.activeConnections = prometheus.NewGauge(
-		prometheus.GaugeOpts{
+	return c
+}
+
+func newSubscriptionsMetrics() *subscriptionsMetrics {
+	s := &subscriptionsMetrics{}
+
+	s.subscribeTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
 			Namespace: "maxmq",
 			Subsystem: "mqtt",
-			Name:      "active_connections",
-			Help:      "Number of active MQTT connections",
+			Name:      "subscribe_total",
+			Help:      "Number of subscribes",
 		},
 	)
 
-	return cm
+	s.unsubscribeTotal = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "maxmq",
+			Subsystem: "mqtt",
+			Name:      "unsubscribe_total",
+			Help:      "Number of unsubscribes",
+		},
+	)
+
+	return s
 }
 
 func newLatenciesMetrics() *latenciesMetrics {
@@ -186,17 +208,6 @@ func newLatenciesMetrics() *latenciesMetrics {
 			Name:      "ping_latency_seconds",
 			Help: "Duration in seconds from the time the PINGREQ packet is " +
 				"received until the time the PINGRESP packet is sent",
-			Buckets: buckets,
-		},
-	)
-
-	latencies.subscribeSeconds = prometheus.NewHistogram(
-		prometheus.HistogramOpts{
-			Namespace: "maxmq",
-			Subsystem: "mqtt",
-			Name:      "subscribe_latency_seconds",
-			Help: "Duration in seconds from the time the SUBSCRIBE packet " +
-				"is received until the time the SUBACK packet is sent",
 			Buckets: buckets,
 		},
 	)
@@ -242,7 +253,6 @@ func (m *metrics) registerPacketsMetrics() error {
 	err = multierr.Combine(err, prometheus.Register(m.packets.receivedBytes))
 	err = multierr.Combine(err, prometheus.Register(m.packets.sentTotal))
 	err = multierr.Combine(err, prometheus.Register(m.packets.sentBytes))
-
 	return err
 }
 
@@ -250,9 +260,13 @@ func (m *metrics) registerConnectionsMetrics() error {
 	err := prometheus.Register(m.connections.connectTotal)
 	err = multierr.Combine(err,
 		prometheus.Register(m.connections.disconnectTotal))
-	err = multierr.Combine(err,
-		prometheus.Register(m.connections.activeConnections))
+	return err
+}
 
+func (m *metrics) registerSubscriptionsMetrics() error {
+	err := prometheus.Register(m.subscriptions.subscribeTotal)
+	err = multierr.Combine(err,
+		prometheus.Register(m.subscriptions.unsubscribeTotal))
 	return err
 }
 
@@ -260,8 +274,11 @@ func (m *metrics) registerLatenciesMetrics() error {
 	err := prometheus.Register(m.latencies.connectSeconds)
 	err = multierr.Combine(err, prometheus.Register(m.latencies.pingSeconds))
 	err = multierr.Combine(err,
+		prometheus.Register(m.latencies.subscribeSeconds))
+	err = multierr.Combine(err,
+		prometheus.Register(m.latencies.unsubscribeSeconds))
+	err = multierr.Combine(err,
 		prometheus.Register(m.latencies.disconnectSeconds))
-
 	return err
 }
 
@@ -315,7 +332,6 @@ func (m *metrics) recordConnection() {
 	}
 
 	m.connections.connectTotal.Inc()
-	m.connections.activeConnections.Inc()
 }
 
 func (m *metrics) recordDisconnection() {
@@ -324,7 +340,22 @@ func (m *metrics) recordDisconnection() {
 	}
 
 	m.connections.disconnectTotal.Inc()
-	m.connections.activeConnections.Dec()
+}
+
+func (m *metrics) recordSubscribe() {
+	if m.subscriptions == nil {
+		return
+	}
+
+	m.subscriptions.subscribeTotal.Inc()
+}
+
+func (m *metrics) recordUnsubscribe() {
+	if m.subscriptions == nil {
+		return
+	}
+
+	m.subscriptions.unsubscribeTotal.Inc()
 }
 
 func (m *metrics) recordConnectLatency(d time.Duration, code int) {

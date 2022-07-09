@@ -75,8 +75,9 @@ func TestSubscriptionTree_Insert(t *testing.T) {
 				QoS: packet.QoS0}
 
 			tree := newSubscriptionTree()
-			err := tree.insert(sub)
+			exists, err := tree.insert(sub)
 			assert.Nil(t, err)
+			assert.False(t, exists)
 			require.Len(t, tree.root.children, 1)
 			assertSubscription(t, &tree, sub, session.ClientID)
 		})
@@ -92,7 +93,7 @@ func BenchmarkSubscriptionTree_Insert(b *testing.B) {
 		sub := Subscription{Session: &session}
 		sub.TopicFilter = "sensor/temp/" + fmt.Sprint(i)
 
-		err := tree.insert(sub)
+		_, err := tree.insert(sub)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -108,12 +109,15 @@ func TestSubscriptionTree_InsertMultipleSubscriptions(t *testing.T) {
 	}
 	tree := newSubscriptionTree()
 
-	err := tree.insert(subscriptions[0])
+	exists, err := tree.insert(subscriptions[0])
 	require.Nil(t, err)
-	err = tree.insert(subscriptions[1])
+	require.False(t, exists)
+	exists, err = tree.insert(subscriptions[1])
 	require.Nil(t, err)
-	err = tree.insert(subscriptions[2])
+	require.False(t, exists)
+	exists, err = tree.insert(subscriptions[2])
 	require.Nil(t, err)
+	require.False(t, exists)
 
 	assertSubscription(t, &tree, subscriptions[0], session.ClientID)
 	assertSubscription(t, &tree, subscriptions[1], session.ClientID)
@@ -136,8 +140,9 @@ func TestSubscriptionTree_InsertSubscriptionsSameTopic(t *testing.T) {
 	tree := newSubscriptionTree()
 
 	for _, sub := range subscriptions {
-		err := tree.insert(sub)
+		exists, err := tree.insert(sub)
 		require.Nil(t, err)
+		require.False(t, exists)
 	}
 	for _, sub := range subscriptions {
 		assertSubscription(t, &tree, sub, sub.Session.ClientID)
@@ -155,8 +160,9 @@ func TestSubscriptionTree_InsertTopicFilterWithWildcard(t *testing.T) {
 				QoS: packet.QoS0}
 
 			tree := newSubscriptionTree()
-			err := tree.insert(sub)
+			exists, err := tree.insert(sub)
 			assert.Nil(t, err)
+			assert.False(t, exists)
 			assertSubscription(t, &tree, sub, sub.Session.ClientID)
 		})
 	}
@@ -173,7 +179,7 @@ func TestSubscriptionTree_InsertInvalidTopicFilter(t *testing.T) {
 				QoS: packet.QoS0}
 
 			tree := newSubscriptionTree()
-			err := tree.insert(sub)
+			_, err := tree.insert(sub)
 			assert.NotNil(t, err)
 		})
 	}
@@ -188,12 +194,15 @@ func TestSubscriptionTree_InsertSameTopicFilter(t *testing.T) {
 	}
 	tree := newSubscriptionTree()
 
-	err := tree.insert(subscriptions[0])
+	exists, err := tree.insert(subscriptions[0])
 	require.Nil(t, err)
-	err = tree.insert(subscriptions[1])
+	require.False(t, exists)
+	exists, err = tree.insert(subscriptions[1])
 	require.Nil(t, err)
-	err = tree.insert(subscriptions[2])
+	require.True(t, exists)
+	exists, err = tree.insert(subscriptions[2])
 	require.Nil(t, err)
+	require.True(t, exists)
 
 	require.Len(t, tree.root.children, 1)
 	node := tree.root.children["data"]
@@ -218,7 +227,7 @@ func TestSubscriptionTree_Remove(t *testing.T) {
 				QoS: packet.QoS0}
 
 			tree := newSubscriptionTree()
-			err := tree.insert(sub)
+			_, err := tree.insert(sub)
 			require.Nil(t, err)
 
 			err = tree.remove(session.ClientID, sub.TopicFilter)
@@ -237,7 +246,7 @@ func BenchmarkSubscriptionTree_Remove(b *testing.B) {
 		sub := Subscription{Session: &session}
 		sub.TopicFilter = "sensor/temp/" + fmt.Sprint(i)
 
-		err := tree.insert(sub)
+		_, err := tree.insert(sub)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -269,7 +278,7 @@ func TestSubscriptionTree_RemoveNoExisting(t *testing.T) {
 
 				sub1 := Subscription{Session: &session,
 					TopicFilter: test.topics[0], QoS: packet.QoS0}
-				err := tree.insert(sub1)
+				_, err := tree.insert(sub1)
 				require.Nil(t, err)
 
 				err = tree.remove(session.ClientID, test.topics[1])
@@ -298,12 +307,12 @@ func TestSubscriptionTree_RemoveAllChildren(t *testing.T) {
 
 				sub1 := Subscription{Session: &session,
 					TopicFilter: test.topics[0], QoS: packet.QoS0}
-				err := tree.insert(sub1)
+				_, err := tree.insert(sub1)
 				require.Nil(t, err)
 
 				sub2 := Subscription{Session: &session,
 					TopicFilter: test.topics[1], QoS: packet.QoS0}
-				err = tree.insert(sub2)
+				_, err = tree.insert(sub2)
 				require.Nil(t, err)
 
 				err = tree.remove(session.ClientID, sub2.TopicFilter)
@@ -327,11 +336,11 @@ func TestSubscriptionTree_RemoveSameTopicFilter(t *testing.T) {
 	}
 	tree := newSubscriptionTree()
 
-	err := tree.insert(subscriptions[0])
+	_, err := tree.insert(subscriptions[0])
 	require.Nil(t, err)
-	err = tree.insert(subscriptions[1])
+	_, err = tree.insert(subscriptions[1])
 	require.Nil(t, err)
-	err = tree.insert(subscriptions[2])
+	_, err = tree.insert(subscriptions[2])
 	require.Nil(t, err)
 	require.Len(t, tree.root.children, 1)
 
@@ -353,7 +362,7 @@ func TestSubscriptionTree_RemoveSameTopicDifferentSession(t *testing.T) {
 	sub := Subscription{Session: &session, TopicFilter: "data"}
 	tree := newSubscriptionTree()
 
-	err := tree.insert(sub)
+	_, err := tree.insert(sub)
 	require.Nil(t, err)
 
 	err = tree.remove(ClientID("id-1"), sub.TopicFilter)

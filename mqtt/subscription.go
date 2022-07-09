@@ -65,9 +65,9 @@ func newSubscriptionTree() subscriptionTree {
 	return subscriptionTree{root: newSubscriptionNode()}
 }
 
-func (t *subscriptionTree) insert(sub Subscription) error {
+func (t *subscriptionTree) insert(sub Subscription) (exists bool, err error) {
 	if len(sub.TopicFilter) == 0 {
-		return errors.New("empty topic filter")
+		return false, errors.New("empty topic filter")
 	}
 
 	words := strings.Split(sub.TopicFilter, "/")
@@ -80,8 +80,8 @@ func (t *subscriptionTree) insert(sub Subscription) error {
 	for i, word := range words {
 		lastLevel := i == len(words)-1
 
-		if err := validateTopicWord(word, lastLevel); err != nil {
-			return err
+		if err = validateTopicWord(word, lastLevel); err != nil {
+			return false, err
 		}
 
 		child, ok := nodes[word]
@@ -93,8 +93,8 @@ func (t *subscriptionTree) insert(sub Subscription) error {
 		nodes = child.children
 	}
 
-	node.insert(&sub)
-	return nil
+	exists = node.insert(&sub)
+	return
 }
 
 func (t *subscriptionTree) remove(id ClientID, topic string) error {
@@ -146,8 +146,10 @@ func newSubscriptionNode() *subscriptionNode {
 	return &subscriptionNode{children: make(map[string]*subscriptionNode)}
 }
 
-func (n *subscriptionNode) insert(sub *Subscription) {
+func (n *subscriptionNode) insert(sub *Subscription) bool {
 	var parent *Subscription
+	var exists bool
+
 	subscription := n.subscription
 
 	for subscription != nil {
@@ -159,11 +161,17 @@ func (n *subscriptionNode) insert(sub *Subscription) {
 		subscription = subscription.next
 	}
 
+	if subscription != nil {
+		exists = true
+	}
+
 	if parent != nil {
 		parent.next = sub
 	} else {
 		n.subscription = sub
 	}
+
+	return exists
 }
 
 func (n *subscriptionNode) remove(id ClientID) error {

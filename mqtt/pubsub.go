@@ -52,7 +52,7 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic,
 		NoLocal:           topic.NoLocal,
 	}
 
-	err := p.tree.insert(sub)
+	exists, err := p.tree.insert(sub)
 	if err != nil {
 		p.log.Error().
 			Bytes("ClientID", session.ClientID).
@@ -64,6 +64,10 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic,
 			Str("TopicFilter", topic.Name).
 			Msg("MQTT Failed to subscribe to topic")
 		return Subscription{}, err
+	}
+
+	if !exists {
+		p.metrics.recordSubscribe()
 	}
 
 	p.log.Debug().
@@ -94,6 +98,7 @@ func (p *pubSub) unsubscribe(id ClientID, topic string) error {
 		return err
 	}
 
+	p.metrics.recordUnsubscribe()
 	p.log.Debug().
 		Bytes("ClientID", id).
 		Str("TopicFilter", topic).

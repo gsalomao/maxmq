@@ -633,7 +633,6 @@ func (m *sessionManager) disconnectSession(session *Session) error {
 	}
 
 	session.connected = false
-	m.metrics.recordDisconnection()
 
 	if session.CleanSession && (session.Version != packet.MQTT50 ||
 		session.ExpiryInterval == 0) {
