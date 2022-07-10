@@ -322,16 +322,17 @@ func TestSubscribe_Size(t *testing.T) {
 		}
 
 		opts := options{
-			packetType:      SUBSCRIBE,
-			controlFlags:    2,
-			version:         MQTT311,
-			remainingLength: len(msg),
+			packetType:        SUBSCRIBE,
+			controlFlags:      2,
+			version:           MQTT311,
+			fixedHeaderLength: 2,
+			remainingLength:   len(msg),
 		}
 		pkt, err := newPacketSubscribe(opts)
 		require.Nil(t, err)
 		require.NotNil(t, pkt)
 
-		assert.Equal(t, 8, pkt.Size())
+		assert.Equal(t, 10, pkt.Size())
 	})
 
 	t.Run("V5", func(t *testing.T) {
@@ -342,16 +343,17 @@ func TestSubscribe_Size(t *testing.T) {
 		}
 
 		opts := options{
-			packetType:      SUBSCRIBE,
-			controlFlags:    2,
-			version:         MQTT50,
-			remainingLength: len(msg),
+			packetType:        SUBSCRIBE,
+			controlFlags:      2,
+			version:           MQTT50,
+			fixedHeaderLength: 2,
+			remainingLength:   len(msg),
 		}
 		pkt, err := newPacketSubscribe(opts)
 		require.Nil(t, err)
 		require.NotNil(t, pkt)
 
-		assert.Equal(t, 9, pkt.Size())
+		assert.Equal(t, 11, pkt.Size())
 	})
 
 	t.Run("V5-Properties", func(t *testing.T) {
@@ -363,16 +365,17 @@ func TestSubscribe_Size(t *testing.T) {
 		}
 
 		opts := options{
-			packetType:      SUBSCRIBE,
-			controlFlags:    2,
-			version:         MQTT50,
-			remainingLength: len(msg),
+			packetType:        SUBSCRIBE,
+			controlFlags:      2,
+			version:           MQTT50,
+			fixedHeaderLength: 2,
+			remainingLength:   len(msg),
 		}
 		pkt, err := newPacketSubscribe(opts)
 		require.Nil(t, err)
 		require.NotNil(t, pkt)
 
-		assert.Equal(t, 11, pkt.Size())
+		assert.Equal(t, 13, pkt.Size())
 	})
 }
 
