@@ -19,13 +19,16 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"strings"
 	"unicode/utf8"
 )
 
 func decodeVarInteger(r *bufio.Reader, val *int) (n int, err error) {
 	multiplier := 1
 	for {
-		b, err := r.ReadByte()
+		var b byte
+
+		b, err = r.ReadByte()
 		if err != nil {
 			return 0, errors.New("invalid variable integer")
 		}
@@ -49,7 +52,9 @@ func decodeVarInteger(r *bufio.Reader, val *int) (n int, err error) {
 func readVarInteger(buf *bytes.Buffer, val *int) (n int, err error) {
 	multiplier := 1
 	for {
-		b, err := buf.ReadByte()
+		var b byte
+
+		b, err = buf.ReadByte()
 		if err != nil {
 			return 0, errors.New("invalid variable integer")
 		}
@@ -133,6 +138,29 @@ func readBinary(buf *bytes.Buffer, ver MQTTVersion) ([]byte, error) {
 	return val, nil
 }
 
+func encodeBinary(w *bufio.Writer, data []byte) (n int, err error) {
+	err = encodeUint16(w, uint16(len(data)))
+	if err != nil {
+		return
+	}
+
+	n, err = w.Write(data)
+	if err != nil {
+		return
+	}
+
+	n += 2
+	return
+}
+
+func encodeUint16(w *bufio.Writer, val uint16) error {
+	if err := w.WriteByte(byte(val >> 8)); err != nil {
+		return err
+	}
+
+	return w.WriteByte(byte(val))
+}
+
 func encodeVarInteger(buf *bufio.Writer, val int) error {
 	var data byte
 	var err error
@@ -202,6 +230,22 @@ func isValidUTF8String(str []byte) bool {
 		}
 
 		str = str[size:]
+	}
+
+	return true
+}
+
+func isValidTopicName(topic string) bool {
+	if len(topic) == 0 {
+		return false
+	}
+
+	words := strings.Split(topic, "/")
+
+	for _, word := range words {
+		if strings.Contains(word, "#") || strings.Contains(word, "+") {
+			return false
+		}
 	}
 
 	return true

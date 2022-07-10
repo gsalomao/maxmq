@@ -30,6 +30,7 @@ func TestPacket_NewPacket(t *testing.T) {
 		{tp: CONNECT, flags: 0, name: "CONNECT"},
 		{tp: PINGREQ, flags: 0, name: "PINGREQ"},
 		{tp: SUBSCRIBE, flags: 2, name: "SUBSCRIBE"},
+		{tp: PUBLISH, flags: 0, name: "PUBLISH"},
 	}
 
 	for _, test := range testCases {

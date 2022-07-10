@@ -127,6 +127,7 @@ var packetTypeToFactory = map[Type]func(options) (Packet, error){
 	DISCONNECT:  newPacketDisconnect,
 	SUBSCRIBE:   newPacketSubscribe,
 	UNSUBSCRIBE: newPacketUnsubscribe,
+	PUBLISH:     newPacketPublish,
 }
 
 func newPacket(opts options) (Packet, error) {

@@ -16,6 +16,7 @@ package packet
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -76,23 +77,23 @@ func TestProperties_WritePropertiesConnAck(t *testing.T) {
 	msg := buf.Bytes()
 	assert.Equal(t, byte(83), msg[0])
 	assert.Equal(t, []byte{17, 0, 0, 0, 10}, msg[1:6])
-	assert.Equal(t, []byte{33, 0, 50}, msg[6:9])
-	assert.Equal(t, []byte{36, 1}, msg[9:11])
-	assert.Equal(t, []byte{37, 1}, msg[11:13])
-	assert.Equal(t, []byte{39, 0, 0, 0, 200}, msg[13:18])
-	assert.Equal(t, []byte{18, 0, 3, '1', '2', '3'}, msg[18:24])
-	assert.Equal(t, []byte{34, 0, 40}, msg[24:27])
-	assert.Equal(t, []byte{31, 0, 4, 't', 'e', 's', 't'}, msg[27:34])
-	assert.Equal(t, []byte{38, 0, 1, 'a', 0, 1, 0}, msg[34:41])
-	assert.Equal(t, []byte{38, 0, 1, 'b', 0, 1, 1}, msg[41:48])
-	assert.Equal(t, []byte{40, 1}, msg[48:50])
-	assert.Equal(t, []byte{41, 1}, msg[50:52])
-	assert.Equal(t, []byte{42, 1}, msg[52:54])
-	assert.Equal(t, []byte{19, 0, 30}, msg[54:57])
-	assert.Equal(t, []byte{26, 0, 4, 'i', 'n', 'f', 'o'}, msg[57:64])
-	assert.Equal(t, []byte{28, 0, 3, 's', 'r', 'v'}, msg[64:70])
-	assert.Equal(t, []byte{21, 0, 3, 'J', 'W', 'T'}, msg[70:76])
-	assert.Equal(t, []byte{22, 0, 5, 't', 'o', 'k', 'e', 'n'}, msg[76:84])
+	assert.Equal(t, []byte{18, 0, 3, '1', '2', '3'}, msg[6:12])
+	assert.Equal(t, []byte{19, 0, 30}, msg[12:15])
+	assert.Equal(t, []byte{21, 0, 3, 'J', 'W', 'T'}, msg[15:21])
+	assert.Equal(t, []byte{22, 0, 5, 't', 'o', 'k', 'e', 'n'}, msg[21:29])
+	assert.Equal(t, []byte{26, 0, 4, 'i', 'n', 'f', 'o'}, msg[29:36])
+	assert.Equal(t, []byte{28, 0, 3, 's', 'r', 'v'}, msg[36:42])
+	assert.Equal(t, []byte{31, 0, 4, 't', 'e', 's', 't'}, msg[42:49])
+	assert.Equal(t, []byte{33, 0, 50}, msg[49:52])
+	assert.Equal(t, []byte{34, 0, 40}, msg[52:55])
+	assert.Equal(t, []byte{36, 1}, msg[55:57])
+	assert.Equal(t, []byte{37, 1}, msg[57:59])
+	assert.Equal(t, []byte{38, 0, 1, 'a', 0, 1, 0}, msg[59:66])
+	assert.Equal(t, []byte{38, 0, 1, 'b', 0, 1, 1}, msg[66:73])
+	assert.Equal(t, []byte{39, 0, 0, 0, 200}, msg[73:78])
+	assert.Equal(t, []byte{40, 1}, msg[78:80])
+	assert.Equal(t, []byte{41, 1}, msg[80:82])
+	assert.Equal(t, []byte{42, 1}, msg[82:84])
 }
 
 func TestProperties_WritePropertiesDisconnect(t *testing.T) {
@@ -113,10 +114,10 @@ func TestProperties_WritePropertiesDisconnect(t *testing.T) {
 
 	msg := buf.Bytes()
 	assert.Equal(t, []byte{17, 0, 0, 0, 10}, msg[1:6])
-	assert.Equal(t, []byte{31, 0, 4, 't', 'e', 's', 't'}, msg[6:13])
-	assert.Equal(t, []byte{38, 0, 1, 'a', 0, 1, 0}, msg[13:20])
-	assert.Equal(t, []byte{38, 0, 1, 'b', 0, 1, 1}, msg[20:27])
-	assert.Equal(t, []byte{28, 0, 3, 's', 'r', 'v'}, msg[27:33])
+	assert.Equal(t, []byte{28, 0, 3, 's', 'r', 'v'}, msg[6:12])
+	assert.Equal(t, []byte{31, 0, 4, 't', 'e', 's', 't'}, msg[12:19])
+	assert.Equal(t, []byte{38, 0, 1, 'a', 0, 1, 0}, msg[19:26])
+	assert.Equal(t, []byte{38, 0, 1, 'b', 0, 1, 1}, msg[26:33])
 }
 
 func TestProperties_WritePropertiesSubAck(t *testing.T) {
@@ -159,6 +160,45 @@ func TestProperties_WritePropertiesUnsubAck(t *testing.T) {
 	assert.Equal(t, []byte{31, 0, 4, 't', 'e', 's', 't'}, msg[1:8])
 	assert.Equal(t, []byte{38, 0, 1, 'a', 0, 1, 0}, msg[8:15])
 	assert.Equal(t, []byte{38, 0, 1, 'b', 0, 1, 1}, msg[15:22])
+}
+
+func TestProperties_WritePropertiesPublish(t *testing.T) {
+	buf := &bytes.Buffer{}
+	props := &Properties{
+		PayloadFormatIndicator: new(byte),
+		MessageExpiryInterval:  new(uint32),
+		TopicAlias:             new(uint16),
+		ResponseTopic:          new(string),
+		SubscriptionIdentifier: new(int),
+	}
+
+	*props.PayloadFormatIndicator = 1
+	*props.MessageExpiryInterval = 200
+	*props.TopicAlias = 10
+	*props.ResponseTopic = "a/b"
+	props.CorrelationData = []byte{1, 2, 3}
+	*props.SubscriptionIdentifier = 1
+	props.ContentType = []byte("json")
+	props.UserProperties = []UserProperty{
+		{Key: []byte{'a'}, Value: []byte{0}},
+		{Key: []byte{'b'}, Value: []byte{1}},
+	}
+
+	err := writeProperties(buf, props, PUBLISH)
+	require.Nil(t, err)
+	require.NotEmpty(t, buf)
+
+	msg := buf.Bytes()
+	assert.Equal(t, byte(45), msg[0])
+	assert.Equal(t, []byte{1, 1}, msg[1:3])
+	assert.Equal(t, []byte{2, 0, 0, 0, 200}, msg[3:8])
+	assert.Equal(t, []byte{3, 0, 4, 'j', 's', 'o', 'n'}, msg[8:15])
+	assert.Equal(t, []byte{8, 0, 3, 'a', '/', 'b'}, msg[15:21])
+	assert.Equal(t, []byte{9, 0, 3, 1, 2, 3}, msg[21:27])
+	assert.Equal(t, []byte{11, 1}, msg[27:29])
+	assert.Equal(t, []byte{35, 0, 10}, msg[29:32])
+	assert.Equal(t, []byte{38, 0, 1, 'a', 0, 1, 0}, msg[32:39])
+	assert.Equal(t, []byte{38, 0, 1, 'b', 0, 1, 1}, msg[39:46])
 }
 
 func TestProperties_WritePropertiesInvalidProperty(t *testing.T) {
@@ -214,7 +254,7 @@ func TestProperties_ReadPropertiesConnect(t *testing.T) {
 	assert.Equal(t, byte(1), *props.PayloadFormatIndicator)
 	assert.Equal(t, uint32(10), *props.MessageExpiryInterval)
 	assert.Equal(t, []byte("json"), props.ContentType)
-	assert.Equal(t, []byte("b"), props.ResponseTopic)
+	assert.Equal(t, "b", *props.ResponseTopic)
 	assert.Equal(t, []byte{20, 1}, props.CorrelationData)
 	assert.Equal(t, []byte{'a'}, props.UserProperties[0].Key)
 	assert.Equal(t, []byte{'b'}, props.UserProperties[0].Value)
@@ -307,6 +347,35 @@ func TestProperties_ReadPropertiesUnsubscribe(t *testing.T) {
 	assert.Equal(t, []byte{'b'}, props.UserProperties[0].Value)
 }
 
+func TestProperties_ReadPropertiesPublish(t *testing.T) {
+	msg := []byte{
+		0,    // property length
+		1, 1, // PayloadFormatIndicator
+		2, 0, 0, 0, 60, // MessageExpiryInterval
+		3, 0, 4, 'j', 's', 'o', 'n', // ContentType
+		8, 0, 3, 'a', '/', 'b', // ResponseTopic
+		9, 0, 2, 0, 9, //  CorrelationData
+		11, 10, // SubscriptionIdentifier
+		35, 0, 15, // TopicAlias
+		38, 0, 1, 'a', 0, 1, 'b', // UserProperty
+		38, 0, 1, 'c', 0, 1, 'd', // UserProperty
+	}
+	msg[0] = byte(len(msg)) - 1
+
+	props, err := readProperties(bytes.NewBuffer(msg), PUBLISH)
+	require.Nil(t, err)
+
+	assert.Equal(t, uint8(1), *props.PayloadFormatIndicator)
+	assert.Equal(t, uint32(60), *props.MessageExpiryInterval)
+	assert.Equal(t, []byte("json"), props.ContentType)
+	assert.Equal(t, "a/b", *props.ResponseTopic)
+	assert.Equal(t, []byte{0, 9}, props.CorrelationData)
+	assert.Equal(t, 10, *props.SubscriptionIdentifier)
+	assert.Equal(t, uint16(15), *props.TopicAlias)
+	assert.Equal(t, []byte{'a'}, props.UserProperties[0].Key)
+	assert.Equal(t, []byte{'b'}, props.UserProperties[0].Value)
+}
+
 func TestProperties_ReadPropertiesMalformed(t *testing.T) {
 	props := [][]byte{
 		{38, 0, 1, 'a', 0, 1}, // invalid user property
@@ -331,37 +400,71 @@ func TestProperties_ReadPropertiesMalformed(t *testing.T) {
 }
 
 func TestProperties_ReadPropertiesProtocolError(t *testing.T) {
-	props := [][]byte{
-		{17, 0, 0, 0, 5, 17, 0, 0, 0, 9}, // SessionExpiryInterval
-		{33, 0, 0},                       // ReceiveMaximum
-		{33, 0, 52, 33, 0, 49},           // ReceiveMaximum
-		{39, 0, 0, 0, 0},                 // MaximumPacketSize
-		{39, 0, 0, 0, 9, 39, 0, 0, 0, 7}, // MaximumPacketSize
-		{34, 0, 3, 34, 0, 4},             // TopicAliasMaximum
-		{25, 2},                          // RequestResponseInfo
-		{25, 0, 25, 1},                   // RequestResponseInfo
-		{23, 2},                          // RequestProblemInfo
-		{23, 0, 23, 1},                   // RequestProblemInfo
-		{21, 0, 1, 'e', 21, 0, 1, 'f'},   // AuthMethod
-		{22, 0, 1, 1},                    // AuthData
-		{21, 0, 1, 'e', 22, 0, 1, 1, 22, 0, 1, 2}, // AuthData
-		{24, 0, 0, 0, 1, 24, 0, 0, 0, 2},          // WillDelayInterval
-		{1, 0, 1, 1},                              // PayloadFormatIndicator
-		{1, 2},                                    // PayloadFormatIndicator
-		{2, 0, 0, 0, 1, 2, 0, 0, 0, 2},            // MessageExpiryInterval
-		{3, 0, 1, 'a', 3, 0, 1, 'b'},              // ContentType
-		{8, 0, 1, 'a', 8, 0, 1, 'b'},              // ResponseTopic
-		{9, 0, 1, 1, 9, 0, 1, 2},                  // CorrelationData
+	testCases := []struct {
+		pktType Type
+		props   []byte
+	}{
+		{pktType: CONNECT, props: []byte{
+			17, 0, 0, 0, 5, 17, 0, 0, 0, 9}}, // SessionExpiryInterval
+		{pktType: CONNECT, props: []byte{33, 0,
+			0}}, // ReceiveMaximum
+		{pktType: CONNECT, props: []byte{33, 0, 52, 33, 0,
+			49}}, // ReceiveMaximum
+		{pktType: CONNECT, props: []byte{
+			39, 0, 0, 0, 0}}, // MaximumPacketSize
+		{pktType: CONNECT, props: []byte{
+			39, 0, 0, 0, 9, 39, 0, 0, 0, 7}}, // MaximumPacketSize
+		{pktType: CONNECT, props: []byte{
+			34, 0, 3, 34, 0, 4}}, // TopicAliasMaximum
+		{pktType: CONNECT, props: []byte{
+			25, 2}}, // RequestResponseInfo
+		{pktType: CONNECT, props: []byte{
+			25, 0, 25, 1}}, // RequestResponseInfo
+		{pktType: CONNECT, props: []byte{
+			23, 2}}, // RequestProblemInfo
+		{pktType: CONNECT, props: []byte{
+			23, 0, 23, 1}}, // RequestProblemInfo
+		{pktType: CONNECT, props: []byte{
+			21, 0, 1, 'e', 21, 0, 1, 'f'}}, // AuthMethod
+		{pktType: CONNECT, props: []byte{
+			22, 0, 1, 1}}, // AuthData
+		{pktType: CONNECT, props: []byte{
+			21, 0, 1, 'e', 22, 0, 1, 1, 22, 0, 1, 2}}, // AuthData
+		{pktType: CONNECT, props: []byte{
+			24, 0, 0, 0, 1, 24, 0, 0, 0, 2}}, // WillDelayInterval
+		{pktType: CONNECT, props: []byte{
+			1, 0, 1, 1}}, // PayloadFormatIndicator
+		{pktType: CONNECT, props: []byte{
+			1, 2}}, // PayloadFormatIndicator
+		{pktType: CONNECT, props: []byte{
+			2, 0, 0, 0, 1, 2, 0, 0, 0, 2}}, // MessageExpiryInterval
+		{pktType: CONNECT, props: []byte{
+			3, 0, 1, 'a', 3, 0, 1, 'b'}}, // ContentType
+		{pktType: CONNECT, props: []byte{
+			9, 0, 1, 1, 9, 0, 1, 2}}, // CorrelationData
+		{pktType: PUBLISH, props: []byte{
+			8, 0, 1, 'a', 8, 0, 1, 'b'}}, // ResponseTopic
+		{pktType: PUBLISH, props: []byte{
+			8, 0, 3, 'a', '/', '#'}}, // ResponseTopic
+		{pktType: PUBLISH, props: []byte{
+			8, 0, 0}}, // ResponseTopic
+		{pktType: PUBLISH, props: []byte{
+			35, 0, 0}}, // TopicAlias
+		{pktType: PUBLISH, props: []byte{
+			35, 0, 15, 35, 0, 16}}, // TopicAlias
 	}
 
-	for _, p := range props {
-		// Property
-		msg := []byte{byte(len(p))}
-		msg = append(msg, p...)
-		msg = append(msg, 0, 1, 'a') // client ID
+	for _, test := range testCases {
+		n := fmt.Sprintf("%v-%v", test.pktType.String(), test.props[0])
+		t.Run(n, func(t *testing.T) {
+			// Property
+			msg := []byte{byte(len(test.props))}
+			msg = append(msg, test.props...)
+			msg = append(msg, 0, 1, 'a') // client ID
 
-		_, err := readProperties(bytes.NewBuffer(msg), CONNECT)
-		assert.ErrorIs(t, err, ErrV5ProtocolError)
+			_, err := readProperties(bytes.NewBuffer(msg), test.pktType)
+			assert.ErrorIs(t, err, ErrV5ProtocolError)
+		})
 	}
 }
 

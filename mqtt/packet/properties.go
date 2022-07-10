@@ -34,7 +34,7 @@ type Properties struct {
 	ContentType []byte
 
 	// ResponseTopic indicates the topic name for response message.
-	ResponseTopic []byte
+	ResponseTopic *string
 
 	// CorrelationData is used to correlate a Response Message with a Request
 	// Message.
@@ -170,27 +170,27 @@ type propertyHandler struct {
 
 var propertyHandlers = map[propType]propertyHandler{
 	propPayloadFormatIndicator: {
-		types: map[Type]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}, PUBLISH: {}},
 		read:  readPropPayloadFormat,
 	},
 	propMessageExpiryInterval: {
-		types: map[Type]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}, PUBLISH: {}},
 		read:  readPropMessageExpInterval,
 	},
 	propContentType: {
-		types: map[Type]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}, PUBLISH: {}},
 		read:  readPropContentType,
 	},
 	propResponseTopic: {
-		types: map[Type]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}, PUBLISH: {}},
 		read:  readPropResponseTopic,
 	},
 	propCorrelationData: {
-		types: map[Type]struct{}{CONNECT: {}},
+		types: map[Type]struct{}{CONNECT: {}, PUBLISH: {}},
 		read:  readPropCorrelationData,
 	},
 	propSubscriptionIdentifier: {
-		types: map[Type]struct{}{SUBSCRIBE: {}},
+		types: map[Type]struct{}{SUBSCRIBE: {}, PUBLISH: {}},
 		read:  readPropSubscriptionIdentifier,
 	},
 	propSessionExpiryInterval: {
@@ -245,6 +245,7 @@ var propertyHandlers = map[propType]propertyHandler{
 	},
 	propTopicAlias: {
 		types: map[Type]struct{}{PUBLISH: {}},
+		read:  readPropTopicAlias,
 	},
 	propMaximumQoS: {
 		types: map[Type]struct{}{CONNACK: {}},
@@ -254,7 +255,8 @@ var propertyHandlers = map[propType]propertyHandler{
 	},
 	propUser: {
 		types: map[Type]struct{}{CONNECT: {}, CONNACK: {}, DISCONNECT: {},
-			SUBSCRIBE: {}, SUBACK: {}, UNSUBSCRIBE: {}, UNSUBACK: {}},
+			SUBSCRIBE: {}, SUBACK: {}, UNSUBSCRIBE: {}, UNSUBACK: {},
+			PUBLISH: {}},
 		read: readPropUser,
 	},
 	propMaximumPacketSize: {
@@ -402,7 +404,23 @@ func readPropContentType(b *bytes.Buffer, p *Properties) error {
 }
 
 func readPropResponseTopic(b *bytes.Buffer, p *Properties) error {
-	return readPropString(b, &p.ResponseTopic)
+	if p.ResponseTopic != nil {
+		return ErrV5ProtocolError
+	}
+
+	var topic []byte
+	err := readPropString(b, &topic)
+	if err != nil {
+		return err
+	}
+
+	responseTopic := string(topic)
+	if !isValidTopicName(responseTopic) {
+		return ErrV5ProtocolError
+	}
+
+	p.ResponseTopic = &responseTopic
+	return nil
 }
 
 func readPropCorrelationData(b *bytes.Buffer, p *Properties) error {
@@ -451,6 +469,13 @@ func readPropReceiveMaximum(b *bytes.Buffer, p *Properties) error {
 
 func readPropTopicAliasMaximum(b *bytes.Buffer, p *Properties) error {
 	return readPropUint16(b, &p.TopicAliasMaximum, nil)
+}
+
+func readPropTopicAlias(b *bytes.Buffer, p *Properties) error {
+	return readPropUint16(
+		b,
+		&p.TopicAlias,
+		func(u uint16) bool { return u != 0 })
 }
 
 func readPropUser(b *bytes.Buffer, p *Properties) error {
@@ -591,26 +616,32 @@ type propertiesWriter struct {
 }
 
 func (w *propertiesWriter) load(p *Properties, t Type) error {
+	w.writeByte(p.PayloadFormatIndicator, propPayloadFormatIndicator, t)
+	w.writeUint32(p.MessageExpiryInterval, propMessageExpiryInterval, t)
+	w.writeBinary(p.ContentType, propContentType, t)
+	w.writeString(p.ResponseTopic, propResponseTopic, t)
+	w.writeBinary(p.CorrelationData, propCorrelationData, t)
+	w.writeVarInteger(p.SubscriptionIdentifier, propSubscriptionIdentifier, t)
 	w.writeUint32(p.SessionExpiryInterval, propSessionExpiryInterval, t)
-	w.writeUint16(p.ReceiveMaximum, propReceiveMaximum, t)
-	w.writeByte(p.MaximumQoS, propMaximumQoS, t)
-	w.writeByte(p.RetainAvailable, propRetainAvailable, t)
-	w.writeUint32(p.MaximumPacketSize, propMaximumPacketSize, t)
 	w.writeBinary(p.AssignedClientID, propAssignedClientID, t)
+	w.writeUint16(p.ServerKeepAlive, propServerKeepAlive, t)
+	w.writeBinary(p.AuthMethod, propAuthMethod, t)
+	w.writeBinary(p.AuthData, propAuthData, t)
+	w.writeBinary(p.ResponseInfo, propResponseInfo, t)
+	w.writeBinary(p.ServerReference, propServerReference, t)
+	w.writeBinary(p.ReasonString, propReasonString, t)
+	w.writeUint16(p.ReceiveMaximum, propReceiveMaximum, t)
 	w.writeUint16(p.TopicAliasMaximum, propTopicAliasMaximum, t)
 	w.writeUint16(p.TopicAlias, propTopicAlias, t)
-	w.writeBinary(p.ReasonString, propReasonString, t)
+	w.writeByte(p.MaximumQoS, propMaximumQoS, t)
+	w.writeByte(p.RetainAvailable, propRetainAvailable, t)
 	w.writeUserProperties(p.UserProperties, t)
+	w.writeUint32(p.MaximumPacketSize, propMaximumPacketSize, t)
 	w.writeByte(p.WildcardSubscriptionAvailable,
 		propWildcardSubscriptionAvailable, t)
 	w.writeByte(p.SubscriptionIDAvailable, propSubscriptionIDAvailable, t)
 	w.writeByte(p.SharedSubscriptionAvailable, propSharedSubscriptionAvailable,
 		t)
-	w.writeUint16(p.ServerKeepAlive, propServerKeepAlive, t)
-	w.writeBinary(p.ResponseInfo, propResponseInfo, t)
-	w.writeBinary(p.ServerReference, propServerReference, t)
-	w.writeBinary(p.AuthMethod, propAuthMethod, t)
-	w.writeBinary(p.AuthData, propAuthData, t)
 
 	return w.err
 }
@@ -657,6 +688,15 @@ func (w *propertiesWriter) writeUint32(v *uint32, pt propType, t Type) {
 	writeUint32(w.buf, *v)
 }
 
+func (w *propertiesWriter) writeVarInteger(v *int, pt propType, t Type) {
+	if v == nil || !w.isValid(pt, t) {
+		return
+	}
+
+	w.buf.WriteByte(byte(pt))
+	_ = writeVarInteger(w.buf, *v)
+}
+
 func (w *propertiesWriter) writeBinary(v []byte, pt propType, t Type) {
 	if v == nil || !w.isValid(pt, t) {
 		return
@@ -664,6 +704,15 @@ func (w *propertiesWriter) writeBinary(v []byte, pt propType, t Type) {
 
 	w.buf.WriteByte(byte(pt))
 	writeBinary(w.buf, v)
+}
+
+func (w *propertiesWriter) writeString(v *string, pt propType, t Type) {
+	if v == nil || !w.isValid(pt, t) {
+		return
+	}
+
+	b := []byte(*v)
+	w.writeBinary(b, pt, t)
 }
 
 func (w *propertiesWriter) writeUserProperties(v []UserProperty, t Type) {
