@@ -113,14 +113,9 @@ fmt: ## Format source code
 
 lint: ## Lint source code
 	$(call print_task,"Linting source code")
-	@golint  -set_exit_status ./...
-	@golangci-lint run ./...
+	@golint  -set_exit_status $(go list ./...)
+	@golangci-lint run $(go list ./...)
 	$(call print_task_result,"Linting source code","done")
-
-imports: ## Update Go import lines
-	$(call print_task,"Updating Go imports")
-	@goimports -l -w .
-	$(call print_task_result,"Updating Go imports","done")
 
 complexity: ## Calculates cyclomatic complexities
 	$(call print_task,"Calculating cyclomatic complexities")
