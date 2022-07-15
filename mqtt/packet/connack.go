@@ -69,7 +69,7 @@ func (pkt *ConnAck) Pack(w *bufio.Writer) error {
 	pktLen := buf.Len() + 2 // +2 for ack flags and reason code
 
 	_ = w.WriteByte(byte(CONNACK) << packetTypeBit)
-	_ = encodeVarInteger(w, pktLen)
+	_ = writeVarInteger(w, pktLen)
 
 	// Acknowledge Flags
 	if pkt.SessionPresent && pkt.Version != MQTT31 {

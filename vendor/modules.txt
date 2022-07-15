@@ -143,6 +143,9 @@ go.uber.org/atomic
 # go.uber.org/multierr v1.8.0
 ## explicit; go 1.14
 go.uber.org/multierr
+# golang.org/x/exp v0.0.0-20220713135740-79cabaa25d75
+## explicit; go 1.18
+golang.org/x/exp/constraints
 # golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2
 ## explicit; go 1.17
 golang.org/x/net/internal/socks

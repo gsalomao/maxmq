@@ -82,7 +82,7 @@ func (pkt *Unsubscribe) Unpack(r *bufio.Reader) error {
 	}
 	buf := bytes.NewBuffer(msg)
 
-	id, err := readUint16(buf, pkt.Version)
+	id, err := readUint[uint16](buf, pkt.Version)
 	pkt.PacketID = ID(id)
 	if err != nil {
 		return err

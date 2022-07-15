@@ -89,7 +89,7 @@ func (pkt *Disconnect) Pack(w *bufio.Writer) error {
 	}
 
 	_ = w.WriteByte(byte(DISCONNECT) << packetTypeBit)
-	_ = encodeVarInteger(w, varHeader.Len())
+	_ = writeVarInteger(w, varHeader.Len())
 	n, err := varHeader.WriteTo(w)
 	pkt.timestamp = time.Now()
 	pkt.size = 2 + int(n)
@@ -109,7 +109,7 @@ func (pkt *Disconnect) Unpack(r *bufio.Reader) error {
 
 		if pkt.remainLength > 2 {
 			msg := make([]byte, pkt.remainLength-1)
-			if _, err := io.ReadFull(r, msg); err != nil {
+			if _, err = io.ReadFull(r, msg); err != nil {
 				return err
 			}
 			buf := bytes.NewBuffer(msg)

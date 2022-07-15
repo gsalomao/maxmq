@@ -121,11 +121,11 @@ func (pkt *Publish) Pack(w *bufio.Writer) error {
 		(byte(pkt.QoS) & 3 << 1) | (pkt.Retain & 1)
 
 	_ = w.WriteByte(ctrl)
-	_ = encodeVarInteger(w, pktLen)
-	_, _ = encodeBinary(w, []byte(pkt.TopicName))
+	_ = writeVarInteger(w, pktLen)
+	_, _ = writeBinary(w, []byte(pkt.TopicName))
 
 	if pkt.QoS > QoS0 {
-		_ = encodeUint16(w, uint16(pkt.PacketID))
+		_ = writeUint[uint16](w, uint16(pkt.PacketID))
 	}
 
 	_, _ = buf.WriteTo(w)
@@ -155,7 +155,7 @@ func (pkt *Publish) Unpack(r *bufio.Reader) error {
 
 	if pkt.QoS > 0 {
 		var id uint16
-		id, err = readUint16(buf, pkt.Version)
+		id, err = readUint[uint16](buf, pkt.Version)
 		if err != nil {
 			return err
 		}

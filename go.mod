@@ -14,6 +14,7 @@ require (
 	github.com/spf13/viper v1.12.0
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/multierr v1.8.0
+	golang.org/x/exp v0.0.0-20220713135740-79cabaa25d75
 )
 
 require (

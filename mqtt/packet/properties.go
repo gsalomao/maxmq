@@ -541,7 +541,7 @@ func readPropUint16(b *bytes.Buffer, v **uint16, val func(uint16) bool) error {
 		return ErrV5ProtocolError
 	}
 
-	prop, err := readUint16(b, MQTT50)
+	prop, err := readUint[uint16](b, MQTT50)
 	if err != nil {
 		return err
 	}
@@ -559,7 +559,7 @@ func readPropUint32(b *bytes.Buffer, v **uint32, val func(uint32) bool) error {
 		return ErrV5ProtocolError
 	}
 
-	prop, err := readUint32(b, MQTT50)
+	prop, err := readUint[uint32](b, MQTT50)
 	if err != nil {
 		return err
 	}
@@ -676,7 +676,7 @@ func (w *propertiesWriter) writeUint16(v *uint16, pt propType, t Type) {
 	}
 
 	w.buf.WriteByte(byte(pt))
-	writeUint16(w.buf, *v)
+	_ = writeUint[uint16](w.buf, *v)
 }
 
 func (w *propertiesWriter) writeUint32(v *uint32, pt propType, t Type) {
@@ -685,7 +685,7 @@ func (w *propertiesWriter) writeUint32(v *uint32, pt propType, t Type) {
 	}
 
 	w.buf.WriteByte(byte(pt))
-	writeUint32(w.buf, *v)
+	_ = writeUint[uint32](w.buf, *v)
 }
 
 func (w *propertiesWriter) writeVarInteger(v *int, pt propType, t Type) {
@@ -703,7 +703,7 @@ func (w *propertiesWriter) writeBinary(v []byte, pt propType, t Type) {
 	}
 
 	w.buf.WriteByte(byte(pt))
-	writeBinary(w.buf, v)
+	_, _ = writeBinary(w.buf, v)
 }
 
 func (w *propertiesWriter) writeString(v *string, pt propType, t Type) {
@@ -722,7 +722,7 @@ func (w *propertiesWriter) writeUserProperties(v []UserProperty, t Type) {
 
 	for _, u := range v {
 		w.buf.WriteByte(byte(propUser))
-		writeBinary(w.buf, u.Key)
-		writeBinary(w.buf, u.Value)
+		_, _ = writeBinary(w.buf, u.Key)
+		_, _ = writeBinary(w.buf, u.Value)
 	}
 }

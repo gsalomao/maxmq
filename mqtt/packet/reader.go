@@ -65,7 +65,7 @@ func (r *Reader) ReadPacket(rd io.Reader, ver MQTTVersion) (Packet, error) {
 	bufRd.Reset(rd)
 
 	var remainLen int
-	n, err := decodeVarInteger(bufRd, &remainLen)
+	n, err := readVarInteger(bufRd, &remainLen)
 	if err != nil {
 		return nil, err
 	}

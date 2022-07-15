@@ -67,7 +67,7 @@ func (pkt *UnsubAck) Pack(w *bufio.Writer) error {
 	pktLen := buf.Len() + len(pkt.ReasonCodes) + 2 // +2 for packet ID
 
 	_ = w.WriteByte(byte(UNSUBACK) << packetTypeBit)
-	_ = encodeVarInteger(w, pktLen)
+	_ = writeVarInteger(w, pktLen)
 
 	_ = w.WriteByte(byte(pkt.PacketID >> 8))
 	_ = w.WriteByte(byte(pkt.PacketID))

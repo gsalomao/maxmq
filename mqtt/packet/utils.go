@@ -15,15 +15,19 @@
 package packet
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
+	"io"
 	"strings"
 	"unicode/utf8"
+	"unsafe"
+
+	"golang.org/x/exp/constraints"
 )
 
-func decodeVarInteger(r *bufio.Reader, val *int) (n int, err error) {
+func readVarInteger(r io.ByteReader, val *int) (n int, err error) {
 	multiplier := 1
 	for {
 		var b byte
@@ -49,54 +53,30 @@ func decodeVarInteger(r *bufio.Reader, val *int) (n int, err error) {
 	return
 }
 
-func readVarInteger(buf *bytes.Buffer, val *int) (n int, err error) {
-	multiplier := 1
-	for {
-		var b byte
+func readUint[T constraints.Unsigned](buf *bytes.Buffer,
+	version MQTTVersion) (T, error) {
 
-		b, err = buf.ReadByte()
-		if err != nil {
-			return 0, errors.New("invalid variable integer")
-		}
+	var val T
+	size := int(unsafe.Sizeof(val))
 
-		n++
-		*val += int(b&127) * multiplier
-		multiplier *= 128
-
-		if multiplier > (128 * 128 * 128) {
-			return 0, errors.New("invalid variable integer")
-		}
-
-		if b&128 == 0 {
-			break
-		}
-	}
-
-	return
-}
-
-func readUint16(buf *bytes.Buffer, ver MQTTVersion) (uint16, error) {
-	if buf.Len() < 2 {
-		if ver == MQTT50 {
+	if buf.Len() < size {
+		if version == MQTT50 {
 			return 0, ErrV5MalformedPacket
 		}
 
-		return 0, errors.New("no enough bytes to read 2-bytes integer")
+		return 0, fmt.Errorf("no enough bytes to read %v-bytes integer", size)
 	}
 
-	return binary.BigEndian.Uint16(buf.Next(2)), nil
-}
-
-func readUint32(buf *bytes.Buffer, ver MQTTVersion) (uint32, error) {
-	if buf.Len() < 4 {
-		if ver == MQTT50 {
-			return 0, ErrV5MalformedPacket
-		}
-
-		return 0, errors.New("no enough bytes to read 4-bytes integer")
+	switch size {
+	case 2:
+		val = T(binary.BigEndian.Uint16(buf.Next(2)))
+	case 4:
+		val = T(binary.BigEndian.Uint32(buf.Next(4)))
+	default:
+		return 0, errors.New("invalid byte size")
 	}
 
-	return binary.BigEndian.Uint32(buf.Next(4)), nil
+	return val, nil
 }
 
 func readString(buf *bytes.Buffer, ver MQTTVersion) ([]byte, error) {
@@ -138,30 +118,7 @@ func readBinary(buf *bytes.Buffer, ver MQTTVersion) ([]byte, error) {
 	return val, nil
 }
 
-func encodeBinary(w *bufio.Writer, data []byte) (n int, err error) {
-	err = encodeUint16(w, uint16(len(data)))
-	if err != nil {
-		return
-	}
-
-	n, err = w.Write(data)
-	if err != nil {
-		return
-	}
-
-	n += 2
-	return
-}
-
-func encodeUint16(w *bufio.Writer, val uint16) error {
-	if err := w.WriteByte(byte(val >> 8)); err != nil {
-		return err
-	}
-
-	return w.WriteByte(byte(val))
-}
-
-func encodeVarInteger(buf *bufio.Writer, val int) error {
+func writeVarInteger(w io.ByteWriter, val int) error {
 	var data byte
 	var err error
 
@@ -173,47 +130,20 @@ func encodeVarInteger(buf *bufio.Writer, val int) error {
 			data |= 128
 		}
 
-		err = buf.WriteByte(data)
+		err = w.WriteByte(data)
 		if err != nil || val == 0 {
 			return err
 		}
 	}
 }
 
-func writeVarInteger(buf *bytes.Buffer, val int) error {
-	var data byte
-	var err error
-
-	for {
-		data = byte(val % 128)
-
-		val /= 128
-		if val > 0 {
-			data |= 128
-		}
-
-		err = buf.WriteByte(data)
-		if err != nil || val == 0 {
-			return err
-		}
-	}
+func writeUint[T constraints.Unsigned](w io.Writer, val T) error {
+	return binary.Write(w, binary.BigEndian, val)
 }
 
-func writeUint16(buf *bytes.Buffer, val uint16) {
-	buf.WriteByte(byte(val >> 8))
-	buf.WriteByte(byte(val))
-}
-
-func writeUint32(buf *bytes.Buffer, val uint32) {
-	buf.WriteByte(byte(val >> 24))
-	buf.WriteByte(byte(val >> 16))
-	buf.WriteByte(byte(val >> 8))
-	buf.WriteByte(byte(val))
-}
-
-func writeBinary(buf *bytes.Buffer, val []byte) {
-	writeUint16(buf, uint16(len(val)))
-	buf.Write(val)
+func writeBinary(w io.Writer, val []byte) (n int, err error) {
+	_ = binary.Write(w, binary.BigEndian, uint16(len(val)))
+	return w.Write(val)
 }
 
 func isValidUTF8String(str []byte) bool {

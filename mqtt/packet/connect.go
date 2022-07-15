@@ -156,7 +156,7 @@ func (pkt *Connect) Unpack(r *bufio.Reader) error {
 		return err
 	}
 
-	pkt.KeepAlive, err = readUint16(buf, pkt.Version)
+	pkt.KeepAlive, err = readUint[uint16](buf, pkt.Version)
 	if err != nil {
 		return err
 	}
