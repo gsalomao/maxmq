@@ -59,7 +59,7 @@ const (
 )
 
 const (
-	// ReasonCodeV5Success indicates that the connection was accepted.
+	// ReasonCodeV5Success indicates success.
 	ReasonCodeV5Success ReasonCode = 0x00
 
 	// ReasonCodeV5NormalDisconnection indicates to close the connection

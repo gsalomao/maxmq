@@ -201,6 +201,27 @@ func TestProperties_WritePropertiesPublish(t *testing.T) {
 	assert.Equal(t, []byte{38, 0, 1, 'b', 0, 1, 1}, msg[39:46])
 }
 
+func TestProperties_WritePropertiesPubAck(t *testing.T) {
+	buf := &bytes.Buffer{}
+	props := &Properties{}
+
+	props.ReasonString = []byte("test")
+	props.UserProperties = []UserProperty{
+		{Key: []byte{'a'}, Value: []byte{0}},
+		{Key: []byte{'b'}, Value: []byte{1}},
+	}
+
+	err := writeProperties(buf, props, PUBACK)
+	require.Nil(t, err)
+	require.NotEmpty(t, buf)
+
+	msg := buf.Bytes()
+	assert.Equal(t, byte(21), msg[0])
+	assert.Equal(t, []byte{31, 0, 4, 't', 'e', 's', 't'}, msg[1:8])
+	assert.Equal(t, []byte{38, 0, 1, 'a', 0, 1, 0}, msg[8:15])
+	assert.Equal(t, []byte{38, 0, 1, 'b', 0, 1, 1}, msg[15:22])
+}
+
 func TestProperties_WritePropertiesInvalidProperty(t *testing.T) {
 	buf := &bytes.Buffer{}
 	props := &Properties{MaximumQoS: new(byte), ServerKeepAlive: new(uint16)}
