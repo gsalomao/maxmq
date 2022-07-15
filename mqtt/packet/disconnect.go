@@ -20,6 +20,8 @@ import (
 	"errors"
 	"io"
 	"time"
+
+	"go.uber.org/multierr"
 )
 
 // Disconnect represents the DISCONNECT Packet from MQTT specifications.
@@ -77,24 +79,30 @@ func NewDisconnect(v MQTTVersion, c ReasonCode, p *Properties) Disconnect {
 
 // Pack encodes the packet into bytes and writes it into the io.Writer.
 func (pkt *Disconnect) Pack(w *bufio.Writer) error {
-	varHeader := &bytes.Buffer{}
+	buf := &bytes.Buffer{}
 
 	if pkt.Version == MQTT50 {
-		_ = varHeader.WriteByte(byte(pkt.ReasonCode))
+		_ = buf.WriteByte(byte(pkt.ReasonCode))
 
-		err := writeProperties(varHeader, pkt.Properties, DISCONNECT)
+		err := writeProperties(buf, pkt.Properties, DISCONNECT)
 		if err != nil {
 			return err
 		}
 	}
 
 	_ = w.WriteByte(byte(DISCONNECT) << packetTypeBit)
-	_ = writeVarInteger(w, varHeader.Len())
-	n, err := varHeader.WriteTo(w)
+	err := writeVarInteger(w, buf.Len())
+	n, errBuf := buf.WriteTo(w)
+
+	err = multierr.Combine(err, errBuf)
+	if err != nil {
+		return err
+	}
+
 	pkt.timestamp = time.Now()
 	pkt.size = 2 + int(n)
 
-	return err
+	return nil
 }
 
 // Unpack reads the packet bytes from bufio.Reader and decodes them into the

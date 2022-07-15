@@ -19,6 +19,8 @@ import (
 	"bytes"
 	"errors"
 	"time"
+
+	"go.uber.org/multierr"
 )
 
 // ConnAck represents the CONNACK Packet from MQTT specifications.
@@ -78,9 +80,14 @@ func (pkt *ConnAck) Pack(w *bufio.Writer) error {
 		_ = w.WriteByte(0)
 	}
 
-	_ = w.WriteByte(byte(pkt.ReasonCode))
+	err := w.WriteByte(byte(pkt.ReasonCode))
+	_, errBuf := buf.WriteTo(w)
 
-	_, err := buf.WriteTo(w)
+	err = multierr.Combine(err, errBuf)
+	if err != nil {
+		return err
+	}
+
 	pkt.timestamp = time.Now()
 	pkt.size = pktLen + 2 // +2 for paket type and length
 

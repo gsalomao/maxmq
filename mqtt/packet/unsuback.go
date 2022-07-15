@@ -19,6 +19,8 @@ import (
 	"bytes"
 	"errors"
 	"time"
+
+	"go.uber.org/multierr"
 )
 
 // UnsubAck represents the UNSUBACK Packet from MQTT specifications.
@@ -70,17 +72,25 @@ func (pkt *UnsubAck) Pack(w *bufio.Writer) error {
 	_ = writeVarInteger(w, pktLen)
 
 	_ = w.WriteByte(byte(pkt.PacketID >> 8))
-	_ = w.WriteByte(byte(pkt.PacketID))
+	err := w.WriteByte(byte(pkt.PacketID))
+	_, errBuf := buf.WriteTo(w)
 
-	_, err := buf.WriteTo(w)
+	err = multierr.Combine(err, errBuf)
+	if err != nil {
+		return err
+	}
+
 	for _, code := range pkt.ReasonCodes {
-		_ = w.WriteByte(byte(code))
+		err = w.WriteByte(byte(code))
+		if err != nil {
+			return err
+		}
 	}
 
 	pkt.timestamp = time.Now()
 	pkt.size = pktLen + 2 // +2 for packet type and variable length
 
-	return err
+	return nil
 }
 
 // Unpack reads the packet bytes from bytes.Buffer and decodes them into the
