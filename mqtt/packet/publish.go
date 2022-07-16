@@ -17,6 +17,7 @@ package packet
 import (
 	"bufio"
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"io"
 	"time"
@@ -125,7 +126,7 @@ func (pkt *Publish) Pack(w *bufio.Writer) error {
 	_, _ = writeBinary(w, []byte(pkt.TopicName))
 
 	if pkt.QoS > QoS0 {
-		_ = writeUint[uint16](w, uint16(pkt.PacketID))
+		_ = binary.Write(w, binary.BigEndian, uint16(pkt.PacketID))
 	}
 
 	_, _ = buf.WriteTo(w)

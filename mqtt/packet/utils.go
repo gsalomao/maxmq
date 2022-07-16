@@ -137,10 +137,6 @@ func writeVarInteger(w io.ByteWriter, val int) error {
 	}
 }
 
-func writeUint[T constraints.Unsigned](w io.Writer, val T) error {
-	return binary.Write(w, binary.BigEndian, val)
-}
-
 func writeBinary(w io.Writer, val []byte) (n int, err error) {
 	_ = binary.Write(w, binary.BigEndian, uint16(len(val)))
 	return w.Write(val)

@@ -16,6 +16,7 @@ package packet
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 )
 
@@ -676,7 +677,7 @@ func (w *propertiesWriter) writeUint16(v *uint16, pt propType, t Type) {
 	}
 
 	w.buf.WriteByte(byte(pt))
-	_ = writeUint[uint16](w.buf, *v)
+	_ = binary.Write(w.buf, binary.BigEndian, *v)
 }
 
 func (w *propertiesWriter) writeUint32(v *uint32, pt propType, t Type) {
@@ -685,7 +686,7 @@ func (w *propertiesWriter) writeUint32(v *uint32, pt propType, t Type) {
 	}
 
 	w.buf.WriteByte(byte(pt))
-	_ = writeUint[uint32](w.buf, *v)
+	_ = binary.Write(w.buf, binary.BigEndian, *v)
 }
 
 func (w *propertiesWriter) writeVarInteger(v *int, pt propType, t Type) {
