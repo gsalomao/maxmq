@@ -56,37 +56,37 @@ type connectionManager struct {
 }
 
 func newConnectionManager(
-	cf *Configuration,
-	st SessionStore,
-	lg *logger.Logger,
+	conf *Configuration,
+	store Store,
+	log *logger.Logger,
 ) connectionManager {
-	cf.BufferSize = bufferSizeOrDefault(cf.BufferSize)
-	cf.MaxPacketSize = maxPacketSizeOrDefault(cf.MaxPacketSize)
-	cf.ConnectTimeout = connectTimeoutOrDefault(cf.ConnectTimeout)
-	cf.MaximumQoS = maximumQosOrDefault(cf.MaximumQoS)
-	cf.MaxTopicAlias = maxTopicAliasOrDefault(cf.MaxTopicAlias)
-	cf.MaxInflightMessages = maxInflightMsgOrDefault(cf.MaxInflightMessages)
-	cf.MaxClientIDLen = maxClientIDLenOrDefault(cf.MaxClientIDLen)
+	conf.BufferSize = bufferSizeOrDefault(conf.BufferSize)
+	conf.MaxPacketSize = maxPacketSizeOrDefault(conf.MaxPacketSize)
+	conf.ConnectTimeout = connectTimeoutOrDefault(conf.ConnectTimeout)
+	conf.MaximumQoS = maximumQosOrDefault(conf.MaximumQoS)
+	conf.MaxTopicAlias = maxTopicAliasOrDefault(conf.MaxTopicAlias)
+	conf.MaxInflightMessages = maxInflightMsgOrDefault(conf.MaxInflightMessages)
+	conf.MaxClientIDLen = maxClientIDLenOrDefault(conf.MaxClientIDLen)
 
-	userProps := make([]packet.UserProperty, 0, len(cf.UserProperties))
-	for k, v := range cf.UserProperties {
+	userProps := make([]packet.UserProperty, 0, len(conf.UserProperties))
+	for k, v := range conf.UserProperties {
 		userProps = append(userProps,
 			packet.UserProperty{Key: []byte(k), Value: []byte(v)})
 	}
 
 	rdOpts := packet.ReaderOptions{
-		BufferSize:    cf.BufferSize,
-		MaxPacketSize: cf.MaxPacketSize,
+		BufferSize:    conf.BufferSize,
+		MaxPacketSize: conf.MaxPacketSize,
 	}
 
-	m := newMetrics(cf.MetricsEnabled, lg)
+	m := newMetrics(conf.MetricsEnabled, log)
 	return connectionManager{
-		conf:           cf,
-		log:            lg,
+		conf:           conf,
+		log:            log,
 		metrics:        m,
 		reader:         packet.NewReader(rdOpts),
-		writer:         packet.NewWriter(cf.BufferSize),
-		sessionManager: newSessionManager(cf, m, userProps, st, lg),
+		writer:         packet.NewWriter(conf.BufferSize),
+		sessionManager: newSessionManager(conf, m, userProps, store, log),
 	}
 }
 

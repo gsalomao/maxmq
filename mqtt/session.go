@@ -29,19 +29,6 @@ type ClientID []byte
 // ErrSessionNotFound indicates that the session was not found in the store.
 var ErrSessionNotFound = errors.New("session not found")
 
-// SessionStore is responsible for manage sessions in the store.
-type SessionStore interface {
-	// GetSession gets the session from the store.
-	GetSession(id ClientID) (Session, error)
-
-	// SaveSession creates the session into the store if it doesn't exist or
-	// update the existing session.
-	SaveSession(s *Session) error
-
-	// DeleteSession deletes the session from the store.
-	DeleteSession(s *Session) error
-}
-
 // Session stores the MQTT session.
 type Session struct {
 	// ClientID represents the ID of the client owner of the session.
@@ -85,7 +72,7 @@ func (s *Session) clean() {
 
 type sessionManager struct {
 	pubSub         pubSub
-	store          SessionStore
+	store          Store
 	conf           *Configuration
 	metrics        *metrics
 	log            *logger.Logger
@@ -93,7 +80,7 @@ type sessionManager struct {
 }
 
 func newSessionManager(conf *Configuration, metrics *metrics,
-	props []packet.UserProperty, store SessionStore,
+	props []packet.UserProperty, store Store,
 	log *logger.Logger) sessionManager {
 
 	return sessionManager{

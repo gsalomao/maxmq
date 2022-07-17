@@ -30,7 +30,7 @@ func TestListener_New(t *testing.T) {
 		store := sessionStoreMock{}
 
 		_, err := NewListener(
-			WithSessionStore(&store),
+			WithStore(&store),
 			WithLogger(logger.Logger()),
 		)
 
@@ -43,7 +43,7 @@ func TestListener_New(t *testing.T) {
 
 		_, err := NewListener(
 			WithConfiguration(Configuration{}),
-			WithSessionStore(&store),
+			WithStore(&store),
 		)
 
 		require.NotNil(t, err)
@@ -69,7 +69,7 @@ func TestListener_RunInvalidTCPAddress(t *testing.T) {
 
 	l, err := NewListener(
 		WithConfiguration(Configuration{TCPAddress: "."}),
-		WithSessionStore(&store),
+		WithStore(&store),
 		WithLogger(logger.Logger()),
 	)
 	require.Nil(t, err)
@@ -85,7 +85,7 @@ func TestListener_RunAndStop(t *testing.T) {
 
 	l, err := NewListener(
 		WithConfiguration(Configuration{TCPAddress: ":1883"}),
-		WithSessionStore(&store),
+		WithStore(&store),
 		WithLogger(logger.Logger()),
 	)
 	require.Nil(t, err)
@@ -111,7 +111,7 @@ func TestListener_HandleConnection(t *testing.T) {
 
 	l, err := NewListener(
 		WithConfiguration(Configuration{TCPAddress: ":1883"}),
-		WithSessionStore(&store),
+		WithStore(&store),
 		WithLogger(logger.Logger()),
 	)
 	require.Nil(t, err)
@@ -138,7 +138,7 @@ func TestListener_HandleConnectionFailure(t *testing.T) {
 
 	l, err := NewListener(
 		WithConfiguration(Configuration{TCPAddress: ":1883"}),
-		WithSessionStore(&store),
+		WithStore(&store),
 		WithLogger(logger.Logger()),
 	)
 	require.Nil(t, err)

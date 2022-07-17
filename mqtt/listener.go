@@ -25,13 +25,13 @@ import (
 // Listener is responsible to implement the MQTT protocol conform the v3.1.1
 // and v5.0 specifications.
 type Listener struct {
-	log          *logger.Logger
-	conf         *Configuration
-	tcpLsn       net.Listener
-	connManager  connectionManager
-	sessionStore SessionStore
-	running      bool
-	mtx          sync.Mutex
+	log         *logger.Logger
+	conf        *Configuration
+	tcpLsn      net.Listener
+	connManager connectionManager
+	store       Store
+	running     bool
+	mtx         sync.Mutex
 }
 
 // NewListener creates a new MQTT Listener with the given options.
@@ -48,11 +48,11 @@ func NewListener(opts ...OptionsFn) (*Listener, error) {
 	if l.conf == nil {
 		return nil, errors.New("missing configuration")
 	}
-	if l.sessionStore == nil {
-		return nil, errors.New("missing session store")
+	if l.store == nil {
+		return nil, errors.New("missing store")
 	}
 
-	l.connManager = newConnectionManager(l.conf, l.sessionStore, l.log)
+	l.connManager = newConnectionManager(l.conf, l.store, l.log)
 	return l, nil
 }
 
