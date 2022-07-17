@@ -21,56 +21,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gsalomao/maxmq/broker"
-	"github.com/gsalomao/maxmq/mocks"
-	"github.com/gsalomao/maxmq/mqtt"
-	"github.com/gsalomao/maxmq/mqtt/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	paho "github.com/eclipse/paho.mqtt.golang"
 )
 
-func newBroker() *broker.Broker {
-	conf := mqtt.Configuration{TCPAddress: ":1883"}
-	logStub := mocks.NewLoggerStub()
-	st := store.NewMemoryStore()
-
-	l, _ := mqtt.NewListener(
-		mqtt.WithConfiguration(conf),
-		mqtt.WithSessionStore(st),
-		mqtt.WithLogger(logStub.Logger()),
-	)
-
-	b := broker.New(logStub.Logger())
-	b.AddListener(l)
-
-	return &b
-}
-
-func TestMqtt_RunBroker(t *testing.T) {
-	b := newBroker()
-	assert.Nil(t, b.Start())
-	<-time.After(100 * time.Millisecond)
-
-	stopped := make(chan struct{})
-	go func() {
-		defer func() { stopped <- struct{}{} }()
-
-		<-time.After(1 * time.Millisecond)
-		b.Stop()
-	}()
-
-	assert.Nil(t, b.Wait())
-	<-stopped
-}
-
 func TestMqtt_Connect(t *testing.T) {
-	b := newBroker()
-	assert.Nil(t, b.Start())
-	defer func() { b.Stop() }()
-	<-time.After(100 * time.Millisecond)
-
 	opts := paho.NewClientOptions()
 	opts.AddBroker("tcp://localhost:1883")
 	opts.SetClientID("paho-client")
@@ -81,14 +38,29 @@ func TestMqtt_Connect(t *testing.T) {
 	assert.Nil(t, token.Error())
 	assert.True(t, c.IsConnected())
 	assert.True(t, c.IsConnectionOpen())
+
+	c.Disconnect(1)
+	<-time.After(100 * time.Millisecond)
+}
+
+func TestMqtt_Disconnect(t *testing.T) {
+	opts := paho.NewClientOptions()
+	opts.AddBroker("tcp://localhost:1883")
+	opts.SetClientID("paho-client")
+	c := paho.NewClient(opts)
+
+	token := c.Connect()
+	token.WaitTimeout(100 * time.Millisecond)
+	require.True(t, c.IsConnected())
+	require.True(t, c.IsConnectionOpen())
+	<-time.After(100 * time.Millisecond)
+
+	c.Disconnect(1)
+	<-time.After(100 * time.Millisecond)
+	assert.False(t, c.IsConnected())
 }
 
 func TestMqtt_PingReq(t *testing.T) {
-	b := newBroker()
-	assert.Nil(t, b.Start())
-	defer func() { b.Stop() }()
-	<-time.After(100 * time.Millisecond)
-
 	opts := paho.NewClientOptions()
 	opts.AddBroker("tcp://localhost:1883")
 	opts.SetClientID("paho-client")
@@ -107,14 +79,12 @@ func TestMqtt_PingReq(t *testing.T) {
 	<-time.After(5 * time.Second)
 	assert.True(t, c.IsConnected())
 	assert.True(t, c.IsConnectionOpen())
+
+	c.Disconnect(1)
+	<-time.After(100 * time.Millisecond)
 }
 
 func TestMqtt_Subscribe(t *testing.T) {
-	b := newBroker()
-	assert.Nil(t, b.Start())
-	defer func() { b.Stop() }()
-	<-time.After(100 * time.Millisecond)
-
 	opts := paho.NewClientOptions()
 	opts.AddBroker("tcp://localhost:1883")
 	opts.SetClientID("paho-client")
@@ -145,14 +115,12 @@ func TestMqtt_Subscribe(t *testing.T) {
 	assert.Equal(t, byte(0), results["temp"])
 	assert.Equal(t, byte(1), results["sensor/#"])
 	assert.Equal(t, byte(2), results["data/+/raw"])
+
+	c.Disconnect(1)
+	<-time.After(100 * time.Millisecond)
 }
 
 func TestMqtt_Unsubscribe(t *testing.T) {
-	b := newBroker()
-	assert.Nil(t, b.Start())
-	defer func() { b.Stop() }()
-	<-time.After(100 * time.Millisecond)
-
 	opts := paho.NewClientOptions()
 	opts.AddBroker("tcp://localhost:1883")
 	opts.SetClientID("paho-client")
@@ -179,26 +147,7 @@ func TestMqtt_Unsubscribe(t *testing.T) {
 	token = c.Unsubscribe("temp")
 	require.True(t, token.WaitTimeout(100*time.Millisecond))
 	require.Nil(t, token.Error())
-}
-
-func TestMqtt_Disconnect(t *testing.T) {
-	b := newBroker()
-	assert.Nil(t, b.Start())
-	defer func() { b.Stop() }()
-	<-time.After(100 * time.Millisecond)
-
-	opts := paho.NewClientOptions()
-	opts.AddBroker("tcp://localhost:1883")
-	opts.SetClientID("paho-client")
-	c := paho.NewClient(opts)
-
-	token := c.Connect()
-	token.WaitTimeout(100 * time.Millisecond)
-	require.True(t, c.IsConnected())
-	require.True(t, c.IsConnectionOpen())
-	<-time.After(100 * time.Millisecond)
 
 	c.Disconnect(1)
 	<-time.After(100 * time.Millisecond)
-	assert.False(t, c.IsConnected())
 }

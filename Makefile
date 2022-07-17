@@ -95,10 +95,20 @@ coverage-html: coverage ## Open the coverage report in the browser
 	$(call print_task,"Opening coverage report")
 	@go tool cover -html coverage/coverage.out
 
-e2e: ## Run end-to-end (E2E) tests
+e2e: build ## Run end-to-end (E2E) tests
+	$(call print_task,"Starting application")
+	@MAXMQ_LOG_LEVEL="info" $(BUILD_DIR)/$(NAME) start &
+	@sleep 1
+	$(call print_task_result,"Starting application","done")
+
 	$(call print_task,"Running E2E tests")
-	@gotestsum --format testname --packages ./e2e -- -tags=e2e -timeout 30s
+	@gotestsum --format testname --packages ./e2e -- -tags=e2e -timeout 30s -count=1
 	$(call print_task_result,"Running E2E tests","done")
+
+	$(call print_task,"Stopping application")
+	@pkill -2 $(NAME)
+	@sleep 1
+	$(call print_task_result,"Stopping application","done")
 
 ## Analyze
 vet: ## Examine source code
@@ -131,7 +141,7 @@ help: ## Show this help
 	@echo ''
 	@echo 'Targets:'
 	@awk 'BEGIN {FS = ":.*?## "} { \
-		if (/^[a-zA-Z_-]+:.*?##.*$$/) { \
+		if (/^[a-zA-Z0-9_-]+:.*?##.*$$/) { \
 			printf "    ${YELLOW}%-20s${GREEN}%s${RESET}\n", $$1, $$2} \
 			else if (/^## .*$$/) { \
 				printf "  ${CYAN}%s:${RESET}\n", substr($$1,4)\
