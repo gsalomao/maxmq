@@ -21,7 +21,6 @@ import (
 
 	"github.com/gsalomao/maxmq/mocks"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -49,12 +48,7 @@ func newConfiguration() Configuration {
 
 func createConnectionManager(conf Configuration) connectionManager {
 	logger := mocks.NewLoggerStub()
-	store := &sessionStoreMock{}
-	store.On("GetSession", mock.Anything).Return(nil, ErrSessionNotFound)
-	store.On("SaveSession", mock.Anything).Return(nil)
-	store.On("DeleteSession", mock.Anything).Return(nil)
-
-	return newConnectionManager(&conf, store, logger.Logger())
+	return newConnectionManager(&conf, logger.Logger())
 }
 
 func TestConnectionManager_DefaultValues(t *testing.T) {

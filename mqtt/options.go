@@ -28,13 +28,6 @@ func WithConfiguration(cf Configuration) OptionsFn {
 	}
 }
 
-// WithStore sets the given Store into the MQTT Listener.
-func WithStore(st Store) OptionsFn {
-	return func(l *Listener) {
-		l.store = st
-	}
-}
-
 // WithLogger sets the given Logger into the MQTT Listener.
 func WithLogger(log *logger.Logger) OptionsFn {
 	return func(l *Listener) {

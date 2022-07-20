@@ -72,7 +72,7 @@ func (s *Session) clean() {
 
 type sessionManager struct {
 	pubSub         pubSub
-	store          Store
+	store          store
 	conf           *Configuration
 	metrics        *metrics
 	log            *logger.Logger
@@ -80,12 +80,12 @@ type sessionManager struct {
 }
 
 func newSessionManager(conf *Configuration, metrics *metrics,
-	props []packet.UserProperty, store Store,
+	props []packet.UserProperty,
 	log *logger.Logger) sessionManager {
 
 	return sessionManager{
 		pubSub:         newPubSub(metrics, log),
-		store:          store,
+		store:          newStore(),
 		conf:           conf,
 		metrics:        metrics,
 		userProperties: props,
@@ -141,14 +141,6 @@ func (m *sessionManager) handleConnect(session *Session,
 		m.conf.MaxSessionExpiryInterval)
 
 	err := m.readSession(session, id)
-	if err != nil && err != ErrSessionNotFound {
-		m.log.Error().
-			Bytes("ClientID", pkt.ClientID).
-			Uint8("Version", uint8(pkt.Version)).
-			Msg("MQTT Failed to load session on CONNECT")
-		return nil, err
-	}
-
 	if err == nil && pkt.CleanSession {
 		m.cleanSession(session)
 	}
@@ -159,17 +151,7 @@ func (m *sessionManager) handleConnect(session *Session,
 	session.ExpiryInterval = exp
 	session.ConnectedAt = time.Now().UnixMilli()
 
-	err = m.saveSession(session)
-	if err != nil {
-		m.log.Error().
-			Bool("CleanSession", pkt.CleanSession).
-			Bytes("ClientID", pkt.ClientID).
-			Uint16("KeepAlive", pkt.KeepAlive).
-			Uint8("Version", uint8(pkt.Version)).
-			Msg("MQTT Failed to save session on CONNECT")
-		return nil, err
-	}
-
+	m.saveSession(session)
 	m.log.Info().
 		Bool("CleanSession", session.CleanSession).
 		Bytes("ClientID", session.ClientID).
@@ -265,45 +247,7 @@ func (m *sessionManager) handleSubscribe(session *Session,
 			Msg("MQTT Client subscribed to topic")
 	}
 
-	err := m.saveSession(session)
-	if err != nil {
-		m.log.Error().
-			Bytes("ClientID", session.ClientID).
-			Int64("ConnectedAt", session.ConnectedAt).
-			Uint32("ExpiryInterval", session.ExpiryInterval).
-			Uint8("Version", uint8(session.Version)).
-			Msg("MQTT Failed to save session on SUBSCRIBE")
-
-		for i, topic := range pkt.Topics {
-			if codes[i] < packet.ReasonCodeV3Failure {
-				_ = m.pubSub.unsubscribe(session.ClientID, topic.Name)
-				m.log.Info().
-					Bytes("ClientID", session.ClientID).
-					Uint16("PacketID", uint16(pkt.PacketID)).
-					Int("NumberOfTopics", len(pkt.Topics)).
-					Int("Subscriptions", len(session.Subscriptions)).
-					Str("TopicFilter", topic.Name).
-					Uint8("Version", uint8(pkt.Version)).
-					Msg("MQTT Client unsubscribed to topic")
-			}
-		}
-
-		err = m.readSession(session, session.ClientID)
-		if err != nil {
-			m.log.Error().
-				Bytes("ClientID", session.ClientID).
-				Int64("ConnectedAt", session.ConnectedAt).
-				Uint32("ExpiryInterval", session.ExpiryInterval).
-				Uint8("Version", uint8(session.Version)).
-				Msg("MQTT Failed to restore session on SUBSCRIBE")
-			return nil, errors.New("failed to restore session")
-		}
-
-		for i := 0; i < len(codes); i++ {
-			codes[i] = packet.ReasonCodeV3Failure
-		}
-	}
-
+	m.saveSession(session)
 	subAck := packet.NewSubAck(pkt.PacketID, pkt.Version, codes, nil)
 	m.log.Trace().
 		Bytes("ClientID", session.ClientID).
@@ -355,16 +299,7 @@ func (m *sessionManager) handleUnsubscribe(session *Session,
 		}
 	}
 
-	err := m.saveSession(session)
-	if err != nil {
-		m.log.Error().
-			Bool("CleanSession", session.CleanSession).
-			Bytes("ClientID", session.ClientID).
-			Uint8("Version", uint8(pkt.Version)).
-			Msg("MQTT Failed to save session on UNSUBSCRIBE")
-		return nil, err
-	}
-
+	m.saveSession(session)
 	unsubAck := packet.NewUnsubAck(pkt.PacketID, pkt.Version, codes, nil)
 	m.log.Trace().
 		Bytes("ClientID", session.ClientID).
@@ -402,26 +337,11 @@ func (m *sessionManager) handleDisconnect(session *Session,
 
 		if interval != nil && *interval != session.ExpiryInterval {
 			session.ExpiryInterval = *interval
-			err := m.saveSession(session)
-			if err != nil {
-				m.log.Error().
-					Bytes("ClientID", session.ClientID).
-					Uint8("Version", uint8(session.Version)).
-					Uint32("SessionExpiryInterval", *interval).
-					Msg("MQTT Failed to save session on DISCONNECT")
-			}
+			m.saveSession(session)
 		}
 	}
 
-	err := m.disconnectSession(session)
-	if err != nil {
-		m.log.Error().
-			Bytes("ClientID", session.ClientID).
-			Uint8("Version", uint8(session.Version)).
-			Uint32("SessionExpiryInterval", session.ExpiryInterval).
-			Msg("MQTT Failed to disconnect session on DISCONNECT")
-	}
-
+	m.disconnectSession(session)
 	latency := time.Since(pkt.Timestamp())
 	m.metrics.recordDisconnectLatency(latency)
 
@@ -496,18 +416,11 @@ func (m *sessionManager) readSession(session *Session, id ClientID) error {
 		Bytes("ClientID", id).
 		Msg("MQTT Reading session")
 
-	s, err := m.store.GetSession(id)
-	if err != nil {
-		if err != ErrSessionNotFound {
-			m.log.Error().
-				Bytes("ClientID", id).
-				Msg("MQTT Failed to read session: " + err.Error())
-		} else {
-			m.log.Debug().
-				Bytes("ClientID", id).
-				Msg("MQTT Session not found")
-		}
-
+	s, err := m.store.getSession(id)
+	if err == ErrSessionNotFound {
+		m.log.Debug().
+			Bytes("ClientID", id).
+			Msg("MQTT Session not found")
 		return err
 	}
 
@@ -533,7 +446,7 @@ func (m *sessionManager) readSession(session *Session, id ClientID) error {
 	return nil
 }
 
-func (m *sessionManager) saveSession(session *Session) error {
+func (m *sessionManager) saveSession(session *Session) {
 	m.log.Trace().
 		Bool("CleanSession", session.CleanSession).
 		Bytes("ClientID", session.ClientID).
@@ -544,14 +457,7 @@ func (m *sessionManager) saveSession(session *Session) error {
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Saving session")
 
-	err := m.store.SaveSession(session)
-	if err != nil {
-		m.log.Error().
-			Bytes("ClientID", session.ClientID).
-			Uint8("Version", uint8(session.Version)).
-			Msg("MQTT Failed to save session: " + err.Error())
-		return err
-	}
+	m.store.saveSession(session)
 
 	m.log.Debug().
 		Bool("CleanSession", session.CleanSession).
@@ -562,10 +468,9 @@ func (m *sessionManager) saveSession(session *Session) error {
 		Int("Subscriptions", len(session.Subscriptions)).
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Session saved with success")
-	return nil
 }
 
-func (m *sessionManager) deleteSession(session *Session) error {
+func (m *sessionManager) deleteSession(session *Session) {
 	m.log.Trace().
 		Bool("CleanSession", session.CleanSession).
 		Bytes("ClientID", session.ClientID).
@@ -576,16 +481,7 @@ func (m *sessionManager) deleteSession(session *Session) error {
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Deleting session")
 
-	err := m.store.DeleteSession(session)
-	if err != nil {
-		m.log.Error().
-			Bytes("ClientID", session.ClientID).
-			Int64("ConnectedAt", session.ConnectedAt).
-			Uint32("ExpiryInterval", session.ExpiryInterval).
-			Uint8("Version", uint8(session.Version)).
-			Msg("MQTT Failed to delete session: " + err.Error())
-		return errors.New("failed to delete session")
-	}
+	m.store.deleteSession(session)
 
 	m.log.Debug().
 		Bool("CleanSession", session.CleanSession).
@@ -596,8 +492,6 @@ func (m *sessionManager) deleteSession(session *Session) error {
 		Int("Subscriptions", len(session.Subscriptions)).
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Session deleted with success")
-
-	return nil
 }
 
 func (m *sessionManager) cleanSession(session *Session) {
@@ -614,9 +508,9 @@ func (m *sessionManager) cleanSession(session *Session) {
 	session.clean()
 }
 
-func (m *sessionManager) disconnectSession(session *Session) error {
+func (m *sessionManager) disconnectSession(session *Session) {
 	if !session.connected {
-		return nil
+		return
 	}
 
 	session.connected = false
@@ -624,8 +518,6 @@ func (m *sessionManager) disconnectSession(session *Session) error {
 	if session.CleanSession && (session.Version != packet.MQTT50 ||
 		session.ExpiryInterval == 0) {
 		m.cleanSession(session)
-		return m.deleteSession(session)
+		m.deleteSession(session)
 	}
-
-	return nil
 }

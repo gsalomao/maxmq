@@ -57,7 +57,6 @@ type connectionManager struct {
 
 func newConnectionManager(
 	conf *Configuration,
-	store Store,
 	log *logger.Logger,
 ) connectionManager {
 	conf.BufferSize = bufferSizeOrDefault(conf.BufferSize)
@@ -86,7 +85,7 @@ func newConnectionManager(
 		metrics:        m,
 		reader:         packet.NewReader(rdOpts),
 		writer:         packet.NewWriter(conf.BufferSize),
-		sessionManager: newSessionManager(conf, m, userProps, store, log),
+		sessionManager: newSessionManager(conf, m, userProps, log),
 	}
 }
 
@@ -214,15 +213,7 @@ func (cm *connectionManager) closeConnection(conn *connection, force bool) {
 	_ = conn.netConn.Close()
 	conn.closed = true
 
-	err := cm.sessionManager.disconnectSession(&conn.session)
-	if err != nil {
-		cm.log.Error().
-			Bytes("ClientID", conn.session.ClientID).
-			Bool("Force", force).
-			Msg("MQTT Error when disconnecting session on close connection: " +
-				err.Error())
-	}
-
+	cm.sessionManager.disconnectSession(&conn.session)
 	cm.metrics.recordDisconnection()
 	cm.log.Debug().
 		Bytes("ClientID", conn.session.ClientID).

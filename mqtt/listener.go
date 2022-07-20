@@ -29,7 +29,6 @@ type Listener struct {
 	conf        *Configuration
 	tcpLsn      net.Listener
 	connManager connectionManager
-	store       Store
 	running     bool
 	mtx         sync.Mutex
 }
@@ -48,11 +47,8 @@ func NewListener(opts ...OptionsFn) (*Listener, error) {
 	if l.conf == nil {
 		return nil, errors.New("missing configuration")
 	}
-	if l.store == nil {
-		return nil, errors.New("missing store")
-	}
 
-	l.connManager = newConnectionManager(l.conf, l.store, l.log)
+	l.connManager = newConnectionManager(l.conf, l.log)
 	return l, nil
 }
 

@@ -27,10 +27,8 @@ import (
 func TestListener_New(t *testing.T) {
 	t.Run("MissingConfiguration", func(t *testing.T) {
 		logger := mocks.NewLoggerStub()
-		store := sessionStoreMock{}
 
 		_, err := NewListener(
-			WithStore(&store),
 			WithLogger(logger.Logger()),
 		)
 
@@ -39,37 +37,20 @@ func TestListener_New(t *testing.T) {
 	})
 
 	t.Run("MissingLogger", func(t *testing.T) {
-		store := sessionStoreMock{}
-
 		_, err := NewListener(
 			WithConfiguration(Configuration{}),
-			WithStore(&store),
 		)
 
 		require.NotNil(t, err)
 		assert.Equal(t, "missing logger", err.Error())
 	})
-
-	t.Run("MissingSessionStore", func(t *testing.T) {
-		logger := mocks.NewLoggerStub()
-
-		_, err := NewListener(
-			WithConfiguration(Configuration{}),
-			WithLogger(logger.Logger()),
-		)
-
-		require.NotNil(t, err)
-		assert.Equal(t, "missing session store", err.Error())
-	})
 }
 
 func TestListener_RunInvalidTCPAddress(t *testing.T) {
-	store := sessionStoreMock{}
 	logger := mocks.NewLoggerStub()
 
 	l, err := NewListener(
 		WithConfiguration(Configuration{TCPAddress: "."}),
-		WithStore(&store),
 		WithLogger(logger.Logger()),
 	)
 	require.Nil(t, err)
@@ -80,12 +61,10 @@ func TestListener_RunInvalidTCPAddress(t *testing.T) {
 }
 
 func TestListener_RunAndStop(t *testing.T) {
-	store := sessionStoreMock{}
 	logger := mocks.NewLoggerStub()
 
 	l, err := NewListener(
 		WithConfiguration(Configuration{TCPAddress: ":1883"}),
-		WithStore(&store),
 		WithLogger(logger.Logger()),
 	)
 	require.Nil(t, err)
@@ -107,11 +86,9 @@ func TestListener_RunAndStop(t *testing.T) {
 
 func TestListener_HandleConnection(t *testing.T) {
 	logger := mocks.NewLoggerStub()
-	store := sessionStoreMock{}
 
 	l, err := NewListener(
 		WithConfiguration(Configuration{TCPAddress: ":1883"}),
-		WithStore(&store),
 		WithLogger(logger.Logger()),
 	)
 	require.Nil(t, err)
@@ -134,11 +111,9 @@ func TestListener_HandleConnection(t *testing.T) {
 
 func TestListener_HandleConnectionFailure(t *testing.T) {
 	logger := mocks.NewLoggerStub()
-	store := sessionStoreMock{}
 
 	l, err := NewListener(
 		WithConfiguration(Configuration{TCPAddress: ":1883"}),
-		WithStore(&store),
 		WithLogger(logger.Logger()),
 	)
 	require.Nil(t, err)

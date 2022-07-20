@@ -12,59 +12,54 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package store_test
+package mqtt
 
 import (
 	"testing"
 	"time"
 
-	"github.com/gsalomao/maxmq/mqtt"
-	"github.com/gsalomao/maxmq/mqtt/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestMemorySessionStore_GetSession(t *testing.T) {
-	s := store.NewMemoryStore()
+func TestStore_GetSession(t *testing.T) {
+	s := newStore()
 
-	id := mqtt.ClientID{'a'}
-	_, err := s.GetSession(id)
-	assert.Equal(t, mqtt.ErrSessionNotFound, err)
+	id := ClientID{'a'}
+	_, err := s.getSession(id)
+	assert.Equal(t, ErrSessionNotFound, err)
 }
 
-func TestMemorySessionStore_SaveSession(t *testing.T) {
-	s := store.NewMemoryStore()
+func TestStore_SaveSession(t *testing.T) {
+	s := newStore()
 
-	id := mqtt.ClientID{'a'}
-	session := mqtt.Session{
+	id := ClientID{'a'}
+	session := Session{
 		ClientID:       id,
 		ConnectedAt:    time.Now().Unix(),
 		ExpiryInterval: 60,
 	}
-	err := s.SaveSession(&session)
-	require.Nil(t, err)
+	s.saveSession(&session)
 
-	savedSession, err := s.GetSession(id)
+	savedSession, err := s.getSession(id)
 	require.Nil(t, err)
 	assert.Equal(t, session, savedSession)
 }
 
-func TestMemorySessionStore_DeleteSession(t *testing.T) {
-	s := store.NewMemoryStore()
+func TestStore_DeleteSession(t *testing.T) {
+	s := newStore()
 
-	id := mqtt.ClientID{'a'}
-	session := mqtt.Session{
+	id := ClientID{'a'}
+	session := Session{
 		ClientID:       id,
 		ConnectedAt:    time.Now().Unix(),
 		ExpiryInterval: 60,
 	}
-	_ = s.SaveSession(&session)
-	_, err := s.GetSession(id)
+	s.saveSession(&session)
+	_, err := s.getSession(id)
 	require.Nil(t, err)
 
-	err = s.DeleteSession(&session)
-	require.Nil(t, err)
-
-	_, err = s.GetSession(id)
-	assert.Equal(t, mqtt.ErrSessionNotFound, err)
+	s.deleteSession(&session)
+	_, err = s.getSession(id)
+	assert.Equal(t, ErrSessionNotFound, err)
 }
