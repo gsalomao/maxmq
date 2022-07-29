@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/gsalomao/maxmq/mocks"
+	"github.com/gsalomao/maxmq/mqtt/packet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -46,9 +47,9 @@ func newConfiguration() Configuration {
 	}
 }
 
-func createConnectionManager(conf Configuration) connectionManager {
+func createConnectionManager(conf Configuration) *connectionManager {
 	logger := mocks.NewLoggerStub()
-	return newConnectionManager(&conf, logger.Logger())
+	return newConnectionManager(0, &conf, logger.Logger())
 }
 
 func TestConnectionManager_DefaultValues(t *testing.T) {
@@ -74,7 +75,9 @@ func TestConnectionManager_DefaultValues(t *testing.T) {
 func TestConnectionManager_Handle(t *testing.T) {
 	conf := newConfiguration()
 	conf.UserProperties = map[string]string{"k1": "v1"}
+
 	cm := createConnectionManager(conf)
+	require.Empty(t, cm.connections)
 
 	conn, sConn := net.Pipe()
 	done := make(chan bool)
@@ -95,6 +98,19 @@ func TestConnectionManager_Handle(t *testing.T) {
 	resp := []byte{0x20, 2, 0, 0}
 	assert.Equal(t, resp, out)
 
+	<-time.After(10 * time.Millisecond)
+
+	cm.mutex.RLock()
+	assert.Equal(t, 1, len(cm.connections))
+	c, ok := cm.connections["a"]
+	cm.mutex.RUnlock()
+
+	require.True(t, ok)
+	require.NotNil(t, c)
+	assert.Equal(t, ClientID{'a'}, c.session.ClientID)
+	assert.Equal(t, packet.MQTT311, c.session.Version)
+	assert.True(t, c.session.connected)
+
 	msg = []byte{0xC0, 0}
 	_, err = conn.Write(msg)
 	require.Nil(t, err)
@@ -106,9 +122,15 @@ func TestConnectionManager_Handle(t *testing.T) {
 	resp = []byte{0xD0, 0}
 	assert.Equal(t, resp, out)
 
-	<-time.After(200 * time.Microsecond)
-	_ = conn.Close()
+	msg = []byte{0xE0, 1, 0}
+	_, err = conn.Write(msg)
+	require.Nil(t, err)
+
 	<-done
+	cm.mutex.RLock()
+	assert.Empty(t, cm.connections)
+	cm.mutex.RUnlock()
+	_ = conn.Close()
 }
 
 func TestConnectionManager_HandleNetConnClosed(t *testing.T) {
@@ -262,4 +284,61 @@ func TestConnectionManager_HandleDisconnect(t *testing.T) {
 	_, err = conn.Write(disconnect)
 	require.Nil(t, err)
 	<-done
+}
+
+func TestConnectionManager_DeliverMessage(t *testing.T) {
+	conf := newConfiguration()
+	conf.MetricsEnabled = false
+	cm := createConnectionManager(conf)
+	nc, sNc := net.Pipe()
+	defer func() { _ = nc.Close() }()
+
+	conn := cm.createConnection(sNc)
+	cm.connections["client-a"] = &conn
+
+	go func() {
+		pkt := packet.NewPublish(10, packet.MQTT311, "data",
+			packet.QoS0, 0, 0, nil, nil)
+
+		err := cm.deliverPacket(ClientID("client-a"), &pkt)
+		assert.Nil(t, err)
+	}()
+
+	out := make([]byte, 8)
+	_, err := nc.Read(out)
+	assert.Nil(t, err)
+
+	pub := []byte{0x30, 6, 0, 4, 'd', 'a', 't', 'a'}
+	assert.Equal(t, pub, out)
+}
+
+func TestConnectionManager_DeliverMessageConnectionNotFound(t *testing.T) {
+	conf := newConfiguration()
+	conf.MetricsEnabled = false
+	cm := createConnectionManager(conf)
+	nc, _ := net.Pipe()
+	defer func() { _ = nc.Close() }()
+
+	pkt := packet.NewPublish(10, packet.MQTT311, "data",
+		packet.QoS0, 0, 0, nil, nil)
+
+	err := cm.deliverPacket(ClientID("client-a"), &pkt)
+	assert.NotNil(t, err)
+}
+
+func TestConnectionManager_DeliverMessageWriteFailure(t *testing.T) {
+	conf := newConfiguration()
+	conf.MetricsEnabled = false
+	cm := createConnectionManager(conf)
+	nc, sNc := net.Pipe()
+	_ = nc.Close()
+
+	conn := cm.createConnection(sNc)
+	cm.connections["client-a"] = &conn
+
+	pkt := packet.NewPublish(10, packet.MQTT311, "data",
+		packet.QoS0, 0, 0, nil, nil)
+
+	err := cm.deliverPacket(ClientID("client-a"), &pkt)
+	assert.NotNil(t, err)
 }

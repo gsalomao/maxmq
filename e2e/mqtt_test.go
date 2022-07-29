@@ -27,12 +27,16 @@ import (
 	paho "github.com/eclipse/paho.mqtt.golang"
 )
 
-func TestMqtt_Connect(t *testing.T) {
+func newMqttClient() paho.Client {
 	opts := paho.NewClientOptions()
 	opts.AddBroker("tcp://localhost:1883")
 	opts.SetClientID("paho-client")
-	c := paho.NewClient(opts)
+	opts.SetCleanSession(true)
+	return paho.NewClient(opts)
+}
 
+func TestMqtt_Connect(t *testing.T) {
+	c := newMqttClient()
 	token := c.Connect()
 	assert.True(t, token.WaitTimeout(100*time.Millisecond))
 	assert.Nil(t, token.Error())
@@ -44,11 +48,7 @@ func TestMqtt_Connect(t *testing.T) {
 }
 
 func TestMqtt_Disconnect(t *testing.T) {
-	opts := paho.NewClientOptions()
-	opts.AddBroker("tcp://localhost:1883")
-	opts.SetClientID("paho-client")
-	c := paho.NewClient(opts)
-
+	c := newMqttClient()
 	token := c.Connect()
 	token.WaitTimeout(100 * time.Millisecond)
 	require.True(t, c.IsConnected())
@@ -85,15 +85,7 @@ func TestMqtt_PingReq(t *testing.T) {
 }
 
 func TestMqtt_Subscribe(t *testing.T) {
-	opts := paho.NewClientOptions()
-	opts.AddBroker("tcp://localhost:1883")
-	opts.SetClientID("paho-client")
-	opts.SetKeepAlive(2 * time.Second)
-	opts.SetConnectTimeout(1 * time.Second)
-	opts.SetPingTimeout(1 * time.Second)
-	opts.SetAutoReconnect(false)
-	c := paho.NewClient(opts)
-
+	c := newMqttClient()
 	token := c.Connect()
 	token.WaitTimeout(100 * time.Millisecond)
 	require.True(t, c.IsConnected())
@@ -121,15 +113,7 @@ func TestMqtt_Subscribe(t *testing.T) {
 }
 
 func TestMqtt_Unsubscribe(t *testing.T) {
-	opts := paho.NewClientOptions()
-	opts.AddBroker("tcp://localhost:1883")
-	opts.SetClientID("paho-client")
-	opts.SetKeepAlive(2 * time.Second)
-	opts.SetConnectTimeout(1 * time.Second)
-	opts.SetPingTimeout(1 * time.Second)
-	opts.SetAutoReconnect(false)
-	c := paho.NewClient(opts)
-
+	c := newMqttClient()
 	token := c.Connect()
 	token.WaitTimeout(100 * time.Millisecond)
 	require.True(t, c.IsConnected())
@@ -147,6 +131,32 @@ func TestMqtt_Unsubscribe(t *testing.T) {
 	token = c.Unsubscribe("temp")
 	require.True(t, token.WaitTimeout(100*time.Millisecond))
 	require.Nil(t, token.Error())
+
+	c.Disconnect(1)
+	<-time.After(100 * time.Millisecond)
+}
+
+func TestMqtt_PublishQoS0(t *testing.T) {
+	c := newMqttClient()
+	token := c.Connect()
+	token.WaitTimeout(100 * time.Millisecond)
+	require.True(t, c.IsConnected())
+	require.True(t, c.IsConnectionOpen())
+
+	received := make(chan struct{})
+	token = c.Subscribe("data/#", 0,
+		func(c paho.Client, msg paho.Message) {
+			assert.Equal(t, "data/1", msg.Topic())
+			assert.Equal(t, uint8(0), msg.Qos())
+			assert.Equal(t, []byte("hello"), msg.Payload())
+			received <- struct{}{}
+		},
+	)
+	assert.True(t, token.WaitTimeout(100*time.Millisecond))
+
+	token = c.Publish("data/1", 0, false, []byte("hello"))
+	assert.True(t, token.WaitTimeout(100*time.Millisecond))
+	<-received
 
 	c.Disconnect(1)
 	<-time.After(100 * time.Millisecond)

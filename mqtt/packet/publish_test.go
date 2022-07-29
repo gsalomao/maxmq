@@ -372,3 +372,53 @@ func TestPublish_Timestamp(t *testing.T) {
 	require.NotNil(t, pkt)
 	assert.NotNil(t, pkt.Timestamp())
 }
+
+func TestPublish_Clone(t *testing.T) {
+	testCases := []struct {
+		id      ID
+		version MQTTVersion
+		topic   string
+		qos     QoS
+		dup     uint8
+		retain  uint8
+		payload []byte
+	}{
+		{id: 1, version: MQTT31, topic: "temp/0", qos: QoS0, dup: 0, retain: 0,
+			payload: []byte("data-0")},
+		{id: 2, version: MQTT311, topic: "temp/1", qos: QoS1, dup: 0, retain: 1,
+			payload: []byte("data-1")},
+		{id: 3, version: MQTT50, topic: "temp/2", qos: QoS2, dup: 1, retain: 0,
+			payload: []byte("data-2")},
+	}
+
+	for _, test := range testCases {
+		name := fmt.Sprintf("%v-%v", test.id, test.version.String())
+		t.Run(name, func(t *testing.T) {
+			pkt1 := NewPublish(test.id, test.version, test.topic, test.qos,
+				test.dup, test.retain, test.payload, nil)
+			pkt2 := pkt1.Clone()
+
+			assert.Equal(t, pkt1.PacketID, pkt2.PacketID)
+			assert.Equal(t, pkt1.Version, pkt2.Version)
+			assert.Equal(t, pkt1.TopicName, pkt2.TopicName)
+			assert.Equal(t, pkt1.QoS, pkt2.QoS)
+			assert.Equal(t, pkt1.Dup, pkt2.Dup)
+			assert.Equal(t, pkt1.Retain, pkt2.Retain)
+			assert.Equal(t, pkt1.Payload, pkt2.Payload)
+		})
+	}
+}
+
+func TestPublish_CloneProperties(t *testing.T) {
+	props := Properties{PayloadFormatIndicator: new(byte)}
+	*props.PayloadFormatIndicator = 5
+
+	pkt1 := NewPublish(1, MQTT50, "data", QoS1,
+		1, 1, []byte("raw"), &props)
+	pkt2 := pkt1.Clone()
+
+	require.NotNil(t, pkt2.Properties)
+	require.NotNil(t, pkt2.Properties.PayloadFormatIndicator)
+	assert.Equal(t, *props.PayloadFormatIndicator,
+		*pkt2.Properties.PayloadFormatIndicator)
+}

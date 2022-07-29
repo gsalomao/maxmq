@@ -22,15 +22,16 @@ import (
 	"github.com/gsalomao/maxmq/logger"
 )
 
-// Listener is responsible to implement the MQTT protocol conform the v3.1.1
-// and v5.0 specifications.
+// Listener is responsible to implement the MQTT protocol conform the v3.1,
+// v3.1.1, and v5.0 specifications.
 type Listener struct {
 	log         *logger.Logger
 	conf        *Configuration
 	tcpLsn      net.Listener
-	connManager connectionManager
+	connManager *connectionManager
 	running     bool
 	mtx         sync.Mutex
+	nodeID      uint16
 }
 
 // NewListener creates a new MQTT Listener with the given options.
@@ -48,7 +49,7 @@ func NewListener(opts ...OptionsFn) (*Listener, error) {
 		return nil, errors.New("missing configuration")
 	}
 
-	l.connManager = newConnectionManager(l.conf, l.log)
+	l.connManager = newConnectionManager(l.nodeID, l.conf, l.log)
 	return l, nil
 }
 
@@ -60,6 +61,8 @@ func (l *Listener) Listen() error {
 	if err != nil {
 		return err
 	}
+
+	l.connManager.start()
 
 	l.log.Info().Msg("MQTT Listening on " + tcpLsn.Addr().String())
 	l.tcpLsn = tcpLsn
@@ -83,7 +86,10 @@ func (l *Listener) Listen() error {
 		l.log.Trace().Msg("MQTT New TCP connection")
 		go func() {
 			err = l.connManager.handle(tcpConn)
-			if err != nil && err != ErrConnectionTimeout {
+			if err == nil {
+				return
+			}
+			if err != ErrConnectionTimeout && err != ErrProtocolError {
 				l.log.Warn().
 					Msg("MQTT Failed to handle connection: " + err.Error())
 			}
@@ -99,6 +105,7 @@ func (l *Listener) Listen() error {
 func (l *Listener) Stop() {
 	l.log.Debug().Msg("MQTT Stopping listener")
 
+	l.connManager.stop()
 	l.setRunningState(false)
 	_ = l.tcpLsn.Close()
 }

@@ -19,14 +19,71 @@ import (
 	"github.com/gsalomao/maxmq/mqtt/packet"
 )
 
+const (
+	pubSubActionStarted pubSubAction = iota
+	pubSubActionStop
+	pubSubActionStopped
+	pubSubActionPublishMessage
+)
+
+type pubSubAction byte
+
 type pubSub struct {
-	metrics *metrics
-	log     *logger.Logger
-	tree    subscriptionTree
+	publisher publisher
+	metrics   *metrics
+	log       *logger.Logger
+	tree      subscriptionTree
+	queue     messageQueue
+	idGen     idGenerator
+	action    chan pubSubAction
 }
 
-func newPubSub(metrics *metrics, log *logger.Logger) pubSub {
-	return pubSub{metrics: metrics, log: log, tree: newSubscriptionTree()}
+func newPubSub(nodeID uint16, publisher publisher, metrics *metrics,
+	log *logger.Logger) pubSub {
+	return pubSub{
+		publisher: publisher,
+		metrics:   metrics,
+		log:       log,
+		tree:      newSubscriptionTree(),
+		idGen:     newIDGenerator(nodeID),
+		action:    make(chan pubSubAction, 1),
+	}
+}
+
+func (p *pubSub) start() {
+	p.log.Trace().Msg("MQTT Starting PubSub")
+	go p.run()
+	<-p.action
+}
+
+func (p *pubSub) stop() {
+	p.log.Trace().Msg("MQTT Stopping PubSub")
+	p.action <- pubSubActionStop
+
+	for {
+		act := <-p.action
+		if act == pubSubActionStopped {
+			break
+		}
+	}
+
+	p.log.Debug().Msg("MQTT PubSub stopped with success")
+}
+
+func (p *pubSub) run() {
+	p.action <- pubSubActionStarted
+	p.log.Debug().Msg("MQTT PubSub waiting for actions")
+
+	for {
+		a := <-p.action
+		if a == pubSubActionPublishMessage {
+			p.publishQueuedMessages()
+		} else {
+			break
+		}
+	}
+
+	p.action <- pubSubActionStopped
 }
 
 func (p *pubSub) subscribe(session *Session, topic packet.Topic,
@@ -105,4 +162,77 @@ func (p *pubSub) unsubscribe(id ClientID, topic string) error {
 		Msg("MQTT Unsubscribed to topic")
 
 	return err
+}
+
+func (p *pubSub) publish(pkt *packet.Publish) {
+	id := p.idGen.nextID()
+	msg := message{id: id, packet: pkt}
+	p.log.Trace().
+		Uint8("DUP", msg.packet.Dup).
+		Uint64("MessageID", msg.id).
+		Uint16("PacketID", uint16(msg.packet.PacketID)).
+		Int("QueueLen", p.queue.len()).
+		Uint8("QoS", uint8(msg.packet.QoS)).
+		Uint8("Retain", msg.packet.Retain).
+		Str("TopicName", msg.packet.TopicName).
+		Msg("MQTT Adding message into the queue")
+
+	p.queue.enqueue(msg)
+	p.action <- pubSubActionPublishMessage
+
+	p.log.Debug().
+		Uint8("DUP", msg.packet.Dup).
+		Uint64("MessageID", msg.id).
+		Uint16("PacketID", uint16(msg.packet.PacketID)).
+		Int("QueueLen", p.queue.len()).
+		Uint8("QoS", uint8(msg.packet.QoS)).
+		Uint8("Retain", msg.packet.Retain).
+		Str("TopicName", msg.packet.TopicName).
+		Msg("MQTT Message queued for processing")
+}
+
+func (p *pubSub) publishQueuedMessages() {
+	for p.queue.len() > 0 {
+		msg := p.queue.dequeue()
+		p.log.Trace().
+			Uint8("DUP", msg.packet.Dup).
+			Uint64("MessageID", msg.id).
+			Uint16("PacketID", uint16(msg.packet.PacketID)).
+			Int("QueueLen", p.queue.len()).
+			Uint8("QoS", uint8(msg.packet.QoS)).
+			Uint8("Retain", msg.packet.Retain).
+			Str("TopicName", msg.packet.TopicName).
+			Uint8("Version", uint8(msg.packet.Version)).
+			Msg("MQTT Processing message from the queue")
+
+		subscriptions := p.tree.findMatches(msg.packet.TopicName)
+		for _, sub := range subscriptions {
+			m := message{id: msg.id, packet: msg.packet.Clone()}
+
+			err := p.publisher.publishMessage(sub.Session, m)
+			if err != nil {
+				p.log.Error().
+					Bytes("ClientID", sub.Session.ClientID).
+					Uint8("DUP", m.packet.Dup).
+					Uint64("MessageID", m.id).
+					Uint16("PacketID", uint16(m.packet.PacketID)).
+					Uint8("QoS", uint8(m.packet.QoS)).
+					Uint8("Retain", m.packet.Retain).
+					Str("TopicName", m.packet.TopicName).
+					Uint8("Version", uint8(m.packet.Version)).
+					Msg("MQTT Failed to publish message to session: " +
+						err.Error())
+			}
+		}
+
+		p.log.Debug().
+			Uint8("DUP", msg.packet.Dup).
+			Uint64("MessageID", msg.id).
+			Uint16("PacketID", uint16(msg.packet.PacketID)).
+			Int("QueueLen", p.queue.len()).
+			Uint8("QoS", uint8(msg.packet.QoS)).
+			Uint8("Retain", msg.packet.Retain).
+			Str("TopicName", msg.packet.TopicName).
+			Msg("MQTT Message processed with success")
+	}
 }

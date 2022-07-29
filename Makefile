@@ -72,12 +72,12 @@ profile: ## Start broker with CPU/Memory profiler
 ## Test
 test: ## Run unit tests
 	$(call print_task,"Running unit tests")
-	@gotestsum --format pkgname --packages ./... -- -timeout 3s
+	@gotestsum --format pkgname --packages ./... -- -timeout 3s -race
 	$(call print_task_result,"Running unit tests","done")
 
 test-dev: ## Run unit tests in development mode
 	$(call print_task,"Running unit tests in development mode")
-	@gotestsum --format testname --packages ./... --watch -- -timeout 3s
+	@gotestsum --format testname --packages ./... --watch -- -timeout 3s -race
 
 coverage: ## Run unit tests with coverage report
 	$(call print_task,"Running unit tests")
@@ -129,7 +129,7 @@ lint: ## Lint source code
 
 complexity: ## Calculates cyclomatic complexities
 	$(call print_task,"Calculating cyclomatic complexities")
-	@gocyclo -over 10 -avg .
+	@gocyclo -over 11 -avg .
 	$(call print_task_result,"Calculating cyclomatic complexities","done")
 
 check: vet lint complexity ## Check source code

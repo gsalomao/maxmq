@@ -71,6 +71,7 @@ func (s *Session) clean() {
 }
 
 type sessionManager struct {
+	deliverer      deliverer
 	pubSub         pubSub
 	store          store
 	conf           *Configuration
@@ -79,18 +80,32 @@ type sessionManager struct {
 	userProperties []packet.UserProperty
 }
 
-func newSessionManager(conf *Configuration, metrics *metrics,
-	props []packet.UserProperty,
-	log *logger.Logger) sessionManager {
+func newSessionManager(nodeID uint16, deliverer deliverer,
+	conf *Configuration, metrics *metrics, props []packet.UserProperty,
+	log *logger.Logger) *sessionManager {
 
-	return sessionManager{
-		pubSub:         newPubSub(metrics, log),
+	sm := sessionManager{
+		deliverer:      deliverer,
 		store:          newStore(),
 		conf:           conf,
 		metrics:        metrics,
 		userProperties: props,
 		log:            log,
 	}
+
+	sm.pubSub = newPubSub(nodeID, &sm, metrics, log)
+	return &sm
+}
+
+func (m *sessionManager) start() {
+	m.log.Trace().Msg("MQTT Starting session manager")
+	m.pubSub.start()
+}
+
+func (m *sessionManager) stop() {
+	m.log.Trace().Msg("MQTT Stopping session manager")
+	m.pubSub.stop()
+	m.log.Debug().Msg("MQTT Session manager stopped with success")
 }
 
 func (m *sessionManager) handlePacket(session *Session,
@@ -112,6 +127,9 @@ func (m *sessionManager) handlePacket(session *Session,
 	case packet.UNSUBSCRIBE:
 		unsubPkt, _ := pkt.(*packet.Unsubscribe)
 		return m.handleUnsubscribe(session, unsubPkt)
+	case packet.PUBLISH:
+		pubPkt, _ := pkt.(*packet.Publish)
+		return m.handlePublish(session, pubPkt)
 	case packet.DISCONNECT:
 		disconnect := pkt.(*packet.Disconnect)
 		return m.handleDisconnect(session, disconnect)
@@ -312,6 +330,21 @@ func (m *sessionManager) handleUnsubscribe(session *Session,
 	return &unsubAck, nil
 }
 
+func (m *sessionManager) handlePublish(session *Session,
+	pkt *packet.Publish) (packet.Packet, error) {
+
+	m.log.Trace().
+		Bytes("ClientID", session.ClientID).
+		Uint16("PacketID", uint16(pkt.PacketID)).
+		Uint8("QoS", uint8(pkt.QoS)).
+		Str("TopicName", pkt.TopicName).
+		Uint8("Version", uint8(session.Version)).
+		Msg("MQTT Received PUBLISH packet")
+
+	m.pubSub.publish(pkt)
+	return nil, nil
+}
+
 func (m *sessionManager) handleDisconnect(session *Session,
 	pkt *packet.Disconnect) (packet.Packet, error) {
 
@@ -354,6 +387,34 @@ func (m *sessionManager) handleDisconnect(session *Session,
 		Msg("MQTT Client disconnected")
 
 	return nil, nil
+}
+
+func (m *sessionManager) publishMessage(session *Session, msg message) error {
+	m.log.Trace().
+		Bytes("ClientID", session.ClientID).
+		Uint64("MessageID", msg.id).
+		Uint16("PacketID", uint16(msg.packet.PacketID)).
+		Uint8("QoS", uint8(msg.packet.QoS)).
+		Uint8("Retain", msg.packet.Retain).
+		Str("TopicName", msg.packet.TopicName).
+		Uint8("Version", uint8(msg.packet.Version)).
+		Msg("MQTT Delivering message")
+
+	err := m.deliverer.deliverPacket(session.ClientID, msg.packet)
+	if err != nil {
+		return err
+	}
+
+	m.log.Info().
+		Bytes("ClientID", session.ClientID).
+		Uint64("MessageID", msg.id).
+		Uint16("PacketID", uint16(msg.packet.PacketID)).
+		Uint8("QoS", uint8(msg.packet.QoS)).
+		Uint8("Retain", msg.packet.Retain).
+		Str("TopicName", msg.packet.TopicName).
+		Uint8("Version", uint8(msg.packet.Version)).
+		Msg("MQTT Message delivered with success")
+	return nil
 }
 
 func (m *sessionManager) checkPacketConnect(pkt *packet.Connect) *packet.Error {

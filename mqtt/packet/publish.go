@@ -99,6 +99,20 @@ func newPacketPublish(opts options) (Packet, error) {
 	}, nil
 }
 
+func NewPublish(id ID, version MQTTVersion, topic string, qos QoS, dup uint8,
+	retain uint8, payload []byte, props *Properties) Publish {
+	return Publish{
+		PacketID:   id,
+		Version:    version,
+		TopicName:  topic,
+		QoS:        qos,
+		Dup:        dup,
+		Retain:     retain,
+		Payload:    payload,
+		Properties: props,
+	}
+}
+
 // Pack encodes the packet into bytes and writes it into the io.Writer.
 // It is not supported by the PUBLISH Packet in this broker.
 func (pkt *Publish) Pack(w *bufio.Writer) error {
@@ -185,4 +199,18 @@ func (pkt *Publish) Size() int {
 // received.
 func (pkt *Publish) Timestamp() time.Time {
 	return pkt.timestamp
+}
+
+// Clone clones the PUBLISH Packet.
+func (pkt *Publish) Clone() *Publish {
+	return &Publish{
+		PacketID:   pkt.PacketID,
+		Version:    pkt.Version,
+		TopicName:  pkt.TopicName,
+		QoS:        pkt.QoS,
+		Dup:        pkt.Dup,
+		Retain:     pkt.Retain,
+		Payload:    pkt.Payload,
+		Properties: pkt.Properties,
+	}
 }

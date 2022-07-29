@@ -15,19 +15,49 @@
 package mqtt
 
 import (
+	"errors"
+	"fmt"
 	"math/rand"
 	"testing"
 
 	"github.com/gsalomao/maxmq/mocks"
 	"github.com/gsalomao/maxmq/mqtt/packet"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
+type messagePublisherMock struct {
+	mock.Mock
+}
+
+func (d *messagePublisherMock) publishMessage(session *Session,
+	msg message) error {
+	args := d.Called(session, msg)
+	return args.Error(0)
+}
+
 func createPubSub() pubSub {
 	logger := mocks.NewLoggerStub()
+	pubMock := messagePublisherMock{}
+
 	m := newMetrics(true, logger.Logger())
-	return newPubSub(m, logger.Logger())
+	return newPubSub(0, &pubMock, m, logger.Logger())
+}
+
+func TestPubSub_StartStop(t *testing.T) {
+	ps := createPubSub()
+	ps.start()
+	ps.stop()
+}
+
+func TestPubSub_Run(t *testing.T) {
+	ps := createPubSub()
+	go ps.run()
+	<-ps.action
+	ps.action <- pubSubActionPublishMessage
+	ps.action <- pubSubActionStop
+	<-ps.action
 }
 
 func TestPubSub_Subscribe(t *testing.T) {
@@ -104,4 +134,101 @@ func TestPubSub_UnsubscribeSubscriptionNotFound(t *testing.T) {
 			assert.Equal(t, ErrSubscriptionNotFound, err)
 		})
 	}
+}
+
+func TestPubSub_PublishQoS0(t *testing.T) {
+	ps := createPubSub()
+	require.Zero(t, ps.queue.len())
+
+	pkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS1, 0, 0, nil,
+		nil)
+
+	ps.publish(&pkt)
+	assert.Equal(t, 1, ps.queue.len())
+
+	act := <-ps.action
+	assert.Equal(t, pubSubActionPublishMessage, act)
+}
+
+func TestPubSub_PublishQueuedMessagesNoSubscription(t *testing.T) {
+	ps := createPubSub()
+	pkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS0, 0, 0, nil,
+		nil)
+	msg := message{id: 1, packet: &pkt}
+	ps.queue.enqueue(msg)
+
+	ps.publishQueuedMessages()
+	assert.Zero(t, ps.queue.len())
+}
+
+func TestPubSub_PublishQueuedMessagesQoS0(t *testing.T) {
+	testCases := []struct {
+		id    packet.ID
+		subs  []string
+		topic string
+	}{
+		{id: 1, subs: []string{"temp"}, topic: "temp"},
+		{id: 2, subs: []string{"temp/1", "temp/+", "temp/#"}, topic: "temp/1"},
+	}
+
+	for _, test := range testCases {
+		name := fmt.Sprintf("%v-%v", test.id, test.topic)
+		t.Run(name, func(t *testing.T) {
+			ps := createPubSub()
+			session := Session{ClientID: ClientID("a")}
+
+			for _, topic := range test.subs {
+				sub := Subscription{
+					Session:     &session,
+					TopicFilter: topic,
+					QoS:         packet.QoS0,
+				}
+
+				_, err := ps.tree.insert(sub)
+				require.Nil(t, err)
+			}
+
+			pkt := packet.NewPublish(test.id, packet.MQTT311, test.topic,
+				packet.QoS0, 0, 0, nil, nil)
+			msg := message{id: uint64(test.id), packet: &pkt}
+
+			pubMock := ps.publisher.(*messagePublisherMock)
+			pubMock.On("publishMessage", &session, msg).Return(nil)
+
+			ps.queue.enqueue(msg)
+			ps.publishQueuedMessages()
+
+			assert.Zero(t, ps.queue.len())
+			pubMock.AssertNumberOfCalls(t, "publishMessage", len(test.subs))
+			pubMock.AssertExpectations(t)
+		})
+	}
+}
+
+func TestPubSub_ProcessQueuedMessagesFailedToDeliver(t *testing.T) {
+	ps := createPubSub()
+	session := Session{ClientID: ClientID("a")}
+
+	sub := Subscription{
+		Session:     &session,
+		TopicFilter: "data",
+		QoS:         packet.QoS0,
+	}
+
+	_, err := ps.tree.insert(sub)
+	require.Nil(t, err)
+
+	pkt := packet.NewPublish(1, packet.MQTT311, "data",
+		packet.QoS0, 0, 0, nil, nil)
+	msg := message{id: 1, packet: &pkt}
+
+	pubMock := ps.publisher.(*messagePublisherMock)
+	pubMock.On("publishMessage", &session, msg).
+		Return(errors.New("failed to publish message"))
+
+	ps.queue.enqueue(msg)
+	ps.publishQueuedMessages()
+
+	assert.Zero(t, ps.queue.len())
+	pubMock.AssertExpectations(t)
 }

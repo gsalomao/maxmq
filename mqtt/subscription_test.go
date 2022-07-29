@@ -370,3 +370,45 @@ func TestSubscriptionTree_RemoveSameTopicDifferentSession(t *testing.T) {
 
 	assertSubscription(t, &tree, sub, session.ClientID)
 }
+
+func TestSubscriptionTree_FindMatches(t *testing.T) {
+	testCases := []struct {
+		subs    []string
+		topic   string
+		matches int
+	}{
+		{subs: []string{}, topic: "data", matches: 0},
+		{subs: []string{"data1", "data2", "data3"}, topic: "data2", matches: 1},
+		{subs: []string{"data1", "data2", "data3"}, topic: "data4", matches: 0},
+		{subs: []string{"raw/1", "raw/2", "raw/3"}, topic: "raw/2", matches: 1},
+		{subs: []string{"raw/1", "raw/2", "raw/3"}, topic: "raw/4", matches: 0},
+		{subs: []string{"raw/#", "raw/2", "raw/3"}, topic: "raw/3", matches: 2},
+		{subs: []string{"raw/1", "raw/#", "raw/+"}, topic: "raw/1", matches: 3},
+		{subs: []string{"raw/+/1", "raw/temp/1"}, topic: "raw/temp/1",
+			matches: 2},
+		{subs: []string{"data/+/+", "raw/+/2", "raw/+/3"}, topic: "raw/temp/2",
+			matches: 1},
+		{subs: []string{"raw/+", "raw/temp/+", "raw/temp/3"},
+			topic: "raw/temp/3", matches: 2},
+		{subs: []string{"raw/#", "raw/temp/+", "+/+/+"}, topic: "raw/temp/4",
+			matches: 3},
+		{subs: []string{"raw", "raw/temp", "raw/temp/5"}, topic: "raw/temp/5",
+			matches: 1},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.topic, func(t *testing.T) {
+			session := Session{ClientID: ClientID("id-0")}
+			tree := newSubscriptionTree()
+
+			for _, topic := range test.subs {
+				sub := Subscription{Session: &session, TopicFilter: topic}
+				_, err := tree.insert(sub)
+				require.Nil(t, err)
+			}
+
+			subs := tree.findMatches(test.topic)
+			assert.Equal(t, test.matches, len(subs))
+		})
+	}
+}
