@@ -28,14 +28,12 @@ const (
 
 type pubSubAction byte
 
-type pubSub struct {
-	publisher publisher
-	metrics   *metrics
-	log       *logger.Logger
-	tree      subscriptionTree
-	queue     messageQueue
-	idGen     idGenerator
-	action    chan pubSubAction
+type publisher interface {
+	publishMessage(session *Session, msg message) error
+}
+
+type deliverer interface {
+	deliverPacket(id ClientID, pkt *packet.Publish) error
 }
 
 func newPubSub(nodeID uint16, publisher publisher, metrics *metrics,
@@ -45,9 +43,19 @@ func newPubSub(nodeID uint16, publisher publisher, metrics *metrics,
 		metrics:   metrics,
 		log:       log,
 		tree:      newSubscriptionTree(),
-		idGen:     newIDGenerator(nodeID),
+		idGen:     newMessageIDGenerator(nodeID),
 		action:    make(chan pubSubAction, 1),
 	}
+}
+
+type pubSub struct {
+	publisher publisher
+	metrics   *metrics
+	log       *logger.Logger
+	tree      subscriptionTree
+	queue     messageQueue
+	idGen     messageIDGenerator
+	action    chan pubSubAction
 }
 
 func (p *pubSub) start() {

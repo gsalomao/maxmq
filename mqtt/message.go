@@ -17,21 +17,72 @@ package mqtt
 import (
 	"container/list"
 	"sync"
+	"time"
 
 	"github.com/gsalomao/maxmq/mqtt/packet"
 )
 
+const (
+	messageIDTimestampMask      = 0xFFFFFFFFFF
+	messageIDTimestampBit       = 24
+	messageIDNodeIDMask         = 0x3FF
+	messageIDNodeIDBit          = 14
+	messageIDSequenceNumberMask = 0x1FFF
+)
+
+func newMessageIDGenerator(nodeID uint16) messageIDGenerator {
+	startTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).
+		UnixMilli()
+
+	return messageIDGenerator{
+		startTime:      startTime,
+		elapsedTime:    time.Now().UnixMilli() - startTime,
+		nodeID:         nodeID,
+		sequenceNumber: messageIDSequenceNumberMask,
+	}
+}
+
+// Generated messages IDs are composed of:
+//  - 40 bits for timestamp with milliseconds of precision (epoch 01/01/2020)
+//  - 10 bits for node ID (1024 nodes)
+//  - 13 bits for sequence number (8192 IDs)
+type messageIDGenerator struct {
+	mutex          sync.Mutex
+	startTime      int64
+	elapsedTime    int64
+	nodeID         uint16
+	sequenceNumber int
+}
+
+func (g *messageIDGenerator) nextID() uint64 {
+	g.mutex.Lock()
+	defer g.mutex.Unlock()
+
+	currentElapsedTime := g.currentElapsedTime()
+
+	if currentElapsedTime > g.elapsedTime {
+		g.elapsedTime = currentElapsedTime
+		g.sequenceNumber = 0
+	} else {
+		g.sequenceNumber = (g.sequenceNumber + 1) & messageIDSequenceNumberMask
+	}
+
+	var id uint64
+
+	id = uint64(g.elapsedTime&messageIDTimestampMask) << messageIDTimestampBit
+	id |= uint64(g.nodeID&messageIDNodeIDMask) << messageIDNodeIDBit
+	id |= uint64(g.sequenceNumber & messageIDSequenceNumberMask)
+
+	return id
+}
+
+func (g *messageIDGenerator) currentElapsedTime() int64 {
+	return time.Now().UnixMilli() - g.startTime
+}
+
 type message struct {
 	id     uint64
 	packet *packet.Publish
-}
-
-type publisher interface {
-	publishMessage(session *Session, msg message) error
-}
-
-type deliverer interface {
-	deliverPacket(id ClientID, pkt *packet.Publish) error
 }
 
 type messageQueue struct {
