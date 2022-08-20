@@ -15,7 +15,7 @@
 package mqtt
 
 import (
-	"github.com/gsalomao/maxmq/logger"
+	"github.com/gsalomao/maxmq/pkg/logger"
 )
 
 // OptionsFn represents a function which sets an option in the MQTT Listener.

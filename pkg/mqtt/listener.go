@@ -19,7 +19,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/gsalomao/maxmq/logger"
+	"github.com/gsalomao/maxmq/pkg/logger"
 )
 
 // Listener is responsible to implement the MQTT protocol conform the v3.1,

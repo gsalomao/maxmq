@@ -23,11 +23,11 @@ import (
 	"syscall"
 
 	"github.com/dimiro1/banner"
-	"github.com/gsalomao/maxmq/broker"
-	"github.com/gsalomao/maxmq/config"
-	"github.com/gsalomao/maxmq/logger"
-	"github.com/gsalomao/maxmq/metrics"
-	"github.com/gsalomao/maxmq/mqtt"
+	"github.com/gsalomao/maxmq/pkg/broker"
+	"github.com/gsalomao/maxmq/pkg/config"
+	"github.com/gsalomao/maxmq/pkg/logger"
+	"github.com/gsalomao/maxmq/pkg/metrics"
+	"github.com/gsalomao/maxmq/pkg/mqtt"
 	"github.com/mattn/go-colorable"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -78,7 +78,7 @@ func newCommandStart() *cobra.Command {
 			runBroker(b, &log)
 
 			if profile != "" {
-				err := saveHeapProfile()
+				err = saveHeapProfile()
 				if err != nil {
 					log.Fatal().Msg("Failed to save memory profile: " +
 						err.Error())
@@ -181,7 +181,7 @@ func startCPUProfile() (*os.File, error) {
 		return nil, err
 	}
 
-	if err := pprof.StartCPUProfile(f); err != nil {
+	if err = pprof.StartCPUProfile(f); err != nil {
 		return nil, err
 	}
 
@@ -200,7 +200,7 @@ func saveHeapProfile() error {
 	defer func() { _ = f.Close() }()
 
 	runtime.GC()
-	if err := pprof.WriteHeapProfile(f); err != nil {
+	if err = pprof.WriteHeapProfile(f); err != nil {
 		return err
 	}
 

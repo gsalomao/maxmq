@@ -22,8 +22,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gsalomao/maxmq/logger"
-	"github.com/gsalomao/maxmq/mqtt/packet"
+	"github.com/gsalomao/maxmq/pkg/logger"
+	"github.com/gsalomao/maxmq/pkg/mqtt/packet"
 	"go.uber.org/multierr"
 )
 
@@ -258,7 +258,8 @@ func (m *connectionManager) closeConnection(conn *connection, force bool) {
 		Msg("MQTT Connection closed")
 }
 
-func (m *connectionManager) replyPacket(pkt packet.Packet, reply packet.Packet,
+func (m *connectionManager) replyPacket(pkt packet.Packet,
+	reply packet.Packet,
 	c *connection) error {
 
 	m.log.Trace().

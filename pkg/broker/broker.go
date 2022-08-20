@@ -18,7 +18,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/gsalomao/maxmq/logger"
+	"github.com/gsalomao/maxmq/pkg/logger"
 )
 
 // Broker represents the message broker.

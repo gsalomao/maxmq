@@ -17,7 +17,7 @@ package main
 import (
 	"os"
 
-	"github.com/gsalomao/maxmq/cli"
+	"github.com/gsalomao/maxmq/pkg/cli"
 )
 
 func main() {

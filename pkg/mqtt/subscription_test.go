@@ -20,7 +20,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gsalomao/maxmq/mqtt/packet"
+	"github.com/gsalomao/maxmq/pkg/mqtt/packet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

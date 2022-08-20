@@ -22,7 +22,7 @@ import (
 	"net/http/pprof"
 	"time"
 
-	"github.com/gsalomao/maxmq/logger"
+	"github.com/gsalomao/maxmq/pkg/logger"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 

@@ -17,7 +17,7 @@ package mqtt
 import (
 	"math"
 
-	"github.com/gsalomao/maxmq/mqtt/packet"
+	packet "github.com/gsalomao/maxmq/pkg/mqtt/packet"
 	"github.com/rs/xid"
 )
 
@@ -76,7 +76,8 @@ func maxClientIDLenOrDefault(idLen int) int {
 	return idLen
 }
 
-func getClientID(p *packet.Connect, prefix []byte) (id ClientID, created bool) {
+func getClientID(p *packet.Connect, prefix []byte) (id ClientID,
+	created bool) {
 	if len(p.ClientID) > 0 {
 		return p.ClientID, false
 	}

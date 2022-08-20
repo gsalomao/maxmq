@@ -18,9 +18,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gsalomao/maxmq/broker"
-	"github.com/gsalomao/maxmq/config"
 	"github.com/gsalomao/maxmq/mocks"
+	"github.com/gsalomao/maxmq/pkg/broker"
+	"github.com/gsalomao/maxmq/pkg/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

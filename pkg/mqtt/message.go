@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gsalomao/maxmq/mqtt/packet"
+	"github.com/gsalomao/maxmq/pkg/mqtt/packet"
 )
 
 const (

@@ -20,7 +20,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gsalomao/maxmq/mqtt/packet"
+	"github.com/gsalomao/maxmq/pkg/mqtt/packet"
 )
 
 // ErrSubscriptionInvalidWildcard indicates that the topic filter in the

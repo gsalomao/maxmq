@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/gsalomao/maxmq/cli"
+	"github.com/gsalomao/maxmq/pkg/cli"
 	"github.com/stretchr/testify/assert"
 )
 

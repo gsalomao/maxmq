@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gsalomao/maxmq/mqtt/packet"
+	packet "github.com/gsalomao/maxmq/pkg/mqtt/packet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -195,7 +195,8 @@ func TestPacket_ReadPacketInvalid(t *testing.T) {
 			}()
 
 			_ = sConn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-			opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
+			opts := packet.ReaderOptions{BufferSize: 1024,
+				MaxPacketSize: 65536}
 			reader := packet.NewReader(opts)
 
 			_, err := reader.ReadPacket(sConn, packet.MQTT311)

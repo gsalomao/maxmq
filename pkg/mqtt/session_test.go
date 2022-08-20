@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/gsalomao/maxmq/mocks"
-	"github.com/gsalomao/maxmq/mqtt/packet"
+	packet "github.com/gsalomao/maxmq/pkg/mqtt/packet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -100,7 +100,8 @@ func TestSessionManager_ConnectNewSession(t *testing.T) {
 		code    packet.ReasonCode
 	}{
 		{version: packet.MQTT31, code: packet.ReasonCodeV3ConnectionAccepted},
-		{version: packet.MQTT311, code: packet.ReasonCodeV3ConnectionAccepted},
+		{version: packet.MQTT311,
+			code: packet.ReasonCodeV3ConnectionAccepted},
 		{version: packet.MQTT50, code: packet.ReasonCodeV5Success},
 	}
 
@@ -123,7 +124,8 @@ func TestSessionManager_ConnectExistingSession(t *testing.T) {
 		code    packet.ReasonCode
 	}{
 		{version: packet.MQTT31, code: packet.ReasonCodeV3ConnectionAccepted},
-		{version: packet.MQTT311, code: packet.ReasonCodeV3ConnectionAccepted},
+		{version: packet.MQTT311,
+			code: packet.ReasonCodeV3ConnectionAccepted},
 		{version: packet.MQTT50, code: packet.ReasonCodeV5Success},
 	}
 
@@ -165,7 +167,8 @@ func TestSessionManager_ConnectCleanSessionNoExisting(t *testing.T) {
 		code    packet.ReasonCode
 	}{
 		{version: packet.MQTT31, code: packet.ReasonCodeV3ConnectionAccepted},
-		{version: packet.MQTT311, code: packet.ReasonCodeV3ConnectionAccepted},
+		{version: packet.MQTT311,
+			code: packet.ReasonCodeV3ConnectionAccepted},
 		{version: packet.MQTT50, code: packet.ReasonCodeV5Success},
 	}
 
@@ -198,7 +201,8 @@ func TestSessionManager_ConnectCleanSessionExisting(t *testing.T) {
 		code    packet.ReasonCode
 	}{
 		{version: packet.MQTT31, code: packet.ReasonCodeV3ConnectionAccepted},
-		{version: packet.MQTT311, code: packet.ReasonCodeV3ConnectionAccepted},
+		{version: packet.MQTT311,
+			code: packet.ReasonCodeV3ConnectionAccepted},
 		{version: packet.MQTT50, code: packet.ReasonCodeV5Success},
 	}
 
@@ -252,7 +256,8 @@ func TestSessionManager_ConnectClientIDTooBig(t *testing.T) {
 		{id: []byte("012345678901234567890123"), version: packet.MQTT31,
 			maxIDLen: 65535, code: packet.ReasonCodeV3IdentifierRejected,
 		},
-		{id: []byte("0123456789012345678901234567890"), version: packet.MQTT311,
+		{id: []byte("0123456789012345678901234567890"),
+			version:  packet.MQTT311,
 			maxIDLen: 30, code: packet.ReasonCodeV3IdentifierRejected,
 		},
 		{id: []byte("0123456789012345678901234567890"), version: packet.MQTT50,
@@ -278,7 +283,8 @@ func TestSessionManager_ConnectAllowEmptyClientID(t *testing.T) {
 		code    packet.ReasonCode
 	}{
 		{version: packet.MQTT31, code: packet.ReasonCodeV3ConnectionAccepted},
-		{version: packet.MQTT311, code: packet.ReasonCodeV3ConnectionAccepted},
+		{version: packet.MQTT311,
+			code: packet.ReasonCodeV3ConnectionAccepted},
 		{version: packet.MQTT50, code: packet.ReasonCodeV5Success},
 	}
 
@@ -300,7 +306,8 @@ func TestSessionManager_ConnectDenyEmptyClientID(t *testing.T) {
 		code    packet.ReasonCode
 	}{
 		{version: packet.MQTT31, code: packet.ReasonCodeV3IdentifierRejected},
-		{version: packet.MQTT311, code: packet.ReasonCodeV3IdentifierRejected},
+		{version: packet.MQTT311,
+			code: packet.ReasonCodeV3IdentifierRejected},
 		{version: packet.MQTT50, code: packet.ReasonCodeV5InvalidClientID},
 	}
 
@@ -742,8 +749,10 @@ func TestSessionManager_Subscribe(t *testing.T) {
 		qos     packet.QoS
 	}{
 		{id: 1, version: packet.MQTT31, topic: "data", qos: packet.QoS0},
-		{id: 2, version: packet.MQTT311, topic: "data/temp", qos: packet.QoS1},
-		{id: 3, version: packet.MQTT50, topic: "data/temp/#", qos: packet.QoS2},
+		{id: 2, version: packet.MQTT311, topic: "data/temp",
+			qos: packet.QoS1},
+		{id: 3, version: packet.MQTT50, topic: "data/temp/#",
+			qos: packet.QoS2},
 	}
 
 	conf := newConfiguration()
@@ -808,7 +817,8 @@ func TestSessionManager_SubscribeError(t *testing.T) {
 	}{
 		{id: 1, version: packet.MQTT31, topic: "data#", qos: packet.QoS0},
 		{id: 2, version: packet.MQTT311, topic: "data+", qos: packet.QoS1},
-		{id: 3, version: packet.MQTT50, topic: "data/#/temp", qos: packet.QoS2},
+		{id: 3, version: packet.MQTT50, topic: "data/#/temp",
+			qos: packet.QoS2},
 	}
 
 	conf := newConfiguration()

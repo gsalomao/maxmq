@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/gsalomao/maxmq/mocks"
-	"github.com/gsalomao/maxmq/mqtt/packet"
+	packet "github.com/gsalomao/maxmq/pkg/mqtt/packet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -140,7 +140,8 @@ func TestPubSub_PublishQoS0(t *testing.T) {
 	ps := createPubSub()
 	require.Zero(t, ps.queue.len())
 
-	pkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS1, 0, 0, nil,
+	pkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS1, 0, 0,
+		nil,
 		nil)
 
 	ps.publish(&pkt)
@@ -152,7 +153,8 @@ func TestPubSub_PublishQoS0(t *testing.T) {
 
 func TestPubSub_PublishQueuedMessagesNoSubscription(t *testing.T) {
 	ps := createPubSub()
-	pkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS0, 0, 0, nil,
+	pkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS0, 0, 0,
+		nil,
 		nil)
 	msg := message{id: 1, packet: &pkt}
 	ps.queue.enqueue(msg)

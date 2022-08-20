@@ -33,7 +33,7 @@ VERSION = $(shell git describe --tags --always --dirty | sed -e 's/^v//')
 
 all: help
 
-LDFLAGS ="-X 'github.com/gsalomao/maxmq/cli.version=${VERSION}'"
+LDFLAGS ="-X 'github.com/gsalomao/maxmq/pkg/cli.version=${VERSION}'"
 
 ## Build
 build: ## Build application
@@ -72,19 +72,19 @@ profile: ## Start broker with CPU/Memory profiler
 ## Test
 test: ## Run unit tests
 	$(call print_task,"Running unit tests")
-	@gotestsum --format pkgname --packages ./... -- -timeout 3s -race
+	@gotestsum --format pkgname --packages ./pkg/... -- -timeout 3s -race
 	$(call print_task_result,"Running unit tests","done")
 
 test-dev: ## Run unit tests in development mode
 	$(call print_task,"Running unit tests in development mode")
-	@gotestsum --format testname --packages ./... --watch -- -timeout 3s -race
+	@gotestsum --format testname --packages ./pkg/... --watch -- -timeout 3s -race
 
 coverage: ## Run unit tests with coverage report
 	$(call print_task,"Running unit tests")
 	@rm -rf ${COVERAGE_DIR}
 	@mkdir -p ${COVERAGE_DIR}
 	@go test -cover -covermode=atomic -race \
-		-coverprofile=$(COVERAGE_DIR)/coverage.out ./...
+		-coverprofile=$(COVERAGE_DIR)/coverage.out ./pkg/...
 	$(call print_task_result,"Running unit tests","done")
 
 	$(call print_task,"Generating coverage report")
@@ -127,10 +127,10 @@ lint: ## Lint source code
 	@golangci-lint run $(go list ./...)
 	$(call print_task_result,"Linting source code","done")
 
-complexity: ## Calculates cyclomatic complexities
-	$(call print_task,"Calculating cyclomatic complexities")
+complexity: ## Calculates cyclomatic complexity
+	$(call print_task,"Calculating cyclomatic complexity")
 	@gocyclo -over 11 -avg .
-	$(call print_task_result,"Calculating cyclomatic complexities","done")
+	$(call print_task_result,"Calculating cyclomatic complexity","done")
 
 check: vet lint complexity ## Check source code
 

@@ -17,7 +17,7 @@ package config_test
 import (
 	"testing"
 
-	"github.com/gsalomao/maxmq/config"
+	"github.com/gsalomao/maxmq/pkg/config"
 	"github.com/stretchr/testify/assert"
 )
 

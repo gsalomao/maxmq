@@ -19,8 +19,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/gsalomao/maxmq/broker"
-	"github.com/gsalomao/maxmq/logger"
+	"github.com/gsalomao/maxmq/pkg/broker"
+	"github.com/gsalomao/maxmq/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

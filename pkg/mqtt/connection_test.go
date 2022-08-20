@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/gsalomao/maxmq/mocks"
-	"github.com/gsalomao/maxmq/mqtt/packet"
+	packet "github.com/gsalomao/maxmq/pkg/mqtt/packet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
