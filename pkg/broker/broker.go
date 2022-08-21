@@ -21,6 +21,15 @@ import (
 	"github.com/gsalomao/maxmq/pkg/logger"
 )
 
+// Listener is an interface for network listeners.
+type Listener interface {
+	// Listen starts listening and block until the listener stops.
+	Listen() error
+
+	// Stop stops the listener unblocking the Listen function.
+	Stop()
+}
+
 // Broker represents the message broker.
 type Broker struct {
 	log       *logger.Logger
