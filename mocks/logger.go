@@ -32,7 +32,7 @@ func NewLoggerStub() *LoggerStub {
 	out := &loggerOutputStub{
 		buf: bytes.NewBufferString(""),
 	}
-	log := logger.New(out)
+	log := logger.New(out, &logIDGenStub{})
 
 	return &LoggerStub{log: log, out: out}
 }
@@ -66,4 +66,11 @@ func (l *loggerOutputStub) String() string {
 	l.mtx.Lock()
 	defer l.mtx.Unlock()
 	return l.buf.String()
+}
+
+type logIDGenStub struct {
+}
+
+func (m *logIDGenStub) NextID() uint64 {
+	return 0
 }

@@ -15,12 +15,11 @@
 package broker_test
 
 import (
-	"bytes"
 	"errors"
 	"testing"
 
+	"github.com/gsalomao/maxmq/mocks"
 	"github.com/gsalomao/maxmq/pkg/broker"
-	"github.com/gsalomao/maxmq/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -53,9 +52,8 @@ func (l *listenerMock) Stop() {
 }
 
 func TestBroker_Start(t *testing.T) {
-	out := bytes.NewBufferString("")
-	log := logger.New(out)
-	b := broker.New(&log)
+	log := mocks.NewLoggerStub()
+	b := broker.New(log.Logger())
 
 	mockLsn := newListenerMock()
 	mockLsn.On("Listen")
@@ -63,14 +61,12 @@ func TestBroker_Start(t *testing.T) {
 
 	err := b.Start()
 	assert.Nil(t, err)
-	assert.Contains(t, out.String(), "Broker started with success")
+	assert.Contains(t, log.String(), "Broker started with success")
 }
 
 func TestBroker_StartWithoutListener(t *testing.T) {
-	out := bytes.NewBufferString("")
-	log := logger.New(out)
-
-	b := broker.New(&log)
+	log := mocks.NewLoggerStub()
+	b := broker.New(log.Logger())
 
 	err := b.Start()
 	assert.NotNil(t, err)
@@ -78,9 +74,8 @@ func TestBroker_StartWithoutListener(t *testing.T) {
 }
 
 func TestBroker_Stop(t *testing.T) {
-	out := bytes.NewBufferString("")
-	log := logger.New(out)
-	b := broker.New(&log)
+	log := mocks.NewLoggerStub()
+	b := broker.New(log.Logger())
 
 	mockLsn := newListenerMock()
 	mockLsn.On("Listen")
@@ -104,9 +99,8 @@ func TestBroker_Stop(t *testing.T) {
 }
 
 func TestBroker_ListenerError(t *testing.T) {
-	out := bytes.NewBufferString("")
-	log := logger.New(out)
-	b := broker.New(&log)
+	log := mocks.NewLoggerStub()
+	b := broker.New(log.Logger())
 
 	mockLsn := newListenerMock()
 	mockLsn.On("Listen")

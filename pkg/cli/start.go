@@ -16,6 +16,7 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"runtime"
@@ -28,6 +29,7 @@ import (
 	"github.com/gsalomao/maxmq/pkg/logger"
 	"github.com/gsalomao/maxmq/pkg/metrics"
 	"github.com/gsalomao/maxmq/pkg/mqtt"
+	"github.com/gsalomao/maxmq/pkg/snowflake"
 	"github.com/mattn/go-colorable"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -49,10 +51,15 @@ func newCommandStart() *cobra.Command {
 			banner.InitString(colorable.NewColorableStdout(), true, true,
 				bannerTemplate)
 
-			log := logger.New(os.Stdout)
+			log, err := newLogger(os.Stdout, 0)
+			if err != nil {
+				os.Exit(1)
+			}
 
 			if profile != "" {
-				cpu, err := startCPUProfile()
+				var cpu *os.File
+
+				cpu, err = startCPUProfile()
 				if err != nil {
 					log.Fatal().Msg("Failed to start CPU profile: " +
 						err.Error())
@@ -60,7 +67,7 @@ func newCommandStart() *cobra.Command {
 				defer func() { _ = cpu.Close() }()
 			}
 
-			conf, err := loadConfig(&log)
+			conf, err := loadConfig(log)
 			if err != nil {
 				log.Fatal().Msg("Failed to load configuration: " + err.Error())
 			}
@@ -70,12 +77,12 @@ func newCommandStart() *cobra.Command {
 				log.Fatal().Msg("Failed to set log severity: " + err.Error())
 			}
 
-			b, err := newBroker(conf, &log)
+			b, err := newBroker(conf, log)
 			if err != nil {
 				log.Fatal().Msg("Failed to create broker: " + err.Error())
 			}
 
-			runBroker(b, &log)
+			runBroker(b, log)
 
 			if profile != "" {
 				err = saveHeapProfile()
@@ -90,6 +97,16 @@ func newCommandStart() *cobra.Command {
 	}
 
 	return cmd
+}
+
+func newLogger(out io.Writer, machineID int) (*logger.Logger, error) {
+	sf, err := snowflake.New(machineID)
+	if err != nil {
+		return nil, err
+	}
+
+	lg := logger.New(out, sf)
+	return &lg, nil
 }
 
 func newBroker(conf config.Config, log *logger.Logger) (*broker.Broker, error) {

@@ -21,11 +21,24 @@ import (
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/gsalomao/maxmq/pkg/logger"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
+type logIDGenMock struct {
+	mock.Mock
+}
+
+func (m *logIDGenMock) NextID() uint64 {
+	args := m.Called()
+	return uint64(args.Int(0))
+}
+
 func TestLogger_Log(t *testing.T) {
+	gen := logIDGenMock{}
+	gen.On("NextID").Return(1)
+
 	out := bytes.NewBufferString("")
-	log := logger.New(out)
+	log := logger.New(out, &gen)
 	msg := gofakeit.Phrase()
 
 	log.Info().Msg(msg)
@@ -34,8 +47,11 @@ func TestLogger_Log(t *testing.T) {
 }
 
 func TestLogger_WithField(t *testing.T) {
+	gen := logIDGenMock{}
+	gen.On("NextID").Return(1)
+
 	out := bytes.NewBufferString("")
-	log := logger.New(out)
+	log := logger.New(out, &gen)
 	key := gofakeit.Word()
 	val := gofakeit.Phrase()
 
@@ -44,9 +60,23 @@ func TestLogger_WithField(t *testing.T) {
 	assert.Contains(t, out.String(), val)
 }
 
-func TestLogger_SetSeverity(t *testing.T) {
+func TestLogger_WithLogId(t *testing.T) {
+	gen := logIDGenMock{}
+	gen.On("NextID").Return(255)
+
 	out := bytes.NewBufferString("")
-	log := logger.New(out)
+	log := logger.New(out, &gen)
+	msg := gofakeit.Phrase()
+
+	log.Info().Msg(msg)
+	assert.Contains(t, out.String(), "LogId=")
+}
+
+func TestLogger_SetSeverity(t *testing.T) {
+	gen := logIDGenMock{}
+	out := bytes.NewBufferString("")
+	log := logger.New(out, &gen)
+
 	msg := gofakeit.Phrase()
 	err := logger.SetSeverityLevel("info")
 

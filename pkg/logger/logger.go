@@ -25,9 +25,18 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// LogIDGenerator is responsible for generate log IDs.
+type LogIDGenerator interface {
+	// NextID generates a new log ID.
+	NextID() uint64
+}
+
 // Logger represents a logging object responsible to generate outputs to
 // an io.Writer.
-type Logger = zerolog.Logger
+type Logger struct {
+	zerolog.Logger
+	generator LogIDGenerator
+}
 
 const (
 	reset  = "\x1b[0m"
@@ -72,7 +81,7 @@ func init() {
 }
 
 // New creates a new logger object.
-func New(out io.Writer) Logger {
+func New(out io.Writer, gen LogIDGenerator) Logger {
 	output := &zerolog.ConsoleWriter{
 		Out:        out,
 		TimeFormat: time.RFC3339Nano,
@@ -86,10 +95,15 @@ func New(out io.Writer) Logger {
 	output.FormatErrFieldName = formatFieldName
 	output.FormatErrFieldValue = formatFieldValue
 
-	return zerolog.New(output).
+	logger := Logger{generator: gen}
+	zl := zerolog.New(output).
+		Hook(logger).
 		With().
 		Timestamp().
 		Logger()
+
+	logger.Logger = zl
+	return logger
 }
 
 // SetSeverityLevel sets the minimal severity level which the logs will be
@@ -130,4 +144,9 @@ func formatFieldValue(i interface{}) string {
 
 func colorize(color, msg string) string {
 	return color + msg + reset
+}
+
+// Run implements the zerolog.Hook interface to add log ID into the log event.
+func (l Logger) Run(e *zerolog.Event, _ zerolog.Level, _ string) {
+	e.Uint64("LogId", l.generator.NextID())
 }
