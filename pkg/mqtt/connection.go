@@ -158,14 +158,14 @@ func (m *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 	if err != nil {
 		if err == io.EOF {
 			m.log.Debug().
-				Bytes("ClientID", conn.session.ClientID).
+				Bytes("ClientId", conn.session.ClientID).
 				Msg("MQTT Network connection was closed")
 			return
 		}
 
 		if errCon, ok := err.(net.Error); ok && errCon.Timeout() {
 			m.log.Debug().
-				Bytes("ClientID", conn.session.ClientID).
+				Bytes("ClientId", conn.session.ClientID).
 				Bool("Connected", conn.session.connected).
 				Int("Timeout", conn.session.KeepAlive).
 				Msg("MQTT Timeout - No packet received")
@@ -173,7 +173,7 @@ func (m *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 		}
 
 		m.log.Warn().
-			Bytes("ClientID", conn.session.ClientID).
+			Bytes("ClientId", conn.session.ClientID).
 			Bool("Connected", conn.session.connected).
 			Int("Timeout", conn.session.KeepAlive).
 			Msg("MQTT Failed to read packet: " + err.Error())
@@ -182,9 +182,9 @@ func (m *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 
 	m.metrics.recordPacketReceived(pkt)
 	m.log.Debug().
-		Bytes("ClientID", conn.session.ClientID).
+		Bytes("ClientId", conn.session.ClientID).
 		Bool("Connected", conn.session.connected).
-		Uint8("PacketTypeID", uint8(pkt.Type())).
+		Uint8("PacketTypeId", uint8(pkt.Type())).
 		Msg("MQTT Received packet")
 	return
 }
@@ -195,7 +195,7 @@ func (m *connectionManager) handlePacket(conn *connection,
 	reply, err := m.sessionManager.handlePacket(&conn.session, pkt)
 	if err != nil {
 		m.log.Warn().
-			Bytes("ClientID", conn.session.ClientID).
+			Bytes("ClientId", conn.session.ClientID).
 			Stringer("PacketType", pkt.Type()).
 			Msg("MQTT Failed to handle packet: " + err.Error())
 		err = errors.New("failed to handle packet: " + err.Error())
@@ -235,7 +235,7 @@ func (m *connectionManager) closeConnection(conn *connection, force bool) {
 	}
 
 	m.log.Trace().
-		Bytes("ClientID", conn.session.ClientID).
+		Bytes("ClientId", conn.session.ClientID).
 		Bool("Force", force).
 		Msg("MQTT Closing connection")
 
@@ -253,7 +253,7 @@ func (m *connectionManager) closeConnection(conn *connection, force bool) {
 	m.sessionManager.disconnectSession(&conn.session)
 	m.metrics.recordDisconnection()
 	m.log.Debug().
-		Bytes("ClientID", conn.session.ClientID).
+		Bytes("ClientId", conn.session.ClientID).
 		Bool("Force", force).
 		Msg("MQTT Connection closed")
 }
@@ -263,15 +263,15 @@ func (m *connectionManager) replyPacket(pkt packet.Packet,
 	c *connection) error {
 
 	m.log.Trace().
-		Bytes("ClientID", c.session.ClientID).
-		Uint8("PacketTypeID", uint8(reply.Type())).
+		Bytes("ClientId", c.session.ClientID).
+		Uint8("PacketTypeId", uint8(reply.Type())).
 		Uint8("Version", uint8(c.session.Version)).
 		Msg("MQTT Sending packet")
 
 	err := m.writer.WritePacket(reply, c.netConn)
 	if err != nil {
 		m.log.Warn().
-			Bytes("ClientID", c.session.ClientID).
+			Bytes("ClientId", c.session.ClientID).
 			Stringer("PacketType", reply.Type()).
 			Uint8("Version", uint8(c.session.Version)).
 			Msg("MQTT Failed to send packet: " + err.Error())
@@ -281,8 +281,8 @@ func (m *connectionManager) replyPacket(pkt packet.Packet,
 		m.recordLatencyMetrics(pkt, reply)
 		m.metrics.recordPacketSent(reply)
 		m.log.Debug().
-			Bytes("ClientID", c.session.ClientID).
-			Uint8("PacketTypeID", uint8(reply.Type())).
+			Bytes("ClientId", c.session.ClientID).
+			Uint8("PacketTypeId", uint8(reply.Type())).
 			Uint8("Version", uint8(c.session.Version)).
 			Msg("MQTT Packet sent with success")
 	}
@@ -294,8 +294,8 @@ func (m *connectionManager) deliverPacket(id ClientID,
 	pkt *packet.Publish) error {
 
 	m.log.Trace().
-		Bytes("ClientID", id).
-		Uint16("PacketID", uint16(pkt.PacketID)).
+		Bytes("ClientId", id).
+		Uint16("PacketId", uint16(pkt.PacketID)).
 		Uint8("QoS", uint8(pkt.QoS)).
 		Uint8("Retain", pkt.Retain).
 		Str("TopicName", pkt.TopicName).
@@ -315,8 +315,8 @@ func (m *connectionManager) deliverPacket(id ClientID,
 	}
 
 	m.log.Debug().
-		Bytes("ClientID", id).
-		Uint16("PacketID", uint16(pkt.PacketID)).
+		Bytes("ClientId", id).
+		Uint16("PacketId", uint16(pkt.PacketID)).
 		Uint8("QoS", uint8(pkt.QoS)).
 		Uint8("Retain", pkt.Retain).
 		Str("TopicName", pkt.TopicName).

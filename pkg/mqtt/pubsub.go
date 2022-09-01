@@ -98,7 +98,7 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic,
 	subscriptionID uint32) (Subscription, error) {
 
 	p.log.Trace().
-		Bytes("ClientID", session.ClientID).
+		Bytes("ClientId", session.ClientID).
 		Bool("NoLocal", topic.NoLocal).
 		Uint8("QoS", byte(topic.QoS)).
 		Bool("RetainAsPublished", topic.RetainAsPublished).
@@ -120,7 +120,7 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic,
 	exists, err := p.tree.insert(sub)
 	if err != nil {
 		p.log.Error().
-			Bytes("ClientID", session.ClientID).
+			Bytes("ClientId", session.ClientID).
 			Bool("NoLocal", topic.NoLocal).
 			Uint8("QoS", byte(topic.QoS)).
 			Bool("RetainAsPublished", topic.RetainAsPublished).
@@ -136,7 +136,7 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic,
 	}
 
 	p.log.Debug().
-		Bytes("ClientID", session.ClientID).
+		Bytes("ClientId", session.ClientID).
 		Bool("NoLocal", topic.NoLocal).
 		Uint8("QoS", byte(topic.QoS)).
 		Bool("RetainAsPublished", topic.RetainAsPublished).
@@ -150,14 +150,14 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic,
 
 func (p *pubSub) unsubscribe(id ClientID, topic string) error {
 	p.log.Trace().
-		Bytes("ClientID", id).
+		Bytes("ClientId", id).
 		Str("TopicFilter", topic).
 		Msg("MQTT Unsubscribing to topic")
 
 	err := p.tree.remove(id, topic)
 	if err != nil {
 		p.log.Warn().
-			Bytes("ClientID", id).
+			Bytes("ClientId", id).
 			Str("TopicFilter", topic).
 			Msg("MQTT Failed to remove subscription: " + err.Error())
 		return err
@@ -165,7 +165,7 @@ func (p *pubSub) unsubscribe(id ClientID, topic string) error {
 
 	p.metrics.recordUnsubscribe()
 	p.log.Debug().
-		Bytes("ClientID", id).
+		Bytes("ClientId", id).
 		Str("TopicFilter", topic).
 		Msg("MQTT Unsubscribed to topic")
 
@@ -177,8 +177,8 @@ func (p *pubSub) publish(pkt *packet.Publish) {
 	msg := message{id: id, packet: pkt}
 	p.log.Trace().
 		Uint8("DUP", msg.packet.Dup).
-		Uint64("MessageID", msg.id).
-		Uint16("PacketID", uint16(msg.packet.PacketID)).
+		Uint64("MessageId", msg.id).
+		Uint16("PacketId", uint16(msg.packet.PacketID)).
 		Int("QueueLen", p.queue.len()).
 		Uint8("QoS", uint8(msg.packet.QoS)).
 		Uint8("Retain", msg.packet.Retain).
@@ -190,8 +190,8 @@ func (p *pubSub) publish(pkt *packet.Publish) {
 
 	p.log.Debug().
 		Uint8("DUP", msg.packet.Dup).
-		Uint64("MessageID", msg.id).
-		Uint16("PacketID", uint16(msg.packet.PacketID)).
+		Uint64("MessageId", msg.id).
+		Uint16("PacketId", uint16(msg.packet.PacketID)).
 		Int("QueueLen", p.queue.len()).
 		Uint8("QoS", uint8(msg.packet.QoS)).
 		Uint8("Retain", msg.packet.Retain).
@@ -204,8 +204,8 @@ func (p *pubSub) publishQueuedMessages() {
 		msg := p.queue.dequeue()
 		p.log.Trace().
 			Uint8("DUP", msg.packet.Dup).
-			Uint64("MessageID", msg.id).
-			Uint16("PacketID", uint16(msg.packet.PacketID)).
+			Uint64("MessageId", msg.id).
+			Uint16("PacketId", uint16(msg.packet.PacketID)).
 			Int("QueueLen", p.queue.len()).
 			Uint8("QoS", uint8(msg.packet.QoS)).
 			Uint8("Retain", msg.packet.Retain).
@@ -220,10 +220,10 @@ func (p *pubSub) publishQueuedMessages() {
 			err := p.publisher.publishMessage(sub.Session, m)
 			if err != nil {
 				p.log.Error().
-					Bytes("ClientID", sub.Session.ClientID).
+					Bytes("ClientId", sub.Session.ClientID).
 					Uint8("DUP", m.packet.Dup).
-					Uint64("MessageID", m.id).
-					Uint16("PacketID", uint16(m.packet.PacketID)).
+					Uint64("MessageId", m.id).
+					Uint16("PacketId", uint16(m.packet.PacketID)).
 					Uint8("QoS", uint8(m.packet.QoS)).
 					Uint8("Retain", m.packet.Retain).
 					Str("TopicName", m.packet.TopicName).
@@ -235,8 +235,8 @@ func (p *pubSub) publishQueuedMessages() {
 
 		p.log.Debug().
 			Uint8("DUP", msg.packet.Dup).
-			Uint64("MessageID", msg.id).
-			Uint16("PacketID", uint16(msg.packet.PacketID)).
+			Uint64("MessageId", msg.id).
+			Uint16("PacketId", uint16(msg.packet.PacketID)).
 			Int("QueueLen", p.queue.len()).
 			Uint8("QoS", uint8(msg.packet.QoS)).
 			Uint8("Retain", msg.packet.Retain).
