@@ -25,13 +25,13 @@ import (
 // Listener is responsible to implement the MQTT protocol conform the v3.1,
 // v3.1.1, and v5.0 specifications.
 type Listener struct {
+	tcpLsn      net.Listener
+	idGen       IDGenerator
 	log         *logger.Logger
 	conf        *Configuration
-	tcpLsn      net.Listener
 	connManager *connectionManager
 	running     bool
 	mtx         sync.Mutex
-	nodeID      uint16
 }
 
 // NewListener creates a new MQTT Listener with the given options.
@@ -48,8 +48,11 @@ func NewListener(opts ...OptionsFn) (*Listener, error) {
 	if l.conf == nil {
 		return nil, errors.New("missing configuration")
 	}
+	if l.idGen == nil {
+		return nil, errors.New("missing ID generator")
+	}
 
-	l.connManager = newConnectionManager(l.nodeID, l.conf, l.log)
+	l.connManager = newConnectionManager(l.conf, l.idGen, l.log)
 	return l, nil
 }
 

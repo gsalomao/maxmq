@@ -51,7 +51,8 @@ func newCommandStart() *cobra.Command {
 			banner.InitString(colorable.NewColorableStdout(), true, true,
 				bannerTemplate)
 
-			log, err := newLogger(os.Stdout, 0)
+			machineID := 0
+			log, err := newLogger(os.Stdout, machineID)
 			if err != nil {
 				os.Exit(1)
 			}
@@ -77,7 +78,7 @@ func newCommandStart() *cobra.Command {
 				log.Fatal().Msg("Failed to set log severity: " + err.Error())
 			}
 
-			b, err := newBroker(conf, log)
+			b, err := newBroker(conf, log, machineID)
 			if err != nil {
 				log.Fatal().Msg("Failed to create broker: " + err.Error())
 			}
@@ -109,7 +110,9 @@ func newLogger(out io.Writer, machineID int) (*logger.Logger, error) {
 	return &lg, nil
 }
 
-func newBroker(conf config.Config, log *logger.Logger) (*broker.Broker, error) {
+func newBroker(conf config.Config, log *logger.Logger,
+	machineID int) (*broker.Broker, error) {
+
 	mqttConf := mqtt.Configuration{
 		TCPAddress:                    conf.MQTTTCPAddress,
 		ConnectTimeout:                conf.MQTTConnectTimeout,
@@ -131,9 +134,15 @@ func newBroker(conf config.Config, log *logger.Logger) (*broker.Broker, error) {
 		MetricsEnabled:                conf.MetricsEnabled,
 	}
 
+	sf, err := snowflake.New(machineID)
+	if err != nil {
+		return nil, err
+	}
+
 	l, err := mqtt.NewListener(
 		mqtt.WithConfiguration(mqttConf),
 		mqtt.WithLogger(log),
+		mqtt.WithIDGenerator(sf),
 	)
 	if err != nil {
 		return nil, err

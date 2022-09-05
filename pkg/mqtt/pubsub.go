@@ -36,25 +36,25 @@ type deliverer interface {
 	deliverPacket(id ClientID, pkt *packet.Publish) error
 }
 
-func newPubSub(nodeID uint16, publisher publisher, metrics *metrics,
+func newPubSub(publisher publisher, idGen IDGenerator, metrics *metrics,
 	log *logger.Logger) pubSub {
 	return pubSub{
 		publisher: publisher,
 		metrics:   metrics,
 		log:       log,
 		tree:      newSubscriptionTree(),
-		idGen:     newMessageIDGenerator(nodeID),
+		idGen:     idGen,
 		action:    make(chan pubSubAction, 1),
 	}
 }
 
 type pubSub struct {
 	publisher publisher
+	idGen     IDGenerator
 	metrics   *metrics
 	log       *logger.Logger
 	tree      subscriptionTree
 	queue     messageQueue
-	idGen     messageIDGenerator
 	action    chan pubSubAction
 }
 
@@ -172,8 +172,8 @@ func (p *pubSub) unsubscribe(id ClientID, topic string) error {
 	return err
 }
 
-func (p *pubSub) publish(pkt *packet.Publish) {
-	id := p.idGen.nextID()
+func (p *pubSub) publish(pkt *packet.Publish) message {
+	id := p.idGen.NextID()
 	msg := message{id: id, packet: pkt}
 	p.log.Trace().
 		Uint8("DUP", msg.packet.Dup).
@@ -197,6 +197,8 @@ func (p *pubSub) publish(pkt *packet.Publish) {
 		Uint8("Retain", msg.packet.Retain).
 		Str("TopicName", msg.packet.TopicName).
 		Msg("MQTT Message queued for processing")
+
+	return msg
 }
 
 func (p *pubSub) publishQueuedMessages() {

@@ -16,91 +16,38 @@ package mqtt
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestMessageIDGenerator_NextIDValid(t *testing.T) {
-	generator := newMessageIDGenerator(10)
+func TestMessageQueue_Enqueue(t *testing.T) {
+	mq := messageQueue{}
+	require.Zero(t, mq.list.Len())
 
-	id1 := generator.nextID()
-	id2 := generator.nextID()
-	assert.NotZero(t, id1)
-	assert.NotZero(t, id2)
+	msg := message{id: 1}
+	mq.enqueue(msg)
+	require.Equal(t, 1, mq.list.Len())
 }
 
-func TestMessageIDGenerator_NextIDTimestamp(t *testing.T) {
-	generator := newMessageIDGenerator(10)
+func TestMessageQueue_Dequeue(t *testing.T) {
+	msg1 := message{id: 1}
+	mq := messageQueue{}
+	mq.enqueue(msg1)
 
-	id1 := generator.nextID()
-	id2 := generator.nextID()
-
-	timestamp1 := id1 >> 23
-	timestamp2 := id2 >> 23
-	assert.Equal(t, timestamp1, timestamp2)
-	assert.NotZero(t, timestamp1)
+	msg2 := mq.dequeue()
+	require.Zero(t, mq.list.Len())
+	assert.Equal(t, msg1.id, msg2.id)
 }
 
-func TestMessageIDGenerator_NextIDNodeID(t *testing.T) {
-	generator := newMessageIDGenerator(10)
+func TestMessageQueue_Len(t *testing.T) {
+	mq := messageQueue{}
+	assert.Zero(t, mq.len())
 
-	id1 := generator.nextID()
-	id2 := generator.nextID()
+	msg := message{id: 1}
+	mq.enqueue(msg)
+	assert.Equal(t, 1, mq.len())
 
-	nodeID1 := uint16(id1>>14) & 0x3FF
-	nodeID2 := uint16(id2>>14) & 0x3FF
-	assert.Equal(t, uint16(10), nodeID1)
-	assert.Equal(t, uint16(10), nodeID2)
-}
-
-func TestMessageIDGenerator_NextIDSequenceNumber(t *testing.T) {
-	generator := newMessageIDGenerator(10)
-
-	id1 := generator.nextID()
-	id2 := generator.nextID()
-
-	sqn1 := id1 & 0x1FFF
-	sqn2 := id2 & 0x1FFF
-	assert.Equal(t, sqn1+1, sqn2)
-}
-
-func TestMessageIDGenerator_NextIDSameTimestamp(t *testing.T) {
-	generator := newMessageIDGenerator(10)
-
-	id1 := generator.nextID()
-	id2 := generator.nextID()
-
-	timestamp1 := id1 >> 24
-	timestamp2 := id2 >> 24
-	assert.Equal(t, timestamp2, timestamp1)
-
-	sqn1 := id1 & 0x1FFF
-	sqn2 := id2 & 0x1FFF
-	assert.Greater(t, sqn2, sqn1)
-}
-
-func TestMessageIDGenerator_NextIDDifferentTimestamp(t *testing.T) {
-	generator := newMessageIDGenerator(10)
-
-	id1 := generator.nextID()
-	time.Sleep(1 * time.Millisecond)
-	id2 := generator.nextID()
-
-	timestamp1 := id1 >> 24
-	timestamp2 := id2 >> 24
-	assert.Greater(t, timestamp2, timestamp1)
-
-	sqn1 := id1 & 0x1FFF
-	sqn2 := id2 & 0x1FFF
-	assert.Equal(t, sqn1, sqn2)
-}
-
-func BenchmarkMessageIDGenerator_NextID(b *testing.B) {
-	b.ReportAllocs()
-	generator := newMessageIDGenerator(10)
-
-	for i := 0; i < b.N; i++ {
-		_ = generator.nextID()
-	}
+	_ = mq.dequeue()
+	assert.Zero(t, mq.len())
 }

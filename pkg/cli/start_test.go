@@ -63,7 +63,7 @@ func TestCLI_NewBroker(t *testing.T) {
 			MetricsProfiling: true,
 		}
 
-		b, err := newBroker(conf, logStub.Logger())
+		b, err := newBroker(conf, logStub.Logger(), 0)
 		require.Nil(t, err)
 		require.NotNil(t, b)
 	})
@@ -77,7 +77,7 @@ func TestCLI_NewBroker(t *testing.T) {
 			MetricsPath:    "",
 		}
 
-		b, err := newBroker(conf, logStub.Logger())
+		b, err := newBroker(conf, logStub.Logger(), 0)
 		require.NotNil(t, err)
 		require.Nil(t, b)
 	})

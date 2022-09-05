@@ -21,15 +21,27 @@ import (
 
 	"github.com/gsalomao/maxmq/mocks"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
+
+type idGeneratorMock struct {
+	mock.Mock
+}
+
+func (g *idGeneratorMock) NextID() uint64 {
+	args := g.Called()
+	return uint64(args.Int(0))
+}
 
 func TestListener_New(t *testing.T) {
 	t.Run("MissingConfiguration", func(t *testing.T) {
 		logger := mocks.NewLoggerStub()
+		idGen := &idGeneratorMock{}
 
 		_, err := NewListener(
 			WithLogger(logger.Logger()),
+			WithIDGenerator(idGen),
 		)
 
 		require.NotNil(t, err)
@@ -37,21 +49,38 @@ func TestListener_New(t *testing.T) {
 	})
 
 	t.Run("MissingLogger", func(t *testing.T) {
+		idGen := &idGeneratorMock{}
+
 		_, err := NewListener(
 			WithConfiguration(Configuration{}),
+			WithIDGenerator(idGen),
 		)
 
 		require.NotNil(t, err)
 		assert.Equal(t, "missing logger", err.Error())
 	})
+
+	t.Run("MissingIDGenerator", func(t *testing.T) {
+		logger := mocks.NewLoggerStub()
+
+		_, err := NewListener(
+			WithConfiguration(Configuration{}),
+			WithLogger(logger.Logger()),
+		)
+
+		require.NotNil(t, err)
+		assert.Equal(t, "missing ID generator", err.Error())
+	})
 }
 
 func TestListener_RunInvalidTCPAddress(t *testing.T) {
 	logger := mocks.NewLoggerStub()
+	idGen := &idGeneratorMock{}
 
 	l, err := NewListener(
 		WithConfiguration(Configuration{TCPAddress: "."}),
 		WithLogger(logger.Logger()),
+		WithIDGenerator(idGen),
 	)
 	require.Nil(t, err)
 	require.NotNil(t, l)
@@ -62,10 +91,12 @@ func TestListener_RunInvalidTCPAddress(t *testing.T) {
 
 func TestListener_RunAndStop(t *testing.T) {
 	logger := mocks.NewLoggerStub()
+	idGen := &idGeneratorMock{}
 
 	l, err := NewListener(
 		WithConfiguration(Configuration{TCPAddress: ":1883"}),
 		WithLogger(logger.Logger()),
+		WithIDGenerator(idGen),
 	)
 	require.Nil(t, err)
 
@@ -86,10 +117,12 @@ func TestListener_RunAndStop(t *testing.T) {
 
 func TestListener_HandleConnection(t *testing.T) {
 	logger := mocks.NewLoggerStub()
+	idGen := &idGeneratorMock{}
 
 	l, err := NewListener(
 		WithConfiguration(Configuration{TCPAddress: ":1883"}),
 		WithLogger(logger.Logger()),
+		WithIDGenerator(idGen),
 	)
 	require.Nil(t, err)
 
@@ -111,10 +144,12 @@ func TestListener_HandleConnection(t *testing.T) {
 
 func TestListener_HandleConnectionFailure(t *testing.T) {
 	logger := mocks.NewLoggerStub()
+	idGen := &idGeneratorMock{}
 
 	l, err := NewListener(
 		WithConfiguration(Configuration{TCPAddress: ":1883"}),
 		WithLogger(logger.Logger()),
+		WithIDGenerator(idGen),
 	)
 	require.Nil(t, err)
 

@@ -18,6 +18,12 @@ import (
 	"github.com/gsalomao/maxmq/pkg/logger"
 )
 
+// IDGenerator generates an identifier numbers.
+type IDGenerator interface {
+	// NextID generates the next identifier number.
+	NextID() uint64
+}
+
 // OptionsFn represents a function which sets an option in the MQTT Listener.
 type OptionsFn func(l *Listener)
 
@@ -32,5 +38,12 @@ func WithConfiguration(cf Configuration) OptionsFn {
 func WithLogger(log *logger.Logger) OptionsFn {
 	return func(l *Listener) {
 		l.log = log
+	}
+}
+
+// WithIDGenerator set the given IDGenerator into the Listener.
+func WithIDGenerator(gen IDGenerator) OptionsFn {
+	return func(l *Listener) {
+		l.idGen = gen
 	}
 }

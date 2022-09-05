@@ -47,8 +47,8 @@ func createSessionManager(conf Configuration) *sessionManager {
 	}
 
 	m := newMetrics(true, logger.Logger())
-	return newSessionManager(0, &packetDeliverer, &conf, m, userProps,
-		logger.Logger())
+	return newSessionManager(&packetDeliverer, &idGeneratorMock{}, &conf, m,
+		userProps, logger.Logger())
 }
 
 func checkConnect(t *testing.T, conf Configuration, pkt *packet.Connect,
@@ -1139,6 +1139,9 @@ func TestSessionManager_PublishQoS0(t *testing.T) {
 
 			err := connectClient(sm, &session, test.version, false, nil)
 			require.Nil(t, err)
+
+			idGen := sm.pubSub.idGen.(*idGeneratorMock)
+			idGen.On("NextID").Return(3)
 
 			pubPkt := packet.NewPublish(test.id, test.version, test.topic,
 				packet.QoS0, 0, 0, []byte(test.payload), nil)

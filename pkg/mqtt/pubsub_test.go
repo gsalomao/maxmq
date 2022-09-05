@@ -40,9 +40,10 @@ func (d *messagePublisherMock) publishMessage(session *Session,
 func createPubSub() pubSub {
 	logger := mocks.NewLoggerStub()
 	pubMock := messagePublisherMock{}
+	idGen := &idGeneratorMock{}
 
 	m := newMetrics(true, logger.Logger())
-	return newPubSub(0, &pubMock, m, logger.Logger())
+	return newPubSub(&pubMock, idGen, m, logger.Logger())
 }
 
 func TestPubSub_StartStop(t *testing.T) {
@@ -140,11 +141,16 @@ func TestPubSub_PublishQoS0(t *testing.T) {
 	ps := createPubSub()
 	require.Zero(t, ps.queue.len())
 
-	pkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS1, 0, 0,
-		nil,
-		nil)
+	msgID := 10
+	idGen := ps.idGen.(*idGeneratorMock)
+	idGen.On("NextID").Return(msgID)
 
-	ps.publish(&pkt)
+	pkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS1,
+		0, 0, nil, nil)
+
+	msg := ps.publish(&pkt)
+	assert.Equal(t, uint64(msgID), msg.id)
+	assert.Equal(t, &pkt, msg.packet)
 	assert.Equal(t, 1, ps.queue.len())
 
 	act := <-ps.action
@@ -153,9 +159,8 @@ func TestPubSub_PublishQoS0(t *testing.T) {
 
 func TestPubSub_PublishQueuedMessagesNoSubscription(t *testing.T) {
 	ps := createPubSub()
-	pkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS0, 0, 0,
-		nil,
-		nil)
+	pkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS0,
+		0, 0, nil, nil)
 	msg := message{id: 1, packet: &pkt}
 	ps.queue.enqueue(msg)
 

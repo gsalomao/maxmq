@@ -62,7 +62,7 @@ type connectionManager struct {
 }
 
 func newConnectionManager(
-	nodeID uint16, conf *Configuration, log *logger.Logger,
+	conf *Configuration, idGen IDGenerator, log *logger.Logger,
 ) *connectionManager {
 	conf.BufferSize = bufferSizeOrDefault(conf.BufferSize)
 	conf.MaxPacketSize = maxPacketSizeOrDefault(conf.MaxPacketSize)
@@ -93,7 +93,7 @@ func newConnectionManager(
 		writer:      packet.NewWriter(conf.BufferSize),
 	}
 
-	cm.sessionManager = newSessionManager(nodeID, &cm, conf, m, userProps, log)
+	cm.sessionManager = newSessionManager(&cm, idGen, conf, m, userProps, log)
 	return &cm
 }
 

@@ -80,7 +80,7 @@ type sessionManager struct {
 	userProperties []packet.UserProperty
 }
 
-func newSessionManager(nodeID uint16, deliverer deliverer,
+func newSessionManager(deliverer deliverer, idGen IDGenerator,
 	conf *Configuration, metrics *metrics, props []packet.UserProperty,
 	log *logger.Logger) *sessionManager {
 
@@ -93,7 +93,7 @@ func newSessionManager(nodeID uint16, deliverer deliverer,
 		log:            log,
 	}
 
-	sm.pubSub = newPubSub(nodeID, &sm, metrics, log)
+	sm.pubSub = newPubSub(&sm, idGen, metrics, log)
 	return &sm
 }
 
@@ -341,7 +341,18 @@ func (m *sessionManager) handlePublish(session *Session,
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Received PUBLISH packet")
 
-	m.pubSub.publish(pkt)
+	msg := m.pubSub.publish(pkt)
+	m.log.Info().
+		Bytes("ClientId", session.ClientID).
+		Uint8("DUP", msg.packet.Dup).
+		Uint64("MessageId", msg.id).
+		Uint16("PacketId", uint16(msg.packet.PacketID)).
+		Uint8("QoS", uint8(msg.packet.QoS)).
+		Uint8("Retain", msg.packet.Retain).
+		Str("TopicName", msg.packet.TopicName).
+		Uint8("Version", uint8(session.Version)).
+		Msg("MQTT Client published a packet")
+
 	return nil, nil
 }
 

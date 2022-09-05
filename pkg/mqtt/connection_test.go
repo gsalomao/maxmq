@@ -49,7 +49,7 @@ func newConfiguration() Configuration {
 
 func createConnectionManager(conf Configuration) *connectionManager {
 	logger := mocks.NewLoggerStub()
-	return newConnectionManager(0, &conf, logger.Logger())
+	return newConnectionManager(&conf, &idGeneratorMock{}, logger.Logger())
 }
 
 func TestConnectionManager_DefaultValues(t *testing.T) {
