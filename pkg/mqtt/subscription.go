@@ -141,8 +141,11 @@ func (t *subscriptionTree) findMatches(topic string) []Subscription {
 	t.mutex.RLock()
 	defer t.mutex.RUnlock()
 
+	subscriptions := make([]Subscription, 0)
 	words := strings.Split(topic, "/")
-	return t.root.findMatches(words)
+	t.root.findMatches(&subscriptions, words)
+
+	return subscriptions
 }
 
 type subscriptionNode struct {
@@ -212,36 +215,39 @@ func (n *subscriptionNode) remove(id ClientID) error {
 	return nil
 }
 
-func (n *subscriptionNode) findMatches(topic []string) []Subscription {
-	subscriptions := make([]Subscription, 0)
+func (n *subscriptionNode) findMatches(subs *[]Subscription, topic []string) {
 	topicLen := len(topic)
 
 	node, ok := n.children[topic[0]]
 	if ok {
-		if topicLen == 1 && node.subscription != nil {
-			subscriptions = append(subscriptions, *node.subscription)
+		if topicLen == 1 {
+			node.getAllSubscriptions(subs)
 		} else if topicLen > 1 {
-			subs := node.findMatches(topic[1:])
-			subscriptions = append(subscriptions, subs...)
+			node.findMatches(subs, topic[1:])
 		}
 	}
 
 	node, ok = n.children["+"]
 	if ok {
-		if topicLen == 1 && node.subscription != nil {
-			subscriptions = append(subscriptions, *node.subscription)
+		if topicLen == 1 {
+			node.getAllSubscriptions(subs)
 		} else if topicLen > 1 {
-			subs := node.findMatches(topic[1:])
-			subscriptions = append(subscriptions, subs...)
+			node.findMatches(subs, topic[1:])
 		}
 	}
 
 	node, ok = n.children["#"]
-	if ok && node.subscription != nil {
-		subscriptions = append(subscriptions, *node.subscription)
+	if ok {
+		node.getAllSubscriptions(subs)
 	}
+}
 
-	return subscriptions
+func (n *subscriptionNode) getAllSubscriptions(subs *[]Subscription) {
+	sub := n.subscription
+	for sub != nil {
+		*subs = append(*subs, *sub)
+		sub = sub.next
+	}
 }
 
 func validateTopicWord(word string, isLastWord bool) error {

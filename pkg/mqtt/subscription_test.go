@@ -126,15 +126,12 @@ func TestSubscriptionTree_InsertMultipleSubscriptions(t *testing.T) {
 
 func TestSubscriptionTree_InsertSubscriptionsSameTopic(t *testing.T) {
 	subscriptions := []Subscription{
-		{Session: &Session{ClientID: ClientID("0")}, RetainHandling: 0,
-			RetainAsPublished: false, NoLocal: false,
-			TopicFilter: "topic", QoS: packet.QoS0},
-		{Session: &Session{ClientID: ClientID("1")}, RetainHandling: 1,
-			RetainAsPublished: false, NoLocal: true,
-			TopicFilter: "topic", QoS: packet.QoS1},
-		{Session: &Session{ClientID: ClientID("2")}, RetainHandling: 2,
-			RetainAsPublished: true, NoLocal: false,
-			TopicFilter: "topic", QoS: packet.QoS2},
+		{Session: &Session{ClientID: ClientID("0")}, TopicFilter: "topic"},
+		{Session: &Session{ClientID: ClientID("1")}, TopicFilter: "topic"},
+		{Session: &Session{ClientID: ClientID("2")}, TopicFilter: "topic"},
+		{Session: &Session{ClientID: ClientID("3")}, TopicFilter: "raw/#"},
+		{Session: &Session{ClientID: ClientID("4")}, TopicFilter: "raw/#"},
+		{Session: &Session{ClientID: ClientID("5")}, TopicFilter: "raw/#"},
 	}
 
 	tree := newSubscriptionTree()
@@ -409,6 +406,36 @@ func TestSubscriptionTree_FindMatches(t *testing.T) {
 
 			subs := tree.findMatches(test.topic)
 			assert.Equal(t, test.matches, len(subs))
+		})
+	}
+}
+
+func TestSubscriptionTree_FindMatchesSameTopicFilter(t *testing.T) {
+	testCases := []struct {
+		topic       string
+		clients     int
+		topicFilter string
+	}{
+		{topic: "raw/temp/1", clients: 2, topicFilter: "raw/#"},
+		{topic: "raw/1", clients: 3, topicFilter: "raw/1"},
+		{topic: "raw/temp", clients: 5, topicFilter: "raw/+"},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.topic, func(t *testing.T) {
+			tree := newSubscriptionTree()
+
+			for i := 0; i < test.clients; i++ {
+				session := &Session{ClientID: ClientID(fmt.Sprint(i))}
+				sub := Subscription{Session: session,
+					TopicFilter: test.topicFilter}
+
+				_, err := tree.insert(sub)
+				require.Nil(t, err)
+			}
+
+			subs := tree.findMatches(test.topic)
+			assert.Len(t, subs, test.clients)
 		})
 	}
 }
