@@ -132,9 +132,11 @@ func (pkt *PubAck) Unpack(r *bufio.Reader) error {
 		code, _ = buf.ReadByte()
 		pkt.ReasonCode = ReasonCode(code)
 
-		pkt.Properties, err = readProperties(buf, PUBACK)
-		if err != nil {
-			return err
+		if buf.Len() > 0 {
+			pkt.Properties, err = readProperties(buf, PUBACK)
+			if err != nil {
+				return formatPacketError(pkt, "failed to read properties", err)
+			}
 		}
 	}
 

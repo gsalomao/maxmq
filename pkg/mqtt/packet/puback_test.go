@@ -285,23 +285,6 @@ func TestPubAck_UnpackNoPacketID(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestPubAck_UnpackV5InvalidProperties(t *testing.T) {
-	msg := []byte{
-		0, 25, // packet ID
-		byte(ReasonCodeV5NoMatchingSubscribers), // reason code
-	}
-	opts := options{
-		packetType:      PUBACK,
-		version:         MQTT50,
-		remainingLength: len(msg),
-	}
-	pkt, err := newPacketPubAck(opts)
-	require.Nil(t, err)
-
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
-}
-
 func TestPubAck_Size(t *testing.T) {
 	t.Run("Unknown", func(t *testing.T) {
 		pkt := NewPubAck(4, MQTT311, ReasonCodeV5Success, nil)
