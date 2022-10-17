@@ -16,6 +16,7 @@ package packet
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"sync"
 )
@@ -45,7 +46,7 @@ func (w *Writer) WritePacket(pkt Packet, wr io.Writer) error {
 
 	err := pkt.Pack(bufWr)
 	if err != nil {
-		return err
+		return errors.New("failed to pack packet: " + err.Error())
 	}
 
 	return bufWr.Flush()

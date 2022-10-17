@@ -156,11 +156,11 @@ func (m *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 
 	pkt, err = m.reader.ReadPacket(conn.netConn, conn.session.Version)
 	if err != nil {
-		if err == io.EOF {
+		if isConnectionClosed(conn.netConn) {
 			m.log.Debug().
 				Bytes("ClientId", conn.session.ClientID).
 				Msg("MQTT Network connection was closed")
-			return
+			return nil, io.EOF
 		}
 
 		if errCon, ok := err.(net.Error); ok && errCon.Timeout() {
@@ -300,7 +300,7 @@ func (m *connectionManager) deliverPacket(id ClientID,
 		Uint8("Retain", pkt.Retain).
 		Str("TopicName", pkt.TopicName).
 		Uint8("Version", uint8(pkt.Version)).
-		Msg("MQTT Sending packet")
+		Msg("MQTT Delivering packet to client")
 
 	m.mutex.RLock()
 	conn, ok := m.connections[string(id)]
@@ -321,7 +321,7 @@ func (m *connectionManager) deliverPacket(id ClientID,
 		Uint8("Retain", pkt.Retain).
 		Str("TopicName", pkt.TopicName).
 		Uint8("Version", uint8(pkt.Version)).
-		Msg("MQTT Packet sent with success")
+		Msg("MQTT Packet delivered to client with success")
 	return nil
 }
 

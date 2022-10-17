@@ -56,7 +56,7 @@ func (r *Reader) ReadPacket(rd io.Reader, ver MQTTVersion) (Packet, error) {
 
 	_, err := rd.Read(ctrlByte)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("failed to read control byte: " + err.Error())
 	}
 	now := time.Now()
 
@@ -67,7 +67,7 @@ func (r *Reader) ReadPacket(rd io.Reader, ver MQTTVersion) (Packet, error) {
 	var remainLen int
 	n, err := readVarInteger(bufRd, &remainLen)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("failed to remain length: " + err.Error())
 	}
 
 	if remainLen > r.maxPacketSize {
@@ -85,12 +85,12 @@ func (r *Reader) ReadPacket(rd io.Reader, ver MQTTVersion) (Packet, error) {
 
 	pkt, err := newPacket(opts)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("failed to read packet: " + err.Error())
 	}
 
 	err = pkt.Unpack(bufRd)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("failed to unpack packet: " + err.Error())
 	}
 
 	return pkt, nil

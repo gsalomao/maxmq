@@ -78,26 +78,26 @@ func (pkt *Subscribe) Pack(_ *bufio.Writer) error {
 func (pkt *Subscribe) Unpack(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
-		return errors.New("missing data")
+		return formatPacketError(pkt, "failed to read remaining bytes", err)
 	}
 	buf := bytes.NewBuffer(msg)
 
 	id, err := readUint[uint16](buf, pkt.Version)
 	if err != nil {
-		return err
+		return formatPacketError(pkt, "failed to read packet ID", err)
 	}
 	pkt.PacketID = ID(id)
 
 	if pkt.Version == MQTT50 {
 		pkt.Properties, err = readProperties(buf, SUBSCRIBE)
 		if err != nil {
-			return err
+			return formatPacketError(pkt, "failed to read properties", err)
 		}
 	}
 
 	err = pkt.unpackTopics(buf)
 	if err != nil {
-		return err
+		return formatPacketError(pkt, "failed to unpack topics", err)
 	}
 
 	return nil
@@ -123,12 +123,12 @@ func (pkt *Subscribe) unpackTopics(buf *bytes.Buffer) error {
 	for {
 		topic, err := readString(buf, pkt.Version)
 		if err != nil {
-			return err
+			return formatPacketError(pkt, "failed to read topic", err)
 		}
 
 		opts, err := buf.ReadByte()
 		if err != nil {
-			return err
+			return formatPacketError(pkt, "failed to read topic opts", err)
 		}
 
 		optsMask := byte(0xFC)

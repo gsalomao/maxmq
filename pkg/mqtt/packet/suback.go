@@ -62,29 +62,29 @@ func (pkt *SubAck) Pack(w *bufio.Writer) error {
 	if pkt.Version == MQTT50 {
 		err := writeProperties(buf, pkt.Properties, SUBACK)
 		if err != nil {
-			return err
+			return formatPacketError(pkt, "failed to write properties", err)
 		}
 	}
 
 	pktLen := buf.Len() + len(pkt.ReasonCodes) + 2 // +2 for packet ID
 
-	_ = w.WriteByte(byte(SUBACK) << packetTypeBit)
-	_ = writeVarInteger(w, pktLen)
-
-	_ = w.WriteByte(byte(pkt.PacketID >> 8))
-	err := w.WriteByte(byte(pkt.PacketID))
+	err := multierr.Combine(
+		w.WriteByte(byte(SUBACK)<<packetTypeBit),
+		writeVarInteger(w, pktLen),
+		w.WriteByte(byte(pkt.PacketID>>8)),
+		w.WriteByte(byte(pkt.PacketID)),
+	)
 	_, errBuf := buf.WriteTo(w)
-
 	err = multierr.Combine(err, errBuf)
-	if err != nil {
-		return err
-	}
 
 	for _, code := range pkt.ReasonCodes {
-		err = w.WriteByte(byte(code))
+		err = multierr.Combine(err, w.WriteByte(byte(code)))
 		if err != nil {
-			return err
+			break
 		}
+	}
+	if err != nil {
+		return formatPacketError(pkt, "failed to send packet", err)
 	}
 
 	pkt.timestamp = time.Now()

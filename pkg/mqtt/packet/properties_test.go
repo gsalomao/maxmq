@@ -416,7 +416,7 @@ func TestProperties_ReadPropertiesMalformed(t *testing.T) {
 
 		_, err := readProperties(bytes.NewBuffer(msg), CONNECT)
 		require.NotNil(t, err)
-		assert.ErrorIs(t, err, ErrV5MalformedPacket)
+		assert.ErrorContains(t, err, ErrV5MalformedPacket.Error())
 	}
 }
 
@@ -484,7 +484,7 @@ func TestProperties_ReadPropertiesProtocolError(t *testing.T) {
 			msg = append(msg, 0, 1, 'a') // client ID
 
 			_, err := readProperties(bytes.NewBuffer(msg), test.pktType)
-			assert.ErrorIs(t, err, ErrV5ProtocolError)
+			assert.ErrorContains(t, err, ErrV5ProtocolError.Error())
 		})
 	}
 }

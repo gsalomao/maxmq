@@ -27,6 +27,10 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
+func formatPacketError(pkt Packet, msg string, err error) error {
+	return fmt.Errorf("%v (%v): %w", msg, pkt.Type().String(), err)
+}
+
 func readVarInteger(r io.ByteReader, val *int) (n int, err error) {
 	multiplier := 1
 	for {

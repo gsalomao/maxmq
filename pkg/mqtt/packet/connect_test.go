@@ -491,7 +491,7 @@ func TestConnect_UnpackPropertiesMalformed(t *testing.T) {
 
 	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	assert.NotNil(t, err)
-	assert.ErrorIs(t, err, ErrV5MalformedPacket)
+	assert.ErrorContains(t, err, ErrV5MalformedPacket.Error())
 }
 
 func TestConnect_UnpackClientIDValid(t *testing.T) {
@@ -705,7 +705,7 @@ func TestConnect_UnpackWillPropertiesMalformed(t *testing.T) {
 
 	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
-	assert.ErrorIs(t, err, ErrV5MalformedPacket)
+	assert.ErrorContains(t, err, ErrV5MalformedPacket.Error())
 }
 
 func TestConnect_UnpackWillTopicValid(t *testing.T) {

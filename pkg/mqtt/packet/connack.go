@@ -64,28 +64,26 @@ func (pkt *ConnAck) Pack(w *bufio.Writer) error {
 	if pkt.Version == MQTT50 {
 		err := writeProperties(buf, pkt.Properties, CONNACK)
 		if err != nil {
-			return err
+			return formatPacketError(pkt, "failed to write properties", err)
 		}
 	}
 
 	pktLen := buf.Len() + 2 // +2 for ack flags and reason code
-
-	_ = w.WriteByte(byte(CONNACK) << packetTypeBit)
-	_ = writeVarInteger(w, pktLen)
-
-	// Acknowledge Flags
+	var ackFlag byte
 	if pkt.SessionPresent && pkt.Version != MQTT31 {
-		_ = w.WriteByte(1)
-	} else {
-		_ = w.WriteByte(0)
+		ackFlag = 1
 	}
 
-	err := w.WriteByte(byte(pkt.ReasonCode))
-	_, errBuf := buf.WriteTo(w)
-
-	err = multierr.Combine(err, errBuf)
+	err := multierr.Combine(
+		w.WriteByte(byte(CONNACK)<<packetTypeBit),
+		writeVarInteger(w, pktLen),
+		w.WriteByte(ackFlag),
+		w.WriteByte(byte(pkt.ReasonCode)),
+	)
+	_, errBuff := buf.WriteTo(w)
+	err = multierr.Combine(err, errBuff)
 	if err != nil {
-		return err
+		return formatPacketError(pkt, "failed to send packet", err)
 	}
 
 	pkt.timestamp = time.Now()

@@ -17,7 +17,10 @@ package packet
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
+
+	"go.uber.org/multierr"
 )
 
 // Properties contains all properties available in the MQTT specification
@@ -288,16 +291,22 @@ func writeProperties(buf *bytes.Buffer, p *Properties, t Type) error {
 		return pw.err
 	}
 
-	_ = writeVarInteger(buf, b.Len())
-	_, err = b.WriteTo(buf)
-	return err
+	err = writeVarInteger(buf, b.Len())
+	_, errBuf := b.WriteTo(buf)
+	err = multierr.Combine(err, errBuf)
+	if err != nil {
+		return errors.New("failed to write properties to buffer: " + err.Error())
+	}
+
+	return nil
 }
 
 func readProperties(b *bytes.Buffer, t Type) (*Properties, error) {
 	var propsLen int
 	_, err := readVarInteger(b, &propsLen)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("failed to read properties length: " +
+			err.Error())
 	}
 	if propsLen == 0 {
 		return nil, nil
@@ -308,7 +317,7 @@ func readProperties(b *bytes.Buffer, t Type) (*Properties, error) {
 
 	err = p.unpackProperties(props, t)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("failed to unpack properties: " + err.Error())
 	}
 
 	return p, nil

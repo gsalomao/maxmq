@@ -213,9 +213,18 @@ func (p *pubSub) publishQueuedMessages() {
 			Uint8("Retain", msg.packet.Retain).
 			Str("TopicName", msg.packet.TopicName).
 			Uint8("Version", uint8(msg.packet.Version)).
-			Msg("MQTT Processing message from the queue")
+			Msg("MQTT Publishing queued message")
 
 		subscriptions := p.tree.findMatches(msg.packet.TopicName)
+		if len(subscriptions) > 0 {
+			p.log.Trace().
+				Uint64("MessageId", msg.id).
+				Uint16("PacketId", uint16(msg.packet.PacketID)).
+				Int("Subscriptions", len(subscriptions)).
+				Str("TopicName", msg.packet.TopicName).
+				Msg("MQTT Found subscriptions")
+		}
+
 		for _, sub := range subscriptions {
 			m := message{id: msg.id, packet: msg.packet.Clone()}
 
@@ -243,6 +252,6 @@ func (p *pubSub) publishQueuedMessages() {
 			Uint8("QoS", uint8(msg.packet.QoS)).
 			Uint8("Retain", msg.packet.Retain).
 			Str("TopicName", msg.packet.TopicName).
-			Msg("MQTT Message processed with success")
+			Msg("MQTT Queued message published with success")
 	}
 }

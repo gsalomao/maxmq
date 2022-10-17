@@ -142,48 +142,48 @@ func (pkt *Connect) Pack(_ *bufio.Writer) error {
 func (pkt *Connect) Unpack(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
-		return errors.New("missing data")
+		return formatPacketError(pkt, "failed to read remaining bytes", err)
 	}
 	buf := bytes.NewBuffer(msg)
 
 	err := pkt.unpackVersion(buf)
 	if err != nil {
-		return err
+		return formatPacketError(pkt, "failed to unpack version", err)
 	}
 
 	err = pkt.unpackFlags(buf)
 	if err != nil {
-		return err
+		return formatPacketError(pkt, "failed to unpack flags", err)
 	}
 
 	pkt.KeepAlive, err = readUint[uint16](buf, pkt.Version)
 	if err != nil {
-		return err
+		return formatPacketError(pkt, "failed to unpack keep alive", err)
 	}
 
 	err = pkt.unpackProperties(buf)
 	if err != nil {
-		return err
+		return formatPacketError(pkt, "failed to unpack properties", err)
 	}
 
 	err = pkt.unpackClientID(buf) // MQTT-3.1.3-3
 	if err != nil {
-		return err
+		return formatPacketError(pkt, "failed to unpack client ID", err)
 	}
 
 	err = pkt.unpackWill(buf)
 	if err != nil {
-		return err
+		return formatPacketError(pkt, "failed to unpack Will", err)
 	}
 
 	err = pkt.unpackUserName(buf)
 	if err != nil {
-		return err
+		return formatPacketError(pkt, "failed to unpack username", err)
 	}
 
 	err = pkt.unpackPassword(buf)
 	if err != nil {
-		return err
+		return formatPacketError(pkt, "failed to unpack password", err)
 	}
 
 	return nil
@@ -209,19 +209,19 @@ func (pkt *Connect) unpackVersion(buf *bytes.Buffer) error {
 	// As the MQTT version is unknown yet, use the default version
 	protoName, err := readString(buf, MQTT311)
 	if err != nil {
-		return errors.New("cannot decode protocol name (CONNECT)")
+		return errors.New("cannot decode protocol name")
 	}
 
 	v, err := buf.ReadByte()
 	pkt.Version = MQTTVersion(v)
 	if err != nil {
-		return errors.New("no protocol version (CONNECT)")
+		return errors.New("no protocol version")
 	}
 
 	if n, ok := protocolNames[pkt.Version]; !ok { // MQTT-3.1.2-2
 		return ErrV3UnacceptableProtocolVersion
 	} else if !bytes.Equal(n, protoName) { // MQTT-3.1.2-1
-		return errors.New("invalid protocol name (CONNECT)")
+		return errors.New("invalid protocol name")
 	}
 
 	return nil
@@ -230,12 +230,11 @@ func (pkt *Connect) unpackVersion(buf *bytes.Buffer) error {
 func (pkt *Connect) unpackFlags(buf *bytes.Buffer) error {
 	flags, err := buf.ReadByte()
 	if err != nil {
-		return errors.New("no Connect Flags (CONNECT)")
+		return errors.New("no Connect Flags")
 	}
 
 	if hasFlag(flags, connectFlagReserved) { // MQTT-3.1.2-3
-		return newErrMalformedPacket(pkt.Version,
-			"invalid Connect Flags (CONNECT)")
+		return newErrMalformedPacket(pkt.Version, "invalid Connect Flags")
 	}
 
 	pkt.CleanSession = hasFlag(flags, connectFlagCleanSession)
@@ -260,19 +259,16 @@ func (pkt *Connect) unpackFlagsWill(flags byte) error {
 
 	pkt.WillQoS = WillQoS(wQoS)
 	if !pkt.WillFlag && pkt.WillQoS != WillQoS0 { // MQTT-3.1.2-13
-		return newErrMalformedPacket(pkt.Version,
-			"invalid Connect Flags (CONNECT)")
+		return newErrMalformedPacket(pkt.Version, "invalid Connect Flags")
 	}
 
 	if pkt.WillQoS > WillQoS2 { // MQTT-3.1.2-14
-		return newErrMalformedPacket(pkt.Version,
-			"invalid Connect Flags (CONNECT)")
+		return newErrMalformedPacket(pkt.Version, "invalid Connect Flags")
 	}
 
 	pkt.WillRetain = hasFlag(flags, connectFlagWillRetain)
 	if !pkt.WillFlag && pkt.WillRetain { // MQTT-3.1.2-15
-		return newErrMalformedPacket(pkt.Version,
-			"invalid Connect Flags (CONNECT)")
+		return newErrMalformedPacket(pkt.Version, "invalid Connect Flags")
 	}
 
 	return nil
@@ -283,8 +279,7 @@ func (pkt *Connect) unpackFlagsUserNamePassword(flags byte) error {
 	pkt.UserNameFlag = hasFlag(flags, connectFlagUserName)
 
 	if pkt.PasswordFlag && !pkt.UserNameFlag { // MQTT-3.1.2-22
-		return newErrMalformedPacket(pkt.Version,
-			"invalid Connect Flags (CONNECT)")
+		return newErrMalformedPacket(pkt.Version, "invalid Connect Flags")
 	}
 
 	return nil
@@ -309,7 +304,7 @@ func (pkt *Connect) unpackClientID(buf *bytes.Buffer) error {
 
 	pkt.ClientID, err = readString(buf, pkt.Version) // MQTT-3.1.3-2
 	if err != nil {
-		return newErrMalformedPacket(pkt.Version, "invalid ClientID (CONNECT)")
+		return newErrMalformedPacket(pkt.Version, "invalid ClientID")
 	}
 
 	if len(pkt.ClientID) == 0 {
@@ -340,14 +335,12 @@ func (pkt *Connect) unpackWill(buf *bytes.Buffer) error {
 
 	pkt.WillTopic, err = readString(buf, pkt.Version) // MQTT-3.1.3-10
 	if err != nil {
-		return newErrMalformedPacket(pkt.Version,
-			"invalid Will Topic (CONNECT)")
+		return newErrMalformedPacket(pkt.Version, "invalid Will Topic")
 	}
 
 	pkt.WillMessage, err = readString(buf, pkt.Version)
 	if err != nil {
-		return newErrMalformedPacket(pkt.Version,
-			"invalid Will Message (CONNECT)")
+		return newErrMalformedPacket(pkt.Version, "invalid Will Message")
 	}
 
 	return nil
@@ -362,7 +355,7 @@ func (pkt *Connect) unpackUserName(buf *bytes.Buffer) error {
 
 	pkt.UserName, err = readString(buf, pkt.Version) // MQTT-3.1.3-11
 	if err != nil {
-		return newErrMalformedPacket(pkt.Version, "invalid User Name (CONNECT)")
+		return newErrMalformedPacket(pkt.Version, "invalid User Name")
 	}
 
 	return nil
@@ -377,7 +370,7 @@ func (pkt *Connect) unpackPassword(buf *bytes.Buffer) error {
 
 	pkt.Password, err = readBinary(buf, pkt.Version)
 	if err != nil {
-		return newErrMalformedPacket(pkt.Version, "invalid Password (CONNECT)")
+		return newErrMalformedPacket(pkt.Version, "invalid Password")
 	}
 
 	return nil

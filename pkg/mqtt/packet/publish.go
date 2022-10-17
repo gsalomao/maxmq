@@ -21,6 +21,8 @@ import (
 	"errors"
 	"io"
 	"time"
+
+	"go.uber.org/multierr"
 )
 
 const (
@@ -121,7 +123,7 @@ func (pkt *Publish) Pack(w *bufio.Writer) error {
 	if pkt.Version == MQTT50 {
 		err := writeProperties(buf, pkt.Properties, PUBLISH)
 		if err != nil {
-			return err
+			return formatPacketError(pkt, "failed to write properties", err)
 		}
 	}
 
@@ -135,16 +137,25 @@ func (pkt *Publish) Pack(w *bufio.Writer) error {
 	ctrl := (byte(PUBLISH) << packetTypeBit) | (pkt.Dup & 1 << 3) |
 		(byte(pkt.QoS) & 3 << 1) | (pkt.Retain & 1)
 
-	_ = w.WriteByte(ctrl)
-	_ = writeVarInteger(w, pktLen)
-	_, _ = writeBinary(w, []byte(pkt.TopicName))
+	err := multierr.Combine(
+		w.WriteByte(ctrl),
+		writeVarInteger(w, pktLen),
+	)
+	_, err2 := writeBinary(w, []byte(pkt.TopicName))
+	err = multierr.Combine(err, err2)
 
 	if pkt.QoS > QoS0 {
-		_ = binary.Write(w, binary.BigEndian, uint16(pkt.PacketID))
+		err = multierr.Combine(err,
+			binary.Write(w, binary.BigEndian, uint16(pkt.PacketID)))
 	}
 
-	_, _ = buf.WriteTo(w)
-	_, _ = w.Write(pkt.Payload)
+	_, err2 = buf.WriteTo(w)
+	_, err3 := w.Write(pkt.Payload)
+	err = multierr.Combine(err, err2, err3)
+	if err != nil {
+		return formatPacketError(pkt, "failed to send packet", err)
+	}
+
 	return nil
 }
 
@@ -153,18 +164,18 @@ func (pkt *Publish) Pack(w *bufio.Writer) error {
 func (pkt *Publish) Unpack(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
-		return errors.New("missing data")
+		return formatPacketError(pkt, "failed to read remaining bytes", err)
 	}
 	buf := bytes.NewBuffer(msg)
 
 	topic, err := readString(buf, pkt.Version)
 	if err != nil {
-		return err
+		return formatPacketError(pkt, "failed to read topic", err)
 	}
 
 	topicName := string(topic)
 	if !isValidTopicName(topicName) {
-		return errors.New("invalid topic name")
+		return errors.New("invalid topic name (PUBLISH)")
 	}
 	pkt.TopicName = topicName
 
@@ -172,7 +183,7 @@ func (pkt *Publish) Unpack(r *bufio.Reader) error {
 		var id uint16
 		id, err = readUint[uint16](buf, pkt.Version)
 		if err != nil {
-			return err
+			return formatPacketError(pkt, "failed to read packet ID", err)
 		}
 		pkt.PacketID = ID(id)
 	}

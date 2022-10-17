@@ -88,22 +88,22 @@ func (pkt *PubAck) Pack(w *bufio.Writer) error {
 		err = multierr.Combine(err,
 			writeProperties(buf, pkt.Properties, PUBACK))
 		if err != nil {
-			return err
+			return formatPacketError(pkt, "failed to write properties", err)
 		}
 	}
 
 	pktLen := buf.Len() + 2 // +2 for packet ID
 
-	_ = w.WriteByte(byte(PUBACK) << packetTypeBit)
-	_ = writeVarInteger(w, pktLen)
-
-	_ = w.WriteByte(byte(pkt.PacketID >> 8))
-	err := w.WriteByte(byte(pkt.PacketID))
+	err := multierr.Combine(
+		w.WriteByte(byte(PUBACK)<<packetTypeBit),
+		writeVarInteger(w, pktLen),
+		w.WriteByte(byte(pkt.PacketID>>8)),
+		w.WriteByte(byte(pkt.PacketID)),
+	)
 	_, errBuf := buf.WriteTo(w)
-
 	err = multierr.Combine(err, errBuf)
 	if err != nil {
-		return err
+		return formatPacketError(pkt, "failed to send packet", err)
 	}
 
 	pkt.timestamp = time.Now()
@@ -117,13 +117,13 @@ func (pkt *PubAck) Pack(w *bufio.Writer) error {
 func (pkt *PubAck) Unpack(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
-		return errors.New("missing data")
+		return formatPacketError(pkt, "failed to read remaining bytes", err)
 	}
 	buf := bytes.NewBuffer(msg)
 
 	id, err := readUint[uint16](buf, pkt.Version)
 	if err != nil {
-		return err
+		return formatPacketError(pkt, "failed to read packet ID", err)
 	}
 	pkt.PacketID = ID(id)
 

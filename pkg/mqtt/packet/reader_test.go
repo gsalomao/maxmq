@@ -177,7 +177,7 @@ func TestPacket_ReadPacketInvalid(t *testing.T) {
 		},
 		{
 			pkt: []byte{0x10, 3},
-			msg: "missing data",
+			msg: "failed to read remaining bytes",
 		},
 		{
 			pkt: []byte{0x10, 0},
@@ -186,27 +186,29 @@ func TestPacket_ReadPacketInvalid(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		conn, sConn := net.Pipe()
+		t.Run(test.msg, func(t *testing.T) {
+			conn, sConn := net.Pipe()
 
-		done := make(chan bool)
-		go func() {
-			defer func() {
-				done <- true
+			done := make(chan bool)
+			go func() {
+				defer func() {
+					done <- true
+				}()
+
+				_ = sConn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+				opts := packet.ReaderOptions{BufferSize: 1024,
+					MaxPacketSize: 65536}
+				reader := packet.NewReader(opts)
+
+				_, err := reader.ReadPacket(sConn, packet.MQTT311)
+				require.NotNil(t, err)
+				assert.Contains(t, err.Error(), test.msg)
 			}()
 
-			_ = sConn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-			opts := packet.ReaderOptions{BufferSize: 1024,
-				MaxPacketSize: 65536}
-			reader := packet.NewReader(opts)
-
-			_, err := reader.ReadPacket(sConn, packet.MQTT311)
-			require.NotNil(t, err)
-			assert.Contains(t, err.Error(), test.msg)
-		}()
-
-		n, err := conn.Write(test.pkt)
-		assert.Nil(t, err)
-		assert.Equal(t, len(test.pkt), n)
-		<-done
+			n, err := conn.Write(test.pkt)
+			assert.Nil(t, err)
+			assert.Equal(t, len(test.pkt), n)
+			<-done
+		})
 	}
 }
