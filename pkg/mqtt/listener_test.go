@@ -118,6 +118,7 @@ func TestListener_RunAndStop(t *testing.T) {
 func TestListener_HandleConnection(t *testing.T) {
 	logger := mocks.NewLoggerStub()
 	idGen := &idGeneratorMock{}
+	idGen.On("NextID").Return(1)
 
 	l, err := NewListener(
 		WithConfiguration(Configuration{TCPAddress: ":1883"}),
@@ -145,6 +146,7 @@ func TestListener_HandleConnection(t *testing.T) {
 func TestListener_HandleConnectionFailure(t *testing.T) {
 	logger := mocks.NewLoggerStub()
 	idGen := &idGeneratorMock{}
+	idGen.On("NextID").Return(1)
 
 	l, err := NewListener(
 		WithConfiguration(Configuration{TCPAddress: ":1883"}),

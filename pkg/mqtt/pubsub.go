@@ -29,11 +29,11 @@ const (
 type pubSubAction byte
 
 type publisher interface {
-	publishMessage(session *Session, msg message) error
+	publishMessage(session *Session, msg *message) error
 }
 
 type deliverer interface {
-	deliverPacket(id ClientID, pkt *packet.Publish) error
+	deliverPacket(id SessionID, pkt *packet.Publish) error
 }
 
 func newPubSub(publisher publisher, idGen IDGenerator, metrics *metrics,
@@ -172,12 +172,12 @@ func (p *pubSub) unsubscribe(id ClientID, topic string) error {
 	return err
 }
 
-func (p *pubSub) publish(pkt *packet.Publish) message {
+func (p *pubSub) publish(pkt *packet.Publish) *message {
 	id := p.idGen.NextID()
-	msg := message{id: id, packet: pkt}
+	msg := &message{id: messageID(id), packet: pkt}
 	p.log.Trace().
 		Uint8("DUP", msg.packet.Dup).
-		Uint64("MessageId", msg.id).
+		Uint64("MessageId", uint64(msg.id)).
 		Uint16("PacketId", uint16(msg.packet.PacketID)).
 		Int("QueueLen", p.queue.len()).
 		Uint8("QoS", uint8(msg.packet.QoS)).
@@ -190,7 +190,7 @@ func (p *pubSub) publish(pkt *packet.Publish) message {
 
 	p.log.Debug().
 		Uint8("DUP", msg.packet.Dup).
-		Uint64("MessageId", msg.id).
+		Uint64("MessageId", uint64(msg.id)).
 		Uint16("PacketId", uint16(msg.packet.PacketID)).
 		Int("QueueLen", p.queue.len()).
 		Uint8("QoS", uint8(msg.packet.QoS)).
@@ -206,7 +206,7 @@ func (p *pubSub) publishQueuedMessages() {
 		msg := p.queue.dequeue()
 		p.log.Trace().
 			Uint8("DUP", msg.packet.Dup).
-			Uint64("MessageId", msg.id).
+			Uint64("MessageId", uint64(msg.id)).
 			Uint16("PacketId", uint16(msg.packet.PacketID)).
 			Int("QueueLen", p.queue.len()).
 			Uint8("QoS", uint8(msg.packet.QoS)).
@@ -218,7 +218,7 @@ func (p *pubSub) publishQueuedMessages() {
 		subscriptions := p.tree.findMatches(msg.packet.TopicName)
 		if len(subscriptions) > 0 {
 			p.log.Trace().
-				Uint64("MessageId", msg.id).
+				Uint64("MessageId", uint64(msg.id)).
 				Uint16("PacketId", uint16(msg.packet.PacketID)).
 				Int("Subscriptions", len(subscriptions)).
 				Str("TopicName", msg.packet.TopicName).
@@ -226,14 +226,14 @@ func (p *pubSub) publishQueuedMessages() {
 		}
 
 		for _, sub := range subscriptions {
-			m := message{id: msg.id, packet: msg.packet.Clone()}
+			m := &message{id: msg.id, packet: msg.packet.Clone()}
 
 			err := p.publisher.publishMessage(sub.Session, m)
 			if err != nil {
 				p.log.Error().
 					Bytes("ClientId", sub.Session.ClientID).
 					Uint8("DUP", m.packet.Dup).
-					Uint64("MessageId", m.id).
+					Uint64("MessageId", uint64(m.id)).
 					Uint16("PacketId", uint16(m.packet.PacketID)).
 					Uint8("QoS", uint8(m.packet.QoS)).
 					Uint8("Retain", m.packet.Retain).
@@ -246,7 +246,7 @@ func (p *pubSub) publishQueuedMessages() {
 
 		p.log.Debug().
 			Uint8("DUP", msg.packet.Dup).
-			Uint64("MessageId", msg.id).
+			Uint64("MessageId", uint64(msg.id)).
 			Uint16("PacketId", uint16(msg.packet.PacketID)).
 			Int("QueueLen", p.queue.len()).
 			Uint8("QoS", uint8(msg.packet.QoS)).

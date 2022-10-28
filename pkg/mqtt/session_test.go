@@ -31,7 +31,7 @@ type delivererMock struct {
 	mock.Mock
 }
 
-func (d *delivererMock) deliverPacket(id ClientID, pkt *packet.Publish) error {
+func (d *delivererMock) deliverPacket(id SessionID, pkt *packet.Publish) error {
 	args := d.Called(id, pkt)
 	return args.Error(0)
 }
@@ -47,21 +47,27 @@ func createSessionManager(conf Configuration) *sessionManager {
 	}
 
 	m := newMetrics(true, logger.Logger())
-	return newSessionManager(&packetDeliverer, &idGeneratorMock{}, &conf, m,
+	idGen := &idGeneratorMock{}
+	idGen.On("NextID").Return(1)
+
+	return newSessionManager(&packetDeliverer, idGen, &conf, m,
 		userProps, logger.Logger())
 }
 
 func checkConnect(t *testing.T, conf Configuration, pkt *packet.Connect,
-	success bool) *packet.ConnAck {
+	success bool) (*Session, *packet.ConnAck) {
 
-	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
-	reply, err := sm.handlePacket(&session, pkt)
+	session, reply, err := sm.handlePacket(nil, pkt)
 	if success {
 		assert.Nil(t, err)
+		require.NotNil(t, session)
+		assert.True(t, session.connected)
+		assert.NotZero(t, session.SessionID)
 	} else {
 		assert.NotNil(t, err)
+		assert.Nil(t, session)
 	}
 
 	assert.NotNil(t, reply)
@@ -69,24 +75,23 @@ func checkConnect(t *testing.T, conf Configuration, pkt *packet.Connect,
 
 	connAck := reply.(*packet.ConnAck)
 	assert.Equal(t, pkt.Version, connAck.Version)
-	return connAck
+	return session, connAck
 }
 
-func connectClient(sm *sessionManager, session *Session,
-	version packet.MQTTVersion, cleanSession bool,
-	props *packet.Properties) error {
+func connectClient(sm *sessionManager, version packet.MQTTVersion,
+	cleanSession bool, props *packet.Properties) (*Session, error) {
 
 	pkt := packet.Connect{ClientID: ClientID{'a'}, Version: version,
 		CleanSession: cleanSession, Properties: props}
-	_, err := sm.handlePacket(session, &pkt)
-	return err
+	session, _, err := sm.handlePacket(nil, &pkt)
+	return session, err
 }
 
 func subscribe(sm *sessionManager, session *Session, topics []packet.Topic,
 	version packet.MQTTVersion) error {
 
 	sub := packet.Subscribe{PacketID: 5, Version: version, Topics: topics}
-	_, err := sm.handlePacket(session, &sub)
+	_, _, err := sm.handlePacket(session, &sub)
 	if err != nil {
 		return err
 	}
@@ -108,12 +113,14 @@ func TestSessionManager_ConnectNewSession(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.version.String(), func(t *testing.T) {
 			conf := newConfiguration()
-			pkt := packet.Connect{ClientID: ClientID{'a'},
+			pkt := packet.Connect{ClientID: ClientID{'a'}, KeepAlive: 600,
 				Version: test.version, Properties: &packet.Properties{}}
 
-			connAck := checkConnect(t, conf, &pkt, true)
+			session, connAck := checkConnect(t, conf, &pkt, true)
 			assert.Equal(t, test.code, connAck.ReasonCode)
 			assert.False(t, connAck.SessionPresent)
+			assert.Equal(t, ClientID(pkt.ClientID), session.ClientID)
+			assert.Equal(t, int(pkt.KeepAlive), session.KeepAlive)
 		})
 	}
 }
@@ -135,10 +142,8 @@ func TestSessionManager_ConnectExistingSession(t *testing.T) {
 			clientID := ClientID{'a'}
 			pkt := packet.Connect{ClientID: clientID, Version: test.version}
 
-			session := newSession(conf.ConnectTimeout)
 			sm := createSessionManager(conf)
-
-			s := Session{
+			s := &Session{
 				ClientID:       clientID,
 				ConnectedAt:    time.Now().Add(-1 * time.Minute).Unix(),
 				ExpiryInterval: conf.MaxSessionExpiryInterval,
@@ -148,7 +153,7 @@ func TestSessionManager_ConnectExistingSession(t *testing.T) {
 
 			sm.store.sessions[string(s.ClientID)] = s
 
-			reply, err := sm.handlePacket(&session, &pkt)
+			_, reply, err := sm.handlePacket(nil, &pkt)
 			assert.Nil(t, err)
 			assert.NotNil(t, reply)
 			assert.Equal(t, packet.CONNACK, reply.Type())
@@ -179,11 +184,11 @@ func TestSessionManager_ConnectCleanSessionNoExisting(t *testing.T) {
 			pkt := packet.Connect{ClientID: clientID, Version: test.version,
 				CleanSession: true}
 
-			session := newSession(conf.ConnectTimeout)
 			sm := createSessionManager(conf)
 
-			reply, err := sm.handlePacket(&session, &pkt)
+			session, reply, err := sm.handlePacket(nil, &pkt)
 			assert.Nil(t, err)
+			assert.NotNil(t, session)
 			assert.NotNil(t, reply)
 			assert.Equal(t, packet.CONNACK, reply.Type())
 
@@ -213,10 +218,8 @@ func TestSessionManager_ConnectCleanSessionExisting(t *testing.T) {
 			pkt := packet.Connect{ClientID: clientID, Version: test.version,
 				CleanSession: true}
 
-			session := newSession(conf.ConnectTimeout)
 			sm := createSessionManager(conf)
-
-			s := Session{
+			s := &Session{
 				ClientID:       clientID,
 				ConnectedAt:    time.Now().Add(-1 * time.Minute).Unix(),
 				ExpiryInterval: conf.MaxSessionExpiryInterval,
@@ -224,13 +227,13 @@ func TestSessionManager_ConnectCleanSessionExisting(t *testing.T) {
 				Subscriptions:  make(map[string]Subscription),
 			}
 
-			sub, err := sm.pubSub.subscribe(&s, packet.Topic{Name: "test"}, 1)
+			sub, err := sm.pubSub.subscribe(s, packet.Topic{Name: "test"}, 1)
 			require.Nil(t, err)
 			s.Subscriptions["test"] = sub
 
 			sm.store.sessions[string(s.ClientID)] = s
 
-			reply, err := sm.handlePacket(&session, &pkt)
+			session, reply, err := sm.handlePacket(nil, &pkt)
 			assert.Nil(t, err)
 			assert.NotNil(t, reply)
 			assert.Equal(t, packet.CONNACK, reply.Type())
@@ -271,7 +274,7 @@ func TestSessionManager_ConnectClientIDTooBig(t *testing.T) {
 			conf.MaxClientIDLen = test.maxIDLen
 
 			pkt := packet.Connect{ClientID: test.id, Version: test.version}
-			connAck := checkConnect(t, conf, &pkt, false)
+			_, connAck := checkConnect(t, conf, &pkt, false)
 			assert.Equal(t, test.code, connAck.ReasonCode)
 		})
 	}
@@ -294,8 +297,9 @@ func TestSessionManager_ConnectAllowEmptyClientID(t *testing.T) {
 			conf.AllowEmptyClientID = true
 
 			pkt := packet.Connect{Version: test.version}
-			connAck := checkConnect(t, conf, &pkt, true)
+			session, connAck := checkConnect(t, conf, &pkt, true)
 			assert.Equal(t, test.code, connAck.ReasonCode)
+			assert.Greater(t, len(session.ClientID), 0)
 		})
 	}
 }
@@ -317,7 +321,7 @@ func TestSessionManager_ConnectDenyEmptyClientID(t *testing.T) {
 			conf.AllowEmptyClientID = false
 
 			pkt := packet.Connect{Version: test.version}
-			connAck := checkConnect(t, conf, &pkt, false)
+			_, connAck := checkConnect(t, conf, &pkt, false)
 			assert.Equal(t, test.code, connAck.ReasonCode)
 		})
 	}
@@ -328,11 +332,13 @@ func TestSessionManager_ConnectAssignClientID(t *testing.T) {
 	conf.AllowEmptyClientID = true
 
 	pkt := packet.Connect{Version: packet.MQTT50}
-	connAck := checkConnect(t, conf, &pkt, true)
+	session, connAck := checkConnect(t, conf, &pkt, true)
 	assert.Equal(t, packet.ReasonCodeV5Success, connAck.ReasonCode)
 	assert.NotNil(t, connAck.Properties)
 	assert.NotNil(t, connAck.Properties.AssignedClientID)
 	assert.Equal(t, 20, len(connAck.Properties.AssignedClientID))
+	assert.Equal(t, ClientID(connAck.Properties.AssignedClientID),
+		session.ClientID)
 }
 
 func TestSessionManager_ConnectAssignClientIDWithPrefix(t *testing.T) {
@@ -341,13 +347,15 @@ func TestSessionManager_ConnectAssignClientIDWithPrefix(t *testing.T) {
 	conf.ClientIDPrefix = []byte("MAX-")
 
 	pkt := packet.Connect{Version: packet.MQTT50}
-	connAck := checkConnect(t, conf, &pkt, true)
+	session, connAck := checkConnect(t, conf, &pkt, true)
 	assert.Equal(t, packet.ReasonCodeV5Success, connAck.ReasonCode)
 	assert.NotNil(t, connAck.Properties)
 	assert.NotNil(t, connAck.Properties.AssignedClientID)
 	assert.Equal(t, 24, len(connAck.Properties.AssignedClientID))
 	assert.Equal(t, conf.ClientIDPrefix,
 		connAck.Properties.AssignedClientID[:4])
+	assert.Equal(t, ClientID(connAck.Properties.AssignedClientID),
+		session.ClientID)
 }
 
 func TestSessionManager_ConnectMaxSessionExpiryInterval(t *testing.T) {
@@ -378,7 +386,7 @@ func TestSessionManager_ConnectMaxSessionExpiryInterval(t *testing.T) {
 					SessionExpiryInterval: &test.interval,
 				},
 			}
-			connAck := checkConnect(t, conf, &pkt, true)
+			session, connAck := checkConnect(t, conf, &pkt, true)
 			assert.Equal(t, packet.ReasonCodeV5Success, connAck.ReasonCode)
 			assert.NotNil(t, connAck.Properties)
 			props := connAck.Properties
@@ -386,6 +394,7 @@ func TestSessionManager_ConnectMaxSessionExpiryInterval(t *testing.T) {
 			if test.resp > 0 {
 				assert.NotNil(t, props.SessionExpiryInterval)
 				assert.Equal(t, test.resp, *props.SessionExpiryInterval)
+				assert.Equal(t, test.resp, session.ExpiryInterval)
 			} else {
 				assert.Nil(t, props.SessionExpiryInterval)
 			}
@@ -431,11 +440,12 @@ func TestSessionManager_ConnectMaxKeepAlive(t *testing.T) {
 			pkt := packet.Connect{ClientID: ClientID{'a'},
 				Version: test.version, KeepAlive: test.keepAlive}
 
-			connAck := checkConnect(t, conf, &pkt,
+			session, connAck := checkConnect(t, conf, &pkt,
 				test.code == packet.ReasonCodeV5Success)
 			assert.Equal(t, test.code, connAck.ReasonCode)
 
 			if test.version == packet.MQTT50 {
+				assert.NotZero(t, session.KeepAlive)
 				assert.NotNil(t, connAck.Properties)
 				assert.NotNil(t, connAck.Properties.ServerKeepAlive)
 				assert.Equal(t, test.maxKeepAlive,
@@ -466,7 +476,7 @@ func TestSessionManager_ConnectMaxInflightMessages(t *testing.T) {
 			pkt := packet.Connect{ClientID: ClientID{'a'},
 				Version: packet.MQTT50, Properties: &packet.Properties{}}
 
-			connAck := checkConnect(t, conf, &pkt, true)
+			_, connAck := checkConnect(t, conf, &pkt, true)
 			assert.Equal(t, packet.ReasonCodeV5Success, connAck.ReasonCode)
 			assert.NotNil(t, connAck.Properties)
 
@@ -502,7 +512,7 @@ func TestSessionManager_ConnectMaxPacketSize(t *testing.T) {
 			pkt := packet.Connect{ClientID: ClientID{'a'},
 				Version: packet.MQTT50}
 
-			connAck := checkConnect(t, conf, &pkt, true)
+			_, connAck := checkConnect(t, conf, &pkt, true)
 			assert.Equal(t, packet.ReasonCodeV5Success, connAck.ReasonCode)
 			assert.NotNil(t, connAck.Properties)
 
@@ -533,7 +543,7 @@ func TestSessionManager_ConnectMaximumQoS(t *testing.T) {
 			pkt := packet.Connect{ClientID: ClientID{'a'},
 				Version: packet.MQTT50}
 
-			connAck := checkConnect(t, conf, &pkt, true)
+			_, connAck := checkConnect(t, conf, &pkt, true)
 			assert.Equal(t, packet.ReasonCodeV5Success, connAck.ReasonCode)
 			assert.NotNil(t, connAck.Properties)
 
@@ -564,7 +574,7 @@ func TestSessionManager_ConnectTopicAliasMaximum(t *testing.T) {
 			pkt := packet.Connect{ClientID: ClientID{'a'},
 				Version: packet.MQTT50}
 
-			connAck := checkConnect(t, conf, &pkt, true)
+			_, connAck := checkConnect(t, conf, &pkt, true)
 			assert.Equal(t, packet.ReasonCodeV5Success, connAck.ReasonCode)
 			assert.NotNil(t, connAck.Properties)
 
@@ -594,7 +604,7 @@ func TestSessionManager_ConnectRetainAvailable(t *testing.T) {
 			pkt := packet.Connect{ClientID: ClientID{'a'},
 				Version: packet.MQTT50}
 
-			connAck := checkConnect(t, conf, &pkt, true)
+			_, connAck := checkConnect(t, conf, &pkt, true)
 			assert.Equal(t, packet.ReasonCodeV5Success, connAck.ReasonCode)
 			assert.NotNil(t, connAck.Properties)
 
@@ -623,7 +633,7 @@ func TestSessionManager_ConnectWildcardSubsAvailable(t *testing.T) {
 			pkt := packet.Connect{ClientID: ClientID{'a'},
 				Version: packet.MQTT50}
 
-			connAck := checkConnect(t, conf, &pkt, true)
+			_, connAck := checkConnect(t, conf, &pkt, true)
 			assert.Equal(t, packet.ReasonCodeV5Success, connAck.ReasonCode)
 			assert.NotNil(t, connAck.Properties)
 
@@ -654,7 +664,7 @@ func TestSessionManager_ConnectSubscriptionIDAvailable(t *testing.T) {
 			pkt := packet.Connect{ClientID: ClientID{'a'},
 				Version: packet.MQTT50}
 
-			connAck := checkConnect(t, conf, &pkt, true)
+			_, connAck := checkConnect(t, conf, &pkt, true)
 			assert.Equal(t, packet.ReasonCodeV5Success, connAck.ReasonCode)
 			assert.NotNil(t, connAck.Properties)
 
@@ -685,7 +695,7 @@ func TestSessionManager_ConnectSharedSubscriptionAvailable(t *testing.T) {
 			pkt := packet.Connect{ClientID: ClientID{'a'},
 				Version: packet.MQTT50}
 
-			connAck := checkConnect(t, conf, &pkt, true)
+			_, connAck := checkConnect(t, conf, &pkt, true)
 			assert.Equal(t, packet.ReasonCodeV5Success, connAck.ReasonCode)
 			assert.NotNil(t, connAck.Properties)
 
@@ -707,7 +717,7 @@ func TestSessionManager_ConnectUserProperty(t *testing.T) {
 	conf.UserProperties = map[string]string{"k1": "v1"}
 
 	pkt := packet.Connect{ClientID: ClientID{'a'}, Version: packet.MQTT50}
-	connAck := checkConnect(t, conf, &pkt, true)
+	_, connAck := checkConnect(t, conf, &pkt, true)
 	assert.Equal(t, packet.ReasonCodeV5Success, connAck.ReasonCode)
 	assert.NotNil(t, connAck.Properties)
 	assert.Equal(t, 1, len(connAck.Properties.UserProperties))
@@ -717,14 +727,13 @@ func TestSessionManager_ConnectUserProperty(t *testing.T) {
 
 func TestSessionManager_PingReq(t *testing.T) {
 	conf := newConfiguration()
-	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
-	err := connectClient(sm, &session, packet.MQTT311, false, nil)
+	session, err := connectClient(sm, packet.MQTT311, false, nil)
 	require.Nil(t, err)
 
 	pingReq := packet.PingReq{}
-	reply, err := sm.handlePacket(&session, &pingReq)
+	_, reply, err := sm.handlePacket(session, &pingReq)
 	assert.Nil(t, err)
 	assert.NotNil(t, reply)
 	assert.Equal(t, packet.PINGRESP, reply.Type())
@@ -732,13 +741,13 @@ func TestSessionManager_PingReq(t *testing.T) {
 
 func TestSessionManager_PingReqWithoutConnect(t *testing.T) {
 	conf := newConfiguration()
-	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
 	pkt := packet.PingReq{}
-	reply, err := sm.handlePacket(&session, &pkt)
+	session, reply, err := sm.handlePacket(nil, &pkt)
 	assert.NotNil(t, err)
 	assert.Nil(t, reply)
+	assert.Nil(t, session)
 }
 
 func TestSessionManager_Subscribe(t *testing.T) {
@@ -763,15 +772,14 @@ func TestSessionManager_Subscribe(t *testing.T) {
 
 		t.Run(testName, func(t *testing.T) {
 			sm := createSessionManager(conf)
-			session := newSession(conf.ConnectTimeout)
 
-			err := connectClient(sm, &session, test.version, false, nil)
+			session, err := connectClient(sm, test.version, false, nil)
 			require.Nil(t, err)
 
 			sub := packet.Subscribe{PacketID: test.id, Version: test.version,
 				Topics: []packet.Topic{{Name: test.topic, QoS: test.qos}}}
 
-			reply, err := sm.handlePacket(&session, &sub)
+			_, reply, err := sm.handlePacket(session, &sub)
 			assert.Nil(t, err)
 			require.NotNil(t, reply)
 			require.Equal(t, packet.SUBACK, reply.Type())
@@ -787,16 +795,15 @@ func TestSessionManager_Subscribe(t *testing.T) {
 
 func TestSessionManager_SubscribeCleanSession(t *testing.T) {
 	conf := newConfiguration()
-	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
-	err := connectClient(sm, &session, packet.MQTT311, true, nil)
+	session, err := connectClient(sm, packet.MQTT311, true, nil)
 	require.Nil(t, err)
 
 	sub := packet.Subscribe{PacketID: 1, Version: packet.MQTT311,
 		Topics: []packet.Topic{{Name: "data/#"}}}
 
-	reply, err := sm.handlePacket(&session, &sub)
+	_, reply, err := sm.handlePacket(session, &sub)
 	assert.Nil(t, err)
 	require.NotNil(t, reply)
 	require.Equal(t, packet.SUBACK, reply.Type())
@@ -822,7 +829,6 @@ func TestSessionManager_SubscribeError(t *testing.T) {
 	}
 
 	conf := newConfiguration()
-	session := newSession(conf.ConnectTimeout)
 
 	for _, test := range testCases {
 		testName := fmt.Sprintf("%v-%v-%s-%v", test.id, test.version.String(),
@@ -831,13 +837,13 @@ func TestSessionManager_SubscribeError(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			sm := createSessionManager(conf)
 
-			err := connectClient(sm, &session, test.version, false, nil)
+			session, err := connectClient(sm, test.version, false, nil)
 			require.Nil(t, err)
 
 			sub := packet.Subscribe{PacketID: test.id, Version: test.version,
 				Topics: []packet.Topic{{Name: test.topic, QoS: test.qos}}}
 
-			reply, err := sm.handlePacket(&session, &sub)
+			_, reply, err := sm.handlePacket(session, &sub)
 			assert.Nil(t, err)
 			require.NotNil(t, reply)
 			require.Equal(t, packet.SUBACK, reply.Type())
@@ -853,10 +859,9 @@ func TestSessionManager_SubscribeError(t *testing.T) {
 
 func TestSessionManager_SubscribeMultipleTopics(t *testing.T) {
 	conf := newConfiguration()
-	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
-	err := connectClient(sm, &session, packet.MQTT311, false, nil)
+	session, err := connectClient(sm, packet.MQTT311, false, nil)
 	require.Nil(t, err)
 
 	sub := packet.Subscribe{PacketID: 5, Version: packet.MQTT311,
@@ -868,7 +873,7 @@ func TestSessionManager_SubscribeMultipleTopics(t *testing.T) {
 		},
 	}
 
-	reply, err := sm.handlePacket(&session, &sub)
+	_, reply, err := sm.handlePacket(session, &sub)
 	assert.Nil(t, err)
 	require.NotNil(t, reply)
 	require.Equal(t, packet.SUBACK, reply.Type())
@@ -887,10 +892,9 @@ func TestSessionManager_SubscribeWithSubID(t *testing.T) {
 	conf := newConfiguration()
 	conf.SubscriptionIDAvailable = true
 
-	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
-	err := connectClient(sm, &session, packet.MQTT50, false, nil)
+	session, err := connectClient(sm, packet.MQTT50, false, nil)
 	require.Nil(t, err)
 
 	props := &packet.Properties{}
@@ -900,7 +904,7 @@ func TestSessionManager_SubscribeWithSubID(t *testing.T) {
 	sub := packet.Subscribe{PacketID: 2, Version: packet.MQTT50,
 		Properties: props, Topics: []packet.Topic{{Name: "topic"}}}
 
-	reply, err := sm.handlePacket(&session, &sub)
+	_, reply, err := sm.handlePacket(session, &sub)
 	assert.Nil(t, err)
 	require.NotNil(t, reply)
 }
@@ -909,10 +913,9 @@ func TestSessionManager_SubscribeWithSubIDError(t *testing.T) {
 	conf := newConfiguration()
 	conf.SubscriptionIDAvailable = false
 
-	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
-	err := connectClient(sm, &session, packet.MQTT50, false, nil)
+	session, err := connectClient(sm, packet.MQTT50, false, nil)
 	require.Nil(t, err)
 
 	props := &packet.Properties{}
@@ -922,7 +925,7 @@ func TestSessionManager_SubscribeWithSubIDError(t *testing.T) {
 	sub := packet.Subscribe{PacketID: 2, Version: packet.MQTT50,
 		Properties: props, Topics: []packet.Topic{{Name: "topic"}}}
 
-	reply, err := sm.handlePacket(&session, &sub)
+	_, reply, err := sm.handlePacket(session, &sub)
 	assert.NotNil(t, err)
 	require.NotNil(t, reply)
 	require.Equal(t, packet.DISCONNECT, reply.Type())
@@ -947,7 +950,6 @@ func TestSessionManager_Unsubscribe(t *testing.T) {
 	}
 
 	conf := newConfiguration()
-	session := newSession(conf.ConnectTimeout)
 
 	for _, test := range testCases {
 		testName := fmt.Sprintf("%v-%v-%s", test.id, test.version.String(),
@@ -956,17 +958,17 @@ func TestSessionManager_Unsubscribe(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			sm := createSessionManager(conf)
 
-			err := connectClient(sm, &session, test.version, false, nil)
+			session, err := connectClient(sm, test.version, false, nil)
 			require.Nil(t, err)
 
 			topics := []packet.Topic{{Name: test.topic}}
-			err = subscribe(sm, &session, topics, test.version)
+			err = subscribe(sm, session, topics, test.version)
 			require.Nil(t, err)
 
 			unsub := packet.Unsubscribe{PacketID: test.id,
 				Version: test.version, Topics: []string{test.topic}}
 
-			reply, err := sm.handlePacket(&session, &unsub)
+			_, reply, err := sm.handlePacket(session, &unsub)
 			assert.Nil(t, err)
 			require.NotNil(t, reply)
 			require.Equal(t, packet.UNSUBACK, reply.Type())
@@ -986,21 +988,19 @@ func TestSessionManager_Unsubscribe(t *testing.T) {
 
 func TestSessionManager_UnsubscribeCleanSession(t *testing.T) {
 	conf := newConfiguration()
-	session := newSession(conf.ConnectTimeout)
-
 	sm := createSessionManager(conf)
 
-	err := connectClient(sm, &session, packet.MQTT311, true, nil)
+	session, err := connectClient(sm, packet.MQTT311, true, nil)
 	require.Nil(t, err)
 
 	topics := []packet.Topic{{Name: "test"}}
-	err = subscribe(sm, &session, topics, packet.MQTT311)
+	err = subscribe(sm, session, topics, packet.MQTT311)
 	require.Nil(t, err)
 
 	unsub := packet.Unsubscribe{PacketID: 1, Version: packet.MQTT311,
 		Topics: []string{"test"}}
 
-	reply, err := sm.handlePacket(&session, &unsub)
+	_, reply, err := sm.handlePacket(session, &unsub)
 	assert.Nil(t, err)
 	require.NotNil(t, reply)
 	require.Equal(t, packet.UNSUBACK, reply.Type())
@@ -1026,7 +1026,6 @@ func TestSessionManager_UnsubscribeMissingSubscription(t *testing.T) {
 	}
 
 	conf := newConfiguration()
-	session := newSession(conf.ConnectTimeout)
 
 	for _, test := range testCases {
 		testName := fmt.Sprintf("%v-%v-%s", test.id, test.version.String(),
@@ -1035,13 +1034,13 @@ func TestSessionManager_UnsubscribeMissingSubscription(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			sm := createSessionManager(conf)
 
-			err := connectClient(sm, &session, test.version, false, nil)
+			session, err := connectClient(sm, test.version, false, nil)
 			require.Nil(t, err)
 
 			unsub := packet.Unsubscribe{PacketID: test.id,
 				Version: test.version, Topics: []string{test.topic}}
 
-			reply, err := sm.handlePacket(&session, &unsub)
+			_, reply, err := sm.handlePacket(session, &unsub)
 			assert.Nil(t, err)
 			require.NotNil(t, reply)
 			require.Equal(t, packet.UNSUBACK, reply.Type())
@@ -1080,9 +1079,8 @@ func TestSessionManager_UnsubscribeMultipleTopics(t *testing.T) {
 
 		t.Run(testName, func(t *testing.T) {
 			sm := createSessionManager(conf)
-			session := newSession(conf.ConnectTimeout)
 
-			err := connectClient(sm, &session, test.version, false, nil)
+			session, err := connectClient(sm, test.version, false, nil)
 			require.Nil(t, err)
 
 			topics := []packet.Topic{
@@ -1091,14 +1089,14 @@ func TestSessionManager_UnsubscribeMultipleTopics(t *testing.T) {
 				{Name: "data/temp/#", QoS: packet.QoS2},
 			}
 
-			err = subscribe(sm, &session, topics, test.version)
+			err = subscribe(sm, session, topics, test.version)
 			require.Nil(t, err)
 
 			topicNames := []string{"data/temp/0", "data/temp/#", "data/temp/2"}
 			unsub := packet.Unsubscribe{PacketID: test.id,
 				Version: test.version, Topics: topicNames}
 
-			reply, err := sm.handlePacket(&session, &unsub)
+			_, reply, err := sm.handlePacket(session, &unsub)
 			assert.Nil(t, err)
 
 			require.NotNil(t, reply)
@@ -1135,9 +1133,8 @@ func TestSessionManager_PublishQoS0(t *testing.T) {
 		name := fmt.Sprintf("%v-%v", test.version.String(), test.id)
 		t.Run(name, func(t *testing.T) {
 			sm := createSessionManager(conf)
-			session := newSession(conf.ConnectTimeout)
 
-			err := connectClient(sm, &session, test.version, false, nil)
+			session, err := connectClient(sm, test.version, false, nil)
 			require.Nil(t, err)
 
 			idGen := sm.pubSub.idGen.(*idGeneratorMock)
@@ -1146,7 +1143,7 @@ func TestSessionManager_PublishQoS0(t *testing.T) {
 			pubPkt := packet.NewPublish(test.id, test.version, test.topic,
 				packet.QoS0, 0, 0, []byte(test.payload), nil)
 
-			reply, err := sm.handlePacket(&session, &pubPkt)
+			_, reply, err := sm.handlePacket(session, &pubPkt)
 			assert.Nil(t, err)
 			assert.Nil(t, reply)
 		})
@@ -1172,21 +1169,21 @@ func TestSessionManager_Disconnect(t *testing.T) {
 		name := fmt.Sprintf("%v-%v", test.version.String(), test.cleanSession)
 		t.Run(name, func(t *testing.T) {
 			sm := createSessionManager(conf)
-			session := newSession(conf.ConnectTimeout)
 
-			err := connectClient(sm, &session, test.version, test.cleanSession,
+			session, err := connectClient(sm, test.version, test.cleanSession,
 				nil)
 			require.Nil(t, err)
 
-			sub, err := sm.pubSub.subscribe(&session,
+			sub, err := sm.pubSub.subscribe(session,
 				packet.Topic{Name: "test"}, 1)
 			require.Nil(t, err)
 			session.Subscriptions["test"] = sub
 
 			disconnect := packet.Disconnect{Properties: &packet.Properties{}}
-			reply, err := sm.handlePacket(&session, &disconnect)
+			session, reply, err := sm.handlePacket(session, &disconnect)
 			assert.Nil(t, err)
 			assert.Nil(t, reply)
+			assert.False(t, session.connected)
 
 			if test.cleanSession {
 				assert.Empty(t, sm.pubSub.tree.root.children)
@@ -1199,14 +1196,13 @@ func TestSessionManager_Disconnect(t *testing.T) {
 
 func TestSessionManager_DisconnectExpiryInterval(t *testing.T) {
 	conf := newConfiguration()
-	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
 	props := &packet.Properties{}
 	props.SessionExpiryInterval = new(uint32)
 	*props.SessionExpiryInterval = 600
 
-	err := connectClient(sm, &session, packet.MQTT50, true, props)
+	session, err := connectClient(sm, packet.MQTT50, true, props)
 	require.Nil(t, err)
 	require.Equal(t, uint32(600), session.ExpiryInterval)
 
@@ -1214,7 +1210,7 @@ func TestSessionManager_DisconnectExpiryInterval(t *testing.T) {
 	*props.SessionExpiryInterval = 300
 
 	disconnect := packet.Disconnect{Properties: props}
-	reply, err := sm.handlePacket(&session, &disconnect)
+	session, reply, err := sm.handlePacket(session, &disconnect)
 	assert.Nil(t, err)
 	assert.Nil(t, reply)
 	assert.Equal(t, uint32(300), session.ExpiryInterval)
@@ -1222,10 +1218,9 @@ func TestSessionManager_DisconnectExpiryInterval(t *testing.T) {
 
 func TestSessionManager_DisconnectInvalidExpiryInterval(t *testing.T) {
 	conf := newConfiguration()
-	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
-	err := connectClient(sm, &session, packet.MQTT50, false, nil)
+	session, err := connectClient(sm, packet.MQTT50, false, nil)
 	require.Nil(t, err)
 
 	props := &packet.Properties{}
@@ -1233,7 +1228,7 @@ func TestSessionManager_DisconnectInvalidExpiryInterval(t *testing.T) {
 	*props.SessionExpiryInterval = 300
 
 	disconnect := packet.Disconnect{Properties: props}
-	reply, err := sm.handlePacket(&session, &disconnect)
+	_, reply, err := sm.handlePacket(session, &disconnect)
 	assert.NotNil(t, err)
 	require.NotNil(t, reply)
 	assert.Equal(t, packet.DISCONNECT, reply.Type())
@@ -1245,14 +1240,13 @@ func TestSessionManager_DisconnectInvalidExpiryInterval(t *testing.T) {
 
 func TestSessionManager_DisconnectErrorOnSaveSessionIsOkay(t *testing.T) {
 	conf := newConfiguration()
-	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
 	props := &packet.Properties{}
 	props.SessionExpiryInterval = new(uint32)
 	*props.SessionExpiryInterval = 600
 
-	err := connectClient(sm, &session, packet.MQTT50, true, props)
+	session, err := connectClient(sm, packet.MQTT50, true, props)
 	require.Nil(t, err)
 	require.Equal(t, uint32(600), session.ExpiryInterval)
 
@@ -1260,7 +1254,7 @@ func TestSessionManager_DisconnectErrorOnSaveSessionIsOkay(t *testing.T) {
 	*props.SessionExpiryInterval = 300
 
 	disconnect := packet.Disconnect{Properties: props}
-	reply, err := sm.handlePacket(&session, &disconnect)
+	session, reply, err := sm.handlePacket(session, &disconnect)
 	assert.Nil(t, err)
 	assert.Nil(t, reply)
 	assert.Equal(t, uint32(300), session.ExpiryInterval)
@@ -1268,28 +1262,26 @@ func TestSessionManager_DisconnectErrorOnSaveSessionIsOkay(t *testing.T) {
 
 func TestSessionManager_DisconnectFailedToDeleteSession(t *testing.T) {
 	conf := newConfiguration()
-	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
-	err := connectClient(sm, &session, packet.MQTT311, true, nil)
+	session, err := connectClient(sm, packet.MQTT311, true, nil)
 	require.Nil(t, err)
 
 	disconnect := packet.Disconnect{}
-	reply, err := sm.handlePacket(&session, &disconnect)
+	_, reply, err := sm.handlePacket(session, &disconnect)
 	assert.Nil(t, err)
 	assert.Nil(t, reply)
 }
 
 func TestSessionManager_InvalidPacket(t *testing.T) {
 	conf := newConfiguration()
-	session := newSession(conf.ConnectTimeout)
 	sm := createSessionManager(conf)
 
-	err := connectClient(sm, &session, packet.MQTT311, false, nil)
+	session, err := connectClient(sm, packet.MQTT311, false, nil)
 	require.Nil(t, err)
 
 	pkt := packet.PingResp{}
-	reply, err := sm.handlePacket(&session, &pkt)
+	_, reply, err := sm.handlePacket(session, &pkt)
 	assert.NotNil(t, err)
 	assert.Nil(t, reply)
 }
@@ -1298,18 +1290,19 @@ func TestSessionManager_PublishMessage(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 
-	session := newSession(conf.ConnectTimeout)
+	session := &Session{}
 	session.ClientID = ClientID("client-1")
 	session.Version = packet.MQTT311
+	session.connected = true
 
 	pkt := packet.NewPublish(10, packet.MQTT311, "data",
 		packet.QoS0, 0, 0, nil, nil)
 	msg := message{id: 50, packet: &pkt}
 
 	pktDeliverer := sm.deliverer.(*delivererMock)
-	pktDeliverer.On("deliverPacket", session.ClientID, &pkt).Return(nil)
+	pktDeliverer.On("deliverPacket", session.SessionID, &pkt).Return(nil)
 
-	err := sm.publishMessage(&session, msg)
+	err := sm.publishMessage(session, &msg)
 	assert.Nil(t, err)
 	pktDeliverer.AssertExpectations(t)
 }
@@ -1318,19 +1311,40 @@ func TestSessionManager_PublishMessageDifferentVersion(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 
-	session := newSession(conf.ConnectTimeout)
+	session := &Session{}
 	session.ClientID = ClientID("client-1")
 	session.Version = packet.MQTT50
+	session.connected = true
 
 	pkt := packet.NewPublish(10, packet.MQTT311, "data",
 		packet.QoS0, 0, 0, nil, nil)
 	msg := message{id: 50, packet: &pkt}
 
 	pktDeliverer := sm.deliverer.(*delivererMock)
-	pktDeliverer.On("deliverPacket", session.ClientID, &pkt).Return(nil)
+	pktDeliverer.On("deliverPacket", session.SessionID, &pkt).Return(nil)
 
-	err := sm.publishMessage(&session, msg)
+	err := sm.publishMessage(session, &msg)
 	assert.Nil(t, err)
+	pktDeliverer.AssertExpectations(t)
+}
+
+func TestSessionManager_PublishMessageDisconnectedSession(t *testing.T) {
+	conf := newConfiguration()
+	sm := createSessionManager(conf)
+
+	session := &Session{}
+	session.ClientID = ClientID("client-1")
+	session.connected = false
+
+	pkt := packet.NewPublish(10, packet.MQTT311, "data",
+		packet.QoS0, 0, 0, nil, nil)
+	msg := message{id: 50, packet: &pkt}
+
+	err := sm.publishMessage(session, &msg)
+	assert.Nil(t, err)
+
+	pktDeliverer := sm.deliverer.(*delivererMock)
+	assert.Len(t, pktDeliverer.Calls, 0)
 	pktDeliverer.AssertExpectations(t)
 }
 
@@ -1338,19 +1352,20 @@ func TestSessionManager_PublishMessageError(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 
-	session := newSession(conf.ConnectTimeout)
+	session := &Session{}
 	session.ClientID = ClientID("client-1")
 	session.Version = packet.MQTT311
+	session.connected = true
 
 	pkt := packet.NewPublish(10, packet.MQTT311, "data",
 		packet.QoS0, 0, 0, nil, nil)
 	msg := message{id: 50, packet: &pkt}
 
 	pktDeliverer := sm.deliverer.(*delivererMock)
-	pktDeliverer.On("deliverPacket", session.ClientID, &pkt).
+	pktDeliverer.On("deliverPacket", session.SessionID, &pkt).
 		Return(errors.New("failed to deliver message"))
 
-	err := sm.publishMessage(&session, msg)
+	err := sm.publishMessage(session, &msg)
 	assert.NotNil(t, err)
 	pktDeliverer.AssertExpectations(t)
 }

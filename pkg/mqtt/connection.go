@@ -35,14 +35,17 @@ var ErrConnectionTimeout = errors.New("timeout - no packet received")
 var ErrProtocolError = errors.New("protocol error")
 
 type connection struct {
-	netConn net.Conn
-	session Session
-	closed  bool
+	netConn   net.Conn
+	session   *Session
+	version   packet.MQTTVersion
+	clientID  ClientID
+	timeout   int
+	connected bool
 }
 
 func (c *connection) nextConnectionDeadline() time.Time {
-	if c.session.KeepAlive > 0 {
-		timeout := math.Ceil(float64(c.session.KeepAlive) * 1.5)
+	if c.timeout > 0 {
+		timeout := math.Ceil(float64(c.timeout) * 1.5)
 		return time.Now().Add(time.Duration(timeout) * time.Second)
 	}
 
@@ -55,7 +58,7 @@ type connectionManager struct {
 	sessionManager *sessionManager
 	log            *logger.Logger
 	metrics        *metrics
-	connections    map[string]*connection
+	connections    map[SessionID]*connection
 	mutex          sync.RWMutex
 	reader         packet.Reader
 	writer         packet.Writer
@@ -88,7 +91,7 @@ func newConnectionManager(
 		conf:        conf,
 		log:         log,
 		metrics:     m,
-		connections: make(map[string]*connection),
+		connections: make(map[SessionID]*connection),
 		reader:      packet.NewReader(rdOpts),
 		writer:      packet.NewWriter(conf.BufferSize),
 	}
@@ -114,7 +117,7 @@ func (m *connectionManager) handle(nc net.Conn) error {
 
 	m.metrics.recordConnection()
 	m.log.Debug().
-		Int("Timeout", conn.session.KeepAlive).
+		Int("Timeout", conn.timeout).
 		Msg("MQTT Handling connection")
 
 	for {
@@ -128,7 +131,7 @@ func (m *connectionManager) handle(nc net.Conn) error {
 
 		m.log.Trace().
 			Float64("DeadlineIn", time.Until(deadline).Seconds()).
-			Int("KeepAlive", conn.session.KeepAlive).
+			Int("Timeout", conn.timeout).
 			Msg("MQTT Waiting packet")
 
 		pkt, err := m.readPacket(&conn)
@@ -154,36 +157,36 @@ func (m *connectionManager) handle(nc net.Conn) error {
 func (m *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 	err error) {
 
-	pkt, err = m.reader.ReadPacket(conn.netConn, conn.session.Version)
+	pkt, err = m.reader.ReadPacket(conn.netConn, conn.version)
 	if err != nil {
-		if isConnectionClosed(conn.netConn) {
+		if isConnectionClosed(conn.netConn) { // TODO: Check if IOF is wrapped
 			m.log.Debug().
-				Bytes("ClientId", conn.session.ClientID).
+				Bytes("ClientId", conn.clientID).
 				Msg("MQTT Network connection was closed")
 			return nil, io.EOF
 		}
 
 		if errCon, ok := err.(net.Error); ok && errCon.Timeout() {
 			m.log.Debug().
-				Bytes("ClientId", conn.session.ClientID).
-				Bool("Connected", conn.session.connected).
-				Int("Timeout", conn.session.KeepAlive).
+				Bytes("ClientId", conn.clientID).
+				Bool("Connected", conn.connected).
+				Int("Timeout", conn.timeout).
 				Msg("MQTT Timeout - No packet received")
 			return nil, ErrConnectionTimeout
 		}
 
 		m.log.Warn().
-			Bytes("ClientId", conn.session.ClientID).
-			Bool("Connected", conn.session.connected).
-			Int("Timeout", conn.session.KeepAlive).
+			Bytes("ClientId", conn.clientID).
+			Bool("Connected", conn.connected).
+			Int("Timeout", conn.timeout).
 			Msg("MQTT Failed to read packet: " + err.Error())
 		return nil, ErrProtocolError
 	}
 
 	m.metrics.recordPacketReceived(pkt)
 	m.log.Debug().
-		Bytes("ClientId", conn.session.ClientID).
-		Bool("Connected", conn.session.connected).
+		Bytes("ClientId", conn.clientID).
+		Bool("Connected", conn.connected).
 		Uint8("PacketTypeId", uint8(pkt.Type())).
 		Msg("MQTT Received packet")
 	return
@@ -192,15 +195,19 @@ func (m *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 func (m *connectionManager) handlePacket(conn *connection,
 	pkt packet.Packet) error {
 
-	reply, err := m.sessionManager.handlePacket(&conn.session, pkt)
+	var reply packet.Packet
+	var err error
+
+	conn.session, reply, err = m.sessionManager.handlePacket(conn.session, pkt)
 	if err != nil {
 		m.log.Warn().
-			Bytes("ClientId", conn.session.ClientID).
+			Bytes("ClientId", conn.clientID).
 			Stringer("PacketType", pkt.Type()).
 			Msg("MQTT Failed to handle packet: " + err.Error())
 		err = errors.New("failed to handle packet: " + err.Error())
 	}
 
+	var newConnection bool
 	if reply != nil {
 		errReply := m.replyPacket(pkt, reply, conn)
 		if errReply != nil {
@@ -212,11 +219,19 @@ func (m *connectionManager) handlePacket(conn *connection,
 		if reply.Type() == packet.CONNACK {
 			connAck := reply.(*packet.ConnAck)
 			if connAck.ReasonCode == packet.ReasonCodeV3ConnectionAccepted {
-				m.mutex.Lock()
-				m.connections[string(conn.session.ClientID)] = conn
-				m.mutex.Unlock()
+				newConnection = true
 			}
 		}
+	}
+
+	if newConnection {
+		conn.clientID = conn.session.ClientID
+		conn.version = conn.session.Version
+		conn.timeout = conn.session.KeepAlive
+
+		m.mutex.Lock()
+		defer m.mutex.Unlock()
+		m.connections[conn.session.SessionID] = conn
 	}
 
 	return err
@@ -224,18 +239,20 @@ func (m *connectionManager) handlePacket(conn *connection,
 
 func (m *connectionManager) createConnection(nc net.Conn) connection {
 	return connection{
-		netConn: nc,
-		session: newSession(m.conf.ConnectTimeout),
+		netConn:   nc,
+		timeout:   m.conf.ConnectTimeout,
+		connected: true,
+		version:   packet.MQTT311, // TODO: Add default version in the config
 	}
 }
 
 func (m *connectionManager) closeConnection(conn *connection, force bool) {
-	if conn.closed {
+	if !conn.connected {
 		return
 	}
 
 	m.log.Trace().
-		Bytes("ClientId", conn.session.ClientID).
+		Bytes("ClientId", conn.clientID).
 		Bool("Force", force).
 		Msg("MQTT Closing connection")
 
@@ -244,16 +261,19 @@ func (m *connectionManager) closeConnection(conn *connection, force bool) {
 	}
 
 	_ = conn.netConn.Close()
-	conn.closed = true
+	conn.connected = false
 
-	m.mutex.Lock()
-	delete(m.connections, string(conn.session.ClientID))
-	m.mutex.Unlock()
+	if conn.session != nil {
+		m.mutex.Lock()
+		defer m.mutex.Unlock()
 
-	m.sessionManager.disconnectSession(&conn.session)
+		m.sessionManager.disconnectSession(conn.session)
+		delete(m.connections, conn.session.SessionID)
+	}
+
 	m.metrics.recordDisconnection()
 	m.log.Debug().
-		Bytes("ClientId", conn.session.ClientID).
+		Bytes("ClientId", conn.clientID).
 		Bool("Force", force).
 		Msg("MQTT Connection closed")
 }
@@ -290,11 +310,18 @@ func (m *connectionManager) replyPacket(pkt packet.Packet,
 	return err
 }
 
-func (m *connectionManager) deliverPacket(id ClientID,
+func (m *connectionManager) deliverPacket(id SessionID,
 	pkt *packet.Publish) error {
 
+	m.mutex.RLock()
+	conn, ok := m.connections[id]
+	m.mutex.RUnlock()
+	if !ok {
+		return errors.New("connection not found")
+	}
+
 	m.log.Trace().
-		Bytes("ClientId", id).
+		Bytes("ClientId", conn.clientID).
 		Uint16("PacketId", uint16(pkt.PacketID)).
 		Uint8("QoS", uint8(pkt.QoS)).
 		Uint8("Retain", pkt.Retain).
@@ -302,20 +329,13 @@ func (m *connectionManager) deliverPacket(id ClientID,
 		Uint8("Version", uint8(pkt.Version)).
 		Msg("MQTT Delivering packet to client")
 
-	m.mutex.RLock()
-	conn, ok := m.connections[string(id)]
-	m.mutex.RUnlock()
-	if !ok {
-		return errors.New("connection not found")
-	}
-
 	err := m.writer.WritePacket(pkt, conn.netConn)
 	if err != nil {
 		return err
 	}
 
 	m.log.Debug().
-		Bytes("ClientId", id).
+		Bytes("ClientId", conn.clientID).
 		Uint16("PacketId", uint16(pkt.PacketID)).
 		Uint8("QoS", uint8(pkt.QoS)).
 		Uint8("Retain", pkt.Retain).

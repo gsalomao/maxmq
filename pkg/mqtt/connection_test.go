@@ -25,6 +25,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const sessionIDTest = 1
+
 func newConfiguration() Configuration {
 	return Configuration{
 		TCPAddress:                    ":1883",
@@ -49,7 +51,9 @@ func newConfiguration() Configuration {
 
 func createConnectionManager(conf Configuration) *connectionManager {
 	logger := mocks.NewLoggerStub()
-	return newConnectionManager(&conf, &idGeneratorMock{}, logger.Logger())
+	idGen := &idGeneratorMock{}
+	idGen.On("NextID").Return(sessionIDTest)
+	return newConnectionManager(&conf, idGen, logger.Logger())
 }
 
 func TestConnectionManager_DefaultValues(t *testing.T) {
@@ -102,7 +106,7 @@ func TestConnectionManager_Handle(t *testing.T) {
 
 	cm.mutex.RLock()
 	assert.Equal(t, 1, len(cm.connections))
-	c, ok := cm.connections["a"]
+	c, ok := cm.connections[sessionIDTest]
 	cm.mutex.RUnlock()
 
 	require.True(t, ok)
@@ -110,6 +114,9 @@ func TestConnectionManager_Handle(t *testing.T) {
 	assert.Equal(t, ClientID{'a'}, c.session.ClientID)
 	assert.Equal(t, packet.MQTT311, c.session.Version)
 	assert.True(t, c.session.connected)
+	assert.Equal(t, c.session.ClientID, c.clientID)
+	assert.Equal(t, c.session.Version, c.version)
+	assert.Equal(t, c.session.KeepAlive, c.timeout)
 
 	msg = []byte{0xC0, 0}
 	_, err = conn.Write(msg)
@@ -294,13 +301,13 @@ func TestConnectionManager_DeliverMessage(t *testing.T) {
 	defer func() { _ = nc.Close() }()
 
 	conn := cm.createConnection(sNc)
-	cm.connections["client-a"] = &conn
+	cm.connections[sessionIDTest] = &conn
 
 	go func() {
 		pkt := packet.NewPublish(10, packet.MQTT311, "data",
 			packet.QoS0, 0, 0, nil, nil)
 
-		err := cm.deliverPacket(ClientID("client-a"), &pkt)
+		err := cm.deliverPacket(sessionIDTest, &pkt)
 		assert.Nil(t, err)
 	}()
 
@@ -322,7 +329,7 @@ func TestConnectionManager_DeliverMessageConnectionNotFound(t *testing.T) {
 	pkt := packet.NewPublish(10, packet.MQTT311, "data",
 		packet.QoS0, 0, 0, nil, nil)
 
-	err := cm.deliverPacket(ClientID("client-a"), &pkt)
+	err := cm.deliverPacket(sessionIDTest, &pkt)
 	assert.NotNil(t, err)
 }
 
@@ -334,11 +341,11 @@ func TestConnectionManager_DeliverMessageWriteFailure(t *testing.T) {
 	_ = nc.Close()
 
 	conn := cm.createConnection(sNc)
-	cm.connections["client-a"] = &conn
+	cm.connections[sessionIDTest] = &conn
 
 	pkt := packet.NewPublish(10, packet.MQTT311, "data",
 		packet.QoS0, 0, 0, nil, nil)
 
-	err := cm.deliverPacket(ClientID("client-a"), &pkt)
+	err := cm.deliverPacket(sessionIDTest, &pkt)
 	assert.NotNil(t, err)
 }

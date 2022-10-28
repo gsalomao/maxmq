@@ -32,7 +32,7 @@ type messagePublisherMock struct {
 }
 
 func (d *messagePublisherMock) publishMessage(session *Session,
-	msg message) error {
+	msg *message) error {
 	args := d.Called(session, msg)
 	return args.Error(0)
 }
@@ -149,7 +149,7 @@ func TestPubSub_PublishQoS0(t *testing.T) {
 		0, 0, nil, nil)
 
 	msg := ps.publish(&pkt)
-	assert.Equal(t, uint64(msgID), msg.id)
+	assert.Equal(t, messageID(msgID), msg.id)
 	assert.Equal(t, &pkt, msg.packet)
 	assert.Equal(t, 1, ps.queue.len())
 
@@ -162,7 +162,7 @@ func TestPubSub_PublishQueuedMessagesNoSubscription(t *testing.T) {
 	pkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS0,
 		0, 0, nil, nil)
 	msg := message{id: 1, packet: &pkt}
-	ps.queue.enqueue(msg)
+	ps.queue.enqueue(&msg)
 
 	ps.publishQueuedMessages()
 	assert.Zero(t, ps.queue.len())
@@ -197,7 +197,7 @@ func TestPubSub_PublishQueuedMessagesQoS0(t *testing.T) {
 
 			pkt := packet.NewPublish(test.id, packet.MQTT311, test.topic,
 				packet.QoS0, 0, 0, nil, nil)
-			msg := message{id: uint64(test.id), packet: &pkt}
+			msg := &message{id: messageID(test.id), packet: &pkt}
 
 			pubMock := ps.publisher.(*messagePublisherMock)
 			pubMock.On("publishMessage", &session, msg).Return(nil)
@@ -227,7 +227,7 @@ func TestPubSub_ProcessQueuedMessagesFailedToDeliver(t *testing.T) {
 
 	pkt := packet.NewPublish(1, packet.MQTT311, "data",
 		packet.QoS0, 0, 0, nil, nil)
-	msg := message{id: 1, packet: &pkt}
+	msg := &message{id: 1, packet: &pkt}
 
 	pubMock := ps.publisher.(*messagePublisherMock)
 	pubMock.On("publishMessage", &session, msg).

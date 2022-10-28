@@ -34,12 +34,12 @@ func TestStore_SaveSession(t *testing.T) {
 	s := newStore()
 
 	id := ClientID{'a'}
-	session := Session{
+	session := &Session{
 		ClientID:       id,
 		ConnectedAt:    time.Now().Unix(),
 		ExpiryInterval: 60,
 	}
-	s.saveSession(&session)
+	s.saveSession(session)
 
 	savedSession, err := s.getSession(id)
 	require.Nil(t, err)

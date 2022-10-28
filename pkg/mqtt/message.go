@@ -21,8 +21,10 @@ import (
 	"github.com/gsalomao/maxmq/pkg/mqtt/packet"
 )
 
+type messageID uint64
+
 type message struct {
-	id     uint64
+	id     messageID
 	packet *packet.Publish
 }
 
@@ -31,21 +33,21 @@ type messageQueue struct {
 	list  list.List
 }
 
-func (q *messageQueue) enqueue(msg message) {
+func (q *messageQueue) enqueue(msg *message) {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 
 	q.list.PushBack(msg)
 }
 
-func (q *messageQueue) dequeue() message {
+func (q *messageQueue) dequeue() *message {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 
 	elem := q.list.Front()
 	q.list.Remove(elem)
 
-	return elem.Value.(message)
+	return elem.Value.(*message)
 }
 
 func (q *messageQueue) len() int {

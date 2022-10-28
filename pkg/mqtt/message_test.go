@@ -26,14 +26,14 @@ func TestMessageQueue_Enqueue(t *testing.T) {
 	require.Zero(t, mq.list.Len())
 
 	msg := message{id: 1}
-	mq.enqueue(msg)
+	mq.enqueue(&msg)
 	require.Equal(t, 1, mq.list.Len())
 }
 
 func TestMessageQueue_Dequeue(t *testing.T) {
 	msg1 := message{id: 1}
 	mq := messageQueue{}
-	mq.enqueue(msg1)
+	mq.enqueue(&msg1)
 
 	msg2 := mq.dequeue()
 	require.Zero(t, mq.list.Len())
@@ -45,7 +45,7 @@ func TestMessageQueue_Len(t *testing.T) {
 	assert.Zero(t, mq.len())
 
 	msg := message{id: 1}
-	mq.enqueue(msg)
+	mq.enqueue(&msg)
 	assert.Equal(t, 1, mq.len())
 
 	_ = mq.dequeue()

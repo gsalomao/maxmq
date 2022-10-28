@@ -104,10 +104,12 @@ func getClientID(p *packet.Connect, prefix []byte) (id ClientID,
 	return id, true
 }
 
-func addAssignedClientID(p *packet.ConnAck, s *Session, created bool) {
-	if s.Version == packet.MQTT50 && created {
+func addAssignedClientID(p *packet.ConnAck, v packet.MQTTVersion, id ClientID,
+	created bool) {
+
+	if v == packet.MQTT50 && created {
 		props := getPropertiesOrCreate(p.Properties)
-		props.AssignedClientID = s.ClientID
+		props.AssignedClientID = id
 		p.Properties = props
 	}
 }
@@ -117,6 +119,14 @@ func getSubscriptionID(props *packet.Properties) uint32 {
 		return uint32(*props.SubscriptionIdentifier)
 	}
 	return 0
+}
+
+func getSessionKeepAlive(conf *Configuration, keepAlive int) int {
+	if conf.MaxKeepAlive > 0 &&
+		(keepAlive == 0 || keepAlive > conf.MaxKeepAlive) {
+		return conf.MaxKeepAlive
+	}
+	return keepAlive
 }
 
 func newConnAck(
@@ -166,13 +176,12 @@ func addServerKeepAliveToProperties(
 	keepAlive int,
 	conf *Configuration,
 ) *packet.Properties {
-	if conf.MaxKeepAlive > 0 &&
-		(keepAlive == 0 || keepAlive > conf.MaxKeepAlive) {
-
+	sessionKeepAlive := getSessionKeepAlive(conf, keepAlive)
+	if sessionKeepAlive != keepAlive {
 		p = getPropertiesOrCreate(p)
 
 		p.ServerKeepAlive = new(uint16)
-		*p.ServerKeepAlive = uint16(conf.MaxKeepAlive)
+		*p.ServerKeepAlive = uint16(sessionKeepAlive)
 	}
 
 	return p
