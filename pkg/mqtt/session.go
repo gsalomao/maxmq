@@ -539,7 +539,7 @@ func (m *sessionManager) readSession(id ClientID) (*Session, error) {
 		Bytes("ClientId", id).
 		Msg("MQTT Reading session")
 
-	session, err := m.store.getSession(id)
+	session, err := m.store.readSession(id)
 	if err == ErrSessionNotFound {
 		m.log.Debug().
 			Bytes("ClientId", id).

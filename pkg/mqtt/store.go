@@ -29,7 +29,7 @@ func newStore() store {
 	}
 }
 
-func (s *store) getSession(id ClientID) (*Session, error) {
+func (s *store) readSession(id ClientID) (*Session, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
