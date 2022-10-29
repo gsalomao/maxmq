@@ -169,7 +169,7 @@ func TestPacket_ReadPacketInvalid(t *testing.T) {
 		},
 		{
 			pkt: []byte{0x10},
-			msg: "invalid variable integer",
+			msg: "failed to read variable integer",
 		},
 		{
 			pkt: []byte{0x10, 0xFF, 0xFF, 0xFF, 0xFF},
@@ -181,7 +181,7 @@ func TestPacket_ReadPacketInvalid(t *testing.T) {
 		},
 		{
 			pkt: []byte{0x10, 0},
-			msg: "cannot decode protocol name",
+			msg: "failed to read protocol name",
 		},
 	}
 

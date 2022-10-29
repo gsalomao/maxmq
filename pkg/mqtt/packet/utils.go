@@ -27,10 +27,6 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
-func formatPacketError(pkt Packet, msg string, err error) error {
-	return fmt.Errorf("%v (%v): %w", msg, pkt.Type().String(), err)
-}
-
 func readVarInteger(r io.ByteReader, val *int) (n int, err error) {
 	multiplier := 1
 	for {
@@ -38,7 +34,8 @@ func readVarInteger(r io.ByteReader, val *int) (n int, err error) {
 
 		b, err = r.ReadByte()
 		if err != nil {
-			return 0, errors.New("invalid variable integer")
+			return 0, fmt.Errorf("failed to read variable integer: %w",
+				err)
 		}
 
 		n++
@@ -57,18 +54,12 @@ func readVarInteger(r io.ByteReader, val *int) (n int, err error) {
 	return
 }
 
-func readUint[T constraints.Unsigned](buf *bytes.Buffer,
-	version MQTTVersion) (T, error) {
-
+func readUint[T constraints.Unsigned](buf *bytes.Buffer) (T, error) {
 	var val T
 	size := int(unsafe.Sizeof(val))
 
 	if buf.Len() < size {
-		if version == MQTT50 {
-			return 0, ErrV5MalformedPacket
-		}
-
-		return 0, fmt.Errorf("no enough bytes to read %v-bytes integer", size)
+		return 0, newErrMalformedPacket("no enough bytes")
 	}
 
 	switch size {
@@ -83,39 +74,27 @@ func readUint[T constraints.Unsigned](buf *bytes.Buffer,
 	return val, nil
 }
 
-func readString(buf *bytes.Buffer, ver MQTTVersion) ([]byte, error) {
-	str, err := readBinary(buf, ver)
+func readString(buf *bytes.Buffer) ([]byte, error) {
+	str, err := readBinary(buf)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(str) > 0 && !isValidUTF8String(str) {
-		if ver == MQTT50 {
-			return nil, ErrV5MalformedPacket
-		}
-
-		return nil, errors.New("invalid UTF8 string")
+		return nil, newErrMalformedPacket("invalid UTF-8 string")
 	}
 
 	return str, nil
 }
 
-func readBinary(buf *bytes.Buffer, ver MQTTVersion) ([]byte, error) {
+func readBinary(buf *bytes.Buffer) ([]byte, error) {
 	if buf.Len() < 2 {
-		if ver == MQTT50 {
-			return nil, ErrV5MalformedPacket
-		}
-
-		return nil, errors.New("no enough bytes to decode binary")
+		return nil, newErrMalformedPacket("no enough bytes")
 	}
 
 	length := int(binary.BigEndian.Uint16(buf.Next(2)))
 	if length > buf.Len() {
-		if ver == MQTT50 {
-			return nil, ErrV5MalformedPacket
-		}
-
-		return nil, errors.New("invalid length of binary")
+		return nil, newErrMalformedPacket("no enough bytes")
 	}
 
 	val := buf.Next(length)

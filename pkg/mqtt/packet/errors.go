@@ -15,7 +15,6 @@
 package packet
 
 import (
-	"errors"
 	"fmt"
 )
 
@@ -77,10 +76,6 @@ func (err Error) Error() string {
 	return fmt.Sprintf("%s (code=%d)", err.Reason, err.ReasonCode)
 }
 
-func newErrMalformedPacket(v MQTTVersion, msg string) error {
-	if v == MQTT50 {
-		return ErrV5MalformedPacket
-	}
-
-	return errors.New(msg)
+func newErrMalformedPacket(msg string) error {
+	return fmt.Errorf("%w: %v", ErrV5MalformedPacket, msg)
 }

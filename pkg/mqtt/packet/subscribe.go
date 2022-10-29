@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 )
@@ -78,26 +79,26 @@ func (pkt *Subscribe) Pack(_ *bufio.Writer) error {
 func (pkt *Subscribe) Unpack(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
-		return formatPacketError(pkt, "failed to read remaining bytes", err)
+		return fmt.Errorf("failed to read remaining bytes: %w", err)
 	}
 	buf := bytes.NewBuffer(msg)
 
-	id, err := readUint[uint16](buf, pkt.Version)
+	id, err := readUint[uint16](buf)
 	if err != nil {
-		return formatPacketError(pkt, "failed to read packet ID", err)
+		return fmt.Errorf("failed to read packet ID: %w", err)
 	}
 	pkt.PacketID = ID(id)
 
 	if pkt.Version == MQTT50 {
 		pkt.Properties, err = readProperties(buf, SUBSCRIBE)
 		if err != nil {
-			return formatPacketError(pkt, "failed to read properties", err)
+			return fmt.Errorf("failed to read properties: %w", err)
 		}
 	}
 
 	err = pkt.unpackTopics(buf)
 	if err != nil {
-		return formatPacketError(pkt, "failed to unpack topics", err)
+		return err
 	}
 
 	return nil
@@ -121,14 +122,14 @@ func (pkt *Subscribe) Timestamp() time.Time {
 
 func (pkt *Subscribe) unpackTopics(buf *bytes.Buffer) error {
 	for {
-		topic, err := readString(buf, pkt.Version)
+		topic, err := readString(buf)
 		if err != nil {
-			return formatPacketError(pkt, "failed to read topic", err)
+			return fmt.Errorf("failed to read topic: %w", err)
 		}
 
 		opts, err := buf.ReadByte()
 		if err != nil {
-			return formatPacketError(pkt, "failed to read topic opts", err)
+			return fmt.Errorf("failed to read topic opts: %w", err)
 		}
 
 		optsMask := byte(0xFC)
@@ -136,15 +137,15 @@ func (pkt *Subscribe) unpackTopics(buf *bytes.Buffer) error {
 			optsMask = 0xC0
 		}
 		if opts&optsMask > 0 {
-			return errors.New("invalid subscription options")
+			return newErrMalformedPacket("invalid subscription options")
 		}
 
 		if opts&0x03 > 2 {
-			return errors.New("invalid QoS")
+			return newErrMalformedPacket("invalid QoS")
 		}
 
 		if (opts & 0x30 >> 4) > 2 {
-			return errors.New("invalid Retain Handling")
+			return newErrMalformedPacket("invalid Retain Handling")
 		}
 
 		pkt.Topics = append(pkt.Topics, Topic{

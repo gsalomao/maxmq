@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 )
@@ -78,26 +79,26 @@ func (pkt *Unsubscribe) Pack(_ *bufio.Writer) error {
 func (pkt *Unsubscribe) Unpack(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
-		return formatPacketError(pkt, "failed to read remaining bytes", err)
+		return fmt.Errorf("failed to read remaining bytes: %w", err)
 	}
 	buf := bytes.NewBuffer(msg)
 
-	id, err := readUint[uint16](buf, pkt.Version)
+	id, err := readUint[uint16](buf)
 	pkt.PacketID = ID(id)
 	if err != nil {
-		return formatPacketError(pkt, "failed to read packet ID", err)
+		return fmt.Errorf("failed to read packet ID: %w", err)
 	}
 
 	if pkt.Version == MQTT50 {
 		pkt.Properties, err = readProperties(buf, UNSUBSCRIBE)
 		if err != nil {
-			return formatPacketError(pkt, "failed to read properties", err)
+			return fmt.Errorf("failed to read properties: %w", err)
 		}
 	}
 
 	err = pkt.unpackTopics(buf)
 	if err != nil {
-		return formatPacketError(pkt, "failed to read topics", err)
+		return fmt.Errorf("failed to read topics: %w", err)
 	}
 
 	return nil
@@ -121,7 +122,7 @@ func (pkt *Unsubscribe) Timestamp() time.Time {
 
 func (pkt *Unsubscribe) unpackTopics(buf *bytes.Buffer) error {
 	for {
-		topic, err := readString(buf, pkt.Version)
+		topic, err := readString(buf)
 		if err != nil {
 			return err
 		}

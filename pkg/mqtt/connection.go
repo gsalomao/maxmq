@@ -159,14 +159,15 @@ func (m *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 
 	pkt, err = m.reader.ReadPacket(conn.netConn, conn.version)
 	if err != nil {
-		if isConnectionClosed(conn.netConn) { // TODO: Check if IOF is wrapped
+		if errors.Is(err, io.EOF) {
 			m.log.Debug().
 				Bytes("ClientId", conn.clientID).
 				Msg("MQTT Network connection was closed")
 			return nil, io.EOF
 		}
 
-		if errCon, ok := err.(net.Error); ok && errCon.Timeout() {
+		var netErr net.Error
+		if errors.As(err, &netErr) && netErr.Timeout() {
 			m.log.Debug().
 				Bytes("ClientId", conn.clientID).
 				Bool("Connected", conn.connected).

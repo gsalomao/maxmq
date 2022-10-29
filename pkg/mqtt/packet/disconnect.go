@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 
@@ -86,7 +87,7 @@ func (pkt *Disconnect) Pack(w *bufio.Writer) error {
 
 		err := writeProperties(buf, pkt.Properties, DISCONNECT)
 		if err != nil {
-			return formatPacketError(pkt, "failed to write properties", err)
+			return fmt.Errorf("failed to write properties: %w", err)
 		}
 	}
 
@@ -98,7 +99,7 @@ func (pkt *Disconnect) Pack(w *bufio.Writer) error {
 	n, errBuf := buf.WriteTo(w)
 	err = multierr.Combine(err, errBuf)
 	if err != nil {
-		return formatPacketError(pkt, "failed to send packet", err)
+		return fmt.Errorf("failed to send packet: %w", err)
 	}
 
 	pkt.timestamp = time.Now()
@@ -113,21 +114,21 @@ func (pkt *Disconnect) Unpack(r *bufio.Reader) error {
 	if pkt.Version == MQTT50 {
 		rc, err := r.ReadByte()
 		if err != nil {
-			return formatPacketError(pkt, "no Reason Code", err)
+			return fmt.Errorf("failed to read Reason Code: %w", err)
 		}
 		pkt.ReasonCode = ReasonCode(rc)
 
 		if pkt.remainLength > 2 {
 			msg := make([]byte, pkt.remainLength-1)
 			if _, err = io.ReadFull(r, msg); err != nil {
-				return formatPacketError(pkt, "failed to read remaining bytes",
+				return fmt.Errorf("failed to read remaining bytes: %w",
 					err)
 			}
 			buf := bytes.NewBuffer(msg)
 
 			pkt.Properties, err = readProperties(buf, DISCONNECT)
 			if err != nil {
-				return formatPacketError(pkt, "failed to read properties", err)
+				return fmt.Errorf("failed to read properties: %w", err)
 			}
 		}
 	}

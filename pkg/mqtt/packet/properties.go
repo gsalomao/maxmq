@@ -17,7 +17,6 @@ package packet
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 
 	"go.uber.org/multierr"
@@ -295,7 +294,7 @@ func writeProperties(buf *bytes.Buffer, p *Properties, t Type) error {
 	_, errBuf := b.WriteTo(buf)
 	err = multierr.Combine(err, errBuf)
 	if err != nil {
-		return errors.New("failed to write properties to buffer: " + err.Error())
+		return err
 	}
 
 	return nil
@@ -305,8 +304,8 @@ func readProperties(b *bytes.Buffer, t Type) (*Properties, error) {
 	var propsLen int
 	_, err := readVarInteger(b, &propsLen)
 	if err != nil {
-		return nil, errors.New("failed to read properties length: " +
-			err.Error())
+		return nil, fmt.Errorf("failed to read properties length: %w",
+			err)
 	}
 	if propsLen == 0 {
 		return nil, nil
@@ -317,7 +316,7 @@ func readProperties(b *bytes.Buffer, t Type) (*Properties, error) {
 
 	err = p.unpackProperties(props, t)
 	if err != nil {
-		return nil, errors.New("failed to unpack properties: " + err.Error())
+		return nil, err
 	}
 
 	return p, nil
@@ -492,7 +491,7 @@ func readPropUser(b *bytes.Buffer, p *Properties) error {
 	kv := make([][]byte, 2)
 
 	for i := 0; i < len(kv); i++ {
-		s, err := readString(b, MQTT50)
+		s, err := readString(b)
 		if err != nil {
 			return err
 		}
@@ -551,7 +550,7 @@ func readPropUint16(b *bytes.Buffer, v **uint16, val func(uint16) bool) error {
 		return ErrV5ProtocolError
 	}
 
-	prop, err := readUint[uint16](b, MQTT50)
+	prop, err := readUint[uint16](b)
 	if err != nil {
 		return err
 	}
@@ -569,7 +568,7 @@ func readPropUint32(b *bytes.Buffer, v **uint32, val func(uint32) bool) error {
 		return ErrV5ProtocolError
 	}
 
-	prop, err := readUint[uint32](b, MQTT50)
+	prop, err := readUint[uint32](b)
 	if err != nil {
 		return err
 	}
@@ -588,7 +587,7 @@ func readPropString(b *bytes.Buffer, buf *[]byte) error {
 	}
 
 	var err error
-	*buf, err = readString(b, MQTT50)
+	*buf, err = readString(b)
 	return err
 }
 
@@ -598,7 +597,7 @@ func readPropBinary(b *bytes.Buffer, buf *[]byte) error {
 	}
 
 	var err error
-	*buf, err = readBinary(b, MQTT50)
+	*buf, err = readBinary(b)
 	return err
 }
 

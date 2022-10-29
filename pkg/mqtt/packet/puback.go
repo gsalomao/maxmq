@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 
@@ -88,7 +89,7 @@ func (pkt *PubAck) Pack(w *bufio.Writer) error {
 		err = multierr.Combine(err,
 			writeProperties(buf, pkt.Properties, PUBACK))
 		if err != nil {
-			return formatPacketError(pkt, "failed to write properties", err)
+			return fmt.Errorf("failed to write properties: %w", err)
 		}
 	}
 
@@ -103,7 +104,7 @@ func (pkt *PubAck) Pack(w *bufio.Writer) error {
 	_, errBuf := buf.WriteTo(w)
 	err = multierr.Combine(err, errBuf)
 	if err != nil {
-		return formatPacketError(pkt, "failed to send packet", err)
+		return fmt.Errorf("failed to send packet: %w", err)
 	}
 
 	pkt.timestamp = time.Now()
@@ -117,13 +118,13 @@ func (pkt *PubAck) Pack(w *bufio.Writer) error {
 func (pkt *PubAck) Unpack(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
-		return formatPacketError(pkt, "failed to read remaining bytes", err)
+		return fmt.Errorf("failed to read remaining bytes: %w", err)
 	}
 	buf := bytes.NewBuffer(msg)
 
-	id, err := readUint[uint16](buf, pkt.Version)
+	id, err := readUint[uint16](buf)
 	if err != nil {
-		return formatPacketError(pkt, "failed to read packet ID", err)
+		return fmt.Errorf("failed to read packet ID: %w", err)
 	}
 	pkt.PacketID = ID(id)
 
@@ -135,7 +136,7 @@ func (pkt *PubAck) Unpack(r *bufio.Reader) error {
 		if buf.Len() > 0 {
 			pkt.Properties, err = readProperties(buf, PUBACK)
 			if err != nil {
-				return formatPacketError(pkt, "failed to read properties", err)
+				return fmt.Errorf("failed to read properties: %w", err)
 			}
 		}
 	}

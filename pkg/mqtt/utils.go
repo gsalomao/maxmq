@@ -15,21 +15,11 @@
 package mqtt
 
 import (
-	"io"
 	"math"
-	"net"
-	"time"
 
 	packet "github.com/gsalomao/maxmq/pkg/mqtt/packet"
 	"github.com/rs/xid"
 )
-
-func isConnectionClosed(conn net.Conn) bool {
-	buf := make([]byte, 1)
-	_ = conn.SetReadDeadline(time.Now().Add(time.Millisecond))
-	_, err := conn.Read(buf)
-	return err == io.EOF
-}
 
 func bufferSizeOrDefault(bs int) int {
 	if bs < 1 || bs > 65535 {

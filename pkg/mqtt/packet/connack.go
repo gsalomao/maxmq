@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"time"
 
 	"go.uber.org/multierr"
@@ -64,7 +65,7 @@ func (pkt *ConnAck) Pack(w *bufio.Writer) error {
 	if pkt.Version == MQTT50 {
 		err := writeProperties(buf, pkt.Properties, CONNACK)
 		if err != nil {
-			return formatPacketError(pkt, "failed to write properties", err)
+			return fmt.Errorf("failed to write properties: %w", err)
 		}
 	}
 
@@ -83,7 +84,7 @@ func (pkt *ConnAck) Pack(w *bufio.Writer) error {
 	_, errBuff := buf.WriteTo(w)
 	err = multierr.Combine(err, errBuff)
 	if err != nil {
-		return formatPacketError(pkt, "failed to send packet", err)
+		return fmt.Errorf("failed to send packet: %w", err)
 	}
 
 	pkt.timestamp = time.Now()

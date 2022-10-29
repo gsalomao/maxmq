@@ -223,7 +223,7 @@ func TestConnect_UnpackFlagsReservedInvalid(t *testing.T) {
 
 	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
-	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
+	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 	// V5.0
 	msg = []byte{
@@ -272,7 +272,7 @@ func TestConnect_UnpackFlagsWillQoSInvalid(t *testing.T) {
 
 	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
-	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
+	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 	// V3.1.1 - Invalid Will QoS
 	msg = []byte{
@@ -287,7 +287,7 @@ func TestConnect_UnpackFlagsWillQoSInvalid(t *testing.T) {
 
 	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
-	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
+	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 	// V5.0 - No Will Flag
 	msg = []byte{
@@ -355,7 +355,7 @@ func TestConnect_UnpackFlagsWillRetainInvalid(t *testing.T) {
 
 	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
-	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
+	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 	// V5.0
 	msg = []byte{
@@ -388,7 +388,7 @@ func TestConnect_UnpackFlagsUserNamePasswordInvalid(t *testing.T) {
 
 	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
-	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
+	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 	// V5.0
 	msg = []byte{
@@ -570,7 +570,7 @@ func TestConnect_UnpackClientIDMalformed(t *testing.T) {
 
 		err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 		require.NotNil(t, err)
-		assert.NotErrorIs(t, err, ErrV5MalformedPacket)
+		assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 		// V5.0
 		msg = []byte{
@@ -617,7 +617,7 @@ func TestConnect_UnpackClientIDMalformed(t *testing.T) {
 
 		err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 		require.NotNil(t, err)
-		assert.NotErrorIs(t, err, ErrV5MalformedPacket)
+		assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 		// V5.0
 		msg = []byte{
@@ -753,7 +753,7 @@ func TestConnect_UnpackWillTopicMissing(t *testing.T) {
 
 	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
-	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
+	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 	// V5.0
 	msg = []byte{
@@ -819,7 +819,7 @@ func TestConnect_UnpackWillMessageMissing(t *testing.T) {
 
 	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
-	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
+	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 	// V5.0
 	msg = []byte{
@@ -884,7 +884,7 @@ func TestConnect_UnpackUserNameMissing(t *testing.T) {
 
 	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
-	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
+	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 	// v5.0
 	msg = []byte{
@@ -949,7 +949,7 @@ func TestConnect_UnpackPasswordInvalid(t *testing.T) {
 
 	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
-	assert.NotErrorIs(t, err, ErrV5MalformedPacket)
+	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestConnect_Size(t *testing.T) {

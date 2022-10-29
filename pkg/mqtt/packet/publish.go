@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 
@@ -123,7 +124,7 @@ func (pkt *Publish) Pack(w *bufio.Writer) error {
 	if pkt.Version == MQTT50 {
 		err := writeProperties(buf, pkt.Properties, PUBLISH)
 		if err != nil {
-			return formatPacketError(pkt, "failed to write properties", err)
+			return fmt.Errorf("failed to write properties: %w", err)
 		}
 	}
 
@@ -153,7 +154,7 @@ func (pkt *Publish) Pack(w *bufio.Writer) error {
 	_, err3 := w.Write(pkt.Payload)
 	err = multierr.Combine(err, err2, err3)
 	if err != nil {
-		return formatPacketError(pkt, "failed to send packet", err)
+		return fmt.Errorf("failed to send packet: %w", err)
 	}
 
 	return nil
@@ -164,26 +165,26 @@ func (pkt *Publish) Pack(w *bufio.Writer) error {
 func (pkt *Publish) Unpack(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
-		return formatPacketError(pkt, "failed to read remaining bytes", err)
+		return fmt.Errorf("failed to read remaining bytes: %w", err)
 	}
 	buf := bytes.NewBuffer(msg)
 
-	topic, err := readString(buf, pkt.Version)
+	topic, err := readString(buf)
 	if err != nil {
-		return formatPacketError(pkt, "failed to read topic", err)
+		return fmt.Errorf("failed to read topic: %w", err)
 	}
 
 	topicName := string(topic)
 	if !isValidTopicName(topicName) {
-		return errors.New("invalid topic name (PUBLISH)")
+		return newErrMalformedPacket("invalid topic name")
 	}
 	pkt.TopicName = topicName
 
 	if pkt.QoS > 0 {
 		var id uint16
-		id, err = readUint[uint16](buf, pkt.Version)
+		id, err = readUint[uint16](buf)
 		if err != nil {
-			return formatPacketError(pkt, "failed to read packet ID", err)
+			return fmt.Errorf("failed to read packet ID: %w", err)
 		}
 		pkt.PacketID = ID(id)
 	}
