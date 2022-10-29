@@ -116,9 +116,9 @@ func NewPublish(id ID, version MQTTVersion, topic string, qos QoS, dup uint8,
 	}
 }
 
-// Pack encodes the packet into bytes and writes it into the io.Writer.
+// Write encodes the packet into bytes and writes it into the io.Writer.
 // It is not supported by the PUBLISH Packet in this broker.
-func (pkt *Publish) Pack(w *bufio.Writer) error {
+func (pkt *Publish) Write(w *bufio.Writer) error {
 	buf := &bytes.Buffer{}
 
 	if pkt.Version == MQTT50 {
@@ -160,9 +160,9 @@ func (pkt *Publish) Pack(w *bufio.Writer) error {
 	return nil
 }
 
-// Unpack reads the packet bytes from bufio.Reader and decodes them into the
+// Read reads the packet bytes from bufio.Reader and decodes them into the
 // packet.
-func (pkt *Publish) Unpack(r *bufio.Reader) error {
+func (pkt *Publish) Read(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
 		return fmt.Errorf("failed to read remaining bytes: %w", err)

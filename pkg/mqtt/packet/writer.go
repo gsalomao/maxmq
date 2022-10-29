@@ -44,9 +44,9 @@ func (w *Writer) WritePacket(pkt Packet, wr io.Writer) error {
 	defer w.writerPool.Put(bufWr)
 	bufWr.Reset(wr)
 
-	err := pkt.Pack(bufWr)
+	err := pkt.Write(bufWr)
 	if err != nil {
-		return fmt.Errorf("failed to pack packet %v: %w",
+		return fmt.Errorf("failed to write packet %v: %w",
 			pkt.Type().String(), err)
 	}
 

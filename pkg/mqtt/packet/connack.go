@@ -58,8 +58,8 @@ func NewConnAck(
 	}
 }
 
-// Pack encodes the packet into bytes and writes it into the io.Writer.
-func (pkt *ConnAck) Pack(w *bufio.Writer) error {
+// Write encodes the packet into bytes and writes it into the io.Writer.
+func (pkt *ConnAck) Write(w *bufio.Writer) error {
 	buf := &bytes.Buffer{}
 
 	if pkt.Version == MQTT50 {
@@ -93,10 +93,10 @@ func (pkt *ConnAck) Pack(w *bufio.Writer) error {
 	return err
 }
 
-// Unpack reads the packet bytes from bytes.Buffer and decodes them into the
+// Read reads the packet bytes from bytes.Buffer and decodes them into the
 // packet.
 // It is not supported by the CONNACK Packet in this broker.
-func (pkt *ConnAck) Unpack(_ *bufio.Reader) error {
+func (pkt *ConnAck) Read(_ *bufio.Reader) error {
 	return errors.New("unsupported (CONNACK)")
 }
 

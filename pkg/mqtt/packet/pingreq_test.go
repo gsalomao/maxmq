@@ -44,7 +44,7 @@ func TestPingReq_InvalidRemainLength(t *testing.T) {
 	require.Nil(t, pkt)
 }
 
-func TestPingReq_PackUnsupported(t *testing.T) {
+func TestPingReq_WriteUnsupported(t *testing.T) {
 	opts := options{packetType: PINGREQ, remainingLength: 0}
 	pkt, err := newPacketPingReq(opts)
 	require.Nil(t, err)
@@ -52,11 +52,11 @@ func TestPingReq_PackUnsupported(t *testing.T) {
 
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
-	err = pkt.Pack(wr)
+	err = pkt.Write(wr)
 	require.NotNil(t, err)
 }
 
-func TestPingReq_Unpack(t *testing.T) {
+func TestPingReq_Read(t *testing.T) {
 	opts := options{packetType: PINGREQ, remainingLength: 0}
 	pkt, err := newPacketPingReq(opts)
 	require.Nil(t, err)
@@ -64,11 +64,11 @@ func TestPingReq_Unpack(t *testing.T) {
 	require.Equal(t, PINGREQ, pkt.Type())
 
 	var msg []byte
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.Nil(t, err)
 }
 
-func BenchmarkPingReq_Unpack(b *testing.B) {
+func BenchmarkPingReq_Read(b *testing.B) {
 	var msg []byte
 	opts := options{packetType: PINGREQ, remainingLength: 0}
 	pkt, _ := newPacketPingReq(opts)
@@ -77,7 +77,7 @@ func BenchmarkPingReq_Unpack(b *testing.B) {
 	b.ReportAllocs()
 
 	for n := 0; n < b.N; n++ {
-		err := pkt.Unpack(r)
+		err := pkt.Read(r)
 		if err != nil {
 			b.Fatal(err)
 		}

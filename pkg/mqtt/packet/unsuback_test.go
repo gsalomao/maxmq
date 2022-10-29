@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUnsubAck_Pack(t *testing.T) {
+func TestUnsubAck_Write(t *testing.T) {
 	tests := []struct {
 		id      ID
 		version MQTTVersion
@@ -59,7 +59,7 @@ func TestUnsubAck_Pack(t *testing.T) {
 			buf := &bytes.Buffer{}
 			wr := bufio.NewWriter(buf)
 
-			err := pkt.Pack(wr)
+			err := pkt.Write(wr)
 			assert.Nil(t, err)
 
 			err = wr.Flush()
@@ -70,7 +70,7 @@ func TestUnsubAck_Pack(t *testing.T) {
 	}
 }
 
-func BenchmarkUnsubAck_PackV3(b *testing.B) {
+func BenchmarkUnsubAck_WriteV3(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 	pkt := NewUnsubAck(4, MQTT311, nil, nil)
@@ -80,14 +80,14 @@ func BenchmarkUnsubAck_PackV3(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		buf.Reset()
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func BenchmarkUnsubAck_PackV5(b *testing.B) {
+func BenchmarkUnsubAck_WriteV5(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 	pkt := NewUnsubAck(4, MQTT50, []ReasonCode{0, 17, 128}, nil)
@@ -97,14 +97,14 @@ func BenchmarkUnsubAck_PackV5(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		buf.Reset()
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func TestUnsubAck_PackV5Properties(t *testing.T) {
+func TestUnsubAck_WriteV5Properties(t *testing.T) {
 	props := &Properties{}
 	props.ReasonString = []byte("abc")
 
@@ -114,7 +114,7 @@ func TestUnsubAck_PackV5Properties(t *testing.T) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 
-	err := pkt.Pack(wr)
+	err := pkt.Write(wr)
 	assert.Nil(t, err)
 
 	err = wr.Flush()
@@ -124,7 +124,7 @@ func TestUnsubAck_PackV5Properties(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestUnsubAck_PackV5InvalidProperty(t *testing.T) {
+func TestUnsubAck_WriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{TopicAlias: new(uint16)}
 	*props.TopicAlias = 10
 
@@ -134,7 +134,7 @@ func TestUnsubAck_PackV5InvalidProperty(t *testing.T) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 
-	err := pkt.Pack(wr)
+	err := pkt.Write(wr)
 	assert.NotNil(t, err)
 
 	err = wr.Flush()
@@ -142,12 +142,12 @@ func TestUnsubAck_PackV5InvalidProperty(t *testing.T) {
 	assert.Empty(t, buf)
 }
 
-func TestUnsubAck_UnpackUnsupported(t *testing.T) {
+func TestUnsubAck_ReadUnsupported(t *testing.T) {
 	pkt := NewUnsubAck(4, MQTT311, nil, nil)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
-	err := pkt.Unpack(bufio.NewReader(buf))
+	err := pkt.Read(bufio.NewReader(buf))
 	require.NotNil(t, err)
 }
 
@@ -165,7 +165,7 @@ func TestUnsubAck_Size(t *testing.T) {
 		buf := &bytes.Buffer{}
 		wr := bufio.NewWriter(buf)
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		require.Nil(t, err)
 
 		assert.Equal(t, 4, pkt.Size())
@@ -178,7 +178,7 @@ func TestUnsubAck_Size(t *testing.T) {
 		buf := &bytes.Buffer{}
 		wr := bufio.NewWriter(buf)
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		require.Nil(t, err)
 
 		assert.Equal(t, 8, pkt.Size())
@@ -194,7 +194,7 @@ func TestUnsubAck_Size(t *testing.T) {
 		buf := &bytes.Buffer{}
 		wr := bufio.NewWriter(buf)
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		require.Nil(t, err)
 
 		assert.Equal(t, 13, pkt.Size())

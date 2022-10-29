@@ -52,7 +52,7 @@ func TestPublish_InvalidVersion(t *testing.T) {
 	require.Nil(t, pkt)
 }
 
-func TestPublish_Pack(t *testing.T) {
+func TestPublish_Write(t *testing.T) {
 	testCases := []struct {
 		id      ID
 		version MQTTVersion
@@ -101,7 +101,7 @@ func TestPublish_Pack(t *testing.T) {
 			buf := &bytes.Buffer{}
 			wr := bufio.NewWriter(buf)
 
-			err := pkt.Pack(wr)
+			err := pkt.Write(wr)
 			assert.Nil(t, err)
 
 			err = wr.Flush()
@@ -112,7 +112,7 @@ func TestPublish_Pack(t *testing.T) {
 	}
 }
 
-func TestPublish_PackV5Properties(t *testing.T) {
+func TestPublish_WriteV5Properties(t *testing.T) {
 	props := &Properties{
 		PayloadFormatIndicator: new(byte),
 	}
@@ -127,7 +127,7 @@ func TestPublish_PackV5Properties(t *testing.T) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 
-	err := pkt.Pack(wr)
+	err := pkt.Write(wr)
 	assert.Nil(t, err)
 
 	err = wr.Flush()
@@ -137,7 +137,7 @@ func TestPublish_PackV5Properties(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestPublish_PackV5InvalidProperty(t *testing.T) {
+func TestPublish_WriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{MaximumQoS: new(byte)}
 	*props.MaximumQoS = 1
 
@@ -150,7 +150,7 @@ func TestPublish_PackV5InvalidProperty(t *testing.T) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 
-	err := pkt.Pack(wr)
+	err := pkt.Write(wr)
 	assert.NotNil(t, err)
 
 	err = wr.Flush()
@@ -158,7 +158,7 @@ func TestPublish_PackV5InvalidProperty(t *testing.T) {
 	assert.Empty(t, buf)
 }
 
-func TestPublish_Unpack(t *testing.T) {
+func TestPublish_Read(t *testing.T) {
 	testCases := []struct {
 		id      ID
 		version MQTTVersion
@@ -203,7 +203,7 @@ func TestPublish_Unpack(t *testing.T) {
 			require.Equal(t, PUBLISH, pkt.Type())
 			pubPkt, _ := pkt.(*Publish)
 
-			err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 			require.Nil(t, err)
 
 			assert.Equal(t, test.version, pubPkt.Version)
@@ -219,7 +219,7 @@ func TestPublish_Unpack(t *testing.T) {
 	}
 }
 
-func TestPublish_UnpackInvalidLength(t *testing.T) {
+func TestPublish_ReadInvalidLength(t *testing.T) {
 	var msg []byte
 	opts := options{
 		packetType:      PUBLISH,
@@ -229,11 +229,11 @@ func TestPublish_UnpackInvalidLength(t *testing.T) {
 	pkt, err := newPacketPublish(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
-func TestPublish_UnpackNoTopic(t *testing.T) {
+func TestPublish_ReadNoTopic(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 	}
@@ -246,11 +246,11 @@ func TestPublish_UnpackNoTopic(t *testing.T) {
 	pkt, err := newPacketPublish(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
-func TestPublish_UnpackNoPacketID(t *testing.T) {
+func TestPublish_ReadNoPacketID(t *testing.T) {
 	msg := []byte{
 		0, 3, 'a', '/', 'b', // topic
 	}
@@ -263,11 +263,11 @@ func TestPublish_UnpackNoPacketID(t *testing.T) {
 	pkt, err := newPacketPublish(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
-func TestPublish_UnpackInvalidTopicName(t *testing.T) {
+func TestPublish_ReadInvalidTopicName(t *testing.T) {
 	testCases := []string{"#", "+", "a/#", "a/+", "a/b/#", "a/b/+"}
 
 	for _, test := range testCases {
@@ -284,7 +284,7 @@ func TestPublish_UnpackInvalidTopicName(t *testing.T) {
 			pkt, err := newPacketPublish(opts)
 			require.Nil(t, err)
 
-			err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 			require.NotNil(t, err)
 		})
 	}

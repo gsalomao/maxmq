@@ -45,15 +45,15 @@ func newPacketPingReq(opts options) (Packet, error) {
 	}, nil
 }
 
-// Pack encodes the packet into bytes and writes it into the io.Writer.
+// Write encodes the packet into bytes and writes it into the io.Writer.
 // It is not supported by the PINGREQ Packet in this broker.
-func (pkt *PingReq) Pack(_ *bufio.Writer) error {
+func (pkt *PingReq) Write(_ *bufio.Writer) error {
 	return errors.New("unsupported (PINGREQ)")
 }
 
-// Unpack reads the packet bytes from bufio.Reader and decodes them into the
+// Read reads the packet bytes from bufio.Reader and decodes them into the
 // packet.
-func (pkt *PingReq) Unpack(_ *bufio.Reader) error {
+func (pkt *PingReq) Read(_ *bufio.Reader) error {
 	return nil
 }
 

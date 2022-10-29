@@ -31,8 +31,8 @@ func NewPingResp() PingResp {
 	return PingResp{}
 }
 
-// Pack encodes the packet into bytes and writes it into the io.Writer.
-func (pkt *PingResp) Pack(w *bufio.Writer) error {
+// Write encodes the packet into bytes and writes it into the io.Writer.
+func (pkt *PingResp) Write(w *bufio.Writer) error {
 	_ = w.WriteByte(byte(PINGRESP) << packetTypeBit)
 	err := w.WriteByte(0)
 	pkt.timestamp = time.Now()
@@ -41,10 +41,10 @@ func (pkt *PingResp) Pack(w *bufio.Writer) error {
 	return err
 }
 
-// Unpack reads the packet bytes from bufio.Reader and decodes them into the
+// Read reads the packet bytes from bufio.Reader and decodes them into the
 // packet.
 // It is not supported by the PINGRESP Packet in this broker.
-func (pkt *PingResp) Unpack(_ *bufio.Reader) error {
+func (pkt *PingResp) Read(_ *bufio.Reader) error {
 	return errors.New("unsupported (PINGRESP)")
 }
 

@@ -45,7 +45,7 @@ func TestPubAck_InvalidVersion(t *testing.T) {
 	require.Nil(t, pkt)
 }
 
-func TestPubAck_Pack(t *testing.T) {
+func TestPubAck_Write(t *testing.T) {
 	tests := []struct {
 		id      ID
 		version MQTTVersion
@@ -84,7 +84,7 @@ func TestPubAck_Pack(t *testing.T) {
 			buf := &bytes.Buffer{}
 			wr := bufio.NewWriter(buf)
 
-			err := pkt.Pack(wr)
+			err := pkt.Write(wr)
 			assert.Nil(t, err)
 
 			err = wr.Flush()
@@ -95,7 +95,7 @@ func TestPubAck_Pack(t *testing.T) {
 	}
 }
 
-func BenchmarkPubAck_PackV3(b *testing.B) {
+func BenchmarkPubAck_WriteV3(b *testing.B) {
 	b.ReportAllocs()
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
@@ -104,14 +104,14 @@ func BenchmarkPubAck_PackV3(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		buf.Reset()
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func BenchmarkPubAck_PackV5(b *testing.B) {
+func BenchmarkPubAck_WriteV5(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 	pkt := NewPubAck(4, MQTT50, ReasonCodeV5Success, nil)
@@ -121,14 +121,14 @@ func BenchmarkPubAck_PackV5(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		buf.Reset()
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func TestPubAck_PackV5Properties(t *testing.T) {
+func TestPubAck_WriteV5Properties(t *testing.T) {
 	props := &Properties{}
 	props.ReasonString = []byte("abc")
 
@@ -138,7 +138,7 @@ func TestPubAck_PackV5Properties(t *testing.T) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 
-	err := pkt.Pack(wr)
+	err := pkt.Write(wr)
 	assert.Nil(t, err)
 
 	err = wr.Flush()
@@ -148,7 +148,7 @@ func TestPubAck_PackV5Properties(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestPubAck_PackV5InvalidProperty(t *testing.T) {
+func TestPubAck_WriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{TopicAlias: new(uint16)}
 	*props.TopicAlias = 10
 
@@ -158,7 +158,7 @@ func TestPubAck_PackV5InvalidProperty(t *testing.T) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 
-	err := pkt.Pack(wr)
+	err := pkt.Write(wr)
 	assert.NotNil(t, err)
 
 	err = wr.Flush()
@@ -166,7 +166,7 @@ func TestPubAck_PackV5InvalidProperty(t *testing.T) {
 	assert.Empty(t, buf)
 }
 
-func TestPubAck_Unpack(t *testing.T) {
+func TestPubAck_Read(t *testing.T) {
 	testCases := []struct {
 		id        ID
 		version   MQTTVersion
@@ -197,7 +197,7 @@ func TestPubAck_Unpack(t *testing.T) {
 			require.Equal(t, PUBACK, pkt.Type())
 			pubAckPkt, _ := pkt.(*PubAck)
 
-			err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(test.msg)))
+			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(test.msg)))
 			require.Nil(t, err)
 
 			assert.Equal(t, test.version, pubAckPkt.Version)
@@ -213,7 +213,7 @@ func TestPubAck_Unpack(t *testing.T) {
 	}
 }
 
-func BenchmarkPubAck_UnpackV3(b *testing.B) {
+func BenchmarkPubAck_ReadV3(b *testing.B) {
 	b.ReportAllocs()
 	msg := []byte{0, 1}
 	opts := options{
@@ -228,14 +228,14 @@ func BenchmarkPubAck_UnpackV3(b *testing.B) {
 		buf := bytes.NewBuffer(msg)
 		rd.Reset(buf)
 
-		err := pkt.Unpack(rd)
+		err := pkt.Read(rd)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func BenchmarkPubAck_UnpackV5(b *testing.B) {
+func BenchmarkPubAck_ReadV5(b *testing.B) {
 	b.ReportAllocs()
 	msg := []byte{0, 1, 16, 0}
 	opts := options{
@@ -250,14 +250,14 @@ func BenchmarkPubAck_UnpackV5(b *testing.B) {
 		buf := bytes.NewBuffer(msg)
 		rd.Reset(buf)
 
-		err := pkt.Unpack(rd)
+		err := pkt.Read(rd)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func TestPubAck_UnpackInvalidLength(t *testing.T) {
+func TestPubAck_ReadInvalidLength(t *testing.T) {
 	var msg []byte
 	opts := options{
 		packetType:      PUBACK,
@@ -267,11 +267,11 @@ func TestPubAck_UnpackInvalidLength(t *testing.T) {
 	pkt, err := newPacketPubAck(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
-func TestPubAck_UnpackNoPacketID(t *testing.T) {
+func TestPubAck_ReadNoPacketID(t *testing.T) {
 	var msg []byte
 	opts := options{
 		packetType:      PUBACK,
@@ -281,7 +281,7 @@ func TestPubAck_UnpackNoPacketID(t *testing.T) {
 	pkt, err := newPacketPubAck(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
@@ -299,7 +299,7 @@ func TestPubAck_Size(t *testing.T) {
 		buf := &bytes.Buffer{}
 		wr := bufio.NewWriter(buf)
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		require.Nil(t, err)
 
 		assert.Equal(t, 4, pkt.Size())
@@ -312,7 +312,7 @@ func TestPubAck_Size(t *testing.T) {
 		buf := &bytes.Buffer{}
 		wr := bufio.NewWriter(buf)
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		require.Nil(t, err)
 
 		assert.Equal(t, 4, pkt.Size())
@@ -325,7 +325,7 @@ func TestPubAck_Size(t *testing.T) {
 		buf := &bytes.Buffer{}
 		wr := bufio.NewWriter(buf)
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		require.Nil(t, err)
 
 		assert.Equal(t, 6, pkt.Size())
@@ -341,7 +341,7 @@ func TestPubAck_Size(t *testing.T) {
 		buf := &bytes.Buffer{}
 		wr := bufio.NewWriter(buf)
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		require.Nil(t, err)
 
 		assert.Equal(t, 12, pkt.Size())

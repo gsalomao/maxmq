@@ -23,14 +23,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPingResp_Pack(t *testing.T) {
+func TestPingResp_Write(t *testing.T) {
 	pkt := NewPingResp()
 	require.Equal(t, PINGRESP, pkt.Type())
 
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 
-	err := pkt.Pack(wr)
+	err := pkt.Write(wr)
 	assert.Nil(t, err)
 
 	err = wr.Flush()
@@ -40,7 +40,7 @@ func TestPingResp_Pack(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func BenchmarkPingResp_Pack(b *testing.B) {
+func BenchmarkPingResp_Write(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 	b.ReportAllocs()
@@ -49,17 +49,17 @@ func BenchmarkPingResp_Pack(b *testing.B) {
 		buf.Reset()
 		pkt := NewPingResp()
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func TestPingResp_UnpackUnsupported(t *testing.T) {
+func TestPingResp_ReadUnsupported(t *testing.T) {
 	pkt := NewPingResp()
 	buf := &bytes.Buffer{}
-	err := pkt.Unpack(bufio.NewReader(buf))
+	err := pkt.Read(bufio.NewReader(buf))
 	require.NotNil(t, err)
 }
 
@@ -74,7 +74,7 @@ func TestPingResp_Size(t *testing.T) {
 		buf := &bytes.Buffer{}
 		wr := bufio.NewWriter(buf)
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		require.Nil(t, err)
 
 		assert.Equal(t, 2, pkt.Size())

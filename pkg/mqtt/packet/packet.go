@@ -72,12 +72,12 @@ type ID uint16
 
 // Packet represents the MQTT packet.
 type Packet interface {
-	// Pack encodes the packet into bytes and writes it into bufio.Writer.
-	Pack(w *bufio.Writer) error
+	// Write encodes the packet into bytes and writes it into bufio.Writer.
+	Write(w *bufio.Writer) error
 
-	// Unpack reads the packet bytes from bufio.Reader and decodes them into the
+	// Read reads the packet bytes from bufio.Reader and decodes them into the
 	// packet.
-	Unpack(r *bufio.Reader) error
+	Read(r *bufio.Reader) error
 
 	// Type returns the packet type.
 	Type() Type

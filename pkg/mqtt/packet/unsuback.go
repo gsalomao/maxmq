@@ -56,8 +56,8 @@ func NewUnsubAck(id ID, v MQTTVersion, c []ReasonCode, p *Properties) UnsubAck {
 	}
 }
 
-// Pack encodes the packet into bytes and writes it into the io.Writer.
-func (pkt *UnsubAck) Pack(w *bufio.Writer) error {
+// Write encodes the packet into bytes and writes it into the io.Writer.
+func (pkt *UnsubAck) Write(w *bufio.Writer) error {
 	buf := &bytes.Buffer{}
 
 	if pkt.Version == MQTT50 {
@@ -93,10 +93,10 @@ func (pkt *UnsubAck) Pack(w *bufio.Writer) error {
 	return nil
 }
 
-// Unpack reads the packet bytes from bytes.Buffer and decodes them into the
+// Read reads the packet bytes from bytes.Buffer and decodes them into the
 // packet.
 // It is not supported by the UNSUBACK Packet in this broker.
-func (pkt *UnsubAck) Unpack(_ *bufio.Reader) error {
+func (pkt *UnsubAck) Read(_ *bufio.Reader) error {
 	return errors.New("unsupported (UNSUBACK)")
 }
 

@@ -134,15 +134,15 @@ func newPacketConnect(opts options) (Packet, error) {
 	}, nil
 }
 
-// Pack encodes the packet into bytes and writes it into the io.Writer.
+// Write encodes the packet into bytes and writes it into the io.Writer.
 // It is not supported by the CONNECT Packet in this broker.
-func (pkt *Connect) Pack(_ *bufio.Writer) error {
+func (pkt *Connect) Write(_ *bufio.Writer) error {
 	return errors.New("unsupported (CONNECT)")
 }
 
-// Unpack reads the packet bytes from bufio.Reader and decodes them into the
+// Read reads the packet bytes from bufio.Reader and decodes them into the
 // packet.
-func (pkt *Connect) Unpack(r *bufio.Reader) error {
+func (pkt *Connect) Read(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
 		return fmt.Errorf("failed to read remaining bytes: %w", err)

@@ -78,8 +78,8 @@ func NewDisconnect(v MQTTVersion, c ReasonCode, p *Properties) Disconnect {
 	}
 }
 
-// Pack encodes the packet into bytes and writes it into the io.Writer.
-func (pkt *Disconnect) Pack(w *bufio.Writer) error {
+// Write encodes the packet into bytes and writes it into the io.Writer.
+func (pkt *Disconnect) Write(w *bufio.Writer) error {
 	buf := &bytes.Buffer{}
 
 	if pkt.Version == MQTT50 {
@@ -108,9 +108,9 @@ func (pkt *Disconnect) Pack(w *bufio.Writer) error {
 	return nil
 }
 
-// Unpack reads the packet bytes from bufio.Reader and decodes them into the
+// Read reads the packet bytes from bufio.Reader and decodes them into the
 // packet.
-func (pkt *Disconnect) Unpack(r *bufio.Reader) error {
+func (pkt *Disconnect) Read(r *bufio.Reader) error {
 	if pkt.Version == MQTT50 {
 		rc, err := r.ReadByte()
 		if err != nil {

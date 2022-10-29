@@ -314,7 +314,7 @@ func readProperties(b *bytes.Buffer, t Type) (*Properties, error) {
 	p := &Properties{}
 	props := bytes.NewBuffer(b.Next(propsLen))
 
-	err = p.unpackProperties(props, t)
+	err = p.readProperties(props, t)
 	if err != nil {
 		return nil, err
 	}
@@ -322,7 +322,7 @@ func readProperties(b *bytes.Buffer, t Type) (*Properties, error) {
 	return p, nil
 }
 
-func (p *Properties) unpackProperties(b *bytes.Buffer, t Type) error {
+func (p *Properties) readProperties(b *bytes.Buffer, t Type) error {
 	for {
 		bt, err := b.ReadByte()
 		if err != nil {

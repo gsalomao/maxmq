@@ -37,14 +37,14 @@ func TestDisconnect_InvalidControlFlags(t *testing.T) {
 	require.Nil(t, pkt)
 }
 
-func TestDisconnect_PackV3(t *testing.T) {
+func TestDisconnect_WriteV3(t *testing.T) {
 	pkt := NewDisconnect(MQTT311, ReasonCodeV3ConnectionAccepted, nil)
 	require.Equal(t, DISCONNECT, pkt.Type())
 
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 
-	err := pkt.Pack(wr)
+	err := pkt.Write(wr)
 	assert.Nil(t, err)
 
 	err = wr.Flush()
@@ -54,7 +54,7 @@ func TestDisconnect_PackV3(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestDisconnect_PackV3NoProperties(t *testing.T) {
+func TestDisconnect_WriteV3NoProperties(t *testing.T) {
 	props := &Properties{SessionExpiryInterval: new(uint32)}
 	*props.SessionExpiryInterval = 30
 
@@ -64,7 +64,7 @@ func TestDisconnect_PackV3NoProperties(t *testing.T) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 
-	err := pkt.Pack(wr)
+	err := pkt.Write(wr)
 	assert.Nil(t, err)
 
 	err = wr.Flush()
@@ -74,14 +74,14 @@ func TestDisconnect_PackV3NoProperties(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestDisconnect_PackV5(t *testing.T) {
+func TestDisconnect_WriteV5(t *testing.T) {
 	pkt := NewDisconnect(MQTT50, ReasonCodeV5Success, nil)
 	require.Equal(t, DISCONNECT, pkt.Type())
 
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 
-	err := pkt.Pack(wr)
+	err := pkt.Write(wr)
 	assert.Nil(t, err)
 
 	err = wr.Flush()
@@ -91,7 +91,7 @@ func TestDisconnect_PackV5(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestDisconnect_PackV5Properties(t *testing.T) {
+func TestDisconnect_WriteV5Properties(t *testing.T) {
 	props := &Properties{SessionExpiryInterval: new(uint32)}
 	*props.SessionExpiryInterval = 30
 
@@ -101,7 +101,7 @@ func TestDisconnect_PackV5Properties(t *testing.T) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 
-	err := pkt.Pack(wr)
+	err := pkt.Write(wr)
 	assert.Nil(t, err)
 
 	err = wr.Flush()
@@ -111,7 +111,7 @@ func TestDisconnect_PackV5Properties(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestDisconnect_PackV5PropertiesInvalid(t *testing.T) {
+func TestDisconnect_WriteV5PropertiesInvalid(t *testing.T) {
 	props := &Properties{ServerKeepAlive: new(uint16)}
 	*props.ServerKeepAlive = 60
 
@@ -121,11 +121,11 @@ func TestDisconnect_PackV5PropertiesInvalid(t *testing.T) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 
-	err := pkt.Pack(wr)
+	err := pkt.Write(wr)
 	require.NotNil(t, err)
 }
 
-func TestDisconnect_UnpackV3(t *testing.T) {
+func TestDisconnect_ReadV3(t *testing.T) {
 	opts := options{packetType: DISCONNECT, remainingLength: 0}
 	pkt, err := newPacketDisconnect(opts)
 	require.Nil(t, err)
@@ -133,7 +133,7 @@ func TestDisconnect_UnpackV3(t *testing.T) {
 	require.Equal(t, DISCONNECT, pkt.Type())
 
 	var msg []byte
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.Nil(t, err)
 
 	discPkg, ok := pkt.(*Disconnect)
@@ -141,7 +141,7 @@ func TestDisconnect_UnpackV3(t *testing.T) {
 	assert.Equal(t, MQTT311, discPkg.Version)
 }
 
-func TestDisconnect_UnpackV5(t *testing.T) {
+func TestDisconnect_ReadV5(t *testing.T) {
 	msg := []byte{0x81, 0}
 
 	opts := options{packetType: DISCONNECT, remainingLength: len(msg)}
@@ -150,7 +150,7 @@ func TestDisconnect_UnpackV5(t *testing.T) {
 	require.NotNil(t, pkt)
 	require.Equal(t, DISCONNECT, pkt.Type())
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.Nil(t, err)
 
 	discPkg, ok := pkt.(*Disconnect)
@@ -160,17 +160,17 @@ func TestDisconnect_UnpackV5(t *testing.T) {
 	require.Nil(t, discPkg.Properties)
 }
 
-func TestDisconnect_UnpackInvalidLength(t *testing.T) {
+func TestDisconnect_ReadInvalidLength(t *testing.T) {
 	msg := []byte{0x81, 0}
 	opts := options{packetType: DISCONNECT, remainingLength: 10}
 	pkt, err := newPacketDisconnect(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
-func TestDisconnect_UnpackV5MissingReasonCode(t *testing.T) {
+func TestDisconnect_ReadV5MissingReasonCode(t *testing.T) {
 	opts := options{packetType: DISCONNECT, remainingLength: 1}
 	pkt, err := newPacketDisconnect(opts)
 	require.Nil(t, err)
@@ -178,11 +178,11 @@ func TestDisconnect_UnpackV5MissingReasonCode(t *testing.T) {
 	require.Equal(t, DISCONNECT, pkt.Type())
 
 	var msg []byte
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
-func TestDisconnect_UnpackV5Properties(t *testing.T) {
+func TestDisconnect_ReadV5Properties(t *testing.T) {
 	msg := []byte{0, 5, 17, 0, 0, 0, 30}
 
 	opts := options{packetType: DISCONNECT, remainingLength: len(msg)}
@@ -191,7 +191,7 @@ func TestDisconnect_UnpackV5Properties(t *testing.T) {
 	require.NotNil(t, pkt)
 	require.Equal(t, DISCONNECT, pkt.Type())
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.Nil(t, err)
 
 	discPkg, ok := pkt.(*Disconnect)
@@ -203,7 +203,7 @@ func TestDisconnect_UnpackV5Properties(t *testing.T) {
 	assert.Equal(t, uint32(30), *discPkg.Properties.SessionExpiryInterval)
 }
 
-func TestDisconnect_UnpackV5PropertiesInvalid(t *testing.T) {
+func TestDisconnect_ReadV5PropertiesInvalid(t *testing.T) {
 	msg := []byte{0, 5, 17, 0, 0}
 
 	opts := options{packetType: DISCONNECT, remainingLength: len(msg)}
@@ -212,7 +212,7 @@ func TestDisconnect_UnpackV5PropertiesInvalid(t *testing.T) {
 	require.NotNil(t, pkt)
 	require.Equal(t, DISCONNECT, pkt.Type())
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
@@ -230,7 +230,7 @@ func TestDisconnect_Size(t *testing.T) {
 		buf := &bytes.Buffer{}
 		wr := bufio.NewWriter(buf)
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		require.Nil(t, err)
 
 		assert.Equal(t, 2, pkt.Size())
@@ -243,7 +243,7 @@ func TestDisconnect_Size(t *testing.T) {
 		buf := &bytes.Buffer{}
 		wr := bufio.NewWriter(buf)
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		require.Nil(t, err)
 
 		assert.Equal(t, 4, pkt.Size())
@@ -260,7 +260,7 @@ func TestDisconnect_Size(t *testing.T) {
 		pkt, err := newPacketDisconnect(opts)
 		require.Nil(t, err)
 
-		err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+		err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 		require.Nil(t, err)
 
 		assert.Equal(t, 9, pkt.Size())

@@ -79,7 +79,8 @@ func NewPubAck(id ID, v MQTTVersion, c ReasonCode, p *Properties) PubAck {
 	}
 }
 
-func (pkt *PubAck) Pack(w *bufio.Writer) error {
+// Write encodes the packet into bytes and writes it into the io.Writer.
+func (pkt *PubAck) Write(w *bufio.Writer) error {
 	buf := &bytes.Buffer{}
 
 	if pkt.Version == MQTT50 &&
@@ -113,9 +114,9 @@ func (pkt *PubAck) Pack(w *bufio.Writer) error {
 	return nil
 }
 
-// Unpack reads the packet bytes from bytes.Buffer and decodes them into the
+// Read reads the packet bytes from bytes.Buffer and decodes them into the
 // packet.
-func (pkt *PubAck) Unpack(r *bufio.Reader) error {
+func (pkt *PubAck) Read(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
 		return fmt.Errorf("failed to read remaining bytes: %w", err)

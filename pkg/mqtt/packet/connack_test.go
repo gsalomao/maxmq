@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestConnAck_Pack(t *testing.T) {
+func TestConnAck_Write(t *testing.T) {
 	tests := []struct {
 		ver  MQTTVersion
 		code ReasonCode
@@ -44,7 +44,7 @@ func TestConnAck_Pack(t *testing.T) {
 			buf := &bytes.Buffer{}
 			wr := bufio.NewWriter(buf)
 
-			err := pkt.Pack(wr)
+			err := pkt.Write(wr)
 			assert.Nil(t, err)
 
 			err = wr.Flush()
@@ -55,7 +55,7 @@ func TestConnAck_Pack(t *testing.T) {
 	}
 }
 
-func BenchmarkConnAck_PackV3(b *testing.B) {
+func BenchmarkConnAck_WriteV3(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 	pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
@@ -65,14 +65,14 @@ func BenchmarkConnAck_PackV3(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		buf.Reset()
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func BenchmarkConnAck_PackV5(b *testing.B) {
+func BenchmarkConnAck_WriteV5(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 	pkt := NewConnAck(MQTT50, ReasonCodeV5Success, false, nil)
@@ -82,14 +82,14 @@ func BenchmarkConnAck_PackV5(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		buf.Reset()
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func TestConnAck_PackSessionPresent(t *testing.T) {
+func TestConnAck_WriteSessionPresent(t *testing.T) {
 	testCases := []struct {
 		ver MQTTVersion
 		val bool
@@ -109,7 +109,7 @@ func TestConnAck_PackSessionPresent(t *testing.T) {
 		buf := &bytes.Buffer{}
 		wr := bufio.NewWriter(buf)
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		assert.Nil(t, err)
 
 		err = wr.Flush()
@@ -119,7 +119,7 @@ func TestConnAck_PackSessionPresent(t *testing.T) {
 	}
 }
 
-func TestConnAck_PackV5Properties(t *testing.T) {
+func TestConnAck_WriteV5Properties(t *testing.T) {
 	props := &Properties{SessionExpiryInterval: new(uint32)}
 	*props.SessionExpiryInterval = 30
 
@@ -129,7 +129,7 @@ func TestConnAck_PackV5Properties(t *testing.T) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 
-	err := pkt.Pack(wr)
+	err := pkt.Write(wr)
 	assert.Nil(t, err)
 
 	err = wr.Flush()
@@ -144,7 +144,7 @@ func TestConnAck_PackV5Properties(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestConnAck_PackV5InvalidProperty(t *testing.T) {
+func TestConnAck_WriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{TopicAlias: new(uint16)}
 	*props.TopicAlias = 10
 
@@ -154,7 +154,7 @@ func TestConnAck_PackV5InvalidProperty(t *testing.T) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 
-	err := pkt.Pack(wr)
+	err := pkt.Write(wr)
 	assert.NotNil(t, err)
 
 	err = wr.Flush()
@@ -162,7 +162,7 @@ func TestConnAck_PackV5InvalidProperty(t *testing.T) {
 	assert.Empty(t, buf)
 }
 
-func TestConnAck_PackV3PropertiesIgnored(t *testing.T) {
+func TestConnAck_WriteV3PropertiesIgnored(t *testing.T) {
 	props := &Properties{SessionExpiryInterval: new(uint32)}
 	*props.SessionExpiryInterval = 30
 
@@ -172,7 +172,7 @@ func TestConnAck_PackV3PropertiesIgnored(t *testing.T) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 
-	err := pkt.Pack(wr)
+	err := pkt.Write(wr)
 	assert.Nil(t, err)
 
 	err = wr.Flush()
@@ -185,12 +185,12 @@ func TestConnAck_PackV3PropertiesIgnored(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestConnAck_UnpackUnsupported(t *testing.T) {
+func TestConnAck_ReadUnsupported(t *testing.T) {
 	pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
-	err := pkt.Unpack(bufio.NewReader(buf))
+	err := pkt.Read(bufio.NewReader(buf))
 	require.NotNil(t, err)
 }
 
@@ -208,7 +208,7 @@ func TestConnAck_Size(t *testing.T) {
 		buf := &bytes.Buffer{}
 		wr := bufio.NewWriter(buf)
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		require.Nil(t, err)
 
 		assert.Equal(t, 4, pkt.Size())
@@ -221,7 +221,7 @@ func TestConnAck_Size(t *testing.T) {
 		buf := &bytes.Buffer{}
 		wr := bufio.NewWriter(buf)
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		require.Nil(t, err)
 
 		assert.Equal(t, 5, pkt.Size())
@@ -237,7 +237,7 @@ func TestConnAck_Size(t *testing.T) {
 		buf := &bytes.Buffer{}
 		wr := bufio.NewWriter(buf)
 
-		err := pkt.Pack(wr)
+		err := pkt.Write(wr)
 		require.Nil(t, err)
 
 		assert.Equal(t, 10, pkt.Size())

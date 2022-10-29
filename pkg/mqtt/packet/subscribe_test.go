@@ -44,7 +44,7 @@ func TestSubscribe_InvalidVersion(t *testing.T) {
 	require.Nil(t, pkt)
 }
 
-func TestSubscribe_PackUnsupported(t *testing.T) {
+func TestSubscribe_WriteUnsupported(t *testing.T) {
 	opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT311}
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
@@ -52,11 +52,11 @@ func TestSubscribe_PackUnsupported(t *testing.T) {
 
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
-	err = pkt.Pack(wr)
+	err = pkt.Write(wr)
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_UnpackV3(t *testing.T) {
+func TestSubscribe_ReadV3(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 		0, 3, 'a', '/', 'b', 1, // topic filter
@@ -75,7 +75,7 @@ func TestSubscribe_UnpackV3(t *testing.T) {
 	require.Equal(t, SUBSCRIBE, pkt.Type())
 	subPkt, _ := pkt.(*Subscribe)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.Nil(t, err)
 
 	assert.Equal(t, MQTT311, subPkt.Version)
@@ -90,7 +90,7 @@ func TestSubscribe_UnpackV3(t *testing.T) {
 	assert.Nil(t, subPkt.Properties)
 }
 
-func TestSubscribe_UnpackV5(t *testing.T) {
+func TestSubscribe_ReadV5(t *testing.T) {
 	msg := []byte{
 		0, 25, // packet ID
 		0,                         // property length
@@ -108,7 +108,7 @@ func TestSubscribe_UnpackV5(t *testing.T) {
 	require.Equal(t, SUBSCRIBE, pkt.Type())
 	subPkt, _ := pkt.(*Subscribe)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.Nil(t, err)
 
 	assert.Equal(t, MQTT50, subPkt.Version)
@@ -121,7 +121,7 @@ func TestSubscribe_UnpackV5(t *testing.T) {
 	assert.True(t, subPkt.Topics[0].NoLocal)
 }
 
-func TestSubscribe_UnpackInvalidLength(t *testing.T) {
+func TestSubscribe_ReadInvalidLength(t *testing.T) {
 	var msg []byte
 	opts := options{
 		packetType:      SUBSCRIBE,
@@ -132,11 +132,11 @@ func TestSubscribe_UnpackInvalidLength(t *testing.T) {
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_UnpackNoPacketID(t *testing.T) {
+func TestSubscribe_ReadNoPacketID(t *testing.T) {
 	var msg []byte
 	opts := options{
 		packetType:      SUBSCRIBE,
@@ -147,11 +147,11 @@ func TestSubscribe_UnpackNoPacketID(t *testing.T) {
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_UnpackNoTopic(t *testing.T) {
+func TestSubscribe_ReadNoTopic(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 	}
@@ -164,11 +164,11 @@ func TestSubscribe_UnpackNoTopic(t *testing.T) {
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_UnpackInvalidTopicName(t *testing.T) {
+func TestSubscribe_ReadInvalidTopicName(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 		0, 3, 'a', // invalid topic name
@@ -182,11 +182,11 @@ func TestSubscribe_UnpackInvalidTopicName(t *testing.T) {
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_UnpackNoTopicQoS(t *testing.T) {
+func TestSubscribe_ReadNoTopicQoS(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 		0, 1, 'a', // no topic QoS
@@ -200,11 +200,11 @@ func TestSubscribe_UnpackNoTopicQoS(t *testing.T) {
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_UnpackV3InvalidSubscriptionOptions(t *testing.T) {
+func TestSubscribe_ReadV3InvalidSubscriptionOptions(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 		0, 1, 'a', 0x10, // invalid subscription options
@@ -218,11 +218,11 @@ func TestSubscribe_UnpackV3InvalidSubscriptionOptions(t *testing.T) {
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_UnpackV5InvalidSubscriptionOptions(t *testing.T) {
+func TestSubscribe_ReadV5InvalidSubscriptionOptions(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 		0,               // property length
@@ -237,11 +237,11 @@ func TestSubscribe_UnpackV5InvalidSubscriptionOptions(t *testing.T) {
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_UnpackV3InvalidQoS(t *testing.T) {
+func TestSubscribe_ReadV3InvalidQoS(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 		0, 1, 'a', 0x03, // invalid QoS
@@ -255,11 +255,11 @@ func TestSubscribe_UnpackV3InvalidQoS(t *testing.T) {
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_UnpackV5InvalidQoS(t *testing.T) {
+func TestSubscribe_ReadV5InvalidQoS(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 		0,               // property length
@@ -274,11 +274,11 @@ func TestSubscribe_UnpackV5InvalidQoS(t *testing.T) {
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_UnpackV5InvalidRetainHandling(t *testing.T) {
+func TestSubscribe_ReadV5InvalidRetainHandling(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 		0,               // property length
@@ -293,11 +293,11 @@ func TestSubscribe_UnpackV5InvalidRetainHandling(t *testing.T) {
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_UnpackV5InvalidProperties(t *testing.T) {
+func TestSubscribe_ReadV5InvalidProperties(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 	}
@@ -310,7 +310,7 @@ func TestSubscribe_UnpackV5InvalidProperties(t *testing.T) {
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
-	err = pkt.Unpack(bufio.NewReader(bytes.NewBuffer(msg)))
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 	require.NotNil(t, err)
 }
 

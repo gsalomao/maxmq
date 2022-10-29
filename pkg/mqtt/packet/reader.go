@@ -89,9 +89,9 @@ func (r *Reader) ReadPacket(rd io.Reader, ver MQTTVersion) (Packet, error) {
 		return nil, fmt.Errorf("failed to read packet: %w", err)
 	}
 
-	err = pkt.Unpack(bufRd)
+	err = pkt.Read(bufRd)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unpack packet %v: %w",
+		return nil, fmt.Errorf("failed to read packet %v: %w",
 			pkt.Type().String(), err)
 	}
 
