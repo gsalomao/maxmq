@@ -16,6 +16,7 @@ package mqtt
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"net"
@@ -196,20 +197,18 @@ func (m *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 func (m *connectionManager) handlePacket(conn *connection,
 	pkt packet.Packet) error {
 
-	var reply packet.Packet
+	var replies []packet.Packet
 	var err error
 
-	conn.session, reply, err = m.sessionManager.handlePacket(conn.session, pkt)
+	conn.session, replies, err = m.sessionManager.handlePacket(conn.session,
+		pkt)
 	if err != nil {
-		m.log.Warn().
-			Bytes("ClientId", conn.clientID).
-			Stringer("PacketType", pkt.Type()).
-			Msg("MQTT Failed to handle packet: " + err.Error())
-		err = errors.New("failed to handle packet: " + err.Error())
+		err = fmt.Errorf("failed to handle packet %v: %w",
+			pkt.Type().String(), err)
 	}
 
 	var newConnection bool
-	if reply != nil {
+	for _, reply := range replies {
 		errReply := m.replyPacket(pkt, reply, conn)
 		if errReply != nil {
 			err = multierr.Combine(err,

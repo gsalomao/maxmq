@@ -56,3 +56,80 @@ func (q *messageQueue) len() int {
 
 	return q.list.Len()
 }
+
+type inflightMessage struct {
+	next      *inflightMessage
+	packet    *packet.Publish
+	lastSent  int64
+	messageID messageID
+	tries     int
+	packetID  packet.ID
+}
+
+type inflightMessagesList struct {
+	root  inflightMessage
+	tail  *inflightMessage
+	mutex sync.RWMutex
+	size  int
+}
+
+func (l *inflightMessagesList) add(msg *inflightMessage) {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+
+	tail := l.tail
+	if tail == nil {
+		tail = &l.root
+	}
+	tail.next = msg
+	l.tail = msg
+	l.size++
+}
+
+func (l *inflightMessagesList) remove(id packet.ID) {
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
+
+	elem := &l.root
+	for elem.next != nil {
+		if elem.next.packetID == id {
+			if elem.next == l.tail {
+				l.tail = elem
+			}
+
+			elem.next = elem.next.next
+			l.size--
+			break
+		}
+		elem = elem.next
+	}
+}
+
+func (l *inflightMessagesList) find(id packet.ID) *inflightMessage {
+	l.mutex.RLock()
+	defer l.mutex.RUnlock()
+
+	elem := &l.root
+	for elem.next != nil {
+		if elem.next.packetID == id {
+			return elem.next
+		}
+		elem = elem.next
+	}
+
+	return nil
+}
+
+func (l *inflightMessagesList) front() *inflightMessage {
+	l.mutex.RLock()
+	defer l.mutex.RUnlock()
+
+	return l.root.next
+}
+
+func (l *inflightMessagesList) len() int {
+	l.mutex.RLock()
+	defer l.mutex.RUnlock()
+
+	return l.size
+}

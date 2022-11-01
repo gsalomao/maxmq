@@ -177,10 +177,12 @@ func TestPubAck_Read(t *testing.T) {
 		{id: 1, version: MQTT31, msg: []byte{0, 1}},
 		{id: 2, version: MQTT311, msg: []byte{0, 2}},
 		{id: 3, version: MQTT50, code: ReasonCodeV5Success, msg: []byte{0, 3}},
-		{id: 4, version: MQTT50, code: ReasonCodeV5NoMatchingSubscribers,
-			msg: []byte{0, 4, 16, 0}},
+		{id: 4, version: MQTT50, code: ReasonCodeV5Success,
+			msg: []byte{0, 4, 0}},
 		{id: 5, version: MQTT50, code: ReasonCodeV5NoMatchingSubscribers,
-			withProps: true, msg: []byte{0, 5, 16, 6, 31, 0, 3, 'a', 'b', 'c'}},
+			msg: []byte{0, 5, 16, 0}},
+		{id: 6, version: MQTT50, code: ReasonCodeV5NoMatchingSubscribers,
+			withProps: true, msg: []byte{0, 6, 16, 6, 31, 0, 3, 'a', 'b', 'c'}},
 	}
 
 	for _, test := range testCases {
