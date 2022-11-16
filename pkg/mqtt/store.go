@@ -35,7 +35,7 @@ func (s *store) readSession(id ClientID) (*Session, error) {
 
 	session, ok := s.sessions[string(id)]
 	if !ok {
-		return nil, ErrSessionNotFound
+		return nil, errSessionNotFound
 	}
 
 	return session, nil

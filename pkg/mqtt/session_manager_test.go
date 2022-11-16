@@ -1482,7 +1482,7 @@ func TestSessionManager_PublishMessage(t *testing.T) {
 				inflightMsg := session.inflightMessages.front()
 				require.NotNil(t, inflightMsg)
 				assert.Equal(t, messageID(test.id), inflightMsg.messageID)
-				assert.Equal(t, packet.ID(session.packetID),
+				assert.Equal(t, packet.ID(session.lastPacketID),
 					inflightMsg.packetID)
 				assert.Equal(t, msg.packet.QoS, inflightMsg.packet.QoS)
 				assert.Equal(t, msg.packet.Version, inflightMsg.packet.Version)

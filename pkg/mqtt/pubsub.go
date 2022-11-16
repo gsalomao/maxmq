@@ -28,18 +28,14 @@ const (
 
 type pubSubAction byte
 
-type publisher interface {
+type messagePublisher interface {
 	publishMessage(session *Session, msg *message) error
 }
 
-type deliverer interface {
-	deliverPacket(id SessionID, pkt *packet.Publish) error
-}
-
-func newPubSub(publisher publisher, idGen IDGenerator, metrics *metrics,
+func newPubSub(pub messagePublisher, idGen IDGenerator, metrics *metrics,
 	log *logger.Logger) pubSub {
 	return pubSub{
-		publisher: publisher,
+		publisher: pub,
 		metrics:   metrics,
 		log:       log,
 		tree:      newSubscriptionTree(),
@@ -49,7 +45,7 @@ func newPubSub(publisher publisher, idGen IDGenerator, metrics *metrics,
 }
 
 type pubSub struct {
-	publisher publisher
+	publisher messagePublisher
 	idGen     IDGenerator
 	metrics   *metrics
 	log       *logger.Logger

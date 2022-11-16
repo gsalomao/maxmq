@@ -27,7 +27,7 @@ func TestStore_ReadSession(t *testing.T) {
 
 	id := ClientID{'a'}
 	_, err := s.readSession(id)
-	assert.Equal(t, ErrSessionNotFound, err)
+	assert.Equal(t, errSessionNotFound, err)
 }
 
 func TestStore_SaveSession(t *testing.T) {
@@ -61,5 +61,5 @@ func TestStore_DeleteSession(t *testing.T) {
 
 	s.deleteSession(&session)
 	_, err = s.readSession(id)
-	assert.Equal(t, ErrSessionNotFound, err)
+	assert.Equal(t, errSessionNotFound, err)
 }
