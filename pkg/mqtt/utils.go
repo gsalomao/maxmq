@@ -76,14 +76,9 @@ func maxClientIDLenOrDefault(idLen int) int {
 	return idLen
 }
 
-func getClientID(p *packet.Connect, prefix []byte) (id ClientID,
-	created bool) {
-	if len(p.ClientID) > 0 {
-		return p.ClientID, false
-	}
-
+func createClientID(prefix []byte) ClientID {
 	prefixLen := len(prefix)
-	id = make([]byte, prefixLen+20)
+	id := make([]byte, prefixLen+20)
 
 	if prefixLen > 0 {
 		_ = copy(id, prefix)
@@ -91,7 +86,7 @@ func getClientID(p *packet.Connect, prefix []byte) (id ClientID,
 
 	guid := xid.New()
 	_ = guid.Encode(id[prefixLen:])
-	return id, true
+	return ClientID(id)
 }
 
 func addAssignedClientID(p *packet.ConnAck, v packet.MQTTVersion, id ClientID,
@@ -99,7 +94,7 @@ func addAssignedClientID(p *packet.ConnAck, v packet.MQTTVersion, id ClientID,
 
 	if v == packet.MQTT50 && created {
 		props := getPropertiesOrCreate(p.Properties)
-		props.AssignedClientID = id
+		props.AssignedClientID = []byte(id)
 		p.Properties = props
 	}
 }

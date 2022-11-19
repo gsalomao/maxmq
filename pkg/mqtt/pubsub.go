@@ -94,7 +94,7 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic,
 	subscriptionID uint32) (Subscription, error) {
 
 	p.log.Trace().
-		Bytes("ClientId", session.ClientID).
+		Str("ClientId", string(session.ClientID)).
 		Bool("NoLocal", topic.NoLocal).
 		Uint8("QoS", byte(topic.QoS)).
 		Bool("RetainAsPublished", topic.RetainAsPublished).
@@ -116,7 +116,7 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic,
 	exists, err := p.tree.insert(sub)
 	if err != nil {
 		p.log.Error().
-			Bytes("ClientId", session.ClientID).
+			Str("ClientId", string(session.ClientID)).
 			Bool("NoLocal", topic.NoLocal).
 			Uint8("QoS", byte(topic.QoS)).
 			Bool("RetainAsPublished", topic.RetainAsPublished).
@@ -132,7 +132,7 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic,
 	}
 
 	p.log.Debug().
-		Bytes("ClientId", session.ClientID).
+		Str("ClientId", string(session.ClientID)).
 		Bool("NoLocal", topic.NoLocal).
 		Uint8("QoS", byte(topic.QoS)).
 		Bool("RetainAsPublished", topic.RetainAsPublished).
@@ -146,14 +146,14 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic,
 
 func (p *pubSub) unsubscribe(id ClientID, topic string) error {
 	p.log.Trace().
-		Bytes("ClientId", id).
+		Str("ClientId", string(id)).
 		Str("TopicFilter", topic).
 		Msg("MQTT Unsubscribing to topic")
 
 	err := p.tree.remove(id, topic)
 	if err != nil {
 		p.log.Warn().
-			Bytes("ClientId", id).
+			Str("ClientId", string(id)).
 			Str("TopicFilter", topic).
 			Msg("MQTT Failed to remove subscription: " + err.Error())
 		return err
@@ -161,7 +161,7 @@ func (p *pubSub) unsubscribe(id ClientID, topic string) error {
 
 	p.metrics.recordUnsubscribe()
 	p.log.Debug().
-		Bytes("ClientId", id).
+		Str("ClientId", string(id)).
 		Str("TopicFilter", topic).
 		Msg("MQTT Unsubscribed to topic")
 
@@ -227,7 +227,7 @@ func (p *pubSub) publishQueuedMessages() {
 			err := p.publisher.publishMessage(sub.Session, m)
 			if err != nil {
 				p.log.Error().
-					Bytes("ClientId", sub.Session.ClientID).
+					Str("ClientId", string(sub.Session.ClientID)).
 					Uint8("DUP", m.packet.Dup).
 					Uint64("MessageId", uint64(m.id)).
 					Uint16("PacketId", uint16(m.packet.PacketID)).

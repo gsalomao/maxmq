@@ -21,7 +21,7 @@ import (
 )
 
 // ClientID represents the MQTT Client ID.
-type ClientID []byte
+type ClientID string
 
 // SessionID represents the Session identification.
 type SessionID uint64

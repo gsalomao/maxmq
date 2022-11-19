@@ -111,7 +111,7 @@ func TestConnectionManager_Handle(t *testing.T) {
 
 	require.True(t, ok)
 	require.NotNil(t, c)
-	assert.Equal(t, ClientID{'a'}, c.session.ClientID)
+	assert.Equal(t, ClientID('a'), c.session.ClientID)
 	assert.Equal(t, packet.MQTT311, c.session.Version)
 	assert.True(t, c.session.connected)
 	assert.Equal(t, c.session.ClientID, c.clientID)

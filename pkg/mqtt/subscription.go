@@ -15,7 +15,6 @@
 package mqtt
 
 import (
-	"bytes"
 	"errors"
 	"strings"
 	"sync"
@@ -190,7 +189,7 @@ func (n *subscriptionNode) remove(id ClientID) error {
 	sub := n.subscription
 
 	for sub != nil {
-		if bytes.Equal(id, sub.Session.ClientID) {
+		if id == sub.Session.ClientID {
 			break
 		}
 
@@ -264,7 +263,7 @@ func validateTopicWord(word string, isLastWord bool) error {
 }
 
 func sameSubscription(sub1 *Subscription, sub2 *Subscription) bool {
-	if bytes.Equal(sub1.Session.ClientID, sub2.Session.ClientID) &&
+	if sub1.Session.ClientID == sub2.Session.ClientID &&
 		sub1.TopicFilter == sub2.TopicFilter {
 		return true
 	}

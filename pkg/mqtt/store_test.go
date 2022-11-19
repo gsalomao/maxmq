@@ -25,7 +25,7 @@ import (
 func TestStore_ReadSession(t *testing.T) {
 	s := newStore()
 
-	id := ClientID{'a'}
+	id := ClientID('a')
 	_, err := s.readSession(id)
 	assert.Equal(t, errSessionNotFound, err)
 }
@@ -33,7 +33,7 @@ func TestStore_ReadSession(t *testing.T) {
 func TestStore_SaveSession(t *testing.T) {
 	s := newStore()
 
-	id := ClientID{'a'}
+	id := ClientID('a')
 	session := &Session{
 		ClientID:       id,
 		ConnectedAt:    time.Now().Unix(),
@@ -49,7 +49,7 @@ func TestStore_SaveSession(t *testing.T) {
 func TestStore_DeleteSession(t *testing.T) {
 	s := newStore()
 
-	id := ClientID{'a'}
+	id := ClientID('a')
 	session := Session{
 		ClientID:       id,
 		ConnectedAt:    time.Now().Unix(),

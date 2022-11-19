@@ -138,7 +138,7 @@ func (m *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			m.log.Debug().
-				Bytes("ClientId", conn.clientID).
+				Str("ClientId", string(conn.clientID)).
 				Msg("MQTT Network connection was closed")
 			return nil, io.EOF
 		}
@@ -146,7 +146,7 @@ func (m *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 		var netErr net.Error
 		if errors.As(err, &netErr) && netErr.Timeout() {
 			m.log.Debug().
-				Bytes("ClientId", conn.clientID).
+				Str("ClientId", string(conn.clientID)).
 				Bool("Connected", conn.connected).
 				Int("Timeout", conn.timeout).
 				Msg("MQTT Timeout - No packet received")
@@ -154,7 +154,7 @@ func (m *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 		}
 
 		m.log.Warn().
-			Bytes("ClientId", conn.clientID).
+			Str("ClientId", string(conn.clientID)).
 			Bool("Connected", conn.connected).
 			Int("Timeout", conn.timeout).
 			Msg("MQTT Failed to read packet: " + err.Error())
@@ -163,7 +163,7 @@ func (m *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 
 	m.metrics.recordPacketReceived(pkt)
 	m.log.Debug().
-		Bytes("ClientId", conn.clientID).
+		Str("ClientId", string(conn.clientID)).
 		Bool("Connected", conn.connected).
 		Uint8("PacketTypeId", uint8(pkt.Type())).
 		Msg("MQTT Received packet")
@@ -228,7 +228,7 @@ func (m *connectionManager) closeConnection(conn *connection, force bool) {
 	}
 
 	m.log.Trace().
-		Bytes("ClientId", conn.clientID).
+		Str("ClientId", string(conn.clientID)).
 		Bool("Force", force).
 		Msg("MQTT Closing connection")
 
@@ -249,7 +249,7 @@ func (m *connectionManager) closeConnection(conn *connection, force bool) {
 
 	m.metrics.recordDisconnection()
 	m.log.Debug().
-		Bytes("ClientId", conn.clientID).
+		Str("ClientId", string(conn.clientID)).
 		Bool("Force", force).
 		Msg("MQTT Connection closed")
 }
@@ -259,7 +259,7 @@ func (m *connectionManager) replyPacket(pkt packet.Packet,
 	c *connection) error {
 
 	m.log.Trace().
-		Bytes("ClientId", c.session.ClientID).
+		Str("ClientId", string(c.session.ClientID)).
 		Uint8("PacketTypeId", uint8(reply.Type())).
 		Uint8("Version", uint8(c.session.Version)).
 		Msg("MQTT Sending packet")
@@ -267,7 +267,7 @@ func (m *connectionManager) replyPacket(pkt packet.Packet,
 	err := m.writer.WritePacket(reply, c.netConn)
 	if err != nil {
 		m.log.Warn().
-			Bytes("ClientId", c.session.ClientID).
+			Str("ClientId", string(c.session.ClientID)).
 			Stringer("PacketType", reply.Type()).
 			Uint8("Version", uint8(c.session.Version)).
 			Msg("MQTT Failed to send packet: " + err.Error())
@@ -277,7 +277,7 @@ func (m *connectionManager) replyPacket(pkt packet.Packet,
 		m.recordLatencyMetrics(pkt, reply)
 		m.metrics.recordPacketSent(reply)
 		m.log.Debug().
-			Bytes("ClientId", c.session.ClientID).
+			Str("ClientId", string(c.session.ClientID)).
 			Uint8("PacketTypeId", uint8(reply.Type())).
 			Uint8("Version", uint8(c.session.Version)).
 			Msg("MQTT Packet sent with success")
@@ -297,7 +297,7 @@ func (m *connectionManager) deliverPacket(id SessionID,
 	}
 
 	m.log.Trace().
-		Bytes("ClientId", conn.clientID).
+		Str("ClientId", string(conn.clientID)).
 		Uint16("PacketId", uint16(pkt.PacketID)).
 		Uint8("QoS", uint8(pkt.QoS)).
 		Uint8("Retain", pkt.Retain).
@@ -311,7 +311,7 @@ func (m *connectionManager) deliverPacket(id SessionID,
 	}
 
 	m.log.Debug().
-		Bytes("ClientId", conn.clientID).
+		Str("ClientId", string(conn.clientID)).
 		Uint16("PacketId", uint16(pkt.PacketID)).
 		Uint8("QoS", uint8(pkt.QoS)).
 		Uint8("Retain", pkt.Retain).

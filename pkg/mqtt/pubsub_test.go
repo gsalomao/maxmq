@@ -73,7 +73,7 @@ func TestPubSub_Subscribe(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.Name, func(t *testing.T) {
-			session := Session{ClientID: ClientID("a")}
+			session := Session{ClientID: "a"}
 			ps := createPubSub()
 			subscriptionID := rand.Uint32()
 
@@ -90,7 +90,7 @@ func TestPubSub_Subscribe(t *testing.T) {
 }
 
 func TestPubSub_SubscribeError(t *testing.T) {
-	session := Session{ClientID: ClientID("a")}
+	session := Session{ClientID: "a"}
 	topic := packet.Topic{Name: "sensor/temp#", QoS: packet.QoS0}
 	ps := createPubSub()
 
@@ -107,7 +107,7 @@ func TestPubSub_Unsubscribe(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.Name, func(t *testing.T) {
-			session := Session{ClientID: ClientID("a")}
+			session := Session{ClientID: "a"}
 			ps := createPubSub()
 
 			sub, err := ps.subscribe(&session, test, 0)
@@ -128,7 +128,7 @@ func TestPubSub_UnsubscribeSubscriptionNotFound(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.Name, func(t *testing.T) {
-			session := Session{ClientID: ClientID("a")}
+			session := Session{ClientID: "a"}
 			ps := createPubSub()
 
 			err := ps.unsubscribe(session.ClientID, test.Name)
@@ -182,7 +182,7 @@ func TestPubSub_PublishQueuedMessagesQoS0(t *testing.T) {
 		name := fmt.Sprintf("%v-%v", test.id, test.topic)
 		t.Run(name, func(t *testing.T) {
 			ps := createPubSub()
-			session := Session{ClientID: ClientID("a")}
+			session := Session{ClientID: "a"}
 
 			for _, topic := range test.subs {
 				sub := Subscription{
@@ -214,7 +214,7 @@ func TestPubSub_PublishQueuedMessagesQoS0(t *testing.T) {
 
 func TestPubSub_ProcessQueuedMessagesFailedToDeliver(t *testing.T) {
 	ps := createPubSub()
-	session := Session{ClientID: ClientID("a")}
+	session := Session{ClientID: "a"}
 
 	sub := Subscription{
 		Session:     &session,
