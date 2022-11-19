@@ -75,7 +75,7 @@ func TestPubSub_Subscribe(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			session := Session{ClientID: "a"}
 			ps := createPubSub()
-			subscriptionID := rand.Uint32()
+			subscriptionID := rand.Int()
 
 			sub, err := ps.subscribe(&session, test, subscriptionID)
 			assert.Nil(t, err)

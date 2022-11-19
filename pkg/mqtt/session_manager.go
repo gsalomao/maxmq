@@ -234,7 +234,7 @@ func (m *sessionManager) handleSubscribe(session *Session,
 
 	replies := make([]packet.Packet, 0, 1)
 
-	subscriptionID := getSubscriptionID(pkt.Properties)
+	subscriptionID := pkt.Properties.SubscriptionID()
 	if subscriptionID > 0 && !m.conf.SubscriptionIDAvailable {
 		m.log.Info().
 			Str("ClientId", string(session.ClientID)).

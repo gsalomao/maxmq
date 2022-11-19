@@ -391,6 +391,15 @@ func (p *Properties) Reset() {
 	p.SharedSubscriptionAvailable = nil
 }
 
+// SubscriptionID returns the subscription identifier stored in the properties
+// or the default value if there's no subscription identifier in the properties.
+func (p *Properties) SubscriptionID() int {
+	if p != nil && p.SubscriptionIdentifier != nil {
+		return *p.SubscriptionIdentifier
+	}
+	return 0
+}
+
 func isValidProperty(h propertyHandler, t Type) bool {
 	_, ok := h.types[t]
 	return ok

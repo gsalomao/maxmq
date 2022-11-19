@@ -40,7 +40,7 @@ type Subscription struct {
 	TopicFilter string
 
 	// ID is the subscription identifier.
-	ID uint32
+	ID int
 
 	// QoS is the Quality of Service level of the subscription.
 	QoS packet.QoS

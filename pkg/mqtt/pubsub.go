@@ -91,7 +91,7 @@ func (p *pubSub) run() {
 }
 
 func (p *pubSub) subscribe(session *Session, topic packet.Topic,
-	subscriptionID uint32) (Subscription, error) {
+	subscriptionID int) (Subscription, error) {
 
 	p.log.Trace().
 		Str("ClientId", string(session.ClientID)).
@@ -99,7 +99,7 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic,
 		Uint8("QoS", byte(topic.QoS)).
 		Bool("RetainAsPublished", topic.RetainAsPublished).
 		Uint8("RetainHandling", topic.RetainHandling).
-		Uint32("SubscriptionID", subscriptionID).
+		Int("SubscriptionID", subscriptionID).
 		Str("TopicFilter", topic.Name).
 		Msg("MQTT Subscribing to topic")
 
@@ -121,7 +121,7 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic,
 			Uint8("QoS", byte(topic.QoS)).
 			Bool("RetainAsPublished", topic.RetainAsPublished).
 			Uint8("RetainHandling", topic.RetainHandling).
-			Uint32("SubscriptionID", subscriptionID).
+			Int("SubscriptionID", subscriptionID).
 			Str("TopicFilter", topic.Name).
 			Msg("MQTT Failed to subscribe to topic")
 		return Subscription{}, err
@@ -137,7 +137,7 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic,
 		Uint8("QoS", byte(topic.QoS)).
 		Bool("RetainAsPublished", topic.RetainAsPublished).
 		Uint8("RetainHandling", topic.RetainHandling).
-		Uint32("SubscriptionID", subscriptionID).
+		Int("SubscriptionID", subscriptionID).
 		Str("TopicFilter", topic.Name).
 		Msg("MQTT Subscribed to topic")
 

@@ -560,3 +560,23 @@ func TestProperties_Reset(t *testing.T) {
 	assert.Nil(t, props.SharedSubscriptionAvailable)
 	assert.Nil(t, props.ServerKeepAlive)
 }
+
+func TestProperties_SubscriptionIDValid(t *testing.T) {
+	testCases := []int{0, 255, 65535, 4294967295}
+
+	for _, id := range testCases {
+		t.Run(fmt.Sprint(id), func(t *testing.T) {
+			props := &Properties{SubscriptionIdentifier: new(int)}
+			*props.SubscriptionIdentifier = id
+			assert.Equal(t, id, props.SubscriptionID())
+		})
+	}
+}
+
+func TestProperties_SubscriptionIDInvalid(t *testing.T) {
+	var props *Properties
+	assert.Zero(t, props.SubscriptionID())
+
+	props = &Properties{}
+	assert.Zero(t, props.SubscriptionID())
+}
