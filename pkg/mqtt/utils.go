@@ -76,6 +76,14 @@ func maxClientIDLenOrDefault(idLen int) int {
 	return idLen
 }
 
+func sessionKeepAlive(conf *Configuration, keepAlive int) int {
+	if conf.MaxKeepAlive > 0 &&
+		(keepAlive == 0 || keepAlive > conf.MaxKeepAlive) {
+		return conf.MaxKeepAlive
+	}
+	return keepAlive
+}
+
 func createClientID(prefix []byte) ClientID {
 	prefixLen := len(prefix)
 	id := make([]byte, prefixLen+20)
@@ -93,25 +101,10 @@ func addAssignedClientID(p *packet.ConnAck, v packet.MQTTVersion, id ClientID,
 	created bool) {
 
 	if v == packet.MQTT50 && created {
-		props := getPropertiesOrCreate(p.Properties)
+		props := newPropertyIfInvalid(p.Properties)
 		props.AssignedClientID = []byte(id)
 		p.Properties = props
 	}
-}
-
-func getSubscriptionID(props *packet.Properties) uint32 {
-	if props != nil && props.SubscriptionIdentifier != nil {
-		return uint32(*props.SubscriptionIdentifier)
-	}
-	return 0
-}
-
-func getSessionKeepAlive(conf *Configuration, keepAlive int) int {
-	if conf.MaxKeepAlive > 0 &&
-		(keepAlive == 0 || keepAlive > conf.MaxKeepAlive) {
-		return conf.MaxKeepAlive
-	}
-	return keepAlive
 }
 
 func newConnAck(
@@ -131,7 +124,7 @@ func newConnAck(
 			props.Reset()
 		}
 
-		props = getPropertiesOrCreate(props)
+		props = newPropertyIfInvalid(props)
 		props = addServerKeepAliveToProperties(props, keepAlive, conf)
 		props = addSessionExpiryIntervalToProperties(props, expInterval, conf)
 		props = addMaxPacketSizeToProperties(props, conf)
@@ -148,7 +141,7 @@ func newConnAck(
 	return packet.NewConnAck(version, code, sessionPresent, props)
 }
 
-func getPropertiesOrCreate(p *packet.Properties) *packet.Properties {
+func newPropertyIfInvalid(p *packet.Properties) *packet.Properties {
 	if p != nil {
 		return p
 	}
@@ -161,12 +154,12 @@ func addServerKeepAliveToProperties(
 	keepAlive int,
 	conf *Configuration,
 ) *packet.Properties {
-	sessionKeepAlive := getSessionKeepAlive(conf, keepAlive)
-	if sessionKeepAlive != keepAlive {
-		p = getPropertiesOrCreate(p)
+	ka := sessionKeepAlive(conf, keepAlive)
+	if ka != keepAlive {
+		p = newPropertyIfInvalid(p)
 
 		p.ServerKeepAlive = new(uint16)
-		*p.ServerKeepAlive = uint16(sessionKeepAlive)
+		*p.ServerKeepAlive = uint16(ka)
 	}
 
 	return p
@@ -184,7 +177,7 @@ func addSessionExpiryIntervalToProperties(
 	maxExpInt := conf.MaxSessionExpiryInterval
 
 	if maxExpInt > 0 && expInt != nil && *expInt > maxExpInt {
-		p = getPropertiesOrCreate(p)
+		p = newPropertyIfInvalid(p)
 
 		p.SessionExpiryInterval = new(uint32)
 		*p.SessionExpiryInterval = conf.MaxSessionExpiryInterval
@@ -198,7 +191,7 @@ func addReceiveMaximumToProperties(
 	conf *Configuration,
 ) *packet.Properties {
 	if conf.MaxInflightMessages > 0 && conf.MaxInflightMessages < 65535 {
-		p = getPropertiesOrCreate(p)
+		p = newPropertyIfInvalid(p)
 
 		p.ReceiveMaximum = new(uint16)
 		*p.ReceiveMaximum = uint16(conf.MaxInflightMessages)
@@ -212,7 +205,7 @@ func addMaxPacketSizeToProperties(
 	conf *Configuration,
 ) *packet.Properties {
 	if conf.MaxPacketSize > 0 && conf.MaxPacketSize < 268435456 {
-		p = getPropertiesOrCreate(p)
+		p = newPropertyIfInvalid(p)
 
 		p.MaximumPacketSize = new(uint32)
 		*p.MaximumPacketSize = uint32(conf.MaxPacketSize)
@@ -226,7 +219,7 @@ func addMaximumQoSToProperties(
 	conf *Configuration,
 ) *packet.Properties {
 	if conf.MaximumQoS < 2 {
-		p = getPropertiesOrCreate(p)
+		p = newPropertyIfInvalid(p)
 
 		p.MaximumQoS = new(byte)
 		*p.MaximumQoS = byte(conf.MaximumQoS)
@@ -240,7 +233,7 @@ func addTopicAliasMaxToProperties(
 	conf *Configuration,
 ) *packet.Properties {
 	if conf.MaxTopicAlias > 0 {
-		p = getPropertiesOrCreate(p)
+		p = newPropertyIfInvalid(p)
 
 		p.TopicAliasMaximum = new(uint16)
 		*p.TopicAliasMaximum = uint16(conf.MaxTopicAlias)
@@ -254,7 +247,7 @@ func addRetainAvailableToProperties(
 	conf *Configuration,
 ) *packet.Properties {
 	if !conf.RetainAvailable {
-		p = getPropertiesOrCreate(p)
+		p = newPropertyIfInvalid(p)
 		p.RetainAvailable = new(byte)
 		*p.RetainAvailable = 0
 	}
@@ -267,7 +260,7 @@ func addWildcardSubscriptionAvailableToProperties(
 	conf *Configuration,
 ) *packet.Properties {
 	if !conf.WildcardSubscriptionAvailable {
-		p = getPropertiesOrCreate(p)
+		p = newPropertyIfInvalid(p)
 		p.WildcardSubscriptionAvailable = new(byte)
 		*p.WildcardSubscriptionAvailable = 0
 	}
@@ -280,7 +273,7 @@ func addSubscriptionIDAvailableToProperties(
 	conf *Configuration,
 ) *packet.Properties {
 	if !conf.SubscriptionIDAvailable {
-		p = getPropertiesOrCreate(p)
+		p = newPropertyIfInvalid(p)
 		p.SubscriptionIDAvailable = new(byte)
 		*p.SubscriptionIDAvailable = 0
 	}
@@ -293,7 +286,7 @@ func addSharedSubscriptionAvailableToProperties(
 	conf *Configuration,
 ) *packet.Properties {
 	if !conf.SharedSubscriptionAvailable {
-		p = getPropertiesOrCreate(p)
+		p = newPropertyIfInvalid(p)
 		p.SharedSubscriptionAvailable = new(byte)
 		*p.SharedSubscriptionAvailable = 0
 	}
@@ -301,17 +294,15 @@ func addSharedSubscriptionAvailableToProperties(
 	return p
 }
 
-func getSessionExpiryIntervalOnConnect(pkt *packet.Connect,
-	maxExp uint32) uint32 {
-
+func sessionExpiryIntervalOnConnect(p *packet.Connect, maxExp uint32) uint32 {
 	sessionExp := uint32(math.MaxUint32)
 
-	if pkt.Version == packet.MQTT50 {
-		if pkt.Properties == nil || pkt.Properties.SessionExpiryInterval == nil {
+	if p.Version == packet.MQTT50 {
+		if p.Properties == nil || p.Properties.SessionExpiryInterval == nil {
 			return 0
 		}
 
-		sessionExp = *pkt.Properties.SessionExpiryInterval
+		sessionExp = *p.Properties.SessionExpiryInterval
 		if maxExp > 0 && sessionExp > maxExp {
 			sessionExp = maxExp
 		}

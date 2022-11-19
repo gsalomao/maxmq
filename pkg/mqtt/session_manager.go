@@ -125,8 +125,7 @@ func (m *sessionManager) handleConnect(session *Session,
 		idCreated = true
 	}
 
-	exp := getSessionExpiryIntervalOnConnect(pkt,
-		m.conf.MaxSessionExpiryInterval)
+	exp := sessionExpiryIntervalOnConnect(pkt, m.conf.MaxSessionExpiryInterval)
 
 	session, err := m.readSession(id)
 	if err == nil && pkt.CleanSession {
@@ -142,7 +141,7 @@ func (m *sessionManager) handleConnect(session *Session,
 	session.ExpiryInterval = exp
 	session.ConnectedAt = time.Now().UnixMilli()
 	session.connected = true
-	session.KeepAlive = getSessionKeepAlive(m.conf, int(pkt.KeepAlive))
+	session.KeepAlive = sessionKeepAlive(m.conf, int(pkt.KeepAlive))
 
 	m.log.Info().
 		Bool("CleanSession", session.CleanSession).
