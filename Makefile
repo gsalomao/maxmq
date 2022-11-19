@@ -83,7 +83,7 @@ coverage: ## Run unit tests with coverage report
 	$(call print_task,"Running unit tests")
 	@rm -rf ${COVERAGE_DIR}
 	@mkdir -p ${COVERAGE_DIR}
-	@go test -cover -covermode=atomic -race \
+	@go test -timeout 3s -cover -covermode=atomic -race \
 		-coverprofile=$(COVERAGE_DIR)/coverage.out ./pkg/...
 	$(call print_task_result,"Running unit tests","done")
 
