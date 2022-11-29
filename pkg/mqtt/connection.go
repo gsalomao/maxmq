@@ -23,12 +23,12 @@ import (
 )
 
 type connection struct {
-	netConn   net.Conn
-	session   *Session
-	version   packet.MQTTVersion
-	clientID  ClientID
-	timeout   int
-	connected bool
+	netConn    net.Conn
+	version    packet.MQTTVersion
+	clientID   ClientID
+	timeout    int
+	connected  bool
+	hasSession bool
 }
 
 func (c *connection) nextConnectionDeadline() time.Time {

@@ -15,42 +15,21 @@
 package mqtt
 
 import (
-	"sync"
+	"math"
+	"testing"
+
+	"github.com/gsalomao/maxmq/pkg/mqtt/packet"
+	"github.com/stretchr/testify/assert"
 )
 
-type store struct {
-	mu       sync.RWMutex
-	sessions map[ClientID]*Session
-}
+func TestSession_NextClientID(t *testing.T) {
+	s := Session{}
 
-func newStore() store {
-	return store{
-		sessions: make(map[ClientID]*Session),
-	}
-}
-
-func (s *store) readSession(id ClientID) (*Session, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	session, ok := s.sessions[id]
-	if !ok {
-		return nil, errSessionNotFound
+	for i := 0; i < math.MaxUint16; i++ {
+		id := s.nextClientID()
+		assert.Equal(t, packet.ID(i+1), id)
 	}
 
-	return session, nil
-}
-
-func (s *store) saveSession(session *Session) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.sessions[session.ClientID] = session
-}
-
-func (s *store) deleteSession(session *Session) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	delete(s.sessions, session.ClientID)
+	id := s.nextClientID()
+	assert.Equal(t, packet.ID(1), id)
 }

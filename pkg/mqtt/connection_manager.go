@@ -35,7 +35,7 @@ type connectionManager struct {
 	sessionManager *sessionManager
 	log            *logger.Logger
 	metrics        *metrics
-	connections    map[SessionID]*connection
+	connections    map[ClientID]*connection
 	mutex          sync.RWMutex
 	reader         packet.Reader
 	writer         packet.Writer
@@ -68,7 +68,7 @@ func newConnectionManager(
 		conf:        conf,
 		log:         log,
 		metrics:     m,
-		connections: make(map[SessionID]*connection),
+		connections: make(map[ClientID]*connection),
 		reader:      packet.NewReader(rdOpts),
 		writer:      packet.NewWriter(conf.BufferSize),
 	}
@@ -124,8 +124,7 @@ func (m *connectionManager) handle(nc net.Conn) error {
 			return err
 		}
 
-		if !conn.session.connected {
-			m.closeConnection(&conn, false)
+		if !conn.connected {
 			return nil
 		}
 	}
@@ -173,11 +172,7 @@ func (m *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 func (m *connectionManager) handlePacket(conn *connection,
 	pkt packet.Packet) error {
 
-	var replies []packet.Packet
-	var err error
-
-	conn.session, replies, err = m.sessionManager.handlePacket(conn.session,
-		pkt)
+	session, replies, err := m.sessionManager.handlePacket(conn.clientID, pkt)
 	if err != nil {
 		err = fmt.Errorf("failed to handle packet %v: %w",
 			pkt.Type().String(), err)
@@ -201,13 +196,20 @@ func (m *connectionManager) handlePacket(conn *connection,
 	}
 
 	if newConnection {
-		conn.clientID = conn.session.ClientID
-		conn.version = conn.session.Version
-		conn.timeout = conn.session.KeepAlive
+		conn.clientID = session.ClientID
+		conn.version = session.Version
+		conn.timeout = session.KeepAlive
+		conn.connected = session.connected
+		conn.hasSession = true
 
 		m.mutex.Lock()
 		defer m.mutex.Unlock()
-		m.connections[conn.session.SessionID] = conn
+		m.connections[conn.clientID] = conn
+	}
+
+	if session == nil || !session.connected {
+		m.disconnect(conn)
+		m.closeConnection(conn, false)
 	}
 
 	return err
@@ -222,8 +224,18 @@ func (m *connectionManager) createConnection(nc net.Conn) connection {
 	}
 }
 
+func (m *connectionManager) disconnect(conn *connection) {
+	if conn.hasSession {
+		m.mutex.Lock()
+		defer m.mutex.Unlock()
+
+		conn.hasSession = false
+		delete(m.connections, conn.clientID)
+	}
+}
+
 func (m *connectionManager) closeConnection(conn *connection, force bool) {
-	if !conn.connected {
+	if !conn.connected && !conn.hasSession {
 		return
 	}
 
@@ -239,12 +251,9 @@ func (m *connectionManager) closeConnection(conn *connection, force bool) {
 	_ = conn.netConn.Close()
 	conn.connected = false
 
-	if conn.session != nil {
-		m.mutex.Lock()
-		defer m.mutex.Unlock()
-
-		m.sessionManager.disconnectSession(conn.session)
-		delete(m.connections, conn.session.SessionID)
+	if conn.hasSession {
+		m.sessionManager.disconnectSession(conn.clientID)
+		m.disconnect(conn)
 	}
 
 	m.metrics.recordDisconnection()
@@ -255,21 +264,20 @@ func (m *connectionManager) closeConnection(conn *connection, force bool) {
 }
 
 func (m *connectionManager) replyPacket(pkt packet.Packet,
-	reply packet.Packet,
-	c *connection) error {
+	reply packet.Packet, conn *connection) error {
 
 	m.log.Trace().
-		Str("ClientId", string(c.session.ClientID)).
+		Str("ClientId", string(conn.clientID)).
 		Uint8("PacketTypeId", uint8(reply.Type())).
-		Uint8("Version", uint8(c.session.Version)).
+		Uint8("Version", uint8(conn.version)).
 		Msg("MQTT Sending packet")
 
-	err := m.writer.WritePacket(reply, c.netConn)
+	err := m.writer.WritePacket(reply, conn.netConn)
 	if err != nil {
 		m.log.Warn().
-			Str("ClientId", string(c.session.ClientID)).
+			Str("ClientId", string(conn.clientID)).
 			Stringer("PacketType", reply.Type()).
-			Uint8("Version", uint8(c.session.Version)).
+			Uint8("Version", uint8(conn.version)).
 			Msg("MQTT Failed to send packet: " + err.Error())
 		err = multierr.Combine(err,
 			errors.New("failed to send packet: "+err.Error()))
@@ -277,16 +285,16 @@ func (m *connectionManager) replyPacket(pkt packet.Packet,
 		m.recordLatencyMetrics(pkt, reply)
 		m.metrics.recordPacketSent(reply)
 		m.log.Debug().
-			Str("ClientId", string(c.session.ClientID)).
+			Str("ClientId", string(conn.clientID)).
 			Uint8("PacketTypeId", uint8(reply.Type())).
-			Uint8("Version", uint8(c.session.Version)).
+			Uint8("Version", uint8(conn.version)).
 			Msg("MQTT Packet sent with success")
 	}
 
 	return err
 }
 
-func (m *connectionManager) deliverPacket(id SessionID,
+func (m *connectionManager) deliverPacket(id ClientID,
 	pkt *packet.Publish) error {
 
 	m.mutex.RLock()

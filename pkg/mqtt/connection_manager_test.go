@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/gsalomao/maxmq/mocks"
-	packet "github.com/gsalomao/maxmq/pkg/mqtt/packet"
+	"github.com/gsalomao/maxmq/pkg/mqtt/packet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -106,17 +106,15 @@ func TestConnectionManager_Handle(t *testing.T) {
 
 	cm.mutex.RLock()
 	assert.Equal(t, 1, len(cm.connections))
-	c, ok := cm.connections[sessionIDTest]
+	c, ok := cm.connections["a"]
 	cm.mutex.RUnlock()
 
 	require.True(t, ok)
 	require.NotNil(t, c)
-	assert.Equal(t, ClientID('a'), c.session.ClientID)
-	assert.Equal(t, packet.MQTT311, c.session.Version)
-	assert.True(t, c.session.connected)
-	assert.Equal(t, c.session.ClientID, c.clientID)
-	assert.Equal(t, c.session.Version, c.version)
-	assert.Equal(t, c.session.KeepAlive, c.timeout)
+	assert.True(t, c.connected)
+	assert.Equal(t, ClientID('a'), c.clientID)
+	assert.Equal(t, packet.MQTT311, c.version)
+	assert.Equal(t, 10, c.timeout)
 
 	msg = []byte{0xC0, 0}
 	_, err = conn.Write(msg)
@@ -301,13 +299,13 @@ func TestConnectionManager_DeliverMessage(t *testing.T) {
 	defer func() { _ = nc.Close() }()
 
 	conn := cm.createConnection(sNc)
-	cm.connections[sessionIDTest] = &conn
+	cm.connections[ClientID('a')] = &conn
 
 	go func() {
 		pkt := packet.NewPublish(10, packet.MQTT311, "data",
 			packet.QoS0, 0, 0, nil, nil)
 
-		err := cm.deliverPacket(sessionIDTest, &pkt)
+		err := cm.deliverPacket(ClientID('a'), &pkt)
 		assert.Nil(t, err)
 	}()
 
@@ -329,7 +327,7 @@ func TestConnectionManager_DeliverMessageConnectionNotFound(t *testing.T) {
 	pkt := packet.NewPublish(10, packet.MQTT311, "data",
 		packet.QoS0, 0, 0, nil, nil)
 
-	err := cm.deliverPacket(sessionIDTest, &pkt)
+	err := cm.deliverPacket(ClientID('b'), &pkt)
 	assert.NotNil(t, err)
 }
 
@@ -341,11 +339,11 @@ func TestConnectionManager_DeliverMessageWriteFailure(t *testing.T) {
 	_ = nc.Close()
 
 	conn := cm.createConnection(sNc)
-	cm.connections[sessionIDTest] = &conn
+	cm.connections[ClientID('a')] = &conn
 
 	pkt := packet.NewPublish(10, packet.MQTT311, "data",
 		packet.QoS0, 0, 0, nil, nil)
 
-	err := cm.deliverPacket(sessionIDTest, &pkt)
+	err := cm.deliverPacket(ClientID('a'), &pkt)
 	assert.NotNil(t, err)
 }

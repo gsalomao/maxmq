@@ -65,18 +65,27 @@ func (m *sessionManager) stop() {
 	m.log.Debug().Msg("MQTT Session manager stopped with success")
 }
 
-func (m *sessionManager) handlePacket(session *Session,
-	pkt packet.Packet) (*Session, []packet.Packet, error) {
+func (m *sessionManager) handlePacket(id ClientID, pkt packet.Packet) (*Session,
+	[]packet.Packet, error) {
 
-	if pkt.Type() != packet.CONNECT && (session == nil || !session.connected) {
-		return session, nil, fmt.Errorf("received %v before CONNECT",
-			pkt.Type())
+	var session *Session
+	if pkt.Type() != packet.CONNECT {
+		if len(id) == 0 {
+			return nil, nil, fmt.Errorf("received %v before CONNECT",
+				pkt.Type())
+		}
+
+		var err error
+		session, err = m.readSession(id)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
 	switch pkt.Type() {
 	case packet.CONNECT:
 		connPkt, _ := pkt.(*packet.Connect)
-		return m.handleConnect(session, connPkt)
+		return m.handleConnect(connPkt)
 	case packet.PINGREQ:
 		return m.handlePingReq(session)
 	case packet.SUBSCRIBE:
@@ -95,13 +104,13 @@ func (m *sessionManager) handlePacket(session *Session,
 		disconnect := pkt.(*packet.Disconnect)
 		return m.handleDisconnect(session, disconnect)
 	default:
-		return session, nil, fmt.Errorf("invalid packet type: %v",
+		return nil, nil, fmt.Errorf("invalid packet type: %v",
 			pkt.Type().String())
 	}
 }
 
-func (m *sessionManager) handleConnect(session *Session,
-	pkt *packet.Connect) (*Session, []packet.Packet, error) {
+func (m *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
+	[]packet.Packet, error) {
 
 	m.log.Trace().
 		Bool("CleanSession", pkt.CleanSession).
@@ -113,7 +122,7 @@ func (m *sessionManager) handleConnect(session *Session,
 	if pktErr := m.checkPacketConnect(pkt); pktErr != nil {
 		connAck := newConnAck(pkt.Version, pktErr.ReasonCode, 0,
 			false, m.conf, nil, nil)
-		return session, []packet.Packet{&connAck}, pktErr
+		return nil, []packet.Packet{&connAck}, pktErr
 	}
 
 	var id ClientID
@@ -450,7 +459,7 @@ func (m *sessionManager) handleDisconnect(session *Session,
 		}
 	}
 
-	m.disconnectSession(session)
+	m.disconnect(session)
 	latency := time.Since(pkt.Timestamp())
 	m.metrics.recordDisconnectLatency(latency)
 
@@ -499,7 +508,7 @@ func (m *sessionManager) publishMessage(session *Session, msg *message) error {
 	}
 
 	if session.connected {
-		err := m.deliverer.deliverPacket(session.SessionID, pkt)
+		err := m.deliverer.deliverPacket(session.ClientID, pkt)
 		if err != nil {
 			return err
 		}
@@ -637,11 +646,18 @@ func (m *sessionManager) readSession(id ClientID) (*Session, error) {
 		Msg("MQTT Reading session")
 
 	session, err := m.store.readSession(id)
-	if err == errSessionNotFound {
-		m.log.Debug().
+	if err != nil {
+		if err == errSessionNotFound {
+			m.log.Debug().
+				Str("ClientId", string(id)).
+				Msg("MQTT Session not found")
+			return nil, err
+		}
+
+		m.log.Error().
 			Str("ClientId", string(id)).
-			Msg("MQTT Session not found")
-		return nil, err
+			Msg("MQTT Failed to read session: " + err.Error())
+		return nil, fmt.Errorf("failed to read session: %w", err)
 	}
 
 	session.restored = true
@@ -737,7 +753,19 @@ func (m *sessionManager) cleanSession(session *Session) {
 	session.clean()
 }
 
-func (m *sessionManager) disconnectSession(session *Session) {
+func (m *sessionManager) disconnectSession(id ClientID) {
+	session, err := m.readSession(id)
+	if err != nil {
+		m.log.Warn().
+			Str("ClientID", string(id)).
+			Msg("MQTT Failed to disconnect session: " + err.Error())
+		return
+	}
+
+	m.disconnect(session)
+}
+
+func (m *sessionManager) disconnect(session *Session) {
 	if !session.connected {
 		return
 	}

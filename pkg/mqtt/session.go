@@ -27,7 +27,7 @@ type ClientID string
 type SessionID uint64
 
 type packetDeliverer interface {
-	deliverPacket(id SessionID, pkt *packet.Publish) error
+	deliverPacket(id ClientID, pkt *packet.Publish) error
 }
 
 // Session stores the MQTT session.

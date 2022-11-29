@@ -15,42 +15,23 @@
 package mqtt
 
 import (
-	"sync"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
-type store struct {
-	mu       sync.RWMutex
-	sessions map[ClientID]*Session
+func TestConnection_NextConnectionDeadlineWithTimeout(t *testing.T) {
+	conn := connection{timeout: 3}
+	now := time.Now()
+
+	deadline := conn.nextConnectionDeadline()
+	assert.True(t, deadline.After(now))
 }
 
-func newStore() store {
-	return store{
-		sessions: make(map[ClientID]*Session),
-	}
-}
+func TestConnection_NextConnectionDeadlineNoTimeout(t *testing.T) {
+	conn := connection{}
 
-func (s *store) readSession(id ClientID) (*Session, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	session, ok := s.sessions[id]
-	if !ok {
-		return nil, errSessionNotFound
-	}
-
-	return session, nil
-}
-
-func (s *store) saveSession(session *Session) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.sessions[session.ClientID] = session
-}
-
-func (s *store) deleteSession(session *Session) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	delete(s.sessions, session.ClientID)
+	deadline := conn.nextConnectionDeadline()
+	assert.Zero(t, deadline)
 }
