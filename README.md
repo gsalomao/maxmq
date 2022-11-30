@@ -11,7 +11,18 @@ MaxMQ is an open-source, cloud-native, and high-performance message broker for
 IoT, compliant with the MQTT 3.1, 3.1.1 and 5.0 specification.
 
 MaxMQ is an [Apache 2.0](./LICENSE) licensed MQTT broker developed in
-[Go](https://go.dev/), and built for vertical and horizontal scaling.
+[Go](https://go.dev/), and designed around the following design principles:
+
+- **High Availability:** The system must have low latency and maintain highly
+available for any operations even if one or more nodes are in a failure state,
+or if there's a network failure.
+- **High Scalability:** The system must scale both vertically (make use of 
+modern multicore, multi-CPU architectures, and high-capacity storage devices), 
+as well as horizontally (adding more nodes).
+- **High Performance:** The system must run as close to the hardware as possible
+to deliver low and consistent latency as well as very high throughput.
+- **High Maintainability:** The system must be easy to operate with
+easy-to-use features that require minimal initial configuration.
 
 #### What is MQTT?
 
@@ -34,14 +45,10 @@ low-bandwidth, high-latency or unreliable networks.
 - [ ] Access control (ACL) based on client ID, username, or client certificate
 - [ ] Connection rate limit
 - [ ] Message rate limit
-- [ ] Multi-server (Cluster)
-- [ ] Automatic network partition healing (Cluster)
+- [ ] High-Availability (Cluster)
 - [ ] Extensible through plugins
 - [ ] WebUI
-- [ ] Redis, MySQL, PostgreSQL, MongoDB, HTTP authentication
-- [ ] MQTT bridge support
-- [ ] MQTT-SN protocol support
-- [ ] CoAP protocol support
+- [ ] MQTT-based file delivery
 
 ## Contributing
 
