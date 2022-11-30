@@ -476,7 +476,12 @@ func (m *sessionManager) handleDisconnect(session *Session,
 	return session, nil, nil
 }
 
-func (m *sessionManager) publishMessage(session *Session, msg *message) error {
+func (m *sessionManager) publishMessage(id ClientID, msg *message) error {
+	session, err := m.readSession(id)
+	if err != nil {
+		return err
+	}
+
 	pkt := msg.packet
 	if pkt.QoS > packet.QoS0 {
 		pkt = msg.packet.Clone()
@@ -508,7 +513,7 @@ func (m *sessionManager) publishMessage(session *Session, msg *message) error {
 	}
 
 	if session.connected {
-		err := m.deliverer.deliverPacket(session.ClientID, pkt)
+		err = m.deliverer.deliverPacket(session.ClientID, pkt)
 		if err != nil {
 			return err
 		}

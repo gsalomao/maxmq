@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/gsalomao/maxmq/mocks"
-	packet "github.com/gsalomao/maxmq/pkg/mqtt/packet"
+	"github.com/gsalomao/maxmq/pkg/mqtt/packet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -31,9 +31,8 @@ type messagePublisherMock struct {
 	mock.Mock
 }
 
-func (d *messagePublisherMock) publishMessage(session *Session,
-	msg *message) error {
-	args := d.Called(session, msg)
+func (d *messagePublisherMock) publishMessage(id ClientID, msg *message) error {
+	args := d.Called(id, msg)
 	return args.Error(0)
 }
 
@@ -182,14 +181,11 @@ func TestPubSub_PublishQueuedMessagesQoS0(t *testing.T) {
 		name := fmt.Sprintf("%v-%v", test.id, test.topic)
 		t.Run(name, func(t *testing.T) {
 			ps := createPubSub()
-			session := Session{ClientID: "a"}
+			id := ClientID("client-a")
 
 			for _, topic := range test.subs {
-				sub := Subscription{
-					Session:     &session,
-					TopicFilter: topic,
-					QoS:         packet.QoS0,
-				}
+				sub := Subscription{ClientID: id, TopicFilter: topic,
+					QoS: packet.QoS0}
 
 				_, err := ps.tree.insert(sub)
 				require.Nil(t, err)
@@ -200,7 +196,7 @@ func TestPubSub_PublishQueuedMessagesQoS0(t *testing.T) {
 			msg := &message{id: messageID(test.id), packet: &pkt}
 
 			pubMock := ps.publisher.(*messagePublisherMock)
-			pubMock.On("publishMessage", &session, msg).Return(nil)
+			pubMock.On("publishMessage", id, msg).Return(nil)
 
 			ps.queue.enqueue(msg)
 			ps.publishQueuedMessages()
@@ -214,13 +210,8 @@ func TestPubSub_PublishQueuedMessagesQoS0(t *testing.T) {
 
 func TestPubSub_ProcessQueuedMessagesFailedToDeliver(t *testing.T) {
 	ps := createPubSub()
-	session := Session{ClientID: "a"}
-
-	sub := Subscription{
-		Session:     &session,
-		TopicFilter: "data",
-		QoS:         packet.QoS0,
-	}
+	id := ClientID("client-1")
+	sub := Subscription{ClientID: id, TopicFilter: "data", QoS: packet.QoS0}
 
 	_, err := ps.tree.insert(sub)
 	require.Nil(t, err)
@@ -230,7 +221,7 @@ func TestPubSub_ProcessQueuedMessagesFailedToDeliver(t *testing.T) {
 	msg := &message{id: 1, packet: &pkt}
 
 	pubMock := ps.publisher.(*messagePublisherMock)
-	pubMock.On("publishMessage", &session, msg).
+	pubMock.On("publishMessage", id, msg).
 		Return(errors.New("failed to publish message"))
 
 	ps.queue.enqueue(msg)

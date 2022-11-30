@@ -33,8 +33,8 @@ var ErrSubscriptionNotFound = errors.New("subscription not found")
 type Subscription struct {
 	next *Subscription
 
-	// Session is the session which subscribed.
-	Session *Session
+	// ClientID is the MQTT Client Identifier which created the subscription.
+	ClientID ClientID
 
 	// TopicFilter is the MQTT Topic Filter.
 	TopicFilter string
@@ -189,7 +189,7 @@ func (n *subscriptionNode) remove(id ClientID) error {
 	sub := n.subscription
 
 	for sub != nil {
-		if id == sub.Session.ClientID {
+		if id == sub.ClientID {
 			break
 		}
 
@@ -263,7 +263,7 @@ func validateTopicWord(word string, isLastWord bool) error {
 }
 
 func sameSubscription(sub1 *Subscription, sub2 *Subscription) bool {
-	if sub1.Session.ClientID == sub2.Session.ClientID &&
+	if sub1.ClientID == sub2.ClientID &&
 		sub1.TopicFilter == sub2.TopicFilter {
 		return true
 	}

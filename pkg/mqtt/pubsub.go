@@ -29,7 +29,7 @@ const (
 type pubSubAction byte
 
 type messagePublisher interface {
-	publishMessage(session *Session, msg *message) error
+	publishMessage(id ClientID, msg *message) error
 }
 
 func newPubSub(pub messagePublisher, idGen IDGenerator, metrics *metrics,
@@ -105,7 +105,7 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic,
 
 	sub := Subscription{
 		ID:                subscriptionID,
-		Session:           session,
+		ClientID:          session.ClientID,
 		TopicFilter:       topic.Name,
 		QoS:               topic.QoS,
 		RetainHandling:    topic.RetainHandling,
@@ -224,10 +224,10 @@ func (p *pubSub) publishQueuedMessages() {
 		for _, sub := range subscriptions {
 			m := &message{id: msg.id, packet: msg.packet.Clone()}
 
-			err := p.publisher.publishMessage(sub.Session, m)
+			err := p.publisher.publishMessage(sub.ClientID, m)
 			if err != nil {
 				p.log.Error().
-					Str("ClientId", string(sub.Session.ClientID)).
+					Str("ClientId", string(sub.ClientID)).
 					Uint8("DUP", m.packet.Dup).
 					Uint64("MessageId", uint64(m.id)).
 					Uint16("PacketId", uint16(m.packet.PacketID)).

@@ -1464,6 +1464,7 @@ func TestSessionManager_PublishMessage(t *testing.T) {
 			session.ClientID = "client-1"
 			session.Version = packet.MQTT311
 			session.connected = true
+			sm.store.sessions[session.ClientID] = session
 
 			pkt := packet.NewPublish(test.id, packet.MQTT311, "data",
 				test.qos, 0, 0, nil, nil)
@@ -1473,7 +1474,7 @@ func TestSessionManager_PublishMessage(t *testing.T) {
 			pktDeliverer.On("deliverPacket", session.ClientID, mock.Anything).
 				Return(nil)
 
-			err := sm.publishMessage(session, &msg)
+			err := sm.publishMessage(session.ClientID, &msg)
 			assert.Nil(t, err)
 			pub := pktDeliverer.Calls[0].Arguments.Get(1).(*packet.Publish)
 
@@ -1517,6 +1518,7 @@ func TestSessionManager_PublishMessageDifferentVersion(t *testing.T) {
 	session.ClientID = "client-1"
 	session.Version = packet.MQTT50
 	session.connected = true
+	sm.store.sessions[session.ClientID] = session
 
 	pkt := packet.NewPublish(10, packet.MQTT311, "data",
 		packet.QoS0, 0, 0, nil, nil)
@@ -1526,7 +1528,7 @@ func TestSessionManager_PublishMessageDifferentVersion(t *testing.T) {
 	pktDeliverer.On("deliverPacket", session.ClientID, &pkt).
 		Return(nil)
 
-	err := sm.publishMessage(session, &msg)
+	err := sm.publishMessage(session.ClientID, &msg)
 	assert.Nil(t, err)
 
 	pub := pktDeliverer.Calls[0].Arguments.Get(1).(*packet.Publish)
@@ -1554,12 +1556,13 @@ func TestSessionManager_PublishMessageDisconnectedSession(t *testing.T) {
 			session := &Session{}
 			session.ClientID = "client-1"
 			session.connected = false
+			sm.store.sessions[session.ClientID] = session
 
 			pkt := packet.NewPublish(test.id, packet.MQTT311, "data",
 				test.qos, 0, 0, nil, nil)
 			msg := message{id: messageID(test.id), packet: &pkt}
 
-			err := sm.publishMessage(session, &msg)
+			err := sm.publishMessage(session.ClientID, &msg)
 			assert.Nil(t, err)
 
 			pktDeliverer := sm.deliverer.(*delivererMock)
@@ -1577,6 +1580,7 @@ func TestSessionManager_PublishMessageError(t *testing.T) {
 	session.ClientID = "client-1"
 	session.Version = packet.MQTT311
 	session.connected = true
+	sm.store.sessions[session.ClientID] = session
 
 	pkt := packet.NewPublish(10, packet.MQTT311, "data",
 		packet.QoS0, 0, 0, nil, nil)
@@ -1586,7 +1590,19 @@ func TestSessionManager_PublishMessageError(t *testing.T) {
 	pktDeliverer.On("deliverPacket", session.ClientID, &pkt).
 		Return(errors.New("failed to deliver message"))
 
-	err := sm.publishMessage(session, &msg)
+	err := sm.publishMessage(session.ClientID, &msg)
 	assert.NotNil(t, err)
 	pktDeliverer.AssertExpectations(t)
+}
+
+func TestSessionManager_PublishMessageReadSessionError(t *testing.T) {
+	conf := newConfiguration()
+	sm := createSessionManager(conf)
+
+	pkt := packet.NewPublish(10, packet.MQTT311, "data",
+		packet.QoS0, 0, 0, nil, nil)
+	msg := message{id: 50, packet: &pkt}
+
+	err := sm.publishMessage("id-0", &msg)
+	assert.NotNil(t, err)
 }
