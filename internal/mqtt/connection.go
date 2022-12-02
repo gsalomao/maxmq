@@ -12,18 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package mqtt
 
 import (
-	"os"
+	"math"
+	"net"
+	"time"
 
-	"github.com/gsalomao/maxmq/internal/cli"
+	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 )
 
-func main() {
-	c := cli.New(os.Stdout, os.Args[1:])
-	err := c.Run()
-	if err != nil {
-		os.Exit(1)
+type connection struct {
+	netConn    net.Conn
+	version    packet.MQTTVersion
+	clientID   ClientID
+	timeout    int
+	connected  bool
+	hasSession bool
+}
+
+func (c *connection) nextConnectionDeadline() time.Time {
+	if c.timeout > 0 {
+		timeout := math.Ceil(float64(c.timeout) * 1.5)
+		return time.Now().Add(time.Duration(timeout) * time.Second)
 	}
+
+	// Zero value of time to disable the timeout
+	return time.Time{}
 }

@@ -12,18 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package packet_test
 
 import (
-	"os"
+	"testing"
 
-	"github.com/gsalomao/maxmq/internal/cli"
+	"github.com/gsalomao/maxmq/internal/mqtt/packet"
+	"github.com/stretchr/testify/assert"
 )
 
-func main() {
-	c := cli.New(os.Stdout, os.Args[1:])
-	err := c.Run()
-	if err != nil {
-		os.Exit(1)
-	}
+func TestPacketError_ErrorMessage(t *testing.T) {
+	err := packet.ErrV5MalformedPacket
+	assert.Equal(t, "malformed packet (code=129)", err.Error())
 }

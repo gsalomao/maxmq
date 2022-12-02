@@ -29,25 +29,27 @@ BOLD        = \033[0;1m
 # Build parameters
 VERSION = $(shell git describe --tags --always --dirty | sed -e 's/^v//')
 
-.PHONY: all build coverage e2e
-
+.PHONY: all
 all: help
 
-LDFLAGS ="-X 'github.com/gsalomao/maxmq/pkg/cli.version=${VERSION}'"
+LDFLAGS ="-X 'github.com/gsalomao/maxmq/internal/cli.version=${VERSION}'"
 
 ## Build
+.PHONY: build
 build: ## Build application
 	$(call print_task,"Building application")
 	@mkdir -p ${BUILD_DIR}
 	@go build -o ${BUILD_DIR}/$(NAME) -ldflags ${LDFLAGS} $(MAIN_FILE)
 	$(call print_task_result,"Building application","done")
 
+.PHONY: image
 image: ## Build Docker image
 	$(call print_task,"Building Docker image")
 	@docker build . -t maxmq:${VERSION}
 	@docker tag maxmq:${VERSION} maxmq:latest
 	$(call print_task_result,"Building Docker image","done")
 
+.PHONY: clean
 clean: ## Clean build folder
 	$(call print_task,"Cleaning build folder")
 	@go clean
@@ -55,46 +57,54 @@ clean: ## Clean build folder
 	$(call print_task_result,"Cleaning build folder","done")
 
 ## Run
+.PHONY: start
 start: build ## Start broker
 	$(call print_task,"Starting broker")
 	@$(BUILD_DIR)/$(NAME) start
 
+.PHONY: start-dev
 start-dev: ## Start broker in development mode
 	$(call print_task,"Starting broker in development mode")
 	@reflex -s -d none -r "\.go" -- sh -c "go run $(MAIN_FILE) start"
 
+.PHONY: profile
 profile: ## Start broker with CPU/Memory profiler
 	$(call print_task,"Starting broker in profiling mode")
 	@go build -o ${BUILD_DIR}/$(NAME) -ldflags \
-		"-X 'github.com/gsalomao/maxmq/cli.profile=true'" $(MAIN_FILE)
+		"-X 'github.com/gsalomao/maxmq/internal/cli.profile=true'" $(MAIN_FILE)
 	@$(BUILD_DIR)/$(NAME) start
 
 ## Test
+.PHONY: test
 test: ## Run unit tests
 	$(call print_task,"Running unit tests")
-	@gotestsum --format pkgname --packages ./pkg/... -- -timeout 3s -race
+	@gotestsum --format pkgname --packages ./internal/... -- -timeout 3s -race
 	$(call print_task_result,"Running unit tests","done")
 
+.PHONY: test-dev
 test-dev: ## Run unit tests in development mode
 	$(call print_task,"Running unit tests in development mode")
-	@gotestsum --format testname --packages ./pkg/... --watch -- -timeout 3s -race
+	@gotestsum --format testname --packages ./internal/... --watch -- -timeout 3s -race
 
+.PHONY: coverage
 coverage: ## Run unit tests with coverage report
 	$(call print_task,"Running unit tests")
 	@rm -rf ${COVERAGE_DIR}
 	@mkdir -p ${COVERAGE_DIR}
 	@go test -timeout 3s -cover -covermode=atomic -race \
-		-coverprofile=$(COVERAGE_DIR)/coverage.out ./pkg/...
+		-coverprofile=$(COVERAGE_DIR)/coverage.out ./internal/...
 	$(call print_task_result,"Running unit tests","done")
 
 	$(call print_task,"Generating coverage report")
 	@go tool cover -func $(COVERAGE_DIR)/coverage.out
 	$(call print_task_result,"Generating coverage report","done")
 
+.PHONY: coverage-html
 coverage-html: coverage ## Open the coverage report in the browser
 	$(call print_task,"Opening coverage report")
 	@go tool cover -html coverage/coverage.out
 
+.PHONY: e2e
 e2e: build ## Run end-to-end (E2E) tests
 	$(call print_task,"Starting application")
 	@MAXMQ_LOG_LEVEL="info" $(BUILD_DIR)/$(NAME) start &
@@ -111,30 +121,36 @@ e2e: build ## Run end-to-end (E2E) tests
 	$(call print_task_result,"Stopping application","done")
 
 ## Analyze
+.PHONY: vet
 vet: ## Examine source code
 	$(call print_task,"Examining source code")
 	@go vet ./...
 	$(call print_task_result,"Examining source code","done")
 
+.PHONY: fmt
 fmt: ## Format source code
 	$(call print_task,"Formatting source code")
 	@go fmt ./...
 	$(call print_task_result,"Formatting source code","done")
 
+.PHONY: lint
 lint: ## Lint source code
 	$(call print_task,"Linting source code")
 	@golint  -set_exit_status $(go list ./...)
 	@golangci-lint run $(go list ./...)
 	$(call print_task_result,"Linting source code","done")
 
+.PHONY: complexity
 complexity: ## Calculates cyclomatic complexity
 	$(call print_task,"Calculating cyclomatic complexity")
 	@gocyclo -over 11 -avg .
 	$(call print_task_result,"Calculating cyclomatic complexity","done")
 
+.PHONY: check
 check: vet lint complexity ## Check source code
 
 ## Help
+.PHONY: help
 help: ## Show this help
 	@echo 'Usage:'
 	@echo '  ${YELLOW}make${RESET} ${GREEN}<target>${RESET}'

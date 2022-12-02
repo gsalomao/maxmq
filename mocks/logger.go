@@ -18,7 +18,7 @@ import (
 	"bytes"
 	"sync"
 
-	"github.com/gsalomao/maxmq/pkg/logger"
+	"github.com/gsalomao/maxmq/internal/logger"
 )
 
 // LoggerStub is responsible to simulate a real logger.

@@ -12,18 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package cli_test
 
 import (
-	"os"
+	"bytes"
+	"testing"
 
 	"github.com/gsalomao/maxmq/internal/cli"
+	"github.com/stretchr/testify/assert"
 )
 
-func main() {
-	c := cli.New(os.Stdout, os.Args[1:])
-	err := c.Run()
-	if err != nil {
-		os.Exit(1)
+func TestCLI_Run(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "Usage",
+			in:   "",
+			out: "MaxMQ is a Cloud-Native and High-Performance MQTT Broker " +
+				"for IoT.",
+		},
+		{
+			name: "Version",
+			in:   "--version",
+			out:  "MaxMQ version",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			out := bytes.NewBufferString("")
+			c := cli.New(out, []string{test.in})
+
+			err := c.Run()
+
+			assert.Nil(t, err)
+			assert.Contains(t, out.String(), test.out)
+		})
 	}
 }

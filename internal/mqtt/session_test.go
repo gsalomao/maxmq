@@ -12,18 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package mqtt
 
 import (
-	"os"
+	"math"
+	"testing"
 
-	"github.com/gsalomao/maxmq/internal/cli"
+	"github.com/gsalomao/maxmq/internal/mqtt/packet"
+	"github.com/stretchr/testify/assert"
 )
 
-func main() {
-	c := cli.New(os.Stdout, os.Args[1:])
-	err := c.Run()
-	if err != nil {
-		os.Exit(1)
+func TestSession_NextClientID(t *testing.T) {
+	s := Session{}
+
+	for i := 0; i < math.MaxUint16; i++ {
+		id := s.nextClientID()
+		assert.Equal(t, packet.ID(i+1), id)
 	}
+
+	id := s.nextClientID()
+	assert.Equal(t, packet.ID(1), id)
 }
