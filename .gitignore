@@ -39,3 +39,4 @@ go.work
 /prometheus.yml
 /data
 *.prof
+.DS_Store
