@@ -75,14 +75,14 @@ profile: ## Start broker with CPU/Memory profiler
 	@$(BUILD_DIR)/$(NAME) start
 
 ## Test
-.PHONY: test
-test: ## Run unit tests
+.PHONY: unit
+unit: ## Run unit tests
 	$(call print_task,"Running unit tests")
 	@gotestsum --format pkgname --packages ./internal/... -- -timeout 3s -race
 	$(call print_task_result,"Running unit tests","done")
 
-.PHONY: test-dev
-test-dev: ## Run unit tests in development mode
+.PHONY: unit-dev
+unit-dev: ## Run unit tests in development mode
 	$(call print_task,"Running unit tests in development mode")
 	@gotestsum --format testname --packages ./internal/... --watch -- -timeout 3s -race
 
