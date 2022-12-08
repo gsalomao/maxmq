@@ -73,7 +73,7 @@ jobs:
       - name: Build application
         run: make build
 
-  test:
+  unit-tests:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository
@@ -91,7 +91,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
-  e2e:
+  system-tests:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository
@@ -104,5 +104,5 @@ jobs:
       - name: Install dependencies
         run: go install gotest.tools/gotestsum@latest
 
-      - name: Run E2E tests
-        run: make e2e
+      - name: Run system tests
+        run: make system
