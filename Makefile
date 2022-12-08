@@ -104,16 +104,16 @@ coverage-html: coverage ## Open the coverage report in the browser
 	$(call print_task,"Opening coverage report")
 	@go tool cover -html coverage/coverage.out
 
-.PHONY: e2e
-e2e: build ## Run end-to-end (E2E) tests
+.PHONY: system
+system: build ## Run system tests
 	$(call print_task,"Starting application")
 	@MAXMQ_LOG_LEVEL="info" $(BUILD_DIR)/$(NAME) start &
 	@sleep 1
 	$(call print_task_result,"Starting application","done")
 
-	$(call print_task,"Running E2E tests")
-	@gotestsum --format testname --packages ./e2e -- -tags=e2e -timeout 30s -count=1
-	$(call print_task_result,"Running E2E tests","done")
+	$(call print_task,"Running system tests")
+	@gotestsum --format testname --packages ./tests/system -- -timeout 30s -count=1
+	$(call print_task_result,"Running system tests","done")
 
 	$(call print_task,"Stopping application")
 	@pkill -2 $(NAME)
