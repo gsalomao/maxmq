@@ -41,63 +41,60 @@ var bannerTemplate = `{{ .Title "MaxMQ" "" 0 }}
 `
 var profile = ""
 
-// NewCommandStart creates a command to start the message broker.
 func newCommandStart() *cobra.Command {
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "start",
 		Short: "Start broker",
 		Long:  "Start the execution of the MaxMQ broker",
 		Run: func(_ *cobra.Command, _ []string) {
-			banner.InitString(colorable.NewColorableStdout(), true, true,
-				bannerTemplate)
-
-			machineID := 0
-			log, err := newLogger(os.Stdout, machineID)
-			if err != nil {
-				os.Exit(1)
-			}
-
-			if profile != "" {
-				var cpu *os.File
-
-				cpu, err = startCPUProfile()
-				if err != nil {
-					log.Fatal().Msg("Failed to start CPU profile: " +
-						err.Error())
-				}
-				defer func() { _ = cpu.Close() }()
-			}
-
-			conf, err := loadConfig(log)
-			if err != nil {
-				log.Fatal().Msg("Failed to load configuration: " + err.Error())
-			}
-
-			err = logger.SetSeverityLevel(conf.LogLevel)
-			if err != nil {
-				log.Fatal().Msg("Failed to set log severity: " + err.Error())
-			}
-
-			b, err := newBroker(conf, log, machineID)
-			if err != nil {
-				log.Fatal().Msg("Failed to create broker: " + err.Error())
-			}
-
-			runBroker(b, log)
-
-			if profile != "" {
-				err = saveHeapProfile()
-				if err != nil {
-					log.Fatal().Msg("Failed to save memory profile: " +
-						err.Error())
-				}
-
-				stopCPUProfile()
-			}
+			enableProfile := profile != ""
+			runCommandStart(enableProfile)
 		},
 	}
+}
 
-	return cmd
+func runCommandStart(enableProfile bool) {
+	machineID := 0
+	log, err := newLogger(os.Stdout, machineID)
+	if err != nil {
+		os.Exit(1)
+	}
+
+	var missingConfigFile bool
+	err = config.ReadConfigFile()
+	if err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			missingConfigFile = true
+		} else {
+			log.Fatal().Msg("Failed to read config file: " + err.Error())
+		}
+	}
+
+	conf, err := config.LoadConfig()
+	if err != nil {
+		log.Fatal().Msg("Failed to load configuration: " + err.Error())
+	}
+
+	err = logger.SetSeverityLevel(conf.LogLevel)
+	if err != nil {
+		log.Fatal().Msg("Failed to set log severity: " + err.Error())
+	}
+
+	bannerWriter := colorable.NewColorableStdout()
+	banner.InitString(bannerWriter, true, true, bannerTemplate)
+
+	if !missingConfigFile {
+		log.Info().Msg("Config file loaded with success")
+	} else {
+		log.Info().Msg("No config file found")
+	}
+
+	b, err := newBroker(conf, log, machineID)
+	if err != nil {
+		log.Fatal().Msg("Failed to create broker: " + err.Error())
+	}
+
+	runBroker(b, log, enableProfile)
 }
 
 func newLogger(out io.Writer, machineID int) (*logger.Logger, error) {
@@ -139,7 +136,8 @@ func newBroker(conf config.Config, log *logger.Logger,
 		return nil, err
 	}
 
-	l, err := mqtt.NewListener(
+	var lsn broker.Listener
+	lsn, err = mqtt.NewListener(
 		mqtt.WithConfiguration(mqttConf),
 		mqtt.WithLogger(log),
 		mqtt.WithIDGenerator(sf),
@@ -149,7 +147,7 @@ func newBroker(conf config.Config, log *logger.Logger,
 	}
 
 	b := broker.New(log)
-	b.AddListener(l)
+	b.AddListener(lsn)
 
 	if conf.MetricsEnabled {
 		log.Debug().
@@ -163,18 +161,31 @@ func newBroker(conf config.Config, log *logger.Logger,
 			Profiling: conf.MetricsProfiling,
 		}
 
-		l, err := metrics.NewListener(mtConf, log)
+		lsn, err = metrics.NewListener(mtConf, log)
 		if err != nil {
 			return nil, err
 		}
 
-		b.AddListener(l)
+		b.AddListener(lsn)
 	}
 
 	return &b, nil
 }
 
-func runBroker(b *broker.Broker, log *logger.Logger) {
+func runBroker(b *broker.Broker, log *logger.Logger, enableProfile bool) {
+	if enableProfile {
+		cpu, err := os.Create("cpu.prof")
+		if err != nil {
+			log.Fatal().Msg("Failed to create CPU profile file: " + err.Error())
+		}
+
+		if err = pprof.StartCPUProfile(cpu); err != nil {
+			log.Fatal().Msg("Failed to start CPU profile: " + err.Error())
+		}
+
+		defer func() { _ = cpu.Close() }()
+	}
+
 	err := b.Start()
 	if err != nil {
 		log.Fatal().Msg("Failed to start broker: " + err.Error())
@@ -186,51 +197,24 @@ func runBroker(b *broker.Broker, log *logger.Logger) {
 	if err != nil {
 		log.Error().Msg("Broker stopped with error: " + err.Error())
 	}
-}
 
-func loadConfig(log *logger.Logger) (config.Config, error) {
-	err := config.ReadConfigFile()
-	if err == nil {
-		log.Info().Msg("Loading configuration")
-	} else {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			log.Warn().Msg(err.Error())
+	if enableProfile {
+		var heap *os.File
+
+		heap, err = os.Create("heap.prof")
+		if err != nil {
+			log.Fatal().Msg("Failed to create Heap profile file: " +
+				err.Error())
 		}
+		defer func() { _ = heap.Close() }()
+
+		runtime.GC()
+		if err = pprof.WriteHeapProfile(heap); err != nil {
+			log.Fatal().Msg("Failed to save Heap profile: " + err.Error())
+		}
+
+		pprof.StopCPUProfile()
 	}
-
-	return config.LoadConfig()
-}
-
-func startCPUProfile() (*os.File, error) {
-	f, err := os.Create("cpu.prof")
-	if err != nil {
-		return nil, err
-	}
-
-	if err = pprof.StartCPUProfile(f); err != nil {
-		return nil, err
-	}
-
-	return f, nil
-}
-
-func stopCPUProfile() {
-	pprof.StopCPUProfile()
-}
-
-func saveHeapProfile() error {
-	f, err := os.Create("heap.prof")
-	if err != nil {
-		return err
-	}
-	defer func() { _ = f.Close() }()
-
-	runtime.GC()
-	if err = pprof.WriteHeapProfile(f); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func waitOSSignals(brk *broker.Broker) {

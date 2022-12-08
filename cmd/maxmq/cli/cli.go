@@ -46,7 +46,7 @@ func New(out io.Writer, args []string) CLI {
 	cli.rootCmd.SetVersionTemplate(fmt.Sprintf("MaxMQ version %v\n", version))
 	cli.rootCmd.SetArgs(args)
 	cli.rootCmd.SetOut(out)
-	cli.registerCommands()
+	cli.registerSubCommands()
 
 	return cli
 }
@@ -56,7 +56,6 @@ func (c CLI) Run() error {
 	return c.rootCmd.Execute()
 }
 
-// registerCommands adds child commands to the root command.
-func (c *CLI) registerCommands() {
+func (c *CLI) registerSubCommands() {
 	c.rootCmd.AddCommand(newCommandStart())
 }

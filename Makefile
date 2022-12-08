@@ -32,7 +32,7 @@ VERSION = $(shell git describe --tags --always --dirty | sed -e 's/^v//')
 .PHONY: all
 all: help
 
-LDFLAGS ="-X 'github.com/gsalomao/maxmq/internal/cli.version=${VERSION}'"
+LDFLAGS ="-X 'github.com/gsalomao/maxmq/cmd/maxmq/cli.version=${VERSION}'"
 
 ## Build
 .PHONY: build
@@ -71,7 +71,7 @@ start-dev: ## Start broker in development mode
 profile: ## Start broker with CPU/Memory profiler
 	$(call print_task,"Starting broker in profiling mode")
 	@go build -o ${BUILD_DIR}/$(NAME) -ldflags \
-		"-X 'github.com/gsalomao/maxmq/internal/cli.profile=true'" $(MAIN_FILE)
+		"-X 'github.com/gsalomao/maxmq/cmd/maxmq/cli.profile=true'" $(MAIN_FILE)
 	@$(BUILD_DIR)/$(NAME) start
 
 ## Test
