@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 	"github.com/gsalomao/maxmq/mocks"
@@ -48,6 +49,7 @@ func createPubSub() pubSub {
 func TestPubSub_StartStop(t *testing.T) {
 	ps := createPubSub()
 	ps.start()
+	<-time.After(10 * time.Millisecond)
 	ps.stop()
 }
 
