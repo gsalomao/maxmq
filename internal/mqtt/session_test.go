@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSession_NextClientID(t *testing.T) {
+func TestSessionNextClientID(t *testing.T) {
 	s := Session{}
 
 	for i := 0; i < math.MaxUint16; i++ {

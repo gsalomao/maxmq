@@ -23,28 +23,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPingReq_InvalidPacketType(t *testing.T) {
+func TestPingReqInvalidPacketType(t *testing.T) {
 	opts := options{packetType: DISCONNECT}
 	pkt, err := newPacketPingReq(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestPingReq_InvalidControlFlags(t *testing.T) {
+func TestPingReqInvalidControlFlags(t *testing.T) {
 	opts := options{packetType: PINGREQ, controlFlags: 1}
 	pkt, err := newPacketPingReq(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestPingReq_InvalidRemainLength(t *testing.T) {
+func TestPingReqInvalidRemainLength(t *testing.T) {
 	opts := options{packetType: PINGREQ, remainingLength: 1}
 	pkt, err := newPacketPingReq(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestPingReq_WriteUnsupported(t *testing.T) {
+func TestPingReqWriteUnsupported(t *testing.T) {
 	opts := options{packetType: PINGREQ, remainingLength: 0}
 	pkt, err := newPacketPingReq(opts)
 	require.Nil(t, err)
@@ -56,7 +56,7 @@ func TestPingReq_WriteUnsupported(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestPingReq_Read(t *testing.T) {
+func TestPingReqRead(t *testing.T) {
 	opts := options{packetType: PINGREQ, remainingLength: 0}
 	pkt, err := newPacketPingReq(opts)
 	require.Nil(t, err)
@@ -68,7 +68,7 @@ func TestPingReq_Read(t *testing.T) {
 	require.Nil(t, err)
 }
 
-func BenchmarkPingReq_Read(b *testing.B) {
+func BenchmarkPingReqRead(b *testing.B) {
 	var msg []byte
 	opts := options{packetType: PINGREQ, remainingLength: 0}
 	pkt, _ := newPacketPingReq(opts)
@@ -84,7 +84,7 @@ func BenchmarkPingReq_Read(b *testing.B) {
 	}
 }
 
-func TestPingReq_Size(t *testing.T) {
+func TestPingReqSize(t *testing.T) {
 	opts := options{
 		packetType:        PINGREQ,
 		remainingLength:   0,
@@ -97,7 +97,7 @@ func TestPingReq_Size(t *testing.T) {
 	assert.Equal(t, 2, pkt.Size())
 }
 
-func TestPingReq_Timestamp(t *testing.T) {
+func TestPingReqTimestamp(t *testing.T) {
 	opts := options{
 		packetType:        PINGREQ,
 		remainingLength:   0,

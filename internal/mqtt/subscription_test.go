@@ -62,8 +62,8 @@ func assertSubscription(t *testing.T, tree *subscriptionTree, sub Subscription,
 	}
 }
 
-func TestSubscriptionTree_Insert(t *testing.T) {
-	testCases := []string{"a", "/topic", "topic/level", "topic/level/3",
+func TestSubscriptionTreeInsertSubscription(t *testing.T) {
+	testCases := []string{"a", "/topic", "topic/level", "topic/level/a",
 		"topic//test"}
 	id := ClientID("client-1")
 
@@ -82,7 +82,7 @@ func TestSubscriptionTree_Insert(t *testing.T) {
 	}
 }
 
-func BenchmarkSubscriptionTree_Insert(b *testing.B) {
+func BenchmarkSubscriptionTreeInsertSubscription(b *testing.B) {
 	b.ReportAllocs()
 	id := ClientID("client-1")
 	tree := newSubscriptionTree()
@@ -98,7 +98,7 @@ func BenchmarkSubscriptionTree_Insert(b *testing.B) {
 	}
 }
 
-func TestSubscriptionTree_InsertMultipleSubscriptions(t *testing.T) {
+func TestSubscriptionTreeInsertMultipleSubscriptions(t *testing.T) {
 	id := ClientID("client-1")
 	subscriptions := []Subscription{
 		{ClientID: id, TopicFilter: "topic/0", QoS: packet.QoS0},
@@ -122,7 +122,7 @@ func TestSubscriptionTree_InsertMultipleSubscriptions(t *testing.T) {
 	assertSubscription(t, &tree, subscriptions[2], id)
 }
 
-func TestSubscriptionTree_InsertSubscriptionsSameTopic(t *testing.T) {
+func TestSubscriptionTreeInsertSubscriptionsSameTopic(t *testing.T) {
 	subscriptions := []Subscription{
 		{ClientID: ClientID("0"), TopicFilter: "topic"},
 		{ClientID: ClientID("1"), TopicFilter: "topic"},
@@ -144,7 +144,7 @@ func TestSubscriptionTree_InsertSubscriptionsSameTopic(t *testing.T) {
 	}
 }
 
-func TestSubscriptionTree_InsertTopicFilterWithWildcard(t *testing.T) {
+func TestSubscriptionTreeInsertTopicFilterWithWildcard(t *testing.T) {
 	testCases := []string{"+", "#", "a/+", "a/#", "a/b/+", "a/b/#", "/a/+/c/+",
 		"/a/b/c/#"}
 	id := ClientID("client-1")
@@ -163,7 +163,7 @@ func TestSubscriptionTree_InsertTopicFilterWithWildcard(t *testing.T) {
 	}
 }
 
-func TestSubscriptionTree_InsertInvalidTopicFilter(t *testing.T) {
+func TestSubscriptionTreeInsertInvalidTopicFilter(t *testing.T) {
 	testCases := []string{"", "sensor#", "sensor/room#", "sensor/#/temp",
 		"sensor+"}
 	id := ClientID("client-1")
@@ -180,7 +180,7 @@ func TestSubscriptionTree_InsertInvalidTopicFilter(t *testing.T) {
 	}
 }
 
-func TestSubscriptionTree_InsertSameTopicFilter(t *testing.T) {
+func TestSubscriptionTreeInsertSameTopicFilter(t *testing.T) {
 	id := ClientID("client-1")
 	subscriptions := []Subscription{
 		{ClientID: id, TopicFilter: "data", QoS: packet.QoS0},
@@ -211,7 +211,7 @@ func TestSubscriptionTree_InsertSameTopicFilter(t *testing.T) {
 	assert.Empty(t, node.children)
 }
 
-func TestSubscriptionTree_Remove(t *testing.T) {
+func TestSubscriptionTreeRemoveSubscription(t *testing.T) {
 	testCases := []string{"a", "/topic", "topic/level", "topic/level/3",
 		"topic//test"}
 	id := ClientID("client-1")
@@ -232,7 +232,7 @@ func TestSubscriptionTree_Remove(t *testing.T) {
 	}
 }
 
-func BenchmarkSubscriptionTree_Remove(b *testing.B) {
+func BenchmarkSubscriptionTreeRemoveSubscription(b *testing.B) {
 	b.ReportAllocs()
 	id := ClientID("client-1")
 	tree := newSubscriptionTree()
@@ -255,7 +255,7 @@ func BenchmarkSubscriptionTree_Remove(b *testing.B) {
 	}
 }
 
-func TestSubscriptionTree_RemoveNoExisting(t *testing.T) {
+func TestSubscriptionTreeRemoveUnknownSubscription(t *testing.T) {
 	testCases := []struct {
 		topics []string
 	}{
@@ -284,7 +284,7 @@ func TestSubscriptionTree_RemoveNoExisting(t *testing.T) {
 	}
 }
 
-func TestSubscriptionTree_RemoveAllChildren(t *testing.T) {
+func TestSubscriptionTreeRemoveSiblingSubscription(t *testing.T) {
 	testCases := []struct {
 		topics []string
 	}{
@@ -317,7 +317,7 @@ func TestSubscriptionTree_RemoveAllChildren(t *testing.T) {
 	}
 }
 
-func TestSubscriptionTree_RemoveSameTopicFilter(t *testing.T) {
+func TestSubscriptionTreeRemoveSameTopicFilter(t *testing.T) {
 	ids := []ClientID{ClientID("id-0"), ClientID("id-1"), ClientID("id-2")}
 	subscriptions := []Subscription{
 		{ClientID: ids[0], TopicFilter: "data/#", QoS: packet.QoS0},
@@ -347,7 +347,7 @@ func TestSubscriptionTree_RemoveSameTopicFilter(t *testing.T) {
 	assert.Empty(t, tree.root.children)
 }
 
-func TestSubscriptionTree_RemoveSameTopicDifferentSession(t *testing.T) {
+func TestSubscriptionTreeRemoveSameTopicDifferentSession(t *testing.T) {
 	id := ClientID("id-0")
 	sub := Subscription{ClientID: id, TopicFilter: "data"}
 	tree := newSubscriptionTree()
@@ -361,7 +361,7 @@ func TestSubscriptionTree_RemoveSameTopicDifferentSession(t *testing.T) {
 	assertSubscription(t, &tree, sub, id)
 }
 
-func TestSubscriptionTree_FindMatches(t *testing.T) {
+func TestSubscriptionTreeFindMatches(t *testing.T) {
 	testCases := []struct {
 		subs    []string
 		topic   string
@@ -403,7 +403,7 @@ func TestSubscriptionTree_FindMatches(t *testing.T) {
 	}
 }
 
-func TestSubscriptionTree_FindMatchesSameTopicFilter(t *testing.T) {
+func TestSubscriptionTreeFindMatchesSameTopicFilter(t *testing.T) {
 	testCases := []struct {
 		topic       string
 		clients     int

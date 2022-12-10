@@ -25,21 +25,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestConnect_InvalidPacketType(t *testing.T) {
+func TestConnectInvalidPacketType(t *testing.T) {
 	opts := options{packetType: DISCONNECT}
 	pkt, err := newPacketConnect(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestConnect_InvalidControlFlags(t *testing.T) {
+func TestConnectInvalidControlFlags(t *testing.T) {
 	opts := options{packetType: CONNECT, controlFlags: 1}
 	pkt, err := newPacketConnect(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestConnect_WriteUnsupported(t *testing.T) {
+func TestConnectWriteUnsupported(t *testing.T) {
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 0, // variable header
 		0, 1, 'a', // client ID
@@ -56,7 +56,7 @@ func TestConnect_WriteUnsupported(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestConnect_Read(t *testing.T) {
+func TestConnectRead(t *testing.T) {
 	versions := []struct {
 		test    string
 		version MQTTVersion
@@ -95,7 +95,7 @@ func TestConnect_Read(t *testing.T) {
 	}
 }
 
-func BenchmarkConnect_ReadV3(b *testing.B) {
+func BenchmarkConnectReadV3(b *testing.B) {
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 60, // variable header
 		0, 1, 'a', // client ID
@@ -118,7 +118,7 @@ func BenchmarkConnect_ReadV3(b *testing.B) {
 	}
 }
 
-func BenchmarkConnect_ReadV5(b *testing.B) {
+func BenchmarkConnectReadV5(b *testing.B) {
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 60, // variable header
 		0,         // property length
@@ -142,7 +142,7 @@ func BenchmarkConnect_ReadV5(b *testing.B) {
 	}
 }
 
-func TestConnect_ReadProtocolNameMissing(t *testing.T) {
+func TestConnectReadProtocolNameMissing(t *testing.T) {
 	var msg []byte
 	opts := options{packetType: CONNECT, remainingLength: len(msg)}
 	pkt, err := newPacketConnect(opts)
@@ -152,7 +152,7 @@ func TestConnect_ReadProtocolNameMissing(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestConnect_ReadProtocolNameInvalid(t *testing.T) {
+func TestConnectReadProtocolNameInvalid(t *testing.T) {
 	names := []string{"MQT", "MQTT_", "MTT"}
 
 	for _, name := range names {
@@ -177,7 +177,7 @@ func TestConnect_ReadProtocolNameInvalid(t *testing.T) {
 	}
 }
 
-func TestConnect_ReadVersionMissing(t *testing.T) {
+func TestConnectReadVersionMissing(t *testing.T) {
 	msg := []byte{0, 4, 'M', 'Q', 'T', 'T'}
 	opts := options{packetType: CONNECT, remainingLength: len(msg)}
 	pkt, err := newPacketConnect(opts)
@@ -187,7 +187,7 @@ func TestConnect_ReadVersionMissing(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestConnect_ReadVersionInvalid(t *testing.T) {
+func TestConnectReadVersionInvalid(t *testing.T) {
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 0, 0, 0, 0, // variable header
 		0, 1, 'a', // client ID
@@ -201,7 +201,7 @@ func TestConnect_ReadVersionInvalid(t *testing.T) {
 	assert.ErrorIs(t, err, ErrV3UnacceptableProtocolVersion)
 }
 
-func TestConnect_ReadFlagsMissing(t *testing.T) {
+func TestConnectReadFlagsMissing(t *testing.T) {
 	msg := []byte{0, 4, 'M', 'Q', 'T', 'T', 4}
 	opts := options{packetType: CONNECT, remainingLength: len(msg)}
 	pkt, err := newPacketConnect(opts)
@@ -211,7 +211,7 @@ func TestConnect_ReadFlagsMissing(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestConnect_ReadFlagsReservedInvalid(t *testing.T) {
+func TestConnectReadFlagsReservedInvalid(t *testing.T) {
 	// V3.1.1
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 4, 1, 0, 0, // variable header
@@ -241,7 +241,7 @@ func TestConnect_ReadFlagsReservedInvalid(t *testing.T) {
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
-func TestConnect_ReadFlagsWillQoS(t *testing.T) {
+func TestConnectReadFlagsWillQoS(t *testing.T) {
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0x14, 0, 0, // variable header
 		0, 1, 'a', // client ID
@@ -260,7 +260,7 @@ func TestConnect_ReadFlagsWillQoS(t *testing.T) {
 	assert.Equal(t, WillQoS2, connPkt.WillQoS)
 }
 
-func TestConnect_ReadFlagsWillQoSInvalid(t *testing.T) {
+func TestConnectReadFlagsWillQoSInvalid(t *testing.T) {
 	// V3.1.1 - No Will Flag
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0x10, 0, 0, // variable header
@@ -322,7 +322,7 @@ func TestConnect_ReadFlagsWillQoSInvalid(t *testing.T) {
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
-func TestConnect_ReadFlagsWillRetain(t *testing.T) {
+func TestConnectReadFlagsWillRetain(t *testing.T) {
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0x24, 0, 0, // variable header
 		0, 1, 'a', // client ID
@@ -341,7 +341,7 @@ func TestConnect_ReadFlagsWillRetain(t *testing.T) {
 	assert.True(t, connPkt.WillRetain)
 }
 
-func TestConnect_ReadFlagsWillRetainInvalid(t *testing.T) {
+func TestConnectReadFlagsWillRetainInvalid(t *testing.T) {
 	// V3.1.1
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0x20, 0, 0, // variable header
@@ -375,7 +375,7 @@ func TestConnect_ReadFlagsWillRetainInvalid(t *testing.T) {
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
-func TestConnect_ReadFlagsUserNamePasswordInvalid(t *testing.T) {
+func TestConnectReadFlagsUserNamePasswordInvalid(t *testing.T) {
 	// V3.1.1
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0x40, 0, 0, // variable header
@@ -407,7 +407,7 @@ func TestConnect_ReadFlagsUserNamePasswordInvalid(t *testing.T) {
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
-func TestConnect_ReadKeepAliveValid(t *testing.T) {
+func TestConnectReadKeepAliveValid(t *testing.T) {
 	testCases := []uint16{0, 60, 900, 65535}
 
 	for _, ka := range testCases {
@@ -430,7 +430,7 @@ func TestConnect_ReadKeepAliveValid(t *testing.T) {
 	}
 }
 
-func TestConnect_ReadKeepAliveInvalid(t *testing.T) {
+func TestConnectReadKeepAliveInvalid(t *testing.T) {
 	// V3.1.1
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, // variable header
@@ -455,7 +455,7 @@ func TestConnect_ReadKeepAliveInvalid(t *testing.T) {
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
-func TestConnect_ReadPropertiesValid(t *testing.T) {
+func TestConnectReadPropertiesValid(t *testing.T) {
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 0, // variable header
 		5,               // property length
@@ -477,7 +477,7 @@ func TestConnect_ReadPropertiesValid(t *testing.T) {
 	assert.Equal(t, uint32(10), *connPkt.Properties.SessionExpiryInterval)
 }
 
-func TestConnect_ReadPropertiesMalformed(t *testing.T) {
+func TestConnectReadPropertiesMalformed(t *testing.T) {
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 5, 0, 0, 0, // variable header
 		2,     // property length
@@ -494,7 +494,7 @@ func TestConnect_ReadPropertiesMalformed(t *testing.T) {
 	assert.ErrorContains(t, err, ErrV5MalformedPacket.Error())
 }
 
-func TestConnect_ReadClientIDValid(t *testing.T) {
+func TestConnectReadClientIDValid(t *testing.T) {
 	codePoints := []rune{
 		'\u0020', '\u007E',
 		'\u00A0', '\uD7FF',
@@ -545,7 +545,7 @@ func TestConnect_ReadClientIDValid(t *testing.T) {
 	assert.Equal(t, []byte{}, connPkt.ClientID)
 }
 
-func TestConnect_ReadClientIDMalformed(t *testing.T) {
+func TestConnectReadClientIDMalformed(t *testing.T) {
 	cIDs := []struct {
 		len  []byte
 		data []byte
@@ -637,7 +637,7 @@ func TestConnect_ReadClientIDMalformed(t *testing.T) {
 	}
 }
 
-func TestConnect_ReadClientIDRejected(t *testing.T) {
+func TestConnectReadClientIDRejected(t *testing.T) {
 	// V3.1
 	msg := []byte{
 		0, 6, 'M', 'Q', 'I', 's', 'd', 'p', 3, 0, 0, 0, // variable header
@@ -665,7 +665,7 @@ func TestConnect_ReadClientIDRejected(t *testing.T) {
 	assert.ErrorIs(t, err, ErrV3IdentifierRejected)
 }
 
-func TestConnect_ReadWillPropertiesValid(t *testing.T) {
+func TestConnectReadWillPropertiesValid(t *testing.T) {
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 5, 4, 0, 0, // variable header
 		0,         // property length
@@ -689,7 +689,7 @@ func TestConnect_ReadWillPropertiesValid(t *testing.T) {
 	assert.Equal(t, uint32(10), *connPkt.WillProperties.SessionExpiryInterval)
 }
 
-func TestConnect_ReadWillPropertiesMalformed(t *testing.T) {
+func TestConnectReadWillPropertiesMalformed(t *testing.T) {
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 5, 4, 0, 0, // variable header
 		0,         // property length
@@ -708,7 +708,7 @@ func TestConnect_ReadWillPropertiesMalformed(t *testing.T) {
 	assert.ErrorContains(t, err, ErrV5MalformedPacket.Error())
 }
 
-func TestConnect_ReadWillTopicValid(t *testing.T) {
+func TestConnectReadWillTopicValid(t *testing.T) {
 	topics := []string{"topic", "dev/client-1/will"}
 
 	for _, wt := range topics {
@@ -741,7 +741,7 @@ func TestConnect_ReadWillTopicValid(t *testing.T) {
 	}
 }
 
-func TestConnect_ReadWillTopicMissing(t *testing.T) {
+func TestConnectReadWillTopicMissing(t *testing.T) {
 	// V3.1.1
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 4, 4, 0, 0, // variable header
@@ -772,7 +772,7 @@ func TestConnect_ReadWillTopicMissing(t *testing.T) {
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
-func TestConnect_ReadWillMessageValid(t *testing.T) {
+func TestConnectReadWillMessageValid(t *testing.T) {
 	messages := []string{"", "hello"}
 
 	for _, m := range messages {
@@ -805,7 +805,7 @@ func TestConnect_ReadWillMessageValid(t *testing.T) {
 	}
 }
 
-func TestConnect_ReadWillMessageMissing(t *testing.T) {
+func TestConnectReadWillMessageMissing(t *testing.T) {
 	// V3.1.1
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 4, 4, 0, 0, // variable header
@@ -839,7 +839,7 @@ func TestConnect_ReadWillMessageMissing(t *testing.T) {
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
-func TestConnect_ReadUserNameValid(t *testing.T) {
+func TestConnectReadUserNameValid(t *testing.T) {
 	userNames := []string{"", "username"}
 
 	for _, n := range userNames {
@@ -871,7 +871,7 @@ func TestConnect_ReadUserNameValid(t *testing.T) {
 	}
 }
 
-func TestConnect_ReadUserNameMissing(t *testing.T) {
+func TestConnectReadUserNameMissing(t *testing.T) {
 	// v3.1.1
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0x80, 0, 0, // variable header
@@ -903,7 +903,7 @@ func TestConnect_ReadUserNameMissing(t *testing.T) {
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
-func TestConnect_ReadPasswordValid(t *testing.T) {
+func TestConnectReadPasswordValid(t *testing.T) {
 	passwords := []string{"", "password"}
 
 	for _, p := range passwords {
@@ -936,7 +936,7 @@ func TestConnect_ReadPasswordValid(t *testing.T) {
 	}
 }
 
-func TestConnect_ReadPasswordInvalid(t *testing.T) {
+func TestConnectReadPasswordInvalid(t *testing.T) {
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0xC0, 0, 0, // variable header
 		0, 1, 'a', // client ID
@@ -952,7 +952,7 @@ func TestConnect_ReadPasswordInvalid(t *testing.T) {
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
-func TestConnect_Size(t *testing.T) {
+func TestConnectSize(t *testing.T) {
 	t.Run("V3", func(t *testing.T) {
 		msg := []byte{
 			0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 0, // variable header
@@ -1013,7 +1013,7 @@ func TestConnect_Size(t *testing.T) {
 	})
 }
 
-func TestConnect_Timestamp(t *testing.T) {
+func TestConnectTimestamp(t *testing.T) {
 	msg := []byte{
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 60, // variable header
 		0, 1, 'a', // client ID

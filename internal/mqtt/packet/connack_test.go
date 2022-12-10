@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestConnAck_Write(t *testing.T) {
+func TestConnAckWrite(t *testing.T) {
 	tests := []struct {
 		ver  MQTTVersion
 		code ReasonCode
@@ -55,7 +55,7 @@ func TestConnAck_Write(t *testing.T) {
 	}
 }
 
-func BenchmarkConnAck_WriteV3(b *testing.B) {
+func BenchmarkConnAckWriteV3(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 	pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
@@ -72,7 +72,7 @@ func BenchmarkConnAck_WriteV3(b *testing.B) {
 	}
 }
 
-func BenchmarkConnAck_WriteV5(b *testing.B) {
+func BenchmarkConnAckWriteV5(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 	pkt := NewConnAck(MQTT50, ReasonCodeV5Success, false, nil)
@@ -89,7 +89,7 @@ func BenchmarkConnAck_WriteV5(b *testing.B) {
 	}
 }
 
-func TestConnAck_WriteSessionPresent(t *testing.T) {
+func TestConnAckWriteSessionPresent(t *testing.T) {
 	testCases := []struct {
 		ver MQTTVersion
 		val bool
@@ -119,7 +119,7 @@ func TestConnAck_WriteSessionPresent(t *testing.T) {
 	}
 }
 
-func TestConnAck_WriteV5Properties(t *testing.T) {
+func TestConnAckWriteV5Properties(t *testing.T) {
 	props := &Properties{SessionExpiryInterval: new(uint32)}
 	*props.SessionExpiryInterval = 30
 
@@ -144,7 +144,7 @@ func TestConnAck_WriteV5Properties(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestConnAck_WriteV5InvalidProperty(t *testing.T) {
+func TestConnAckWriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{TopicAlias: new(uint16)}
 	*props.TopicAlias = 10
 
@@ -162,7 +162,7 @@ func TestConnAck_WriteV5InvalidProperty(t *testing.T) {
 	assert.Empty(t, buf)
 }
 
-func TestConnAck_WriteV3PropertiesIgnored(t *testing.T) {
+func TestConnAckWriteV3PropertiesIgnored(t *testing.T) {
 	props := &Properties{SessionExpiryInterval: new(uint32)}
 	*props.SessionExpiryInterval = 30
 
@@ -185,7 +185,7 @@ func TestConnAck_WriteV3PropertiesIgnored(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestConnAck_ReadUnsupported(t *testing.T) {
+func TestConnAckReadUnsupported(t *testing.T) {
 	pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
 	require.NotNil(t, pkt)
 
@@ -194,7 +194,7 @@ func TestConnAck_ReadUnsupported(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestConnAck_Size(t *testing.T) {
+func TestConnAckSize(t *testing.T) {
 	t.Run("Unknown", func(t *testing.T) {
 		pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
 		require.NotNil(t, pkt)
@@ -244,7 +244,7 @@ func TestConnAck_Size(t *testing.T) {
 	})
 }
 
-func TestConnAck_Timestamp(t *testing.T) {
+func TestConnAckTimestamp(t *testing.T) {
 	pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
 	require.NotNil(t, pkt)
 	assert.NotNil(t, pkt.Timestamp())

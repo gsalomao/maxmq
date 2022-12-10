@@ -24,7 +24,7 @@ import (
 	paho "github.com/eclipse/paho.mqtt.golang"
 )
 
-func newMqttClient(clientID string, clean bool) paho.Client {
+func newMQTTClient(clientID string, clean bool) paho.Client {
 	opts := paho.NewClientOptions()
 	opts.AddBroker("tcp://localhost:1883")
 	opts.SetClientID(clientID)
@@ -32,8 +32,8 @@ func newMqttClient(clientID string, clean bool) paho.Client {
 	return paho.NewClient(opts)
 }
 
-func TestMqtt_Connect(t *testing.T) {
-	c := newMqttClient("paho-client", true)
+func TestMQTTConnect(t *testing.T) {
+	c := newMQTTClient("paho-client", true)
 	token := c.Connect()
 	assert.True(t, token.WaitTimeout(100*time.Millisecond))
 	assert.Nil(t, token.Error())
@@ -44,8 +44,8 @@ func TestMqtt_Connect(t *testing.T) {
 	<-time.After(100 * time.Millisecond)
 }
 
-func TestMqtt_Disconnect(t *testing.T) {
-	c := newMqttClient("paho-client", true)
+func TestMQTTDisconnect(t *testing.T) {
+	c := newMQTTClient("paho-client", true)
 	token := c.Connect()
 	token.WaitTimeout(100 * time.Millisecond)
 	require.True(t, c.IsConnected())
@@ -57,7 +57,7 @@ func TestMqtt_Disconnect(t *testing.T) {
 	assert.False(t, c.IsConnected())
 }
 
-func TestMqtt_PingReq(t *testing.T) {
+func TestMQTTPingReq(t *testing.T) {
 	opts := paho.NewClientOptions()
 	opts.AddBroker("tcp://localhost:1883")
 	opts.SetClientID("paho-client")
@@ -81,8 +81,8 @@ func TestMqtt_PingReq(t *testing.T) {
 	<-time.After(100 * time.Millisecond)
 }
 
-func TestMqtt_Subscribe(t *testing.T) {
-	c := newMqttClient("paho-client", true)
+func TestMQTTSubscribe(t *testing.T) {
+	c := newMQTTClient("paho-client", true)
 	token := c.Connect()
 	token.WaitTimeout(100 * time.Millisecond)
 	require.True(t, c.IsConnected())
@@ -109,8 +109,8 @@ func TestMqtt_Subscribe(t *testing.T) {
 	<-time.After(100 * time.Millisecond)
 }
 
-func TestMqtt_Unsubscribe(t *testing.T) {
-	c := newMqttClient("paho-client", true)
+func TestMQTTUnsubscribe(t *testing.T) {
+	c := newMQTTClient("paho-client", true)
 	token := c.Connect()
 	token.WaitTimeout(100 * time.Millisecond)
 	require.True(t, c.IsConnected())
@@ -133,8 +133,8 @@ func TestMqtt_Unsubscribe(t *testing.T) {
 	<-time.After(100 * time.Millisecond)
 }
 
-func TestMqtt_PublishQoS0(t *testing.T) {
-	c := newMqttClient("paho-client", true)
+func TestMQTTPublishQoS0(t *testing.T) {
+	c := newMQTTClient("paho-client", true)
 	token := c.Connect()
 	token.WaitTimeout(100 * time.Millisecond)
 	require.True(t, c.IsConnected())
@@ -160,14 +160,14 @@ func TestMqtt_PublishQoS0(t *testing.T) {
 	<-time.After(100 * time.Millisecond)
 }
 
-func TestMqtt_PublishQoS1(t *testing.T) {
-	pub := newMqttClient("paho-pub", true)
+func TestMQTTPublishQoS1(t *testing.T) {
+	pub := newMQTTClient("paho-pub", true)
 	token := pub.Connect()
 	token.WaitTimeout(100 * time.Millisecond)
 	require.True(t, pub.IsConnected())
 	require.True(t, pub.IsConnectionOpen())
 
-	sub := newMqttClient("paho-sub", false)
+	sub := newMQTTClient("paho-sub", false)
 	token = sub.Connect()
 	token.WaitTimeout(100 * time.Millisecond)
 	require.True(t, sub.IsConnected())

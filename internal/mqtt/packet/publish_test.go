@@ -24,35 +24,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPublish_InvalidPacketType(t *testing.T) {
+func TestPublishInvalidPacketType(t *testing.T) {
 	opts := options{packetType: DISCONNECT}
 	pkt, err := newPacketPublish(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestPublish_InvalidQoS(t *testing.T) {
+func TestPublishInvalidQoS(t *testing.T) {
 	opts := options{packetType: PUBLISH, version: MQTT311, controlFlags: 6}
 	pkt, err := newPacketPublish(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestPublish_InvalidDup(t *testing.T) {
+func TestPublishInvalidDup(t *testing.T) {
 	opts := options{packetType: PUBLISH, version: MQTT50, controlFlags: 8}
 	pkt, err := newPacketPublish(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestPublish_InvalidVersion(t *testing.T) {
+func TestPublishInvalidVersion(t *testing.T) {
 	opts := options{packetType: PUBLISH}
 	pkt, err := newPacketPublish(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestPublish_Write(t *testing.T) {
+func TestPublishWrite(t *testing.T) {
 	testCases := []struct {
 		id      ID
 		version MQTTVersion
@@ -112,7 +112,7 @@ func TestPublish_Write(t *testing.T) {
 	}
 }
 
-func TestPublish_WriteV5Properties(t *testing.T) {
+func TestPublishWriteV5Properties(t *testing.T) {
 	props := &Properties{
 		PayloadFormatIndicator: new(byte),
 	}
@@ -137,7 +137,7 @@ func TestPublish_WriteV5Properties(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestPublish_WriteV5InvalidProperty(t *testing.T) {
+func TestPublishWriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{MaximumQoS: new(byte)}
 	*props.MaximumQoS = 1
 
@@ -158,7 +158,7 @@ func TestPublish_WriteV5InvalidProperty(t *testing.T) {
 	assert.Empty(t, buf)
 }
 
-func TestPublish_Read(t *testing.T) {
+func TestPublishRead(t *testing.T) {
 	testCases := []struct {
 		id      ID
 		version MQTTVersion
@@ -219,7 +219,7 @@ func TestPublish_Read(t *testing.T) {
 	}
 }
 
-func TestPublish_ReadInvalidLength(t *testing.T) {
+func TestPublishReadInvalidLength(t *testing.T) {
 	var msg []byte
 	opts := options{
 		packetType:      PUBLISH,
@@ -233,7 +233,7 @@ func TestPublish_ReadInvalidLength(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestPublish_ReadNoTopic(t *testing.T) {
+func TestPublishReadNoTopic(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 	}
@@ -250,7 +250,7 @@ func TestPublish_ReadNoTopic(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestPublish_ReadNoPacketID(t *testing.T) {
+func TestPublishReadNoPacketID(t *testing.T) {
 	msg := []byte{
 		0, 3, 'a', '/', 'b', // topic
 	}
@@ -267,7 +267,7 @@ func TestPublish_ReadNoPacketID(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestPublish_ReadInvalidTopicName(t *testing.T) {
+func TestPublishReadInvalidTopicName(t *testing.T) {
 	testCases := []string{"#", "+", "a/#", "a/+", "a/b/#", "a/b/+"}
 
 	for _, test := range testCases {
@@ -290,7 +290,7 @@ func TestPublish_ReadInvalidTopicName(t *testing.T) {
 	}
 }
 
-func TestPublish_Size(t *testing.T) {
+func TestPublishSize(t *testing.T) {
 	t.Run("V3", func(t *testing.T) {
 		msg := []byte{
 			0, 3, 'a', '/', 'b', // topic
@@ -355,7 +355,7 @@ func TestPublish_Size(t *testing.T) {
 	})
 }
 
-func TestPublish_Timestamp(t *testing.T) {
+func TestPublishTimestamp(t *testing.T) {
 	msg := []byte{
 		0, 3, 'a', '/', 'b', // topic
 		0, 5, // packet ID
@@ -373,7 +373,7 @@ func TestPublish_Timestamp(t *testing.T) {
 	assert.NotNil(t, pkt.Timestamp())
 }
 
-func TestPublish_Clone(t *testing.T) {
+func TestPublishClone(t *testing.T) {
 	testCases := []struct {
 		id      ID
 		version MQTTVersion
@@ -409,7 +409,7 @@ func TestPublish_Clone(t *testing.T) {
 	}
 }
 
-func TestPublish_CloneProperties(t *testing.T) {
+func TestPublishCloneProperties(t *testing.T) {
 	props := Properties{PayloadFormatIndicator: new(byte)}
 	*props.PayloadFormatIndicator = 5
 

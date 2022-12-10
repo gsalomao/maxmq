@@ -78,20 +78,20 @@ profile: ## Start broker with CPU/Memory profiler
 .PHONY: unit
 unit: ## Run unit tests
 	$(call print_task,"Running unit tests")
-	@gotestsum --format pkgname --packages ./internal/... -- -timeout 3s -race
+	@gotestsum --format pkgname --packages ./internal/... -- -timeout 5s -race
 	$(call print_task_result,"Running unit tests","done")
 
 .PHONY: unit-dev
 unit-dev: ## Run unit tests in development mode
 	$(call print_task,"Running unit tests in development mode")
-	@gotestsum --format testname --packages ./internal/... --watch -- -timeout 3s -race
+	@gotestsum --format testname --packages ./internal/... --watch -- -timeout 5s -race
 
 .PHONY: coverage
 coverage: ## Run unit tests with coverage report
 	$(call print_task,"Running unit tests")
 	@rm -rf ${COVERAGE_DIR}
 	@mkdir -p ${COVERAGE_DIR}
-	@go test -timeout 3s -cover -covermode=atomic -race \
+	@go test -timeout 5s -cover -covermode=atomic -race \
 		-coverprofile=$(COVERAGE_DIR)/coverage.out ./internal/...
 	$(call print_task_result,"Running unit tests","done")
 

@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPacket_NewPacket(t *testing.T) {
+func TestPacketNewPacket(t *testing.T) {
 	testCases := []struct {
 		tp    Type
 		flags byte
@@ -51,14 +51,14 @@ func TestPacket_NewPacket(t *testing.T) {
 	}
 }
 
-func TestPacket_NewPacketInvalid(t *testing.T) {
+func TestPacketNewPacketInvalid(t *testing.T) {
 	opts := options{packetType: RESERVED, controlFlags: 0}
 	pkt, err := newPacket(opts)
 	assert.NotNil(t, err)
 	assert.Nil(t, pkt)
 }
 
-func TestPacket_PacketTypeToString(t *testing.T) {
+func TestPacketPacketTypeToString(t *testing.T) {
 	testCases := []struct {
 		tp   Type
 		name string
@@ -88,12 +88,12 @@ func TestPacket_PacketTypeToString(t *testing.T) {
 	}
 }
 
-func TestPacket_PacketTypeToStringInvalid(t *testing.T) {
+func TestPacketPacketTypeToStringInvalid(t *testing.T) {
 	tp := RESERVED
 	assert.Equal(t, "UNKNOWN", tp.String())
 }
 
-func TestPacket_MQTTVersionToString(t *testing.T) {
+func TestPacketMQTTVersionToString(t *testing.T) {
 	testCases := []struct {
 		ver  MQTTVersion
 		name string

@@ -21,13 +21,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestConfig_ReadConfigFile(t *testing.T) {
+func TestConfigReadConfigFile(t *testing.T) {
 	err := config.ReadConfigFile()
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Config File \"maxmq.conf\" Not Found")
 }
 
-func TestConfig_LoadConfig(t *testing.T) {
+func TestConfigLoadConfig(t *testing.T) {
 	conf, err := config.LoadConfig()
 	assert.Nil(t, err)
 	assert.Equal(t, "info", conf.LogLevel)

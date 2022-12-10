@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package packet_test
+package packet
 
 import (
 	"bytes"
@@ -20,12 +20,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestPacket_ReadPacket(t *testing.T) {
+func TestPacketReadPacket(t *testing.T) {
 	conn, sConn := net.Pipe()
 
 	done := make(chan bool)
@@ -34,8 +33,8 @@ func TestPacket_ReadPacket(t *testing.T) {
 			done <- true
 		}()
 
-		opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
-		reader := packet.NewReader(opts)
+		opts := ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
+		reader := NewReader(opts)
 
 		pkt, err := reader.ReadPacket(sConn, 0)
 		assert.Nil(t, err)
@@ -53,15 +52,15 @@ func TestPacket_ReadPacket(t *testing.T) {
 	<-done
 }
 
-func BenchmarkReader_ReadPacketConnect(b *testing.B) {
+func BenchmarkReaderReadPacketConnect(b *testing.B) {
 	msg := []byte{
 		0x10, 13, // fixed header
 		0, 4, 'M', 'Q', 'T', 'T', 4, 0, 0, 0, // variable header
 		0, 1, 'a', // client ID
 	}
 	r := bytes.NewReader(msg)
-	opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
-	reader := packet.NewReader(opts)
+	opts := ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
+	reader := NewReader(opts)
 
 	b.ReportAllocs()
 
@@ -75,17 +74,17 @@ func BenchmarkReader_ReadPacketConnect(b *testing.B) {
 	}
 }
 
-func BenchmarkReader_ReadPacketDisconnect(b *testing.B) {
+func BenchmarkReaderReadPacketDisconnect(b *testing.B) {
 	msg := []byte{0xE0, 0}
 	r := bytes.NewReader(msg)
-	opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
-	reader := packet.NewReader(opts)
+	opts := ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
+	reader := NewReader(opts)
 
 	b.ReportAllocs()
 
 	for n := 0; n < b.N; n++ {
 		r.Reset(msg)
-		_, err := reader.ReadPacket(r, packet.MQTT311)
+		_, err := reader.ReadPacket(r, MQTT311)
 
 		if err != nil {
 			b.Fatal(err)
@@ -93,17 +92,17 @@ func BenchmarkReader_ReadPacketDisconnect(b *testing.B) {
 	}
 }
 
-func BenchmarkReader_ReadPacketPingReq(b *testing.B) {
+func BenchmarkReaderReadPacketPingReq(b *testing.B) {
 	msg := []byte{0xC0, 0}
 	r := bytes.NewReader(msg)
-	opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
-	reader := packet.NewReader(opts)
+	opts := ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
+	reader := NewReader(opts)
 
 	b.ReportAllocs()
 
 	for n := 0; n < b.N; n++ {
 		r.Reset(msg)
-		_, err := reader.ReadPacket(r, packet.MQTT31)
+		_, err := reader.ReadPacket(r, MQTT31)
 
 		if err != nil {
 			b.Fatal(err)
@@ -111,7 +110,7 @@ func BenchmarkReader_ReadPacketPingReq(b *testing.B) {
 	}
 }
 
-func TestPacket_ReadPacketBiggerThanMaxPacketSize(t *testing.T) {
+func TestPacketReadPacketBiggerThanMaxPacketSize(t *testing.T) {
 	conn, sConn := net.Pipe()
 
 	done := make(chan bool)
@@ -120,10 +119,10 @@ func TestPacket_ReadPacketBiggerThanMaxPacketSize(t *testing.T) {
 			done <- true
 		}()
 
-		opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 2}
-		reader := packet.NewReader(opts)
+		opts := ReaderOptions{BufferSize: 1024, MaxPacketSize: 2}
+		reader := NewReader(opts)
 
-		_, err := reader.ReadPacket(sConn, packet.MQTT50)
+		_, err := reader.ReadPacket(sConn, MQTT50)
 		require.NotNil(t, err)
 	}()
 
@@ -138,7 +137,7 @@ func TestPacket_ReadPacketBiggerThanMaxPacketSize(t *testing.T) {
 	<-done
 }
 
-func TestPacket_ReadPacketError(t *testing.T) {
+func TestPacketReadPacketError(t *testing.T) {
 	conn, sConn := net.Pipe()
 
 	done := make(chan bool)
@@ -147,10 +146,10 @@ func TestPacket_ReadPacketError(t *testing.T) {
 			done <- true
 		}()
 
-		opts := packet.ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
-		reader := packet.NewReader(opts)
+		opts := ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
+		reader := NewReader(opts)
 
-		_, err := reader.ReadPacket(sConn, packet.MQTT311)
+		_, err := reader.ReadPacket(sConn, MQTT311)
 		require.NotNil(t, err)
 	}()
 
@@ -158,7 +157,7 @@ func TestPacket_ReadPacketError(t *testing.T) {
 	<-done
 }
 
-func TestPacket_ReadPacketInvalid(t *testing.T) {
+func TestPacketReadPacketInvalid(t *testing.T) {
 	testCases := []struct {
 		pkt []byte
 		msg string
@@ -196,11 +195,11 @@ func TestPacket_ReadPacketInvalid(t *testing.T) {
 				}()
 
 				_ = sConn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
-				opts := packet.ReaderOptions{BufferSize: 1024,
+				opts := ReaderOptions{BufferSize: 1024,
 					MaxPacketSize: 65536}
-				reader := packet.NewReader(opts)
+				reader := NewReader(opts)
 
-				_, err := reader.ReadPacket(sConn, packet.MQTT311)
+				_, err := reader.ReadPacket(sConn, MQTT311)
 				require.NotNil(t, err)
 				assert.Contains(t, err.Error(), test.msg)
 			}()

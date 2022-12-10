@@ -15,11 +15,13 @@
 package mqtt
 
 import (
+	"bytes"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/gsalomao/maxmq/mocks"
+	"github.com/gsalomao/maxmq/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -34,18 +36,37 @@ func (g *idGeneratorMock) NextID() uint64 {
 	return uint64(args.Int(0))
 }
 
-func TestListener_New(t *testing.T) {
+type logBuffer struct {
+	b bytes.Buffer
+	m sync.Mutex
+}
+
+func (b *logBuffer) Write(p []byte) (n int, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Write(p)
+}
+
+func newLogger() logger.Logger {
+	out := logBuffer{}
+	idGen := &idGeneratorMock{}
+	idGen.On("NextID").Return(0)
+
+	return logger.New(&out, idGen)
+}
+
+func TestListenerNewListener(t *testing.T) {
+	log := newLogger()
+
 	t.Run("MissingConfiguration", func(t *testing.T) {
-		logger := mocks.NewLoggerStub()
 		idGen := &idGeneratorMock{}
 
 		_, err := NewListener(
-			WithLogger(logger.Logger()),
+			WithLogger(&log),
 			WithIDGenerator(idGen),
 		)
 
-		require.NotNil(t, err)
-		assert.Equal(t, "missing configuration", err.Error())
+		assert.ErrorContains(t, err, "missing configuration")
 	})
 
 	t.Run("MissingLogger", func(t *testing.T) {
@@ -56,30 +77,26 @@ func TestListener_New(t *testing.T) {
 			WithIDGenerator(idGen),
 		)
 
-		require.NotNil(t, err)
-		assert.Equal(t, "missing logger", err.Error())
+		assert.ErrorContains(t, err, "missing logger")
 	})
 
 	t.Run("MissingIDGenerator", func(t *testing.T) {
-		logger := mocks.NewLoggerStub()
-
 		_, err := NewListener(
 			WithConfiguration(Configuration{}),
-			WithLogger(logger.Logger()),
+			WithLogger(&log),
 		)
 
-		require.NotNil(t, err)
-		assert.Equal(t, "missing ID generator", err.Error())
+		assert.ErrorContains(t, err, "missing ID generator")
 	})
 }
 
-func TestListener_RunInvalidTCPAddress(t *testing.T) {
-	logger := mocks.NewLoggerStub()
+func TestListenerRunInvalidTCPAddress(t *testing.T) {
+	log := newLogger()
 	idGen := &idGeneratorMock{}
 
 	l, err := NewListener(
 		WithConfiguration(Configuration{TCPAddress: "."}),
-		WithLogger(logger.Logger()),
+		WithLogger(&log),
 		WithIDGenerator(idGen),
 	)
 	require.Nil(t, err)
@@ -89,13 +106,13 @@ func TestListener_RunInvalidTCPAddress(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestListener_RunAndStop(t *testing.T) {
-	logger := mocks.NewLoggerStub()
+func TestListenerRunAndStop(t *testing.T) {
+	log := newLogger()
 	idGen := &idGeneratorMock{}
 
 	l, err := NewListener(
 		WithConfiguration(Configuration{TCPAddress: ":1883"}),
-		WithLogger(logger.Logger()),
+		WithLogger(&log),
 		WithIDGenerator(idGen),
 	)
 	require.Nil(t, err)
@@ -107,22 +124,20 @@ func TestListener_RunAndStop(t *testing.T) {
 	}()
 
 	<-time.After(10 * time.Millisecond)
-	assert.Contains(t, logger.String(), "Listening on [::]:1883")
 	l.Stop()
 
 	<-done
 	assert.Nil(t, err)
-	assert.Contains(t, logger.String(), "Listener stopped with success")
 }
 
-func TestListener_HandleConnection(t *testing.T) {
-	logger := mocks.NewLoggerStub()
+func TestListenerHandleConnection(t *testing.T) {
+	log := newLogger()
 	idGen := &idGeneratorMock{}
 	idGen.On("NextID").Return(1)
 
 	l, err := NewListener(
 		WithConfiguration(Configuration{TCPAddress: ":1883"}),
-		WithLogger(logger.Logger()),
+		WithLogger(&log),
 		WithIDGenerator(idGen),
 	)
 	require.Nil(t, err)
@@ -143,14 +158,14 @@ func TestListener_HandleConnection(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestListener_HandleConnectionFailure(t *testing.T) {
-	logger := mocks.NewLoggerStub()
+func TestListenerHandleConnectionFailure(t *testing.T) {
+	log := newLogger()
 	idGen := &idGeneratorMock{}
 	idGen.On("NextID").Return(1)
 
 	l, err := NewListener(
 		WithConfiguration(Configuration{TCPAddress: ":1883"}),
-		WithLogger(logger.Logger()),
+		WithLogger(&log),
 		WithIDGenerator(idGen),
 	)
 	require.Nil(t, err)

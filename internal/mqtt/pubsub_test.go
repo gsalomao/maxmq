@@ -16,13 +16,11 @@ package mqtt
 
 import (
 	"errors"
-	"fmt"
 	"math/rand"
 	"testing"
 	"time"
 
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
-	"github.com/gsalomao/maxmq/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -38,22 +36,22 @@ func (d *messagePublisherMock) publishMessage(id ClientID, msg *message) error {
 }
 
 func createPubSub() pubSub {
-	logger := mocks.NewLoggerStub()
+	log := newLogger()
 	pubMock := messagePublisherMock{}
 	idGen := &idGeneratorMock{}
 
-	m := newMetrics(true, logger.Logger())
-	return newPubSub(&pubMock, idGen, m, logger.Logger())
+	m := newMetrics(true, &log)
+	return newPubSub(&pubMock, idGen, m, &log)
 }
 
-func TestPubSub_StartStop(t *testing.T) {
+func TestPubSubStartStop(t *testing.T) {
 	ps := createPubSub()
 	ps.start()
 	<-time.After(10 * time.Millisecond)
 	ps.stop()
 }
 
-func TestPubSub_Run(t *testing.T) {
+func TestPubSubRun(t *testing.T) {
 	ps := createPubSub()
 	go ps.run()
 	<-ps.action
@@ -62,7 +60,7 @@ func TestPubSub_Run(t *testing.T) {
 	<-ps.action
 }
 
-func TestPubSub_Subscribe(t *testing.T) {
+func TestPubSubSubscribeTopic(t *testing.T) {
 	testCases := []packet.Topic{
 		{Name: "sensor/temp0", QoS: packet.QoS0, RetainHandling: 0,
 			RetainAsPublished: false, NoLocal: false},
@@ -90,7 +88,7 @@ func TestPubSub_Subscribe(t *testing.T) {
 	}
 }
 
-func TestPubSub_SubscribeError(t *testing.T) {
+func TestPubSubSubscribeError(t *testing.T) {
 	session := Session{ClientID: "a"}
 	topic := packet.Topic{Name: "sensor/temp#", QoS: packet.QoS0}
 	ps := createPubSub()
@@ -99,7 +97,7 @@ func TestPubSub_SubscribeError(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func TestPubSub_Unsubscribe(t *testing.T) {
+func TestPubSubUnsubscribeTopic(t *testing.T) {
 	testCases := []packet.Topic{
 		{Name: "sensor"},
 		{Name: "sensor/temp"},
@@ -120,7 +118,7 @@ func TestPubSub_Unsubscribe(t *testing.T) {
 	}
 }
 
-func TestPubSub_UnsubscribeSubscriptionNotFound(t *testing.T) {
+func TestPubSubUnsubscribeSubscriptionNotFound(t *testing.T) {
 	testCases := []packet.Topic{
 		{Name: "sensor"},
 		{Name: "sensor/temp"},
@@ -138,7 +136,7 @@ func TestPubSub_UnsubscribeSubscriptionNotFound(t *testing.T) {
 	}
 }
 
-func TestPubSub_PublishQoS0(t *testing.T) {
+func TestPubSubPublishQoS0Message(t *testing.T) {
 	ps := createPubSub()
 	require.Zero(t, ps.queue.len())
 
@@ -158,7 +156,7 @@ func TestPubSub_PublishQoS0(t *testing.T) {
 	assert.Equal(t, pubSubActionPublishMessage, act)
 }
 
-func TestPubSub_PublishQueuedMessagesNoSubscription(t *testing.T) {
+func TestPubSubPublishQueuedMessagesNoSubscription(t *testing.T) {
 	ps := createPubSub()
 	pkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS0,
 		0, 0, nil, nil)
@@ -169,19 +167,21 @@ func TestPubSub_PublishQueuedMessagesNoSubscription(t *testing.T) {
 	assert.Zero(t, ps.queue.len())
 }
 
-func TestPubSub_PublishQueuedMessagesQoS0(t *testing.T) {
+func TestPubSubPublishQueuedQoS0Message(t *testing.T) {
 	testCases := []struct {
+		name  string
 		id    packet.ID
 		subs  []string
 		topic string
 	}{
-		{id: 1, subs: []string{"temp"}, topic: "temp"},
-		{id: 2, subs: []string{"temp/1", "temp/+", "temp/#"}, topic: "temp/1"},
+		{name: "SingleSubscriber", id: 1, subs: []string{"temp"},
+			topic: "temp"},
+		{name: "MultipleSubscriber", id: 2,
+			subs: []string{"temp/1", "temp/+", "temp/#"}, topic: "temp/1"},
 	}
 
 	for _, test := range testCases {
-		name := fmt.Sprintf("%v-%v", test.id, test.topic)
-		t.Run(name, func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			ps := createPubSub()
 			id := ClientID("client-a")
 
@@ -210,7 +210,7 @@ func TestPubSub_PublishQueuedMessagesQoS0(t *testing.T) {
 	}
 }
 
-func TestPubSub_ProcessQueuedMessagesFailedToDeliver(t *testing.T) {
+func TestPubSubProcessQueuedMessagesFailedToDeliver(t *testing.T) {
 	ps := createPubSub()
 	id := ClientID("client-1")
 	sub := Subscription{ClientID: id, TopicFilter: "data", QoS: packet.QoS0}

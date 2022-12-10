@@ -12,80 +12,99 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metrics_test
+package metrics
 
 import (
+	"bytes"
+	"sync"
 	"testing"
 	"time"
 
-	metrics "github.com/gsalomao/maxmq/internal/metrics"
-	"github.com/gsalomao/maxmq/mocks"
+	"github.com/gsalomao/maxmq/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestMetrics_NewServer(t *testing.T) {
-	t.Run("Valid", func(t *testing.T) {
-		logStub := mocks.NewLoggerStub()
-		conf := metrics.Configuration{Address: ":8888", Path: "/metrics"}
+type logIDGenStub struct {
+}
 
-		l, err := metrics.NewListener(conf, logStub.Logger())
+func (m *logIDGenStub) NextID() uint64 {
+	return 0
+}
+
+type logBuffer struct {
+	b bytes.Buffer
+	m sync.Mutex
+}
+
+func (b *logBuffer) Write(p []byte) (n int, err error) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.b.Write(p)
+}
+
+func newLogger() logger.Logger {
+	out := &logBuffer{}
+	return logger.New(out, &logIDGenStub{})
+}
+
+func TestMetricsNewServer(t *testing.T) {
+	log := newLogger()
+
+	t.Run("Valid", func(t *testing.T) {
+		conf := Configuration{Address: ":8888", Path: "/metrics"}
+
+		lsn, err := NewListener(conf, &log)
 		assert.Nil(t, err)
-		assert.NotNil(t, l)
+		assert.NotNil(t, lsn)
 	})
 
 	t.Run("MissingAddress", func(t *testing.T) {
-		logStub := mocks.NewLoggerStub()
-		conf := metrics.Configuration{Address: "", Path: "/metrics"}
+		conf := Configuration{Address: "", Path: "/metrics"}
 
-		l, err := metrics.NewListener(conf, logStub.Logger())
-		assert.NotNil(t, err)
-		assert.Nil(t, l)
-		assert.Contains(t, err.Error(), "missing address")
+		lsn, err := NewListener(conf, &log)
+		assert.Nil(t, lsn)
+		assert.ErrorContains(t, err, "missing address")
 	})
 
 	t.Run("MissingPath", func(t *testing.T) {
-		logStub := mocks.NewLoggerStub()
-		conf := metrics.Configuration{Address: ":8888", Path: ""}
+		conf := Configuration{Address: ":8888", Path: ""}
 
-		l, err := metrics.NewListener(conf, logStub.Logger())
-		assert.NotNil(t, err)
-		assert.Nil(t, l)
-		assert.Contains(t, err.Error(), "missing path")
+		lsn, err := NewListener(conf, &log)
+		assert.Nil(t, lsn)
+		assert.ErrorContains(t, err, "missing path")
 	})
 }
 
-func TestMetrics_RunInvalidAddress(t *testing.T) {
-	logStub := mocks.NewLoggerStub()
-	conf := metrics.Configuration{Address: ".", Path: "/metrics"}
+func TestMetricsRunInvalidAddress(t *testing.T) {
+	log := newLogger()
+	conf := Configuration{Address: ".", Path: "/metrics"}
 
-	l, err := metrics.NewListener(conf, logStub.Logger())
+	lsn, err := NewListener(conf, &log)
 	require.Nil(t, err)
-	require.NotNil(t, l)
+	require.NotNil(t, lsn)
 
-	err = l.Listen()
+	err = lsn.Listen()
 	require.NotNil(t, err)
 }
 
-func TestMetrics_RunAndStop(t *testing.T) {
-	logStub := mocks.NewLoggerStub()
-	conf := metrics.Configuration{Address: ":8888", Path: "/metrics"}
+func TestMetricsRunAndStop(t *testing.T) {
+	log := newLogger()
+	conf := Configuration{Address: ":8888", Path: "/metrics"}
 
-	l, err := metrics.NewListener(conf, logStub.Logger())
+	lsn, err := NewListener(conf, &log)
 	require.Nil(t, err)
-	require.NotNil(t, l)
+	require.NotNil(t, lsn)
 
 	done := make(chan bool)
 	go func() {
-		err = l.Listen()
+		err = lsn.Listen()
 		done <- true
 	}()
 
 	<-time.After(5 * time.Millisecond)
-	assert.Contains(t, logStub.String(), "Listening on [::]:8888")
-	l.Stop()
+	lsn.Stop()
 
 	<-done
 	assert.Nil(t, err)
-	assert.Contains(t, logStub.String(), "stopped with success")
 }

@@ -23,28 +23,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUnsubscribe_InvalidPacketType(t *testing.T) {
+func TestUnsubscribeInvalidPacketType(t *testing.T) {
 	opts := options{packetType: DISCONNECT}
 	pkt, err := newPacketUnsubscribe(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestUnsubscribe_InvalidControlFlags(t *testing.T) {
+func TestUnsubscribeInvalidControlFlags(t *testing.T) {
 	opts := options{packetType: UNSUBSCRIBE, controlFlags: 0}
 	pkt, err := newPacketUnsubscribe(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestUnsubscribe_InvalidVersion(t *testing.T) {
+func TestUnsubscribeInvalidVersion(t *testing.T) {
 	opts := options{packetType: UNSUBSCRIBE, controlFlags: 2}
 	pkt, err := newPacketUnsubscribe(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestUnsubscribe_WriteUnsupported(t *testing.T) {
+func TestUnsubscribeWriteUnsupported(t *testing.T) {
 	opts := options{packetType: UNSUBSCRIBE, controlFlags: 2, version: MQTT311}
 	pkt, err := newPacketUnsubscribe(opts)
 	require.Nil(t, err)
@@ -56,7 +56,7 @@ func TestUnsubscribe_WriteUnsupported(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestUnsubscribe_ReadV3(t *testing.T) {
+func TestUnsubscribeReadV3(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 		0, 3, 'a', '/', 'b', // topic filter
@@ -88,7 +88,7 @@ func TestUnsubscribe_ReadV3(t *testing.T) {
 	assert.Nil(t, unsubPkt.Properties)
 }
 
-func BenchmarkUnsubscribe_ReadV3(b *testing.B) {
+func BenchmarkUnsubscribeReadV3(b *testing.B) {
 	msg := []byte{
 		0, 10, // packet ID
 		0, 3, 'a', '/', 'b', // topic filter
@@ -118,7 +118,7 @@ func BenchmarkUnsubscribe_ReadV3(b *testing.B) {
 	}
 }
 
-func TestUnsubscribe_ReadV5(t *testing.T) {
+func TestUnsubscribeReadV5(t *testing.T) {
 	msg := []byte{
 		0, 25, // packet ID
 		0,                   // property length
@@ -145,7 +145,7 @@ func TestUnsubscribe_ReadV5(t *testing.T) {
 	assert.Equal(t, "a/b", unsubPkt.Topics[0])
 }
 
-func BenchmarkUnsubscribe_ReadV5(b *testing.B) {
+func BenchmarkUnsubscribeReadV5(b *testing.B) {
 	msg := []byte{
 		0, 25, // packet ID
 		0,                   // property length
@@ -174,7 +174,7 @@ func BenchmarkUnsubscribe_ReadV5(b *testing.B) {
 	}
 }
 
-func TestUnsubscribe_ReadInvalidLength(t *testing.T) {
+func TestUnsubscribeReadInvalidLength(t *testing.T) {
 	var msg []byte
 	opts := options{
 		packetType:      UNSUBSCRIBE,
@@ -189,7 +189,7 @@ func TestUnsubscribe_ReadInvalidLength(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestUnsubscribe_ReadNoPacketID(t *testing.T) {
+func TestUnsubscribeReadNoPacketID(t *testing.T) {
 	var msg []byte
 	opts := options{
 		packetType:      UNSUBSCRIBE,
@@ -204,7 +204,7 @@ func TestUnsubscribe_ReadNoPacketID(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestUnsubscribe_ReadNoTopic(t *testing.T) {
+func TestUnsubscribeReadNoTopic(t *testing.T) {
 	msg := []byte{0, 10}
 	opts := options{
 		packetType:      UNSUBSCRIBE,
@@ -219,7 +219,7 @@ func TestUnsubscribe_ReadNoTopic(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestUnsubscribe_ReadInvalidTopicName(t *testing.T) {
+func TestUnsubscribeReadInvalidTopicName(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 		0, 3, 'a', // invalid topic name
@@ -237,7 +237,7 @@ func TestUnsubscribe_ReadInvalidTopicName(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestUnsubscribe_ReadV5InvalidProperties(t *testing.T) {
+func TestUnsubscribeReadV5InvalidProperties(t *testing.T) {
 	msg := []byte{0, 10}
 	opts := options{
 		packetType:      UNSUBSCRIBE,
@@ -252,7 +252,7 @@ func TestUnsubscribe_ReadV5InvalidProperties(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestUnsubscribe_Size(t *testing.T) {
+func TestUnsubscribeSize(t *testing.T) {
 	t.Run("V3", func(t *testing.T) {
 		msg := []byte{0, 5, 0, 3, 'a', '/', 'b'}
 		opts := options{
@@ -296,7 +296,7 @@ func TestUnsubscribe_Size(t *testing.T) {
 	})
 }
 
-func TestUnsubscribe_Timestamp(t *testing.T) {
+func TestUnsubscribeTimestamp(t *testing.T) {
 	msg := []byte{0, 5, 0, 3, 'a', '/', 'b', 1}
 	opts := options{
 		packetType:      UNSUBSCRIBE,

@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPacketWriter_WritePacket(t *testing.T) {
+func TestPacketWriterWritePacket(t *testing.T) {
 	buf := &bytes.Buffer{}
 	wr := NewWriter(1024)
 
@@ -35,7 +35,7 @@ func TestPacketWriter_WritePacket(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func BenchmarkWriter_WritePacket(b *testing.B) {
+func BenchmarkWriterWritePacket(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := NewWriter(1024)
 	pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)

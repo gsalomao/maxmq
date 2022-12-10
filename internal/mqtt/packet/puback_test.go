@@ -24,28 +24,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPubAck_InvalidPacketType(t *testing.T) {
+func TestPubAckInvalidPacketType(t *testing.T) {
 	opts := options{packetType: DISCONNECT, version: MQTT311}
 	pkt, err := newPacketPubAck(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestPubAck_InvalidControlFlags(t *testing.T) {
+func TestPubAckInvalidControlFlags(t *testing.T) {
 	opts := options{packetType: PUBACK, controlFlags: 1, version: MQTT50}
 	pkt, err := newPacketPubAck(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestPubAck_InvalidVersion(t *testing.T) {
+func TestPubAckInvalidVersion(t *testing.T) {
 	opts := options{packetType: PUBACK}
 	pkt, err := newPacketPubAck(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestPubAck_Write(t *testing.T) {
+func TestPubAckWrite(t *testing.T) {
 	tests := []struct {
 		id      ID
 		version MQTTVersion
@@ -95,7 +95,7 @@ func TestPubAck_Write(t *testing.T) {
 	}
 }
 
-func BenchmarkPubAck_WriteV3(b *testing.B) {
+func BenchmarkPubAckWriteV3(b *testing.B) {
 	b.ReportAllocs()
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
@@ -111,7 +111,7 @@ func BenchmarkPubAck_WriteV3(b *testing.B) {
 	}
 }
 
-func BenchmarkPubAck_WriteV5(b *testing.B) {
+func BenchmarkPubAckWriteV5(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 	pkt := NewPubAck(4, MQTT50, ReasonCodeV5Success, nil)
@@ -128,7 +128,7 @@ func BenchmarkPubAck_WriteV5(b *testing.B) {
 	}
 }
 
-func TestPubAck_WriteV5Properties(t *testing.T) {
+func TestPubAckWriteV5Properties(t *testing.T) {
 	props := &Properties{}
 	props.ReasonString = []byte("abc")
 
@@ -148,7 +148,7 @@ func TestPubAck_WriteV5Properties(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestPubAck_WriteV5InvalidProperty(t *testing.T) {
+func TestPubAckWriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{TopicAlias: new(uint16)}
 	*props.TopicAlias = 10
 
@@ -166,7 +166,7 @@ func TestPubAck_WriteV5InvalidProperty(t *testing.T) {
 	assert.Empty(t, buf)
 }
 
-func TestPubAck_Read(t *testing.T) {
+func TestPubAckRead(t *testing.T) {
 	testCases := []struct {
 		id        ID
 		version   MQTTVersion
@@ -215,7 +215,7 @@ func TestPubAck_Read(t *testing.T) {
 	}
 }
 
-func BenchmarkPubAck_ReadV3(b *testing.B) {
+func BenchmarkPubAckReadV3(b *testing.B) {
 	b.ReportAllocs()
 	msg := []byte{0, 1}
 	opts := options{
@@ -237,7 +237,7 @@ func BenchmarkPubAck_ReadV3(b *testing.B) {
 	}
 }
 
-func BenchmarkPubAck_ReadV5(b *testing.B) {
+func BenchmarkPubAckReadV5(b *testing.B) {
 	b.ReportAllocs()
 	msg := []byte{0, 1, 16, 0}
 	opts := options{
@@ -259,7 +259,7 @@ func BenchmarkPubAck_ReadV5(b *testing.B) {
 	}
 }
 
-func TestPubAck_ReadInvalidLength(t *testing.T) {
+func TestPubAckReadInvalidLength(t *testing.T) {
 	var msg []byte
 	opts := options{
 		packetType:      PUBACK,
@@ -273,7 +273,7 @@ func TestPubAck_ReadInvalidLength(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestPubAck_ReadNoPacketID(t *testing.T) {
+func TestPubAckReadNoPacketID(t *testing.T) {
 	var msg []byte
 	opts := options{
 		packetType:      PUBACK,
@@ -287,7 +287,7 @@ func TestPubAck_ReadNoPacketID(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestPubAck_Size(t *testing.T) {
+func TestPubAckSize(t *testing.T) {
 	t.Run("Unknown", func(t *testing.T) {
 		pkt := NewPubAck(4, MQTT311, ReasonCodeV5Success, nil)
 		require.NotNil(t, pkt)
@@ -350,7 +350,7 @@ func TestPubAck_Size(t *testing.T) {
 	})
 }
 
-func TestPubAck_Timestamp(t *testing.T) {
+func TestPubAckTimestamp(t *testing.T) {
 	pkt := NewPubAck(4, MQTT50, ReasonCodeV5Success, nil)
 	require.NotNil(t, pkt)
 	assert.NotNil(t, pkt.Timestamp())

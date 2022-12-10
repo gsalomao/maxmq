@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSubAck_Write(t *testing.T) {
+func TestSubAckWrite(t *testing.T) {
 	tests := []struct {
 		id  ID
 		ver MQTTVersion
@@ -70,7 +70,7 @@ func TestSubAck_Write(t *testing.T) {
 	}
 }
 
-func BenchmarkSubAck_WriteV3(b *testing.B) {
+func BenchmarkSubAckWriteV3(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 	pkt := NewSubAck(4, MQTT311, []ReasonCode{0, 1, 2}, nil)
@@ -87,7 +87,7 @@ func BenchmarkSubAck_WriteV3(b *testing.B) {
 	}
 }
 
-func BenchmarkSubAck_WriteV5(b *testing.B) {
+func BenchmarkSubAckWriteV5(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 	pkt := NewSubAck(4, MQTT50, []ReasonCode{0, 1, 2}, nil)
@@ -104,7 +104,7 @@ func BenchmarkSubAck_WriteV5(b *testing.B) {
 	}
 }
 
-func TestSubAck_WriteV5Properties(t *testing.T) {
+func TestSubAckWriteV5Properties(t *testing.T) {
 	props := &Properties{}
 	props.ReasonString = []byte("abc")
 
@@ -124,7 +124,7 @@ func TestSubAck_WriteV5Properties(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestSubAck_WriteV5InvalidProperty(t *testing.T) {
+func TestSubAckWriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{TopicAlias: new(uint16)}
 	*props.TopicAlias = 10
 
@@ -142,7 +142,7 @@ func TestSubAck_WriteV5InvalidProperty(t *testing.T) {
 	assert.Empty(t, buf)
 }
 
-func TestSubAck_ReadUnsupported(t *testing.T) {
+func TestSubAckReadUnsupported(t *testing.T) {
 	pkt := NewSubAck(4, MQTT311, []ReasonCode{0, 1, 2}, nil)
 	require.NotNil(t, pkt)
 
@@ -151,7 +151,7 @@ func TestSubAck_ReadUnsupported(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestSubAck_Size(t *testing.T) {
+func TestSubAckSize(t *testing.T) {
 	t.Run("Unknown", func(t *testing.T) {
 		pkt := NewSubAck(4, MQTT311, []ReasonCode{0, 1, 2}, nil)
 		require.NotNil(t, pkt)
@@ -201,7 +201,7 @@ func TestSubAck_Size(t *testing.T) {
 	})
 }
 
-func TestSubAck_Timestamp(t *testing.T) {
+func TestSubAckTimestamp(t *testing.T) {
 	pkt := NewSubAck(4, MQTT50, []ReasonCode{0}, nil)
 	require.NotNil(t, pkt)
 	assert.NotNil(t, pkt.Timestamp())

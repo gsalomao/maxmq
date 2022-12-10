@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package logger_test
+package logger
 
 import (
 	"bytes"
 	"testing"
 
 	"github.com/brianvoe/gofakeit/v6"
-	"github.com/gsalomao/maxmq/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -33,12 +32,12 @@ func (m *logIDGenMock) NextID() uint64 {
 	return uint64(args.Int(0))
 }
 
-func TestLogger_Log(t *testing.T) {
+func TestLoggerLog(t *testing.T) {
 	gen := logIDGenMock{}
 	gen.On("NextID").Return(1)
 
 	out := bytes.NewBufferString("")
-	log := logger.New(out, &gen)
+	log := New(out, &gen)
 	msg := gofakeit.Phrase()
 
 	log.Info().Msg(msg)
@@ -46,12 +45,12 @@ func TestLogger_Log(t *testing.T) {
 	assert.Contains(t, out.String(), msg)
 }
 
-func TestLogger_WithField(t *testing.T) {
+func TestLoggerWithField(t *testing.T) {
 	gen := logIDGenMock{}
 	gen.On("NextID").Return(1)
 
 	out := bytes.NewBufferString("")
-	log := logger.New(out, &gen)
+	log := New(out, &gen)
 	key := gofakeit.Word()
 	val := gofakeit.Phrase()
 
@@ -60,33 +59,33 @@ func TestLogger_WithField(t *testing.T) {
 	assert.Contains(t, out.String(), val)
 }
 
-func TestLogger_WithLogId(t *testing.T) {
+func TestLoggerWithLogId(t *testing.T) {
 	gen := logIDGenMock{}
 	gen.On("NextID").Return(255)
 
 	out := bytes.NewBufferString("")
-	log := logger.New(out, &gen)
+	log := New(out, &gen)
 	msg := gofakeit.Phrase()
 
 	log.Info().Msg(msg)
 	assert.Contains(t, out.String(), "LogId=")
 }
 
-func TestLogger_SetSeverity(t *testing.T) {
+func TestLoggerSetSeverity(t *testing.T) {
 	gen := logIDGenMock{}
 	out := bytes.NewBufferString("")
-	log := logger.New(out, &gen)
+	log := New(out, &gen)
 
 	msg := gofakeit.Phrase()
-	err := logger.SetSeverityLevel("info")
+	err := SetSeverityLevel("info")
 
 	log.Debug().Msg(msg)
 	assert.Nil(t, err)
 	assert.Empty(t, out.String())
 }
 
-func TestLogger_SetInvalidSeverity(t *testing.T) {
-	err := logger.SetSeverityLevel("invalid")
+func TestLoggerSetInvalidSeverity(t *testing.T) {
+	err := SetSeverityLevel("invalid")
 	assert.NotNil(t, err)
-	assert.Equal(t, "invalid log level", err.Error())
+	assert.ErrorContains(t, err, "invalid log level")
 }

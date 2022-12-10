@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestStore_ReadSession(t *testing.T) {
+func TestStoreReadSession(t *testing.T) {
 	s := newStore()
 
 	id := ClientID('a')
@@ -30,7 +30,7 @@ func TestStore_ReadSession(t *testing.T) {
 	assert.Equal(t, errSessionNotFound, err)
 }
 
-func TestStore_SaveSession(t *testing.T) {
+func TestStoreSaveSession(t *testing.T) {
 	s := newStore()
 
 	id := ClientID('a')
@@ -46,7 +46,7 @@ func TestStore_SaveSession(t *testing.T) {
 	assert.Equal(t, session, savedSession)
 }
 
-func TestStore_DeleteSession(t *testing.T) {
+func TestStoreDeleteSession(t *testing.T) {
 	s := newStore()
 
 	id := ClientID('a')

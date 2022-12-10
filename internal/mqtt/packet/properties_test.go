@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestProperties_WritePropertiesEmpty(t *testing.T) {
+func TestPropertiesWritePropertiesEmpty(t *testing.T) {
 	buf := &bytes.Buffer{}
 
 	err := writeProperties(buf, nil, CONNACK)
@@ -34,7 +34,7 @@ func TestProperties_WritePropertiesEmpty(t *testing.T) {
 	assert.Equal(t, byte(0), msg[0])
 }
 
-func TestProperties_WritePropertiesConnAck(t *testing.T) {
+func TestPropertiesWritePropertiesConnAck(t *testing.T) {
 	buf := &bytes.Buffer{}
 	props := &Properties{
 		SessionExpiryInterval:         new(uint32),
@@ -96,7 +96,7 @@ func TestProperties_WritePropertiesConnAck(t *testing.T) {
 	assert.Equal(t, []byte{42, 1}, msg[82:84])
 }
 
-func TestProperties_WritePropertiesDisconnect(t *testing.T) {
+func TestPropertiesWritePropertiesDisconnect(t *testing.T) {
 	buf := &bytes.Buffer{}
 	props := &Properties{SessionExpiryInterval: new(uint32)}
 
@@ -120,7 +120,7 @@ func TestProperties_WritePropertiesDisconnect(t *testing.T) {
 	assert.Equal(t, []byte{38, 0, 1, 'b', 0, 1, 1}, msg[26:33])
 }
 
-func TestProperties_WritePropertiesSubAck(t *testing.T) {
+func TestPropertiesWritePropertiesSubAck(t *testing.T) {
 	buf := &bytes.Buffer{}
 	props := &Properties{}
 
@@ -141,7 +141,7 @@ func TestProperties_WritePropertiesSubAck(t *testing.T) {
 	assert.Equal(t, []byte{38, 0, 1, 'b', 0, 1, 1}, msg[15:22])
 }
 
-func TestProperties_WritePropertiesUnsubAck(t *testing.T) {
+func TestPropertiesWritePropertiesUnsubAck(t *testing.T) {
 	buf := &bytes.Buffer{}
 	props := &Properties{}
 
@@ -162,7 +162,7 @@ func TestProperties_WritePropertiesUnsubAck(t *testing.T) {
 	assert.Equal(t, []byte{38, 0, 1, 'b', 0, 1, 1}, msg[15:22])
 }
 
-func TestProperties_WritePropertiesPublish(t *testing.T) {
+func TestPropertiesWritePropertiesPublish(t *testing.T) {
 	buf := &bytes.Buffer{}
 	props := &Properties{
 		PayloadFormatIndicator: new(byte),
@@ -201,7 +201,7 @@ func TestProperties_WritePropertiesPublish(t *testing.T) {
 	assert.Equal(t, []byte{38, 0, 1, 'b', 0, 1, 1}, msg[39:46])
 }
 
-func TestProperties_WritePropertiesPubAck(t *testing.T) {
+func TestPropertiesWritePropertiesPubAck(t *testing.T) {
 	buf := &bytes.Buffer{}
 	props := &Properties{}
 
@@ -222,7 +222,7 @@ func TestProperties_WritePropertiesPubAck(t *testing.T) {
 	assert.Equal(t, []byte{38, 0, 1, 'b', 0, 1, 1}, msg[15:22])
 }
 
-func TestProperties_WritePropertiesInvalidProperty(t *testing.T) {
+func TestPropertiesWritePropertiesInvalidProperty(t *testing.T) {
 	buf := &bytes.Buffer{}
 	props := &Properties{MaximumQoS: new(byte), ServerKeepAlive: new(uint16)}
 	*props.MaximumQoS = 1
@@ -232,7 +232,7 @@ func TestProperties_WritePropertiesInvalidProperty(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestProperties_ReadPropertiesConnect(t *testing.T) {
+func TestPropertiesReadPropertiesConnect(t *testing.T) {
 	msg := []byte{
 		0,               // property length
 		17, 0, 0, 0, 10, // SessionExpiryInterval
@@ -281,7 +281,7 @@ func TestProperties_ReadPropertiesConnect(t *testing.T) {
 	assert.Equal(t, []byte{'b'}, props.UserProperties[0].Value)
 }
 
-func BenchmarkProperties_ReadPropertiesConnect(b *testing.B) {
+func BenchmarkPropertiesReadPropertiesConnect(b *testing.B) {
 	msg := []byte{
 		0,               // property length
 		17, 0, 0, 0, 10, // SessionExpiryInterval
@@ -315,7 +315,7 @@ func BenchmarkProperties_ReadPropertiesConnect(b *testing.B) {
 	}
 }
 
-func TestProperties_ReadPropertiesDisconnect(t *testing.T) {
+func TestPropertiesReadPropertiesDisconnect(t *testing.T) {
 	msg := []byte{
 		0,               // property length
 		17, 0, 0, 0, 10, // SessionExpiryInterval
@@ -336,7 +336,7 @@ func TestProperties_ReadPropertiesDisconnect(t *testing.T) {
 	assert.Equal(t, []byte("ef"), props.ServerReference)
 }
 
-func TestProperties_ReadPropertiesSubscribe(t *testing.T) {
+func TestPropertiesReadPropertiesSubscribe(t *testing.T) {
 	msg := []byte{
 		0,      // property length
 		11, 10, // SubscriptionIdentifier
@@ -353,7 +353,7 @@ func TestProperties_ReadPropertiesSubscribe(t *testing.T) {
 	assert.Equal(t, []byte{'b'}, props.UserProperties[0].Value)
 }
 
-func TestProperties_ReadPropertiesUnsubscribe(t *testing.T) {
+func TestPropertiesReadPropertiesUnsubscribe(t *testing.T) {
 	msg := []byte{
 		0,                        // property length
 		38, 0, 1, 'a', 0, 1, 'b', // UserProperty
@@ -368,7 +368,7 @@ func TestProperties_ReadPropertiesUnsubscribe(t *testing.T) {
 	assert.Equal(t, []byte{'b'}, props.UserProperties[0].Value)
 }
 
-func TestProperties_ReadPropertiesPublish(t *testing.T) {
+func TestPropertiesReadPropertiesPublish(t *testing.T) {
 	msg := []byte{
 		0,    // property length
 		1, 1, // PayloadFormatIndicator
@@ -397,7 +397,7 @@ func TestProperties_ReadPropertiesPublish(t *testing.T) {
 	assert.Equal(t, []byte{'b'}, props.UserProperties[0].Value)
 }
 
-func TestProperties_ReadPropertiesMalformed(t *testing.T) {
+func TestPropertiesReadPropertiesMalformed(t *testing.T) {
 	props := [][]byte{
 		{38, 0, 1, 'a', 0, 1}, // invalid user property
 		{1},                   // invalid byte
@@ -420,7 +420,7 @@ func TestProperties_ReadPropertiesMalformed(t *testing.T) {
 	}
 }
 
-func TestProperties_ReadPropertiesProtocolError(t *testing.T) {
+func TestPropertiesReadPropertiesProtocolError(t *testing.T) {
 	testCases := []struct {
 		pktType Type
 		props   []byte
@@ -489,12 +489,12 @@ func TestProperties_ReadPropertiesProtocolError(t *testing.T) {
 	}
 }
 
-func TestProperties_ReadPropertiesInvalidLength(t *testing.T) {
+func TestPropertiesReadPropertiesInvalidLength(t *testing.T) {
 	_, err := readProperties(bytes.NewBuffer([]byte{}), CONNECT)
 	assert.NotNil(t, err)
 }
 
-func TestProperties_Size(t *testing.T) {
+func TestPropertiesSize(t *testing.T) {
 	props := &Properties{
 		SessionExpiryInterval:         new(uint32),
 		ReceiveMaximum:                new(uint16),
@@ -532,7 +532,7 @@ func TestProperties_Size(t *testing.T) {
 	assert.Equal(t, 83, props.size(CONNACK))
 }
 
-func TestProperties_Reset(t *testing.T) {
+func TestPropertiesReset(t *testing.T) {
 	props := &Properties{
 		SessionExpiryInterval:         new(uint32),
 		ReceiveMaximum:                new(uint16),
@@ -561,7 +561,7 @@ func TestProperties_Reset(t *testing.T) {
 	assert.Nil(t, props.ServerKeepAlive)
 }
 
-func TestProperties_SubscriptionIDValid(t *testing.T) {
+func TestPropertiesSubscriptionIDValid(t *testing.T) {
 	testCases := []int{0, 255, 65535, 4294967295}
 
 	for _, id := range testCases {
@@ -573,7 +573,7 @@ func TestProperties_SubscriptionIDValid(t *testing.T) {
 	}
 }
 
-func TestProperties_SubscriptionIDInvalid(t *testing.T) {
+func TestPropertiesSubscriptionIDInvalid(t *testing.T) {
 	var props *Properties
 	assert.Zero(t, props.SubscriptionID())
 

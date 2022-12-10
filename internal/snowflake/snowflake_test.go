@@ -12,23 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package snowflake_test
+package snowflake
 
 import (
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/gsalomao/maxmq/internal/snowflake"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestSnowflake_MachineIDValid(t *testing.T) {
+func TestSnowflakeMachineIDValid(t *testing.T) {
 	tests := []int{0, 256, 512, 1023}
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("%v", test), func(t *testing.T) {
-			sf, err := snowflake.New(test)
+			sf, err := New(test)
 			assert.Nil(t, err)
 			require.NotNil(t, sf)
 			assert.Equal(t, test, sf.MachineID())
@@ -36,55 +35,55 @@ func TestSnowflake_MachineIDValid(t *testing.T) {
 	}
 }
 
-func TestSnowflake_MachineIDInvalid(t *testing.T) {
+func TestSnowflakeMachineIDInvalid(t *testing.T) {
 	tests := []int{-1, 1024}
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("%v", test), func(t *testing.T) {
-			sf, err := snowflake.New(test)
+			sf, err := New(test)
 			require.NotNil(t, err)
 			assert.Nil(t, sf)
 		})
 	}
 }
 
-func TestSnowflake_NextID(t *testing.T) {
-	sf, _ := snowflake.New(125)
+func TestSnowflakeNextID(t *testing.T) {
+	sf, _ := New(125)
 
 	id := sf.NextID()
 	require.NotZero(t, id)
 
-	timestamp := snowflake.TimestampABS(id)
+	timestamp := TimestampABS(id)
 	require.NotZero(t, timestamp)
 
 	now := uint64(time.Now().UnixMilli())
 	assert.LessOrEqual(t, timestamp, now)
 	assert.Greater(t, timestamp, now-2)
 
-	machineID := snowflake.MachineID(id)
+	machineID := MachineID(id)
 	assert.Equal(t, sf.MachineID(), machineID)
 
-	sequence := snowflake.Sequence(id)
+	sequence := Sequence(id)
 	assert.Zero(t, sequence)
 }
 
-func TestSnowflake_NextIDDifferentSequence(t *testing.T) {
-	sf, _ := snowflake.New(125)
+func TestSnowflakeNextIDDifferentSequence(t *testing.T) {
+	sf, _ := New(125)
 
 	id1 := sf.NextID()
 	id2 := sf.NextID()
 	require.NotEqual(t, id1, id2)
-	assert.Equal(t, snowflake.Timestamp(id1), snowflake.Timestamp(id2))
-	assert.Equal(t, snowflake.MachineID(id1), snowflake.MachineID(id2))
-	assert.Greater(t, snowflake.Sequence(id2), snowflake.Sequence(id1))
+	assert.Equal(t, Timestamp(id1), Timestamp(id2))
+	assert.Equal(t, MachineID(id1), MachineID(id2))
+	assert.Greater(t, Sequence(id2), Sequence(id1))
 }
 
-func BenchmarkSnowflake_NextID(b *testing.B) {
+func BenchmarkSnowflakeNextID(b *testing.B) {
 	b.ReportAllocs()
-	sf, _ := snowflake.New(1)
+	sf, _ := New(1)
 
 	for i := 0; i < b.N; i++ {
 		id := sf.NextID()
-		if id == snowflake.InvalidID {
+		if id == InvalidID {
 			b.Error("Invalid ID")
 		}
 	}

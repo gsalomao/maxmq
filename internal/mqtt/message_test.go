@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMessageQueue_Enqueue(t *testing.T) {
+func TestMessageQueueEnqueueMessage(t *testing.T) {
 	mq := messageQueue{}
 	require.Zero(t, mq.list.Len())
 
@@ -31,7 +31,7 @@ func TestMessageQueue_Enqueue(t *testing.T) {
 	require.Equal(t, 1, mq.list.Len())
 }
 
-func TestMessageQueue_Dequeue(t *testing.T) {
+func TestMessageQueueDequeueMessage(t *testing.T) {
 	msg1 := message{id: 1}
 	mq := messageQueue{}
 	mq.enqueue(&msg1)
@@ -41,7 +41,7 @@ func TestMessageQueue_Dequeue(t *testing.T) {
 	assert.Equal(t, msg1.id, msg2.id)
 }
 
-func TestMessageQueue_Len(t *testing.T) {
+func TestMessageQueueGetQueueLen(t *testing.T) {
 	mq := messageQueue{}
 	assert.Zero(t, mq.len())
 
@@ -53,7 +53,7 @@ func TestMessageQueue_Len(t *testing.T) {
 	assert.Zero(t, mq.len())
 }
 
-func TestInflightMessagesList_Add(t *testing.T) {
+func TestInflightMessagesListAddMessage(t *testing.T) {
 	var inflightMessages inflightMessagesList
 	size := inflightMessages.size
 	require.Zero(t, size)
@@ -65,7 +65,7 @@ func TestInflightMessagesList_Add(t *testing.T) {
 	}
 }
 
-func BenchmarkInflightMessagesList_Add(b *testing.B) {
+func BenchmarkInflightMessagesListAddMessage(b *testing.B) {
 	var inflightMessages inflightMessagesList
 	b.ReportAllocs()
 
@@ -75,7 +75,7 @@ func BenchmarkInflightMessagesList_Add(b *testing.B) {
 	}
 }
 
-func TestInflightMessagesList_Remove(t *testing.T) {
+func TestInflightMessagesListRemoveMessage(t *testing.T) {
 	var inflightMessages inflightMessagesList
 
 	for i := 0; i < 10; i++ {
@@ -104,7 +104,7 @@ func TestInflightMessagesList_Remove(t *testing.T) {
 	assert.Equal(t, &inflightMessages.root, inflightMessages.tail)
 }
 
-func BenchmarkInflightMessagesList_Remove(b *testing.B) {
+func BenchmarkInflightMessagesListRemoveMessage(b *testing.B) {
 	var inflightMessages inflightMessagesList
 	b.ReportAllocs()
 
@@ -118,7 +118,7 @@ func BenchmarkInflightMessagesList_Remove(b *testing.B) {
 	}
 }
 
-func TestInflightMessagesList_Find(t *testing.T) {
+func TestInflightMessagesListFindMessage(t *testing.T) {
 	var inflightMessages inflightMessagesList
 
 	for i := 0; i < 10; i++ {
@@ -133,7 +133,7 @@ func TestInflightMessagesList_Find(t *testing.T) {
 	}
 }
 
-func BenchmarkInflightMessagesList_Find(b *testing.B) {
+func BenchmarkInflightMessagesListFindMessage(b *testing.B) {
 	var inflightMessages inflightMessagesList
 	b.ReportAllocs()
 
@@ -148,7 +148,7 @@ func BenchmarkInflightMessagesList_Find(b *testing.B) {
 	}
 }
 
-func TestInflightMessagesList_Front(t *testing.T) {
+func TestInflightMessagesListGetFrontMessage(t *testing.T) {
 	var inflightMessages inflightMessagesList
 
 	for i := 0; i < 10; i++ {
@@ -165,7 +165,7 @@ func TestInflightMessagesList_Front(t *testing.T) {
 	}
 }
 
-func BenchmarkInflightMessagesList_Front(b *testing.B) {
+func BenchmarkInflightMessagesListGetFrontMessage(b *testing.B) {
 	var inflightMessages inflightMessagesList
 	b.ReportAllocs()
 
@@ -182,7 +182,7 @@ func BenchmarkInflightMessagesList_Front(b *testing.B) {
 	}
 }
 
-func TestInflightMessagesList_Len(t *testing.T) {
+func TestInflightMessagesListGetListLen(t *testing.T) {
 	var inflightMessages inflightMessagesList
 
 	for i := 0; i < 10; i++ {

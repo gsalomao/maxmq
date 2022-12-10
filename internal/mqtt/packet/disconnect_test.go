@@ -23,21 +23,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDisconnect_InvalidPacketType(t *testing.T) {
+func TestDisconnectInvalidPacketType(t *testing.T) {
 	opts := options{packetType: CONNECT}
 	pkt, err := newPacketDisconnect(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestDisconnect_InvalidControlFlags(t *testing.T) {
+func TestDisconnectInvalidControlFlags(t *testing.T) {
 	opts := options{packetType: DISCONNECT, controlFlags: 1}
 	pkt, err := newPacketDisconnect(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestDisconnect_WriteV3(t *testing.T) {
+func TestDisconnectWriteV3(t *testing.T) {
 	pkt := NewDisconnect(MQTT311, ReasonCodeV3ConnectionAccepted, nil)
 	require.Equal(t, DISCONNECT, pkt.Type())
 
@@ -54,7 +54,7 @@ func TestDisconnect_WriteV3(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestDisconnect_WriteV3NoProperties(t *testing.T) {
+func TestDisconnectWriteV3NoProperties(t *testing.T) {
 	props := &Properties{SessionExpiryInterval: new(uint32)}
 	*props.SessionExpiryInterval = 30
 
@@ -74,7 +74,7 @@ func TestDisconnect_WriteV3NoProperties(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestDisconnect_WriteV5(t *testing.T) {
+func TestDisconnectWriteV5(t *testing.T) {
 	pkt := NewDisconnect(MQTT50, ReasonCodeV5Success, nil)
 	require.Equal(t, DISCONNECT, pkt.Type())
 
@@ -91,7 +91,7 @@ func TestDisconnect_WriteV5(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestDisconnect_WriteV5Properties(t *testing.T) {
+func TestDisconnectWriteV5Properties(t *testing.T) {
 	props := &Properties{SessionExpiryInterval: new(uint32)}
 	*props.SessionExpiryInterval = 30
 
@@ -111,7 +111,7 @@ func TestDisconnect_WriteV5Properties(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func TestDisconnect_WriteV5PropertiesInvalid(t *testing.T) {
+func TestDisconnectWriteV5PropertiesInvalid(t *testing.T) {
 	props := &Properties{ServerKeepAlive: new(uint16)}
 	*props.ServerKeepAlive = 60
 
@@ -125,7 +125,7 @@ func TestDisconnect_WriteV5PropertiesInvalid(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestDisconnect_ReadV3(t *testing.T) {
+func TestDisconnectReadV3(t *testing.T) {
 	opts := options{packetType: DISCONNECT, remainingLength: 0}
 	pkt, err := newPacketDisconnect(opts)
 	require.Nil(t, err)
@@ -141,7 +141,7 @@ func TestDisconnect_ReadV3(t *testing.T) {
 	assert.Equal(t, MQTT311, discPkg.Version)
 }
 
-func TestDisconnect_ReadV5(t *testing.T) {
+func TestDisconnectReadV5(t *testing.T) {
 	msg := []byte{0x81, 0}
 
 	opts := options{packetType: DISCONNECT, remainingLength: len(msg)}
@@ -160,7 +160,7 @@ func TestDisconnect_ReadV5(t *testing.T) {
 	require.Nil(t, discPkg.Properties)
 }
 
-func TestDisconnect_ReadInvalidLength(t *testing.T) {
+func TestDisconnectReadInvalidLength(t *testing.T) {
 	msg := []byte{0x81, 0}
 	opts := options{packetType: DISCONNECT, remainingLength: 10}
 	pkt, err := newPacketDisconnect(opts)
@@ -170,7 +170,7 @@ func TestDisconnect_ReadInvalidLength(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestDisconnect_ReadV5MissingReasonCode(t *testing.T) {
+func TestDisconnectReadV5MissingReasonCode(t *testing.T) {
 	opts := options{packetType: DISCONNECT, remainingLength: 1}
 	pkt, err := newPacketDisconnect(opts)
 	require.Nil(t, err)
@@ -182,7 +182,7 @@ func TestDisconnect_ReadV5MissingReasonCode(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestDisconnect_ReadV5Properties(t *testing.T) {
+func TestDisconnectReadV5Properties(t *testing.T) {
 	msg := []byte{0, 5, 17, 0, 0, 0, 30}
 
 	opts := options{packetType: DISCONNECT, remainingLength: len(msg)}
@@ -203,7 +203,7 @@ func TestDisconnect_ReadV5Properties(t *testing.T) {
 	assert.Equal(t, uint32(30), *discPkg.Properties.SessionExpiryInterval)
 }
 
-func TestDisconnect_ReadV5PropertiesInvalid(t *testing.T) {
+func TestDisconnectReadV5PropertiesInvalid(t *testing.T) {
 	msg := []byte{0, 5, 17, 0, 0}
 
 	opts := options{packetType: DISCONNECT, remainingLength: len(msg)}
@@ -216,7 +216,7 @@ func TestDisconnect_ReadV5PropertiesInvalid(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestDisconnect_Size(t *testing.T) {
+func TestDisconnectSize(t *testing.T) {
 	t.Run("Unknown", func(t *testing.T) {
 		pkt := NewDisconnect(MQTT311, ReasonCodeV3ConnectionAccepted, nil)
 		require.NotNil(t, pkt)
@@ -267,7 +267,7 @@ func TestDisconnect_Size(t *testing.T) {
 	})
 }
 
-func TestDisconnect_Timestamp(t *testing.T) {
+func TestDisconnectTimestamp(t *testing.T) {
 	opts := options{packetType: DISCONNECT, remainingLength: 0}
 	pkt, err := newPacketDisconnect(opts)
 	require.Nil(t, err)

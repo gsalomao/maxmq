@@ -23,28 +23,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSubscribe_InvalidPacketType(t *testing.T) {
+func TestSubscribeInvalidPacketType(t *testing.T) {
 	opts := options{packetType: DISCONNECT}
 	pkt, err := newPacketSubscribe(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestSubscribe_InvalidControlFlags(t *testing.T) {
+func TestSubscribeInvalidControlFlags(t *testing.T) {
 	opts := options{packetType: SUBSCRIBE, controlFlags: 0}
 	pkt, err := newPacketSubscribe(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestSubscribe_InvalidVersion(t *testing.T) {
+func TestSubscribeInvalidVersion(t *testing.T) {
 	opts := options{packetType: SUBSCRIBE, controlFlags: 2}
 	pkt, err := newPacketSubscribe(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
 }
 
-func TestSubscribe_WriteUnsupported(t *testing.T) {
+func TestSubscribeWriteUnsupported(t *testing.T) {
 	opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT311}
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
@@ -56,7 +56,7 @@ func TestSubscribe_WriteUnsupported(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_ReadV3(t *testing.T) {
+func TestSubscribeReadV3(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 		0, 3, 'a', '/', 'b', 1, // topic filter
@@ -90,7 +90,7 @@ func TestSubscribe_ReadV3(t *testing.T) {
 	assert.Nil(t, subPkt.Properties)
 }
 
-func TestSubscribe_ReadV5(t *testing.T) {
+func TestSubscribeReadV5(t *testing.T) {
 	msg := []byte{
 		0, 25, // packet ID
 		0,                         // property length
@@ -121,7 +121,7 @@ func TestSubscribe_ReadV5(t *testing.T) {
 	assert.True(t, subPkt.Topics[0].NoLocal)
 }
 
-func TestSubscribe_ReadInvalidLength(t *testing.T) {
+func TestSubscribeReadInvalidLength(t *testing.T) {
 	var msg []byte
 	opts := options{
 		packetType:      SUBSCRIBE,
@@ -136,7 +136,7 @@ func TestSubscribe_ReadInvalidLength(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_ReadNoPacketID(t *testing.T) {
+func TestSubscribeReadNoPacketID(t *testing.T) {
 	var msg []byte
 	opts := options{
 		packetType:      SUBSCRIBE,
@@ -151,7 +151,7 @@ func TestSubscribe_ReadNoPacketID(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_ReadNoTopic(t *testing.T) {
+func TestSubscribeReadNoTopic(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 	}
@@ -168,7 +168,7 @@ func TestSubscribe_ReadNoTopic(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_ReadInvalidTopicName(t *testing.T) {
+func TestSubscribeReadInvalidTopicName(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 		0, 3, 'a', // invalid topic name
@@ -186,7 +186,7 @@ func TestSubscribe_ReadInvalidTopicName(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_ReadNoTopicQoS(t *testing.T) {
+func TestSubscribeReadNoTopicQoS(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 		0, 1, 'a', // no topic QoS
@@ -204,7 +204,7 @@ func TestSubscribe_ReadNoTopicQoS(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_ReadV3InvalidSubscriptionOptions(t *testing.T) {
+func TestSubscribeReadV3InvalidSubscriptionOptions(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 		0, 1, 'a', 0x10, // invalid subscription options
@@ -222,7 +222,7 @@ func TestSubscribe_ReadV3InvalidSubscriptionOptions(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_ReadV5InvalidSubscriptionOptions(t *testing.T) {
+func TestSubscribeReadV5InvalidSubscriptionOptions(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 		0,               // property length
@@ -241,7 +241,7 @@ func TestSubscribe_ReadV5InvalidSubscriptionOptions(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_ReadV3InvalidQoS(t *testing.T) {
+func TestSubscribeReadV3InvalidQoS(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 		0, 1, 'a', 0x03, // invalid QoS
@@ -259,7 +259,7 @@ func TestSubscribe_ReadV3InvalidQoS(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_ReadV5InvalidQoS(t *testing.T) {
+func TestSubscribeReadV5InvalidQoS(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 		0,               // property length
@@ -278,7 +278,7 @@ func TestSubscribe_ReadV5InvalidQoS(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_ReadV5InvalidRetainHandling(t *testing.T) {
+func TestSubscribeReadV5InvalidRetainHandling(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 		0,               // property length
@@ -297,7 +297,7 @@ func TestSubscribe_ReadV5InvalidRetainHandling(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_ReadV5InvalidProperties(t *testing.T) {
+func TestSubscribeReadV5InvalidProperties(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 	}
@@ -314,7 +314,7 @@ func TestSubscribe_ReadV5InvalidProperties(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestSubscribe_Size(t *testing.T) {
+func TestSubscribeSize(t *testing.T) {
 	t.Run("V3", func(t *testing.T) {
 		msg := []byte{
 			0, 5, // packet ID
@@ -379,7 +379,7 @@ func TestSubscribe_Size(t *testing.T) {
 	})
 }
 
-func TestSubscribe_Timestamp(t *testing.T) {
+func TestSubscribeTimestamp(t *testing.T) {
 	msg := []byte{
 		0, 5, // packet ID
 		0, 3, 'a', '/', 'b', 1, // topic filter

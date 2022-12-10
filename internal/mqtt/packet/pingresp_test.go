@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPingResp_Write(t *testing.T) {
+func TestPingRespWrite(t *testing.T) {
 	pkt := NewPingResp()
 	require.Equal(t, PINGRESP, pkt.Type())
 
@@ -40,7 +40,7 @@ func TestPingResp_Write(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
-func BenchmarkPingResp_Write(b *testing.B) {
+func BenchmarkPingRespWrite(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 	b.ReportAllocs()
@@ -56,14 +56,14 @@ func BenchmarkPingResp_Write(b *testing.B) {
 	}
 }
 
-func TestPingResp_ReadUnsupported(t *testing.T) {
+func TestPingRespReadUnsupported(t *testing.T) {
 	pkt := NewPingResp()
 	buf := &bytes.Buffer{}
 	err := pkt.Read(bufio.NewReader(buf))
 	require.NotNil(t, err)
 }
 
-func TestPingResp_Size(t *testing.T) {
+func TestPingRespSize(t *testing.T) {
 	t.Run("Unknown", func(t *testing.T) {
 		pkt := NewPingResp()
 		assert.Equal(t, 0, pkt.Size())
@@ -81,7 +81,7 @@ func TestPingResp_Size(t *testing.T) {
 	})
 }
 
-func TestPingResp_Timestamp(t *testing.T) {
+func TestPingRespTimestamp(t *testing.T) {
 	pkt := NewPingResp()
 	require.NotNil(t, pkt)
 	assert.NotNil(t, pkt.Timestamp())

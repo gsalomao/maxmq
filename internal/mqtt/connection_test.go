@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestConnection_NextConnectionDeadlineWithTimeout(t *testing.T) {
+func TestConnectionNextConnectionDeadlineWithTimeout(t *testing.T) {
 	conn := connection{timeout: 3}
 	now := time.Now()
 
@@ -29,7 +29,7 @@ func TestConnection_NextConnectionDeadlineWithTimeout(t *testing.T) {
 	assert.True(t, deadline.After(now))
 }
 
-func TestConnection_NextConnectionDeadlineNoTimeout(t *testing.T) {
+func TestConnectionNextConnectionDeadlineNoTimeout(t *testing.T) {
 	conn := connection{}
 
 	deadline := conn.nextConnectionDeadline()

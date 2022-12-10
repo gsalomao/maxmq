@@ -17,11 +17,11 @@ package mqtt
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
-	"github.com/gsalomao/maxmq/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -37,7 +37,7 @@ func (d *delivererMock) deliverPacket(id ClientID, pkt *packet.Publish) error {
 }
 
 func createSessionManager(conf Configuration) *sessionManager {
-	logger := mocks.NewLoggerStub()
+	log := newLogger()
 	deliverer := delivererMock{}
 
 	userProps := make([]packet.UserProperty, 0, len(conf.UserProperties))
@@ -46,12 +46,11 @@ func createSessionManager(conf Configuration) *sessionManager {
 			packet.UserProperty{Key: []byte(k), Value: []byte(v)})
 	}
 
-	m := newMetrics(true, logger.Logger())
+	m := newMetrics(true, &log)
 	idGen := &idGeneratorMock{}
 	idGen.On("NextID").Return(1)
 
-	return newSessionManager(&deliverer, idGen, &conf, m,
-		userProps, logger.Logger())
+	return newSessionManager(&deliverer, idGen, &conf, m, userProps, &log)
 }
 
 func checkConnect(t *testing.T, conf Configuration, pkt *packet.Connect,
@@ -100,19 +99,22 @@ func subscribe(sm *sessionManager, id ClientID, topics []packet.Topic,
 	return nil
 }
 
-func TestSessionManager_ConnectNewSession(t *testing.T) {
+func TestSessionManagerConnectNewSession(t *testing.T) {
 	testCases := []struct {
+		name    string
 		version packet.MQTTVersion
 		code    packet.ReasonCode
 	}{
-		{version: packet.MQTT31, code: packet.ReasonCodeV3ConnectionAccepted},
-		{version: packet.MQTT311,
+		{name: "3.1", version: packet.MQTT31,
 			code: packet.ReasonCodeV3ConnectionAccepted},
-		{version: packet.MQTT50, code: packet.ReasonCodeV5Success},
+		{name: "3.1.1", version: packet.MQTT311,
+			code: packet.ReasonCodeV3ConnectionAccepted},
+		{name: "5.0", version: packet.MQTT50,
+			code: packet.ReasonCodeV5Success},
 	}
 
 	for _, test := range testCases {
-		t.Run(test.version.String(), func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			conf := newConfiguration()
 			pkt := packet.Connect{ClientID: []byte{'a'}, KeepAlive: 600,
 				Version: test.version, Properties: &packet.Properties{}}
@@ -126,19 +128,22 @@ func TestSessionManager_ConnectNewSession(t *testing.T) {
 	}
 }
 
-func TestSessionManager_ConnectExistingSession(t *testing.T) {
+func TestSessionManagerConnectExistingSession(t *testing.T) {
 	testCases := []struct {
+		name    string
 		version packet.MQTTVersion
 		code    packet.ReasonCode
 	}{
-		{version: packet.MQTT31, code: packet.ReasonCodeV3ConnectionAccepted},
-		{version: packet.MQTT311,
+		{name: "3.1", version: packet.MQTT31,
 			code: packet.ReasonCodeV3ConnectionAccepted},
-		{version: packet.MQTT50, code: packet.ReasonCodeV5Success},
+		{name: "3.1.1", version: packet.MQTT311,
+			code: packet.ReasonCodeV3ConnectionAccepted},
+		{name: "5.0", version: packet.MQTT50,
+			code: packet.ReasonCodeV5Success},
 	}
 
 	for _, test := range testCases {
-		t.Run(test.version.String(), func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			conf := newConfiguration()
 			clientID := []byte{'a'}
 			pkt := packet.Connect{ClientID: clientID, Version: test.version}
@@ -171,19 +176,22 @@ func TestSessionManager_ConnectExistingSession(t *testing.T) {
 	}
 }
 
-func TestSessionManager_ConnectCleanSessionNoExisting(t *testing.T) {
+func TestSessionManagerConnectCleanSessionNoExisting(t *testing.T) {
 	testCases := []struct {
+		name    string
 		version packet.MQTTVersion
 		code    packet.ReasonCode
 	}{
-		{version: packet.MQTT31, code: packet.ReasonCodeV3ConnectionAccepted},
-		{version: packet.MQTT311,
+		{name: "3.1", version: packet.MQTT31,
 			code: packet.ReasonCodeV3ConnectionAccepted},
-		{version: packet.MQTT50, code: packet.ReasonCodeV5Success},
+		{name: "3.1.1", version: packet.MQTT311,
+			code: packet.ReasonCodeV3ConnectionAccepted},
+		{name: "5.0", version: packet.MQTT50,
+			code: packet.ReasonCodeV5Success},
 	}
 
 	for _, test := range testCases {
-		t.Run(test.version.String(), func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			conf := newConfiguration()
 			clientID := []byte{'a'}
 			pkt := packet.Connect{ClientID: clientID, Version: test.version,
@@ -207,19 +215,22 @@ func TestSessionManager_ConnectCleanSessionNoExisting(t *testing.T) {
 	}
 }
 
-func TestSessionManager_ConnectCleanSessionExisting(t *testing.T) {
+func TestSessionManagerConnectCleanSessionExisting(t *testing.T) {
 	testCases := []struct {
+		name    string
 		version packet.MQTTVersion
 		code    packet.ReasonCode
 	}{
-		{version: packet.MQTT31, code: packet.ReasonCodeV3ConnectionAccepted},
-		{version: packet.MQTT311,
+		{name: "3.1", version: packet.MQTT31,
 			code: packet.ReasonCodeV3ConnectionAccepted},
-		{version: packet.MQTT50, code: packet.ReasonCodeV5Success},
+		{name: "3.1.1", version: packet.MQTT311,
+			code: packet.ReasonCodeV3ConnectionAccepted},
+		{name: "5.0", version: packet.MQTT50,
+			code: packet.ReasonCodeV5Success},
 	}
 
 	for _, test := range testCases {
-		t.Run(test.version.String(), func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			conf := newConfiguration()
 			clientID := []byte{'a'}
 			pkt := packet.Connect{ClientID: clientID, Version: test.version,
@@ -259,27 +270,30 @@ func TestSessionManager_ConnectCleanSessionExisting(t *testing.T) {
 	}
 }
 
-func TestSessionManager_ConnectClientIDTooBig(t *testing.T) {
+func TestSessionManagerConnectClientIDTooBig(t *testing.T) {
 	testCases := []struct {
+		name     string
 		id       []byte
 		maxIDLen int
 		version  packet.MQTTVersion
 		code     packet.ReasonCode
 	}{
-		{id: []byte("012345678901234567890123"), version: packet.MQTT31,
-			maxIDLen: 65535, code: packet.ReasonCodeV3IdentifierRejected,
+		{name: "3.1", id: []byte("012345678901234567890123"),
+			version: packet.MQTT31, maxIDLen: 65535,
+			code: packet.ReasonCodeV3IdentifierRejected,
 		},
-		{id: []byte("0123456789012345678901234567890"),
-			version:  packet.MQTT311,
-			maxIDLen: 30, code: packet.ReasonCodeV3IdentifierRejected,
+		{name: "3.1.1", id: []byte("0123456789012345678901234567890"),
+			version: packet.MQTT311, maxIDLen: 30,
+			code: packet.ReasonCodeV3IdentifierRejected,
 		},
-		{id: []byte("0123456789012345678901234567890"), version: packet.MQTT50,
-			maxIDLen: 30, code: packet.ReasonCodeV5InvalidClientID,
+		{name: "5.0", id: []byte("0123456789012345678901234567890"),
+			version: packet.MQTT50, maxIDLen: 30,
+			code: packet.ReasonCodeV5InvalidClientID,
 		},
 	}
 
 	for _, test := range testCases {
-		t.Run(test.version.String(), func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			conf := newConfiguration()
 			conf.MaxClientIDLen = test.maxIDLen
 
@@ -290,19 +304,21 @@ func TestSessionManager_ConnectClientIDTooBig(t *testing.T) {
 	}
 }
 
-func TestSessionManager_ConnectAllowEmptyClientID(t *testing.T) {
+func TestSessionManagerConnectAllowEmptyClientID(t *testing.T) {
 	testCases := []struct {
+		name    string
 		version packet.MQTTVersion
 		code    packet.ReasonCode
 	}{
-		{version: packet.MQTT31, code: packet.ReasonCodeV3ConnectionAccepted},
-		{version: packet.MQTT311,
+		{name: "3.1", version: packet.MQTT31,
 			code: packet.ReasonCodeV3ConnectionAccepted},
-		{version: packet.MQTT50, code: packet.ReasonCodeV5Success},
+		{name: "3.1.1", version: packet.MQTT311,
+			code: packet.ReasonCodeV3ConnectionAccepted},
+		{name: "5.0", version: packet.MQTT50, code: packet.ReasonCodeV5Success},
 	}
 
 	for _, test := range testCases {
-		t.Run(test.version.String(), func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			conf := newConfiguration()
 			conf.AllowEmptyClientID = true
 
@@ -314,19 +330,22 @@ func TestSessionManager_ConnectAllowEmptyClientID(t *testing.T) {
 	}
 }
 
-func TestSessionManager_ConnectDenyEmptyClientID(t *testing.T) {
+func TestSessionManagerConnectDenyEmptyClientID(t *testing.T) {
 	testCases := []struct {
+		name    string
 		version packet.MQTTVersion
 		code    packet.ReasonCode
 	}{
-		{version: packet.MQTT31, code: packet.ReasonCodeV3IdentifierRejected},
-		{version: packet.MQTT311,
+		{name: "3.1", version: packet.MQTT31,
 			code: packet.ReasonCodeV3IdentifierRejected},
-		{version: packet.MQTT50, code: packet.ReasonCodeV5InvalidClientID},
+		{name: "3.1.1", version: packet.MQTT311,
+			code: packet.ReasonCodeV3IdentifierRejected},
+		{name: "5.0", version: packet.MQTT50,
+			code: packet.ReasonCodeV5InvalidClientID},
 	}
 
 	for _, test := range testCases {
-		t.Run(test.version.String(), func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			conf := newConfiguration()
 			conf.AllowEmptyClientID = false
 
@@ -337,7 +356,7 @@ func TestSessionManager_ConnectDenyEmptyClientID(t *testing.T) {
 	}
 }
 
-func TestSessionManager_ConnectAssignClientID(t *testing.T) {
+func TestSessionManagerConnectAssignClientID(t *testing.T) {
 	conf := newConfiguration()
 	conf.AllowEmptyClientID = true
 
@@ -351,7 +370,7 @@ func TestSessionManager_ConnectAssignClientID(t *testing.T) {
 		session.ClientID)
 }
 
-func TestSessionManager_ConnectAssignClientIDWithPrefix(t *testing.T) {
+func TestSessionManagerConnectAssignClientIDWithPrefix(t *testing.T) {
 	conf := newConfiguration()
 	conf.AllowEmptyClientID = true
 	conf.ClientIDPrefix = []byte("MAX-")
@@ -368,7 +387,7 @@ func TestSessionManager_ConnectAssignClientIDWithPrefix(t *testing.T) {
 		session.ClientID)
 }
 
-func TestSessionManager_ConnectMaxSessionExpiryInterval(t *testing.T) {
+func TestSessionManagerConnectMaxSessionExpiryInterval(t *testing.T) {
 	testCases := []struct {
 		interval    uint32
 		maxInterval uint32
@@ -383,9 +402,7 @@ func TestSessionManager_ConnectMaxSessionExpiryInterval(t *testing.T) {
 	}
 
 	for _, test := range testCases {
-		testName := fmt.Sprintf("%v-Max%v", test.interval, test.maxInterval)
-
-		t.Run(testName, func(t *testing.T) {
+		t.Run(strconv.Itoa(int(test.interval)), func(t *testing.T) {
 			conf := newConfiguration()
 			conf.MaxSessionExpiryInterval = test.maxInterval
 
@@ -412,7 +429,7 @@ func TestSessionManager_ConnectMaxSessionExpiryInterval(t *testing.T) {
 	}
 }
 
-func TestSessionManager_ConnectMaxKeepAlive(t *testing.T) {
+func TestSessionManagerConnectMaxKeepAlive(t *testing.T) {
 	testCases := []struct {
 		version      packet.MQTTVersion
 		keepAlive    uint16
@@ -467,7 +484,7 @@ func TestSessionManager_ConnectMaxKeepAlive(t *testing.T) {
 	}
 }
 
-func TestSessionManager_ConnectMaxInflightMessages(t *testing.T) {
+func TestSessionManagerConnectMaxInflightMessages(t *testing.T) {
 	testCases := []struct {
 		maxInflight uint16
 		resp        uint16
@@ -501,7 +518,7 @@ func TestSessionManager_ConnectMaxInflightMessages(t *testing.T) {
 	}
 }
 
-func TestSessionManager_ConnectMaxPacketSize(t *testing.T) {
+func TestSessionManagerConnectMaxPacketSize(t *testing.T) {
 	testCases := []struct {
 		maxSize uint32
 		resp    uint32
@@ -536,15 +553,18 @@ func TestSessionManager_ConnectMaxPacketSize(t *testing.T) {
 	}
 }
 
-func TestSessionManager_ConnectMaximumQoS(t *testing.T) {
-	testCases := []struct{ maxQoS packet.QoS }{
-		{maxQoS: packet.QoS0},
-		{maxQoS: packet.QoS1},
-		{maxQoS: packet.QoS2},
+func TestSessionManagerConnectMaximumQoS(t *testing.T) {
+	testCases := []struct {
+		name   string
+		maxQoS packet.QoS
+	}{
+		{name: "QoS0", maxQoS: packet.QoS0},
+		{name: "QoS1", maxQoS: packet.QoS1},
+		{name: "QoS2", maxQoS: packet.QoS2},
 	}
 
 	for _, test := range testCases {
-		t.Run(fmt.Sprint(test.maxQoS), func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			conf := newConfiguration()
 			conf.MaximumQoS = int(test.maxQoS)
 
@@ -565,7 +585,7 @@ func TestSessionManager_ConnectMaximumQoS(t *testing.T) {
 	}
 }
 
-func TestSessionManager_ConnectTopicAliasMaximum(t *testing.T) {
+func TestSessionManagerConnectTopicAliasMaximum(t *testing.T) {
 	testCases := []struct{ maxAlias uint16 }{
 		{maxAlias: 0},
 		{maxAlias: 255},
@@ -594,7 +614,7 @@ func TestSessionManager_ConnectTopicAliasMaximum(t *testing.T) {
 	}
 }
 
-func TestSessionManager_ConnectRetainAvailable(t *testing.T) {
+func TestSessionManagerConnectRetainAvailable(t *testing.T) {
 	testCases := []struct{ available bool }{
 		{available: false},
 		{available: true},
@@ -621,7 +641,7 @@ func TestSessionManager_ConnectRetainAvailable(t *testing.T) {
 	}
 }
 
-func TestSessionManager_ConnectWildcardSubsAvailable(t *testing.T) {
+func TestSessionManagerConnectWildcardSubsAvailable(t *testing.T) {
 	testCases := []struct{ available bool }{
 		{available: false},
 		{available: true},
@@ -650,7 +670,7 @@ func TestSessionManager_ConnectWildcardSubsAvailable(t *testing.T) {
 	}
 }
 
-func TestSessionManager_ConnectSubscriptionIDAvailable(t *testing.T) {
+func TestSessionManagerConnectSubscriptionIDAvailable(t *testing.T) {
 	testCases := []struct{ available bool }{
 		{available: false},
 		{available: true},
@@ -679,7 +699,7 @@ func TestSessionManager_ConnectSubscriptionIDAvailable(t *testing.T) {
 	}
 }
 
-func TestSessionManager_ConnectSharedSubscriptionAvailable(t *testing.T) {
+func TestSessionManagerConnectSharedSubscriptionAvailable(t *testing.T) {
 	testCases := []struct{ available bool }{
 		{available: false},
 		{available: true},
@@ -708,7 +728,7 @@ func TestSessionManager_ConnectSharedSubscriptionAvailable(t *testing.T) {
 	}
 }
 
-func TestSessionManager_ConnectUserProperty(t *testing.T) {
+func TestSessionManagerConnectUserProperty(t *testing.T) {
 	conf := newConfiguration()
 	conf.UserProperties = map[string]string{"k1": "v1"}
 
@@ -721,7 +741,7 @@ func TestSessionManager_ConnectUserProperty(t *testing.T) {
 	assert.Equal(t, []byte("v1"), connAck.Properties.UserProperties[0].Value)
 }
 
-func TestSessionManager_ConnectWithInflightMessages(t *testing.T) {
+func TestSessionManagerConnectWithInflightMessages(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 
@@ -759,7 +779,7 @@ func TestSessionManager_ConnectWithInflightMessages(t *testing.T) {
 	}
 }
 
-func TestSessionManager_PingReq(t *testing.T) {
+func TestSessionManagerPingReq(t *testing.T) {
 	id := ClientID('a')
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
@@ -777,7 +797,7 @@ func TestSessionManager_PingReq(t *testing.T) {
 	assert.Equal(t, packet.PINGRESP, reply.Type())
 }
 
-func TestSessionManager_PingReqWithoutConnect(t *testing.T) {
+func TestSessionManagerPingReqWithoutConnect(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 
@@ -788,7 +808,7 @@ func TestSessionManager_PingReqWithoutConnect(t *testing.T) {
 	assert.Nil(t, session)
 }
 
-func TestSessionManager_Subscribe(t *testing.T) {
+func TestSessionManagerSubscribe(t *testing.T) {
 	testCases := []struct {
 		id      packet.ID
 		version packet.MQTTVersion
@@ -835,7 +855,7 @@ func TestSessionManager_Subscribe(t *testing.T) {
 	}
 }
 
-func TestSessionManager_SubscribeCleanSession(t *testing.T) {
+func TestSessionManagerSubscribeCleanSession(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 	id := ClientID("a")
@@ -861,7 +881,7 @@ func TestSessionManager_SubscribeCleanSession(t *testing.T) {
 	assert.Equal(t, packet.ReasonCodeV3GrantedQoS0, subAck.ReasonCodes[0])
 }
 
-func TestSessionManager_SubscribeError(t *testing.T) {
+func TestSessionManagerSubscribeError(t *testing.T) {
 	testCases := []struct {
 		id      packet.ID
 		version packet.MQTTVersion
@@ -907,7 +927,7 @@ func TestSessionManager_SubscribeError(t *testing.T) {
 	}
 }
 
-func TestSessionManager_SubscribeMultipleTopics(t *testing.T) {
+func TestSessionManagerSubscribeMultipleTopics(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 	id := ClientID("a")
@@ -942,7 +962,7 @@ func TestSessionManager_SubscribeMultipleTopics(t *testing.T) {
 	assert.Equal(t, packet.ReasonCode(packet.QoS2), subAck.ReasonCodes[3])
 }
 
-func TestSessionManager_SubscribeWithSubID(t *testing.T) {
+func TestSessionManagerSubscribeWithSubID(t *testing.T) {
 	conf := newConfiguration()
 	conf.SubscriptionIDAvailable = true
 
@@ -964,7 +984,7 @@ func TestSessionManager_SubscribeWithSubID(t *testing.T) {
 	require.NotNil(t, reply)
 }
 
-func TestSessionManager_SubscribeWithSubIDError(t *testing.T) {
+func TestSessionManagerSubscribeWithSubIDError(t *testing.T) {
 	conf := newConfiguration()
 	conf.SubscriptionIDAvailable = false
 
@@ -995,26 +1015,24 @@ func TestSessionManager_SubscribeWithSubIDError(t *testing.T) {
 		disconnect.ReasonCode)
 }
 
-func TestSessionManager_Unsubscribe(t *testing.T) {
+func TestSessionManagerUnsubscribe(t *testing.T) {
 	testCases := []struct {
+		name    string
 		id      packet.ID
 		version packet.MQTTVersion
 		topic   string
 		codes   []packet.ReasonCode
 	}{
-		{id: 1, version: packet.MQTT31, topic: "data/0"},
-		{id: 2, version: packet.MQTT311, topic: "data/1"},
-		{id: 3, version: packet.MQTT50, topic: "data/2",
+		{name: "3.1", id: 1, version: packet.MQTT31, topic: "data/0"},
+		{name: "3.1.1", id: 2, version: packet.MQTT311, topic: "data/1"},
+		{name: "5.0", id: 3, version: packet.MQTT50, topic: "data/2",
 			codes: []packet.ReasonCode{packet.ReasonCodeV5Success}},
 	}
 
 	conf := newConfiguration()
 
 	for _, test := range testCases {
-		testName := fmt.Sprintf("%v-%v-%s", test.id, test.version.String(),
-			test.topic)
-
-		t.Run(testName, func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			sm := createSessionManager(conf)
 			id := ClientID("a")
 
@@ -1049,7 +1067,7 @@ func TestSessionManager_Unsubscribe(t *testing.T) {
 	}
 }
 
-func TestSessionManager_UnsubscribeCleanSession(t *testing.T) {
+func TestSessionManagerUnsubscribeCleanSession(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 	id := ClientID("a")
@@ -1078,16 +1096,17 @@ func TestSessionManager_UnsubscribeCleanSession(t *testing.T) {
 	assert.Empty(t, unsubAck.ReasonCodes)
 }
 
-func TestSessionManager_UnsubscribeMissingSubscription(t *testing.T) {
+func TestSessionManagerUnsubscribeMissingSubscription(t *testing.T) {
 	testCases := []struct {
+		name    string
 		id      packet.ID
 		version packet.MQTTVersion
 		topic   string
 		codes   []packet.ReasonCode
 	}{
-		{id: 1, version: packet.MQTT31, topic: "data/0"},
-		{id: 2, version: packet.MQTT311, topic: "data/1"},
-		{id: 3, version: packet.MQTT50, topic: "data/2",
+		{name: "3.1", id: 1, version: packet.MQTT31, topic: "data/0"},
+		{name: "3.1.1", id: 2, version: packet.MQTT311, topic: "data/1"},
+		{name: "5.0", id: 3, version: packet.MQTT50, topic: "data/2",
 			codes: []packet.ReasonCode{
 				packet.ReasonCodeV5NoSubscriptionExisted}},
 	}
@@ -1095,10 +1114,7 @@ func TestSessionManager_UnsubscribeMissingSubscription(t *testing.T) {
 	conf := newConfiguration()
 
 	for _, test := range testCases {
-		testName := fmt.Sprintf("%v-%v-%s", test.id, test.version.String(),
-			test.topic)
-
-		t.Run(testName, func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			sm := createSessionManager(conf)
 			id := ClientID("a")
 
@@ -1129,15 +1145,16 @@ func TestSessionManager_UnsubscribeMissingSubscription(t *testing.T) {
 	}
 }
 
-func TestSessionManager_UnsubscribeMultipleTopics(t *testing.T) {
+func TestSessionManagerUnsubscribeMultipleTopics(t *testing.T) {
 	testCases := []struct {
+		name    string
 		id      packet.ID
 		version packet.MQTTVersion
 		codes   []packet.ReasonCode
 	}{
-		{id: 1, version: packet.MQTT31},
-		{id: 2, version: packet.MQTT311},
-		{id: 3, version: packet.MQTT50, codes: []packet.ReasonCode{
+		{name: "3.1", id: 1, version: packet.MQTT31},
+		{name: "3.1.1", id: 2, version: packet.MQTT311},
+		{name: "5.0", id: 3, version: packet.MQTT50, codes: []packet.ReasonCode{
 			packet.ReasonCodeV5Success,
 			packet.ReasonCodeV5Success,
 			packet.ReasonCodeV5NoSubscriptionExisted}},
@@ -1146,9 +1163,7 @@ func TestSessionManager_UnsubscribeMultipleTopics(t *testing.T) {
 	conf := newConfiguration()
 
 	for _, test := range testCases {
-		testName := fmt.Sprintf("%v-%v", test.id, test.version.String())
-
-		t.Run(testName, func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			sm := createSessionManager(conf)
 			id := ClientID("a")
 
@@ -1189,7 +1204,7 @@ func TestSessionManager_UnsubscribeMultipleTopics(t *testing.T) {
 	}
 }
 
-func TestSessionManager_Publish(t *testing.T) {
+func TestSessionManagerPublish(t *testing.T) {
 	testCases := []struct {
 		id      packet.ID
 		qos     packet.QoS
@@ -1249,7 +1264,7 @@ func TestSessionManager_Publish(t *testing.T) {
 	}
 }
 
-func TestSessionManager_PubAckQoS1(t *testing.T) {
+func TestSessionManagerPubAckQoS1(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 	id := ClientID("a")
@@ -1280,7 +1295,7 @@ func TestSessionManager_PubAckQoS1(t *testing.T) {
 	assert.Zero(t, s.inflightMessages.len())
 }
 
-func TestSessionManager_PubAckUnknownMessage(t *testing.T) {
+func TestSessionManagerPubAckUnknownMessage(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 	id := ClientID("a")
@@ -1297,7 +1312,7 @@ func TestSessionManager_PubAckUnknownMessage(t *testing.T) {
 	require.NotNil(t, session)
 }
 
-func TestSessionManager_Disconnect(t *testing.T) {
+func TestSessionManagerDisconnect(t *testing.T) {
 	testCases := []struct {
 		version      packet.MQTTVersion
 		cleanSession bool
@@ -1343,7 +1358,7 @@ func TestSessionManager_Disconnect(t *testing.T) {
 	}
 }
 
-func TestSessionManager_DisconnectExpiryInterval(t *testing.T) {
+func TestSessionManagerDisconnectExpiryInterval(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 	id := ClientID("a")
@@ -1367,7 +1382,7 @@ func TestSessionManager_DisconnectExpiryInterval(t *testing.T) {
 	assert.Equal(t, uint32(300), session.ExpiryInterval)
 }
 
-func TestSessionManager_DisconnectInvalidExpiryInterval(t *testing.T) {
+func TestSessionManagerDisconnectInvalidExpiryInterval(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 	id := ClientID("a")
@@ -1393,7 +1408,7 @@ func TestSessionManager_DisconnectInvalidExpiryInterval(t *testing.T) {
 	assert.Equal(t, packet.ReasonCodeV5ProtocolError, discReply.ReasonCode)
 }
 
-func TestSessionManager_DisconnectErrorOnSaveSessionIsOkay(t *testing.T) {
+func TestSessionManagerDisconnectErrorOnSaveSessionIsOkay(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 	id := ClientID("a")
@@ -1417,7 +1432,7 @@ func TestSessionManager_DisconnectErrorOnSaveSessionIsOkay(t *testing.T) {
 	assert.Equal(t, uint32(300), session.ExpiryInterval)
 }
 
-func TestSessionManager_DisconnectFailedToDeleteSession(t *testing.T) {
+func TestSessionManagerDisconnectFailedToDeleteSession(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 	id := ClientID("a")
@@ -1432,7 +1447,7 @@ func TestSessionManager_DisconnectFailedToDeleteSession(t *testing.T) {
 	require.NotNil(t, session)
 }
 
-func TestSessionManager_InvalidPacket(t *testing.T) {
+func TestSessionManagerInvalidPacket(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 	id := ClientID("a")
@@ -1446,17 +1461,18 @@ func TestSessionManager_InvalidPacket(t *testing.T) {
 	assert.Nil(t, reply)
 }
 
-func TestSessionManager_PublishMessage(t *testing.T) {
+func TestSessionManagerPublishMessage(t *testing.T) {
 	testCases := []struct {
-		id  packet.ID
-		qos packet.QoS
+		name string
+		id   packet.ID
+		qos  packet.QoS
 	}{
-		{id: 10, qos: packet.QoS0},
-		{id: 20, qos: packet.QoS1},
+		{name: "QoS0", id: 10, qos: packet.QoS0},
+		{name: "QoS1", id: 20, qos: packet.QoS1},
 	}
 
 	for _, test := range testCases {
-		t.Run(fmt.Sprintf("QoS%v", test.qos), func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			conf := newConfiguration()
 			sm := createSessionManager(conf)
 
@@ -1510,7 +1526,7 @@ func TestSessionManager_PublishMessage(t *testing.T) {
 	}
 }
 
-func TestSessionManager_PublishMessageDifferentVersion(t *testing.T) {
+func TestSessionManagerPublishMessageDifferentVersion(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 
@@ -1539,17 +1555,18 @@ func TestSessionManager_PublishMessageDifferentVersion(t *testing.T) {
 	pktDeliverer.AssertExpectations(t)
 }
 
-func TestSessionManager_PublishMessageDisconnectedSession(t *testing.T) {
+func TestSessionManagerPublishMessageDisconnectedSession(t *testing.T) {
 	testCases := []struct {
-		id  packet.ID
-		qos packet.QoS
+		name string
+		id   packet.ID
+		qos  packet.QoS
 	}{
-		{id: 10, qos: packet.QoS0},
-		{id: 20, qos: packet.QoS1},
+		{name: "QoS0", id: 10, qos: packet.QoS0},
+		{name: "QoS1", id: 20, qos: packet.QoS1},
 	}
 
 	for _, test := range testCases {
-		t.Run(fmt.Sprintf("QoS%v", test.qos), func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			conf := newConfiguration()
 			sm := createSessionManager(conf)
 
@@ -1572,7 +1589,7 @@ func TestSessionManager_PublishMessageDisconnectedSession(t *testing.T) {
 	}
 }
 
-func TestSessionManager_PublishMessageError(t *testing.T) {
+func TestSessionManagerPublishMessageError(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 
@@ -1595,7 +1612,7 @@ func TestSessionManager_PublishMessageError(t *testing.T) {
 	pktDeliverer.AssertExpectations(t)
 }
 
-func TestSessionManager_PublishMessageReadSessionError(t *testing.T) {
+func TestSessionManagerPublishMessageReadSessionError(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 
