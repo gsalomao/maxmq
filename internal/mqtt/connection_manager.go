@@ -165,6 +165,7 @@ func (m *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 		Str("ClientId", string(conn.clientID)).
 		Bool("Connected", conn.connected).
 		Uint8("PacketTypeId", uint8(pkt.Type())).
+		Int("Size", pkt.Size()).
 		Msg("MQTT Received packet")
 	return
 }
@@ -269,6 +270,7 @@ func (m *connectionManager) replyPacket(pkt packet.Packet,
 	m.log.Trace().
 		Str("ClientId", string(conn.clientID)).
 		Uint8("PacketTypeId", uint8(reply.Type())).
+		Int("Size", reply.Size()).
 		Uint8("Version", uint8(conn.version)).
 		Msg("MQTT Sending packet")
 
@@ -287,6 +289,7 @@ func (m *connectionManager) replyPacket(pkt packet.Packet,
 		m.log.Debug().
 			Str("ClientId", string(conn.clientID)).
 			Uint8("PacketTypeId", uint8(reply.Type())).
+			Int("Size", reply.Size()).
 			Uint8("Version", uint8(conn.version)).
 			Msg("MQTT Packet sent with success")
 	}
@@ -309,6 +312,7 @@ func (m *connectionManager) deliverPacket(id ClientID,
 		Uint16("PacketId", uint16(pkt.PacketID)).
 		Uint8("QoS", uint8(pkt.QoS)).
 		Uint8("Retain", pkt.Retain).
+		Int("Size", pkt.Size()).
 		Str("TopicName", pkt.TopicName).
 		Uint8("Version", uint8(pkt.Version)).
 		Msg("MQTT Delivering packet to client")
@@ -323,6 +327,7 @@ func (m *connectionManager) deliverPacket(id ClientID,
 		Uint16("PacketId", uint16(pkt.PacketID)).
 		Uint8("QoS", uint8(pkt.QoS)).
 		Uint8("Retain", pkt.Retain).
+		Int("Size", pkt.Size()).
 		Str("TopicName", pkt.TopicName).
 		Uint8("Version", uint8(pkt.Version)).
 		Msg("MQTT Packet delivered to client with success")
