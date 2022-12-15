@@ -44,16 +44,6 @@ type Publish struct {
 	// Properties represents the properties of PUBLISH packet (MQTT V5.0 only).
 	Properties *Properties
 
-	// timestamp represents the timestamp which the packet was created.
-	timestamp time.Time
-
-	// size represents the number of bytes in the packet.
-	size int
-
-	// remainLength represents the number of bytes in the packet excluding the
-	// fixed header.
-	remainLength int
-
 	// PacketID represents the packet identifier.
 	PacketID ID
 
@@ -70,6 +60,11 @@ type Publish struct {
 	// Retain indicates whether the broker must replace any existing retained
 	// message for this topic and store the message, or not.
 	Retain uint8
+
+	// Unexported fields
+	timestamp    time.Time
+	size         int
+	remainLength int
 }
 
 func newPacketPublish(opts options) (Packet, error) {
@@ -117,7 +112,6 @@ func NewPublish(id ID, version MQTTVersion, topic string, qos QoS, dup uint8,
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.
-// It is not supported by the PUBLISH Packet in this broker.
 func (pkt *Publish) Write(w *bufio.Writer) error {
 	buf := &bytes.Buffer{}
 

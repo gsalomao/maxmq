@@ -105,11 +105,11 @@ const (
 	// could not be correctly parsed.
 	ReasonCodeV5MalformedPacket ReasonCode = 0x81
 
-	// ReasonCodeV5ProtocolError indicates that data in the CONNECT packet does
-	// not conform with the V5.x specification.
+	// ReasonCodeV5ProtocolError indicates that data in the packet does not
+	// conform with the V5.x specification.
 	ReasonCodeV5ProtocolError ReasonCode = 0x82
 
-	// ReasonCodeV5ImplementationError indicates that the CONNECT is valid but
+	// ReasonCodeV5ImplementationError indicates that the packet is valid but
 	// is not accepted by the broker.
 	ReasonCodeV5ImplementationError ReasonCode = 0x83
 
@@ -126,7 +126,7 @@ const (
 	ReasonCodeV5BadUserNameOrPassword ReasonCode = 0x86
 
 	// ReasonCodeV5NotAuthorized indicates the client is not authorized to
-	// connect.
+	// perform the action.
 	ReasonCodeV5NotAuthorized ReasonCode = 0x87
 
 	// ReasonCodeV5ServerUnavailable indicates that the MQTT broker is not
@@ -154,23 +154,22 @@ const (
 	ReasonCodeV5KeepAliveTimeout ReasonCode = 0x8D
 
 	// ReasonCodeV5SessionTakeOver indicates that another connection using the
-	// same Client ID has connected.
+	// same client identified has connected.
 	ReasonCodeV5SessionTakeOver ReasonCode = 0x8E
 
-	// ReasonCodeV5TopicFilterInvalid indicates that the Topic Filter is
+	// ReasonCodeV5TopicFilterInvalid indicates that the topic filter is
 	// correctly formed but is not allowed.
 	ReasonCodeV5TopicFilterInvalid ReasonCode = 0x8F
 
-	// ReasonCodeV5TopicNameInvalid indicates that the Topic Name is correctly
+	// ReasonCodeV5TopicNameInvalid indicates that the topic name is correctly
 	// formed, but is not accepted.
 	ReasonCodeV5TopicNameInvalid ReasonCode = 0x90
 
-	// ReasonCodeV5PacketIDInUse indicates that the specified Packet Identifier
-	// is already in use.
+	// ReasonCodeV5PacketIDInUse indicates that the specified packet ID is
+	// already in use.
 	ReasonCodeV5PacketIDInUse ReasonCode = 0x91
 
-	// ReasonCodeV5PacketIDNotFound indicates that the packet identifier is
-	// already in use.
+	// ReasonCodeV5PacketIDNotFound indicates that the packet ID was not found.
 	ReasonCodeV5PacketIDNotFound ReasonCode = 0x92
 
 	// ReasonCodeV5ReceiveMaximumExceeded indicates that has been received more
@@ -179,12 +178,12 @@ const (
 	ReasonCodeV5ReceiveMaximumExceeded ReasonCode = 0x93
 
 	// ReasonCodeV5TopicAliasInvalid indicates that has received a PUBLISH
-	// Packet containing a Topic Alias which is greater than the Maximum Topic
-	// Alias sent in the CONNECT or CONNACK packet.
+	// Packet containing a topic alias which is greater than the maximum topic
+	// alias sent in the CONNECT or CONNACK packet.
 	ReasonCodeV5TopicAliasInvalid ReasonCode = 0x94
 
 	// ReasonCodeV5PacketTooLarge indicates that the packet size is greater than
-	// Maximum Packet Size.
+	// maximum packet size.
 	ReasonCodeV5PacketTooLarge ReasonCode = 0x95
 
 	// ReasonCodeV5MessageRateTooHigh indicates that the received data rate is
@@ -200,7 +199,7 @@ const (
 	ReasonCodeV5AdministrativeAction ReasonCode = 0x98
 
 	// ReasonCodeV5PayloadFormatInvalid indicates that the payload format does
-	// not match the specified Payload Format Indicator.
+	// not match the specified payload format indicator.
 	ReasonCodeV5PayloadFormatInvalid ReasonCode = 0x99
 
 	// ReasonCodeV5RetainNotSupported indicates that the broker does not support

@@ -33,17 +33,15 @@ type SubAck struct {
 	// the SUBSCRIBE Packet.
 	ReasonCodes []ReasonCode
 
-	// timestamp represents the timestamp which the packet was created.
-	timestamp time.Time
-
-	// size represents the number of bytes in the packet.
-	size int
-
 	// PacketID represents the packet identifier.
 	PacketID ID
 
 	// Version represents the MQTT version.
 	Version MQTTVersion
+
+	// Unexported fields
+	timestamp time.Time
+	size      int
 }
 
 // NewSubAck creates a SUBACK Packet.
@@ -96,7 +94,7 @@ func (pkt *SubAck) Write(w *bufio.Writer) error {
 
 // Read reads the packet bytes from bytes.Buffer and decodes them into the
 // packet.
-// It is not supported by the SUBACK Packet in this broker.
+// It is not supported by the SUBACK Packet.
 func (pkt *SubAck) Read(_ *bufio.Reader) error {
 	return errors.New("unsupported (SUBACK)")
 }

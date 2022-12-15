@@ -33,21 +33,16 @@ type PubAck struct {
 	// ReasonCode can contain the PUBACK Reason Code (MQTT V5.0 only).
 	ReasonCode ReasonCode
 
-	// timestamp represents the timestamp which the packet was created.
-	timestamp time.Time
-
-	// size represents the number of bytes in the packet.
-	size int
-
-	// remainLength represents the number of bytes in the packet excluding the
-	// fixed header.
-	remainLength int
-
 	// PacketID represents the packet identifier.
 	PacketID ID
 
 	// Version represents the MQTT version.
 	Version MQTTVersion
+
+	// Unexported fields
+	timestamp    time.Time
+	size         int
+	remainLength int
 }
 
 func newPacketPubAck(opts options) (Packet, error) {

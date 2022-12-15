@@ -31,21 +31,16 @@ type Subscribe struct {
 	// Properties represents the SUBSCRIBE properties (MQTT V5.0 only).
 	Properties *Properties
 
-	// timestamp represents the timestamp which the packet was created.
-	timestamp time.Time
-
-	// size represents the number of bytes in the packet.
-	size int
-
-	// remainLength represents the number of bytes in the packet excluding the
-	// fixed header.
-	remainLength int
-
 	// PacketID represents the packet identifier.
 	PacketID ID
 
 	// Version represents the MQTT version.
 	Version MQTTVersion
+
+	// Unexported fields
+	timestamp    time.Time
+	size         int
+	remainLength int
 }
 
 func newPacketSubscribe(opts options) (Packet, error) {
@@ -69,7 +64,7 @@ func newPacketSubscribe(opts options) (Packet, error) {
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.
-// It is not supported by the SUBSCRIBE Packet in this broker.
+// It is not supported by the SUBSCRIBE Packet.
 func (pkt *Subscribe) Write(_ *bufio.Writer) error {
 	return errors.New("unsupported (SUBSCRIBE)")
 }

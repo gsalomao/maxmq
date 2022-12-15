@@ -22,6 +22,7 @@ import (
 
 // PingReq represents the PINGREQ Packet from MQTT specifications.
 type PingReq struct {
+	// Unexported fields
 	timestamp time.Time
 	size      int
 }
@@ -46,7 +47,7 @@ func newPacketPingReq(opts options) (Packet, error) {
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.
-// It is not supported by the PINGREQ Packet in this broker.
+// It is not supported by the PINGREQ Packet.
 func (pkt *PingReq) Write(_ *bufio.Writer) error {
 	return errors.New("unsupported (PINGREQ)")
 }

@@ -22,6 +22,7 @@ import (
 
 // PingResp represents the PINGRESP Packet from MQTT specifications.
 type PingResp struct {
+	// Unexported fields
 	timestamp time.Time
 	size      int
 }
@@ -43,7 +44,7 @@ func (pkt *PingResp) Write(w *bufio.Writer) error {
 
 // Read reads the packet bytes from bufio.Reader and decodes them into the
 // packet.
-// It is not supported by the PINGRESP Packet in this broker.
+// It is not supported by the PINGRESP Packet.
 func (pkt *PingResp) Read(_ *bufio.Reader) error {
 	return errors.New("unsupported (PINGRESP)")
 }

@@ -60,16 +60,6 @@ type Connect struct {
 	// the Will Message when it is published.
 	WillProperties *Properties
 
-	// timestamp represents the timestamp which the packet was created.
-	timestamp time.Time
-
-	// size represents the number of bytes in the packet.
-	size int
-
-	// remainLength represents the number of bytes in the packet excluding the
-	// fixed header.
-	remainLength int
-
 	// KeepAlive is a time interval, measured in seconds, that is permitted to
 	// elapse between the point at which the Client finishes transmitting one
 	// Control Packet and the point it starts sending the next.
@@ -98,6 +88,11 @@ type Connect struct {
 
 	// PasswordFlag indicates if the Password is present on the message or not.
 	PasswordFlag bool
+
+	// Unexported fields
+	timestamp    time.Time
+	size         int
+	remainLength int
 }
 
 // WillQoS indicates the QoS level to be used when publishing the Will Message.
@@ -135,7 +130,7 @@ func newPacketConnect(opts options) (Packet, error) {
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.
-// It is not supported by the CONNECT Packet in this broker.
+// It is not supported by the CONNECT Packet.
 func (pkt *Connect) Write(_ *bufio.Writer) error {
 	return errors.New("unsupported (CONNECT)")
 }

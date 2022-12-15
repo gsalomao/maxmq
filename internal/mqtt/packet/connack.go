@@ -29,12 +29,6 @@ type ConnAck struct {
 	// Properties represents the CONNACK properties (MQTT V5.0 only).
 	Properties *Properties
 
-	// timestamp represents the timestamp which the packet was created.
-	timestamp time.Time
-
-	// size represents the number of bytes in the packet.
-	size int
-
 	// Version represents the MQTT version.
 	Version MQTTVersion
 
@@ -44,6 +38,10 @@ type ConnAck struct {
 	// SessionPresent indicates if there is already a session associated with
 	// the Client ID.
 	SessionPresent bool
+
+	// Unexported fields
+	timestamp time.Time
+	size      int
 }
 
 // NewConnAck creates a CONNACK Packet.
@@ -95,7 +93,7 @@ func (pkt *ConnAck) Write(w *bufio.Writer) error {
 
 // Read reads the packet bytes from bytes.Buffer and decodes them into the
 // packet.
-// It is not supported by the CONNACK Packet in this broker.
+// It is not supported by the CONNACK Packet.
 func (pkt *ConnAck) Read(_ *bufio.Reader) error {
 	return errors.New("unsupported (CONNACK)")
 }

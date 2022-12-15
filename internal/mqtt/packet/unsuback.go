@@ -33,17 +33,15 @@ type UnsubAck struct {
 	// the UNSUBSCRIBE Packet (MQTT V5.0 only).
 	ReasonCodes []ReasonCode
 
-	// timestamp represents the timestamp which the packet was created.
-	timestamp time.Time
-
-	// size represents the number of bytes in the packet.
-	size int
-
 	// PacketID represents the packet identifier.
 	PacketID ID
 
 	// Version represents the MQTT version.
 	Version MQTTVersion
+
+	// Unexported fields
+	timestamp time.Time
+	size      int
 }
 
 // NewUnsubAck creates a UNSUBACK Packet.
@@ -95,7 +93,7 @@ func (pkt *UnsubAck) Write(w *bufio.Writer) error {
 
 // Read reads the packet bytes from bytes.Buffer and decodes them into the
 // packet.
-// It is not supported by the UNSUBACK Packet in this broker.
+// It is not supported by the UNSUBACK Packet.
 func (pkt *UnsubAck) Read(_ *bufio.Reader) error {
 	return errors.New("unsupported (UNSUBACK)")
 }
