@@ -8,11 +8,15 @@ env:
   FORCE_COLOR: true
 
 jobs:
-  gitlint:
+  lint:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2
+        with:
+            go-version: '^1.17.5'
 
       - name: Install gitlint
         run: |
@@ -22,29 +26,13 @@ jobs:
       - name: Run gitlint
         run: gitlint
 
-  vet:
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - uses: actions/setup-go@v2
-        with:
-          go-version: '^1.17.5'
-
-      - name: Run vet target
-        run: make vet
-
-  lint:
-    runs-on: ubuntu-20.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v2
 
-  complexity:
+      - name: Run vet
+        run: make vet
+
+  complexity-analysis:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository
