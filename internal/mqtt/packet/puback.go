@@ -49,11 +49,19 @@ func newPacketPubAck(opts options) (Packet, error) {
 	if opts.packetType != PUBACK {
 		return nil, errors.New("packet type is not PUBACK")
 	}
+
 	if opts.controlFlags != 0 {
 		return nil, errors.New("invalid Control Flags (PUBACK)")
 	}
+
 	if opts.version < MQTT31 || opts.version > MQTT50 {
 		return nil, errors.New("invalid version (PUBACK)")
+	}
+
+	if opts.version < MQTT50 && opts.remainingLength != 2 {
+		return nil, errors.New("invalid remaining length (PUBACK)")
+	} else if opts.version == MQTT50 && opts.remainingLength < 4 {
+		return nil, errors.New("invalid remaining length (PUBACK)")
 	}
 
 	return &PubAck{
