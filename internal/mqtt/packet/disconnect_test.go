@@ -17,6 +17,7 @@ package packet
 import (
 	"bufio"
 	"bytes"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -123,6 +124,18 @@ func TestDisconnectWriteV5PropertiesInvalid(t *testing.T) {
 
 	err := pkt.Write(wr)
 	require.NotNil(t, err)
+}
+
+func TestDisconnectWriteFailure(t *testing.T) {
+	pkt := NewDisconnect(MQTT50, ReasonCodeV5Success, nil)
+	require.NotNil(t, pkt)
+
+	conn, _ := net.Pipe()
+	w := bufio.NewWriterSize(conn, 1)
+	_ = conn.Close()
+
+	err := pkt.Write(w)
+	assert.NotNil(t, err)
 }
 
 func TestDisconnectReadV3(t *testing.T) {
