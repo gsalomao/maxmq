@@ -17,7 +17,7 @@ package packet
 import (
 	"bufio"
 	"bytes"
-	"fmt"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,35 +25,25 @@ import (
 )
 
 func TestUnsubAckWrite(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
+		name    string
 		id      ID
 		version MQTTVersion
 		codes   []ReasonCode
 		msg     []byte
 	}{
-		{
-			id:      1,
-			version: MQTT31,
-			codes:   nil,
-			msg:     []byte{0xB0, 2, 0, 1},
-		},
-		{
-			id:      2,
-			version: MQTT311,
-			codes:   nil,
-			msg:     []byte{0xB0, 2, 0, 2},
-		},
-		{
-			id:      3,
-			version: MQTT50,
-			codes:   []ReasonCode{ReasonCodeV5Success},
-			msg:     []byte{0xB0, 4, 0, 3, 0, 0},
-		},
+		{name: "V3.1", id: 1, version: MQTT31, codes: nil,
+			msg: []byte{0xB0, 2, 0, 1}},
+		{name: "V3.1.1", id: 2, version: MQTT311, codes: nil,
+			msg: []byte{0xB0, 2, 0, 2}},
+		{name: "V5.0", id: 3, version: MQTT50,
+			codes: []ReasonCode{ReasonCodeV5Success},
+			msg:   []byte{0xB0, 4, 0, 3, 0, 0}},
 	}
 
-	for _, tt := range tests {
-		t.Run(fmt.Sprintf("%v-%v", tt.version, tt.id), func(t *testing.T) {
-			pkt := NewUnsubAck(tt.id, tt.version, tt.codes, nil)
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			pkt := NewUnsubAck(test.id, test.version, test.codes, nil)
 			assert.Equal(t, UNSUBACK, pkt.Type())
 
 			buf := &bytes.Buffer{}
@@ -65,7 +55,7 @@ func TestUnsubAckWrite(t *testing.T) {
 			err = wr.Flush()
 			assert.Nil(t, err)
 
-			assert.Equal(t, tt.msg, buf.Bytes())
+			assert.Equal(t, test.msg, buf.Bytes())
 		})
 	}
 }
@@ -142,6 +132,18 @@ func TestUnsubAckWriteV5InvalidProperty(t *testing.T) {
 	assert.Empty(t, buf)
 }
 
+func TestUnsubAckWriteFailure(t *testing.T) {
+	pkt := NewUnsubAck(5, MQTT50, []ReasonCode{1, 0, 2}, nil)
+	require.NotNil(t, pkt)
+
+	conn, _ := net.Pipe()
+	w := bufio.NewWriterSize(conn, 1)
+	_ = conn.Close()
+
+	err := pkt.Write(w)
+	assert.NotNil(t, err)
+}
+
 func TestUnsubAckReadUnsupported(t *testing.T) {
 	pkt := NewUnsubAck(4, MQTT311, nil, nil)
 	require.NotNil(t, pkt)
@@ -152,53 +154,35 @@ func TestUnsubAckReadUnsupported(t *testing.T) {
 }
 
 func TestUnsubAckSize(t *testing.T) {
-	t.Run("Unknown", func(t *testing.T) {
-		pkt := NewUnsubAck(4, MQTT311, nil, nil)
-		require.NotNil(t, pkt)
-		assert.Equal(t, 0, pkt.Size())
-	})
+	testCases := []struct {
+		name    string
+		version MQTTVersion
+		codes   []ReasonCode
+		props   *Properties
+		size    int
+	}{
+		{name: "V3.1", version: MQTT31, size: 4},
+		{name: "V3.1.1", version: MQTT311, size: 4},
+		{name: "V5.0-Success", version: MQTT50, codes: []ReasonCode{0, 17, 128},
+			size: 8},
+		{name: "V5.0-Properties", version: MQTT50, codes: []ReasonCode{0, 128},
+			props: &Properties{ReasonString: []byte{'a'}}, size: 11},
+	}
 
-	t.Run("V3", func(t *testing.T) {
-		pkt := NewUnsubAck(4, MQTT311, nil, nil)
-		require.NotNil(t, pkt)
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			pkt := NewUnsubAck(1, test.version, test.codes, test.props)
+			require.NotNil(t, pkt)
 
-		buf := &bytes.Buffer{}
-		wr := bufio.NewWriter(buf)
+			buf := &bytes.Buffer{}
+			wr := bufio.NewWriter(buf)
 
-		err := pkt.Write(wr)
-		require.Nil(t, err)
+			err := pkt.Write(wr)
+			require.Nil(t, err)
 
-		assert.Equal(t, 4, pkt.Size())
-	})
-
-	t.Run("V5", func(t *testing.T) {
-		pkt := NewUnsubAck(4, MQTT50, []ReasonCode{0, 17, 128}, nil)
-		require.NotNil(t, pkt)
-
-		buf := &bytes.Buffer{}
-		wr := bufio.NewWriter(buf)
-
-		err := pkt.Write(wr)
-		require.Nil(t, err)
-
-		assert.Equal(t, 8, pkt.Size())
-	})
-
-	t.Run("V5-Properties", func(t *testing.T) {
-		props := &Properties{}
-		props.ReasonString = []byte("abc")
-
-		pkt := NewUnsubAck(5, MQTT50, []ReasonCode{0, 128}, props)
-		require.NotNil(t, pkt)
-
-		buf := &bytes.Buffer{}
-		wr := bufio.NewWriter(buf)
-
-		err := pkt.Write(wr)
-		require.Nil(t, err)
-
-		assert.Equal(t, 13, pkt.Size())
-	})
+			assert.Equal(t, test.size, pkt.Size())
+		})
+	}
 }
 
 func TestUnsubAckTimestamp(t *testing.T) {
