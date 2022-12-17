@@ -17,7 +17,7 @@ package packet
 import (
 	"bufio"
 	"bytes"
-	"fmt"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,20 +25,27 @@ import (
 )
 
 func TestConnAckWrite(t *testing.T) {
-	tests := []struct {
-		ver  MQTTVersion
-		code ReasonCode
-		msg  []byte
+	testCases := []struct {
+		name    string
+		version MQTTVersion
+		code    ReasonCode
+		msg     []byte
 	}{
-		{MQTT31, ReasonCodeV3ConnectionAccepted, []byte{0x20, 2, 0, 0}},
-		{MQTT311, ReasonCodeV3NotAuthorized, []byte{0x20, 2, 0, 5}},
-		{MQTT50, ReasonCodeV5Success, []byte{0x20, 3, 0, 0, 0}},
-		{MQTT50, ReasonCodeV5UnspecifiedError, []byte{0x20, 3, 0, 0x80, 0}},
+		{name: "V3.1", version: MQTT31, code: ReasonCodeV3ConnectionAccepted,
+			msg: []byte{0x20, 2, 0, 0}},
+		{name: "V3.1.1", version: MQTT311, code: ReasonCodeV3NotAuthorized,
+			msg: []byte{0x20, 2, 0, 5}},
+		{name: "V5.0-Success", version: MQTT50, code: ReasonCodeV5Success,
+			msg: []byte{0x20, 3, 0, 0, 0}},
+		{name: "V5.0-Error", version: MQTT50,
+			code: ReasonCodeV5UnspecifiedError,
+			msg:  []byte{0x20, 3, 0, 0x80, 0}},
 	}
 
-	for _, tt := range tests {
-		t.Run(fmt.Sprintf("%v-%v", tt.ver, tt.code), func(t *testing.T) {
-			pkt := NewConnAck(tt.ver, tt.code, false, nil)
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			pkt := NewConnAck(test.version, test.code, false,
+				nil)
 			assert.Equal(t, CONNACK, pkt.Type())
 
 			buf := &bytes.Buffer{}
@@ -50,7 +57,7 @@ func TestConnAckWrite(t *testing.T) {
 			err = wr.Flush()
 			assert.Nil(t, err)
 
-			assert.Equal(t, tt.msg, buf.Bytes())
+			assert.Equal(t, test.msg, buf.Bytes())
 		})
 	}
 }
@@ -91,31 +98,33 @@ func BenchmarkConnAckWriteV5(b *testing.B) {
 
 func TestConnAckWriteSessionPresent(t *testing.T) {
 	testCases := []struct {
-		ver MQTTVersion
-		val bool
-		msg []byte
+		version MQTTVersion
+		value   bool
+		msg     []byte
 	}{
-		{MQTT31, false, []byte{0x20, 2, 0, 0}},
-		{MQTT31, true, []byte{0x20, 2, 0, 0}},
-		{MQTT311, false, []byte{0x20, 2, 0, 0}},
-		{MQTT311, true, []byte{0x20, 2, 1, 0}},
-		{MQTT50, false, []byte{0x20, 3, 0, 0, 0}},
-		{MQTT50, true, []byte{0x20, 3, 1, 0, 0}},
+		{version: MQTT31, value: false, msg: []byte{0x20, 2, 0, 0}},
+		{version: MQTT31, value: true, msg: []byte{0x20, 2, 0, 0}},
+		{version: MQTT311, value: false, msg: []byte{0x20, 2, 0, 0}},
+		{version: MQTT311, value: true, msg: []byte{0x20, 2, 1, 0}},
+		{version: MQTT50, value: false, msg: []byte{0x20, 3, 0, 0, 0}},
+		{version: MQTT50, value: true, msg: []byte{0x20, 3, 1, 0, 0}},
 	}
 
-	for _, tt := range testCases {
-		pkt := NewConnAck(tt.ver, ReasonCodeV3ConnectionAccepted, tt.val,
-			nil)
-		buf := &bytes.Buffer{}
-		wr := bufio.NewWriter(buf)
+	for _, test := range testCases {
+		t.Run(test.version.String(), func(t *testing.T) {
+			pkt := NewConnAck(test.version, ReasonCodeV3ConnectionAccepted,
+				test.value, nil)
+			buf := &bytes.Buffer{}
+			wr := bufio.NewWriter(buf)
 
-		err := pkt.Write(wr)
-		assert.Nil(t, err)
+			err := pkt.Write(wr)
+			assert.Nil(t, err)
 
-		err = wr.Flush()
-		assert.Nil(t, err)
+			err = wr.Flush()
+			assert.Nil(t, err)
 
-		assert.Equal(t, tt.msg, buf.Bytes())
+			assert.Equal(t, test.msg, buf.Bytes())
+		})
 	}
 }
 
@@ -185,6 +194,18 @@ func TestConnAckWriteV3PropertiesIgnored(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
+func TestConnAckWriteFailure(t *testing.T) {
+	pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
+	require.NotNil(t, pkt)
+
+	conn, _ := net.Pipe()
+	w := bufio.NewWriterSize(conn, 1)
+	_ = conn.Close()
+
+	err := pkt.Write(w)
+	assert.NotNil(t, err)
+}
+
 func TestConnAckReadUnsupported(t *testing.T) {
 	pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
 	require.NotNil(t, pkt)
@@ -195,53 +216,38 @@ func TestConnAckReadUnsupported(t *testing.T) {
 }
 
 func TestConnAckSize(t *testing.T) {
-	t.Run("Unknown", func(t *testing.T) {
-		pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
-		require.NotNil(t, pkt)
-		assert.Equal(t, 0, pkt.Size())
-	})
+	testCases := []struct {
+		name    string
+		version MQTTVersion
+		code    ReasonCode
+		props   *Properties
+		size    int
+	}{
+		{name: "V3.1", version: MQTT31, code: ReasonCodeV3ConnectionAccepted,
+			size: 4},
+		{name: "V3.1.1", version: MQTT311, code: ReasonCodeV3ConnectionAccepted,
+			size: 4},
+		{name: "V5.0-Success", version: MQTT50, code: ReasonCodeV5Success,
+			size: 5},
+		{name: "V5.0-Properties", version: MQTT50,
+			props: &Properties{ReasonString: []byte{'a'}},
+			code:  ReasonCodeV5Success, size: 9},
+	}
 
-	t.Run("V3", func(t *testing.T) {
-		pkt := NewConnAck(MQTT311, ReasonCodeV3ConnectionAccepted, false, nil)
-		require.NotNil(t, pkt)
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			pkt := NewConnAck(test.version, test.code, false, test.props)
+			require.NotNil(t, pkt)
 
-		buf := &bytes.Buffer{}
-		wr := bufio.NewWriter(buf)
+			buf := &bytes.Buffer{}
+			wr := bufio.NewWriter(buf)
 
-		err := pkt.Write(wr)
-		require.Nil(t, err)
+			err := pkt.Write(wr)
+			require.Nil(t, err)
 
-		assert.Equal(t, 4, pkt.Size())
-	})
-
-	t.Run("V5", func(t *testing.T) {
-		pkt := NewConnAck(MQTT50, ReasonCodeV5Success, false, nil)
-		require.NotNil(t, pkt)
-
-		buf := &bytes.Buffer{}
-		wr := bufio.NewWriter(buf)
-
-		err := pkt.Write(wr)
-		require.Nil(t, err)
-
-		assert.Equal(t, 5, pkt.Size())
-	})
-
-	t.Run("V5-Properties", func(t *testing.T) {
-		props := &Properties{SessionExpiryInterval: new(uint32)}
-		*props.SessionExpiryInterval = 30
-
-		pkt := NewConnAck(MQTT50, ReasonCodeV5Success, false, props)
-		require.NotNil(t, pkt)
-
-		buf := &bytes.Buffer{}
-		wr := bufio.NewWriter(buf)
-
-		err := pkt.Write(wr)
-		require.Nil(t, err)
-
-		assert.Equal(t, 10, pkt.Size())
-	})
+			assert.Equal(t, test.size, pkt.Size())
+		})
+	}
 }
 
 func TestConnAckTimestamp(t *testing.T) {
