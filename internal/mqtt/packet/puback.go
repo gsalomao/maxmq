@@ -60,7 +60,7 @@ func newPacketPubAck(opts options) (Packet, error) {
 
 	if opts.version < MQTT50 && opts.remainingLength != 2 {
 		return nil, errors.New("invalid remaining length (PUBACK)")
-	} else if opts.version == MQTT50 && opts.remainingLength < 4 {
+	} else if opts.version == MQTT50 && opts.remainingLength < 2 {
 		return nil, errors.New("invalid remaining length (PUBACK)")
 	}
 
@@ -126,10 +126,7 @@ func (pkt *PubAck) Read(r *bufio.Reader) error {
 	}
 	buf := bytes.NewBuffer(msg)
 
-	id, err := readUint[uint16](buf)
-	if err != nil {
-		return fmt.Errorf("failed to read packet ID: %w", err)
-	}
+	id, _ := readUint[uint16](buf)
 	pkt.PacketID = ID(id)
 
 	if pkt.Version == MQTT50 && buf.Len() > 0 {
@@ -137,11 +134,10 @@ func (pkt *PubAck) Read(r *bufio.Reader) error {
 		code, _ = buf.ReadByte()
 		pkt.ReasonCode = ReasonCode(code)
 
-		if buf.Len() > 0 {
-			pkt.Properties, err = readProperties(buf, PUBACK)
-			if err != nil {
-				return fmt.Errorf("failed to read properties: %w", err)
-			}
+		var err error
+		pkt.Properties, err = readProperties(buf, PUBACK)
+		if err != nil {
+			return fmt.Errorf("failed to read properties: %w", err)
 		}
 	}
 

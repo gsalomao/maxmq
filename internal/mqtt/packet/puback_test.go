@@ -17,7 +17,7 @@ package packet
 import (
 	"bufio"
 	"bytes"
-	"fmt"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -52,8 +52,9 @@ func TestPubAckInvalidLength(t *testing.T) {
 		length  int
 	}{
 		{name: "V3.1", version: MQTT31, length: 0},
-		{name: "V3.1.1", version: MQTT311, length: 1},
-		{name: "V5.0", version: MQTT50, length: 3},
+		{name: "V3.1.1-TooShort", version: MQTT311, length: 1},
+		{name: "V3.1.1-TooLong", version: MQTT311, length: 3},
+		{name: "V5.0", version: MQTT50, length: 1},
 	}
 
 	for _, test := range testCases {
@@ -165,6 +166,18 @@ func BenchmarkPubAckWriteV5(b *testing.B) {
 	}
 }
 
+func TestPubAckWriteFailure(t *testing.T) {
+	pkt := NewPubAck(5, MQTT50, ReasonCodeV5Success, nil)
+	require.NotNil(t, pkt)
+
+	conn, _ := net.Pipe()
+	w := bufio.NewWriterSize(conn, 1)
+	_ = conn.Close()
+
+	err := pkt.Write(w)
+	assert.NotNil(t, err)
+}
+
 func TestPubAckWriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{TopicAlias: new(uint16)}
 	*props.TopicAlias = 10
@@ -185,50 +198,43 @@ func TestPubAckWriteV5InvalidProperty(t *testing.T) {
 
 func TestPubAckRead(t *testing.T) {
 	testCases := []struct {
-		id        ID
-		version   MQTTVersion
-		code      ReasonCode
-		withProps bool
-		msg       []byte
+		name    string
+		version MQTTVersion
+		msg     []byte
+		id      ID
+		code    ReasonCode
+		props   *Properties
 	}{
-		{id: 1, version: MQTT31, msg: []byte{0, 1}},
-		{id: 2, version: MQTT311, msg: []byte{0, 2}},
-		{id: 3, version: MQTT50, code: ReasonCodeV5Success,
-			msg: []byte{0, 3, 0, 0}},
-		{id: 4, version: MQTT50, code: ReasonCodeV5Success,
-			msg: []byte{0, 4, 0, 0}},
-		{id: 5, version: MQTT50, code: ReasonCodeV5NoMatchingSubscribers,
-			msg: []byte{0, 5, 16, 0}},
-		{id: 6, version: MQTT50, code: ReasonCodeV5NoMatchingSubscribers,
-			withProps: true, msg: []byte{0, 6, 16, 6, 31, 0, 3, 'a', 'b', 'c'}},
+		{name: "V3.1", version: MQTT31, msg: []byte{0, 1}, id: 1},
+		{name: "V3.1.1", version: MQTT311, msg: []byte{1, 0}, id: 0x100},
+		{name: "V5.0-Success", version: MQTT50, msg: []byte{1, 0xFF},
+			id: 0x1FF, code: ReasonCodeV5Success},
+		{name: "V5.0-NoMatchingSubscribers", version: MQTT50,
+			msg: []byte{1, 0xFF, 0x10, 0}, id: 0x1FF,
+			code: ReasonCodeV5NoMatchingSubscribers},
+		{name: "V5.0-Properties", version: MQTT50,
+			msg: []byte{0xFF, 0xFE, 0, 8, 0x1F, 0, 5, 'H', 'e', 'l', 'l', 'o'},
+			id:  0xFFFE, code: ReasonCodeV5Success,
+			props: &Properties{ReasonString: []byte("Hello")}},
 	}
 
 	for _, test := range testCases {
-		name := fmt.Sprintf("%v-%v", test.version, test.id)
-		t.Run(name, func(t *testing.T) {
-			opts := options{
-				packetType:      PUBACK,
-				version:         test.version,
-				remainingLength: len(test.msg),
-			}
+		t.Run(test.name, func(t *testing.T) {
+			opts := options{packetType: PUBACK, version: test.version,
+				remainingLength: len(test.msg)}
 			pkt, err := newPacketPubAck(opts)
 			require.Nil(t, err)
-
+			require.NotNil(t, pkt)
 			require.Equal(t, PUBACK, pkt.Type())
-			pubAckPkt, _ := pkt.(*PubAck)
 
 			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(test.msg)))
 			require.Nil(t, err)
 
-			assert.Equal(t, test.version, pubAckPkt.Version)
-			assert.Equal(t, test.id, pubAckPkt.PacketID)
-			if test.withProps {
-				require.NotNil(t, pubAckPkt.Properties)
-				assert.Equal(t, []byte("abc"),
-					pubAckPkt.Properties.ReasonString)
-			} else {
-				assert.Nil(t, pubAckPkt.Properties)
-			}
+			pubAck := pkt.(*PubAck)
+			assert.Equal(t, test.version, pubAck.Version)
+			assert.Equal(t, test.id, pubAck.PacketID)
+			assert.Equal(t, test.code, pubAck.ReasonCode)
+			assert.Equal(t, test.props, pubAck.Properties)
 		})
 	}
 }
@@ -278,17 +284,26 @@ func BenchmarkPubAckReadV5(b *testing.B) {
 }
 
 func TestPubAckReadMissingData(t *testing.T) {
-	var msg []byte
-	opts := options{
-		packetType:      PUBACK,
-		version:         MQTT50,
-		remainingLength: 10,
+	testCases := []struct {
+		name   string
+		length int
+		msg    []byte
+	}{
+		{name: "LengthGreaterThanMsg", length: 10},
+		{name: "MissingPropertiesLength", length: 3, msg: []byte{0, 1, 0x10}},
 	}
-	pkt, err := newPacketPubAck(opts)
-	require.Nil(t, err)
 
-	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			opts := options{packetType: PUBACK, version: MQTT50,
+				remainingLength: test.length}
+			pkt, err := newPacketPubAck(opts)
+			require.Nil(t, err)
+
+			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(test.msg)))
+			require.NotNil(t, err)
+		})
+	}
 }
 
 func TestPubAckSize(t *testing.T) {
