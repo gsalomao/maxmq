@@ -17,7 +17,7 @@ package packet
 import (
 	"bufio"
 	"bytes"
-	"fmt"
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -54,6 +54,7 @@ func TestPublishInvalidVersion(t *testing.T) {
 
 func TestPublishWrite(t *testing.T) {
 	testCases := []struct {
+		name    string
 		id      ID
 		version MQTTVersion
 		topic   string
@@ -62,17 +63,16 @@ func TestPublishWrite(t *testing.T) {
 		dup     byte
 		payload string
 	}{
-		{id: 1, version: MQTT31, topic: "a", qos: QoS0, retain: 0, dup: 0,
-			payload: "msg1"},
-		{id: 2, version: MQTT311, topic: "a/b", qos: QoS1, retain: 1, dup: 1,
-			payload: "msg2"},
-		{id: 3, version: MQTT50, topic: "a/b/c", qos: QoS2, retain: 0, dup: 1,
-			payload: "msg3"},
+		{name: "V3.1", id: 1, version: MQTT31, topic: "a", qos: QoS0, retain: 0,
+			dup: 0, payload: "msg1"},
+		{name: "V3.1.1", id: 2, version: MQTT311, topic: "a/b", qos: QoS1,
+			retain: 1, dup: 1, payload: "msg2"},
+		{name: "V5.0", id: 3, version: MQTT50, topic: "a/b/c", qos: QoS2,
+			retain: 0, dup: 1, payload: "msg3"},
 	}
 
 	for _, test := range testCases {
-		name := fmt.Sprintf("%v-%v", test.id, test.version.String())
-		t.Run(name, func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			ctrl := 0x30 | (test.dup << 3) |
 				(byte(test.qos) << 1) | (test.retain)
 
@@ -113,16 +113,11 @@ func TestPublishWrite(t *testing.T) {
 }
 
 func TestPublishWriteV5Properties(t *testing.T) {
-	props := &Properties{
-		PayloadFormatIndicator: new(byte),
-	}
+	props := &Properties{PayloadFormatIndicator: new(byte)}
 	*props.PayloadFormatIndicator = 1
 
-	pkt := Publish{}
-	pkt.Version = MQTT50
-	pkt.TopicName = "a"
-	pkt.Payload = []byte{'b'}
-	pkt.Properties = props
+	pkt := NewPublish(5, MQTT50, "a", QoS0, 0, 0,
+		[]byte{'b'}, props)
 
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
@@ -137,15 +132,25 @@ func TestPublishWriteV5Properties(t *testing.T) {
 	assert.Equal(t, msg, buf.Bytes())
 }
 
+func TestPublishWriteFailure(t *testing.T) {
+	pkt := NewPublish(5, MQTT50, "a", QoS0, 0, 0,
+		[]byte{'b'}, nil)
+	require.NotNil(t, pkt)
+
+	conn, _ := net.Pipe()
+	w := bufio.NewWriterSize(conn, 1)
+	_ = conn.Close()
+
+	err := pkt.Write(w)
+	assert.NotNil(t, err)
+}
+
 func TestPublishWriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{MaximumQoS: new(byte)}
 	*props.MaximumQoS = 1
 
-	pkt := Publish{}
-	pkt.Version = MQTT50
-	pkt.TopicName = "a"
-	pkt.Payload = []byte{'b'}
-	pkt.Properties = props
+	pkt := NewPublish(5, MQTT50, "a", QoS0, 0, 0,
+		[]byte{'b'}, props)
 
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
@@ -160,6 +165,7 @@ func TestPublishWriteV5InvalidProperty(t *testing.T) {
 
 func TestPublishRead(t *testing.T) {
 	testCases := []struct {
+		name    string
 		id      ID
 		version MQTTVersion
 		topic   string
@@ -167,17 +173,16 @@ func TestPublishRead(t *testing.T) {
 		retain  byte
 		payload string
 	}{
-		{id: 1, version: MQTT31, topic: "a", qos: QoS0, retain: 0,
+		{name: "3.1", id: 1, version: MQTT31, topic: "a", qos: QoS0, retain: 0,
 			payload: "msg1"},
-		{id: 2, version: MQTT311, topic: "a/b", qos: QoS1, retain: 1,
-			payload: "msg2"},
-		{id: 3, version: MQTT50, topic: "a/b/c", qos: QoS2, retain: 0,
-			payload: "msg3"},
+		{name: "3.1.1", id: 2, version: MQTT311, topic: "a/b", qos: QoS1,
+			retain: 1, payload: "msg2"},
+		{name: "5.0", id: 3, version: MQTT50, topic: "a/b/c", qos: QoS2,
+			retain: 0, payload: "msg3"},
 	}
 
 	for _, test := range testCases {
-		name := fmt.Sprintf("%v-%v", test.id, test.version.String())
-		t.Run(name, func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			msg := []byte{0, byte(len(test.topic))}
 			msg = append(msg, []byte(test.topic)...)
 
@@ -225,6 +230,27 @@ func TestPublishReadInvalidLength(t *testing.T) {
 		packetType:      PUBLISH,
 		version:         MQTT311,
 		remainingLength: 10,
+	}
+	pkt, err := newPacketPublish(opts)
+	require.Nil(t, err)
+
+	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
+	require.NotNil(t, err)
+}
+
+func TestPublishReadV5InvalidProperty(t *testing.T) {
+	msg := []byte{
+		0, 3, 'a', '/', 'b', // topic
+		0, 5, // packet ID
+		3,          // property length
+		0x13, 0, 5, // ServerKeepAlive
+		'm', 's', 'g', // payload
+	}
+	opts := options{
+		packetType:      PUBLISH,
+		version:         MQTT50,
+		remainingLength: len(msg),
+		controlFlags:    0x2,
 	}
 	pkt, err := newPacketPublish(opts)
 	require.Nil(t, err)
@@ -291,68 +317,33 @@ func TestPublishReadInvalidTopicName(t *testing.T) {
 }
 
 func TestPublishSize(t *testing.T) {
-	t.Run("V3", func(t *testing.T) {
-		msg := []byte{
-			0, 3, 'a', '/', 'b', // topic
-			0, 5, // packet ID
-			'm', 's', 'g', // payload
-		}
+	testCases := []struct {
+		name      string
+		version   MQTTVersion
+		remainLen int
+		size      int
+	}{
+		{name: "V3.1", version: MQTT31, remainLen: 10, size: 12},
+		{name: "V3.1.1", version: MQTT311, remainLen: 10, size: 12},
+		{name: "V5.0", version: MQTT50, remainLen: 11, size: 13},
+		{name: "V5.0-Properties", version: MQTT50, remainLen: 13, size: 15},
+	}
 
-		opts := options{
-			packetType:        PUBLISH,
-			version:           MQTT311,
-			fixedHeaderLength: 2,
-			remainingLength:   len(msg),
-		}
-		pkt, err := newPacketPublish(opts)
-		require.Nil(t, err)
-		require.NotNil(t, pkt)
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			opts := options{
+				packetType:        PUBLISH,
+				version:           MQTT311,
+				fixedHeaderLength: 2,
+				remainingLength:   test.remainLen,
+			}
+			pkt, err := newPacketPublish(opts)
+			require.Nil(t, err)
+			require.NotNil(t, pkt)
 
-		assert.Equal(t, 12, pkt.Size())
-	})
-
-	t.Run("V5", func(t *testing.T) {
-		msg := []byte{
-			0, 3, 'a', '/', 'b', // topic
-			0, 5, // packet ID
-			0,             // property length
-			'm', 's', 'g', // payload
-		}
-
-		opts := options{
-			packetType:        PUBLISH,
-			version:           MQTT50,
-			fixedHeaderLength: 2,
-			remainingLength:   len(msg),
-		}
-		pkt, err := newPacketPublish(opts)
-		require.Nil(t, err)
-		require.NotNil(t, pkt)
-
-		assert.Equal(t, 13, pkt.Size())
-	})
-
-	t.Run("V5-Properties", func(t *testing.T) {
-		msg := []byte{
-			0, 3, 'a', '/', 'b', // topic
-			0, 5, // packet ID
-			2,     // property length
-			11, 5, // SubscriptionIdentifier
-			'm', 's', 'g', // payload
-		}
-
-		opts := options{
-			packetType:        PUBLISH,
-			version:           MQTT50,
-			fixedHeaderLength: 2,
-			remainingLength:   len(msg),
-		}
-		pkt, err := newPacketPublish(opts)
-		require.Nil(t, err)
-		require.NotNil(t, pkt)
-
-		assert.Equal(t, 15, pkt.Size())
-	})
+			assert.Equal(t, test.size, pkt.Size())
+		})
+	}
 }
 
 func TestPublishTimestamp(t *testing.T) {
@@ -375,6 +366,7 @@ func TestPublishTimestamp(t *testing.T) {
 
 func TestPublishClone(t *testing.T) {
 	testCases := []struct {
+		name    string
 		id      ID
 		version MQTTVersion
 		topic   string
@@ -383,17 +375,16 @@ func TestPublishClone(t *testing.T) {
 		retain  uint8
 		payload []byte
 	}{
-		{id: 1, version: MQTT31, topic: "temp/0", qos: QoS0, dup: 0, retain: 0,
-			payload: []byte("data-0")},
-		{id: 2, version: MQTT311, topic: "temp/1", qos: QoS1, dup: 0, retain: 1,
-			payload: []byte("data-1")},
-		{id: 3, version: MQTT50, topic: "temp/2", qos: QoS2, dup: 1, retain: 0,
-			payload: []byte("data-2")},
+		{name: "V3.1", id: 1, version: MQTT31, topic: "temp/0", qos: QoS0,
+			dup: 0, retain: 0, payload: []byte("data-0")},
+		{name: "V3.1.1", id: 2, version: MQTT311, topic: "temp/1", qos: QoS1,
+			dup: 0, retain: 1, payload: []byte("data-1")},
+		{name: "V5.0", id: 3, version: MQTT50, topic: "temp/2", qos: QoS2,
+			dup: 1, retain: 0, payload: []byte("data-2")},
 	}
 
 	for _, test := range testCases {
-		name := fmt.Sprintf("%v-%v", test.id, test.version.String())
-		t.Run(name, func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			pkt1 := NewPublish(test.id, test.version, test.topic, test.qos,
 				test.dup, test.retain, test.payload, nil)
 			pkt2 := pkt1.Clone()

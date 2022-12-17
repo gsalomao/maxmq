@@ -184,7 +184,10 @@ func (pkt *Publish) Read(r *bufio.Reader) error {
 	}
 
 	if pkt.Version == MQTT50 {
-		pkt.Properties, _ = readProperties(buf, PUBLISH)
+		pkt.Properties, err = readProperties(buf, PUBLISH)
+		if err != nil {
+			return fmt.Errorf("failed to read properties: %w", err)
+		}
 	}
 
 	pkt.Payload = buf.Next(buf.Len())
