@@ -155,8 +155,8 @@ func (m *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 	m.log.Info().
 		Bool("CleanSession", session.CleanSession).
 		Str("ClientId", string(session.ClientID)).
+		Int("InflightMessages", session.inflightMessages.len()).
 		Int("KeepAlive", session.KeepAlive).
-		Int("Messages", session.inflightMessages.len()).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
 		Uint8("Version", uint8(session.Version)).
@@ -415,8 +415,8 @@ func (m *sessionManager) handlePubAck(session *Session,
 
 	m.log.Info().
 		Str("ClientId", string(session.ClientID)).
+		Int("InflightMessages", session.inflightMessages.len()).
 		Uint64("MessageId", uint64(inflightMsg.messageID)).
-		Int("Messages", session.inflightMessages.len()).
 		Uint16("PacketId", uint16(inflightMsg.packet.PacketID)).
 		Uint8("QoS", uint8(inflightMsg.packet.QoS)).
 		Uint8("Retain", inflightMsg.packet.Retain).
@@ -466,7 +466,7 @@ func (m *sessionManager) handleDisconnect(session *Session,
 	m.log.Info().
 		Bool("CleanSession", session.CleanSession).
 		Str("ClientId", string(session.ClientID)).
-		Int("Messages", session.inflightMessages.len()).
+		Int("InflightMessages", session.inflightMessages.len()).
 		Uint32("SessionExpiryInterval", session.ExpiryInterval).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
@@ -494,8 +494,8 @@ func (m *sessionManager) publishMessage(id ClientID, msg *message) error {
 	m.log.Trace().
 		Str("ClientId", string(session.ClientID)).
 		Bool("Connected", session.connected).
+		Int("InflightMessages", session.inflightMessages.len()).
 		Uint64("MessageId", uint64(msg.id)).
-		Int("Messages", session.inflightMessages.len()).
 		Uint16("PacketId", uint16(pkt.PacketID)).
 		Uint8("QoS", uint8(pkt.QoS)).
 		Uint8("Retain", pkt.Retain).
@@ -550,8 +550,8 @@ func (m *sessionManager) publishMessage(id ClientID, msg *message) error {
 	} else if pkt.QoS > packet.QoS0 {
 		m.log.Info().
 			Str("ClientId", string(session.ClientID)).
+			Int("InflightMessages", session.inflightMessages.len()).
 			Uint64("MessageId", uint64(msg.id)).
-			Int("Messages", session.inflightMessages.len()).
 			Uint16("PacketId", uint16(pkt.PacketID)).
 			Uint8("QoS", uint8(pkt.QoS)).
 			Uint8("Retain", pkt.Retain).
@@ -672,8 +672,8 @@ func (m *sessionManager) readSession(id ClientID) (*Session, error) {
 		Bool("Connected", session.connected).
 		Int64("ConnectedAt", session.ConnectedAt).
 		Uint32("ExpiryInterval", session.ExpiryInterval).
+		Int("InflightMessages", session.inflightMessages.len()).
 		Int("KeepAlive", session.KeepAlive).
-		Int("Messages", session.inflightMessages.len()).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
 		Uint8("Version", uint8(session.Version)).
@@ -689,8 +689,8 @@ func (m *sessionManager) saveSession(session *Session) {
 		Bool("Connected", session.connected).
 		Int64("ConnectedAt", session.ConnectedAt).
 		Uint32("ExpiryInterval", session.ExpiryInterval).
+		Int("InflightMessages", session.inflightMessages.len()).
 		Int("KeepAlive", session.KeepAlive).
-		Int("Messages", session.inflightMessages.len()).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
 		Uint8("Version", uint8(session.Version)).
@@ -704,8 +704,8 @@ func (m *sessionManager) saveSession(session *Session) {
 		Bool("Connected", session.connected).
 		Int64("ConnectedAt", session.ConnectedAt).
 		Uint32("ExpiryInterval", session.ExpiryInterval).
+		Int("InflightMessages", session.inflightMessages.len()).
 		Int("KeepAlive", session.KeepAlive).
-		Int("Messages", session.inflightMessages.len()).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
 		Uint8("Version", uint8(session.Version)).
@@ -719,8 +719,8 @@ func (m *sessionManager) deleteSession(session *Session) {
 		Bool("Connected", session.connected).
 		Int64("ConnectedAt", session.ConnectedAt).
 		Uint32("ExpiryInterval", session.ExpiryInterval).
+		Int("InflightMessages", session.inflightMessages.len()).
 		Int("KeepAlive", session.KeepAlive).
-		Int("Messages", session.inflightMessages.len()).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
 		Uint8("Version", uint8(session.Version)).
@@ -734,8 +734,8 @@ func (m *sessionManager) deleteSession(session *Session) {
 		Bool("Connected", session.connected).
 		Int64("ConnectedAt", session.ConnectedAt).
 		Uint32("ExpiryInterval", session.ExpiryInterval).
+		Int("InflightMessages", session.inflightMessages.len()).
 		Int("KeepAlive", session.KeepAlive).
-		Int("Messages", session.inflightMessages.len()).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
 		Uint8("Version", uint8(session.Version)).
