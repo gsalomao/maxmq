@@ -17,8 +17,11 @@ package packet
 import (
 	"bufio"
 	"bytes"
+	"math"
 	"net"
+	"strconv"
 	"testing"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -196,6 +199,41 @@ func TestPubRecWriteV5InvalidProperty(t *testing.T) {
 	assert.Empty(t, buf)
 }
 
+func TestPubRecWriteV5InvalidReasonCode(t *testing.T) {
+	validCodes := []ReasonCode{ReasonCodeV5Success,
+		ReasonCodeV5NoMatchingSubscribers, ReasonCodeV5UnspecifiedError,
+		ReasonCodeV5ImplementationError, ReasonCodeV5NotAuthorized,
+		ReasonCodeV5TopicNameInvalid, ReasonCodeV5PacketIDInUse,
+		ReasonCodeV5QuotaExceeded, ReasonCodeV5PayloadFormatInvalid}
+
+	isValidReasonCode := func(code int) bool {
+		for _, c := range validCodes {
+			if int(c) == code {
+				return true
+			}
+		}
+		return false
+	}
+
+	reasonCodeSize := int(math.Pow(2,
+		float64(unsafe.Sizeof(ReasonCodeV5Success))*8))
+
+	for code := 0; code < reasonCodeSize; code++ {
+		if !isValidReasonCode(code) {
+			t.Run(strconv.Itoa(code), func(t *testing.T) {
+				pkt := NewPubRec(5, MQTT50, ReasonCode(code), nil)
+				require.NotNil(t, pkt)
+
+				buf := &bytes.Buffer{}
+				wr := bufio.NewWriter(buf)
+
+				err := pkt.Write(wr)
+				require.NotNil(t, err)
+			})
+		}
+	}
+}
+
 func TestPubRecRead(t *testing.T) {
 	testCases := []struct {
 		name    string
@@ -303,6 +341,43 @@ func TestPubRecReadMissingData(t *testing.T) {
 			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(test.msg)))
 			require.NotNil(t, err)
 		})
+	}
+}
+
+func TestPubRecReadV5InvalidReasonCode(t *testing.T) {
+	validCodes := []ReasonCode{ReasonCodeV5Success,
+		ReasonCodeV5NoMatchingSubscribers, ReasonCodeV5UnspecifiedError,
+		ReasonCodeV5ImplementationError, ReasonCodeV5NotAuthorized,
+		ReasonCodeV5TopicNameInvalid, ReasonCodeV5PacketIDInUse,
+		ReasonCodeV5QuotaExceeded, ReasonCodeV5PayloadFormatInvalid}
+
+	isValidReasonCode := func(code int) bool {
+		for _, c := range validCodes {
+			if int(c) == code {
+				return true
+			}
+		}
+		return false
+	}
+
+	reasonCodeSize := int(math.Pow(2,
+		float64(unsafe.Sizeof(ReasonCodeV5Success))*8))
+
+	for code := 0; code < reasonCodeSize; code++ {
+		if !isValidReasonCode(code) {
+			t.Run(strconv.Itoa(code), func(t *testing.T) {
+				msg := []byte{1, 0xFF, byte(code), 0}
+
+				opts := options{packetType: PUBREC, version: MQTT50,
+					remainingLength: len(msg)}
+				pkt, err := newPacketPubRec(opts)
+				require.Nil(t, err)
+				require.NotNil(t, pkt)
+
+				err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
+				require.NotNil(t, err)
+			})
+		}
 	}
 }
 

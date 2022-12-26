@@ -33,7 +33,7 @@ type PubRec struct {
 	// PacketID represents the packet identifier.
 	PacketID ID
 
-	// ReasonCode can contain the PUBACK Reason Code (MQTT V5.0 only).
+	// ReasonCode can contain the PUBREC Reason Code (MQTT V5.0 only).
 	ReasonCode ReasonCode
 
 	// Version represents the MQTT version.
@@ -86,14 +86,18 @@ func NewPubRec(id ID, v MQTTVersion, c ReasonCode, p *Properties) PubRec {
 func (pkt *PubRec) Write(w *bufio.Writer) error {
 	buf := &bytes.Buffer{}
 
-	if pkt.Version == MQTT50 &&
-		(pkt.ReasonCode != ReasonCodeV5Success || pkt.Properties != nil) {
+	if pkt.Version == MQTT50 {
+		if !pkt.isValidReasonCode() {
+			return fmt.Errorf("invalid reason code: %v", pkt.ReasonCode)
+		}
 
-		err := buf.WriteByte(byte(pkt.ReasonCode))
-		err = multierr.Combine(err,
-			writeProperties(buf, pkt.Properties, PUBREC))
-		if err != nil {
-			return fmt.Errorf("failed to write properties: %w", err)
+		if pkt.ReasonCode != ReasonCodeV5Success || pkt.Properties != nil {
+			err := buf.WriteByte(byte(pkt.ReasonCode))
+			err = multierr.Combine(err,
+				writeProperties(buf, pkt.Properties, PUBREC))
+			if err != nil {
+				return fmt.Errorf("failed to write properties: %w", err)
+			}
 		}
 	}
 
@@ -134,6 +138,10 @@ func (pkt *PubRec) Read(r *bufio.Reader) error {
 		code, _ = buf.ReadByte()
 		pkt.ReasonCode = ReasonCode(code)
 
+		if !pkt.isValidReasonCode() {
+			return fmt.Errorf("invalid reason code: %v", pkt.ReasonCode)
+		}
+
 		var err error
 		pkt.Properties, err = readProperties(buf, PUBREC)
 		if err != nil {
@@ -157,4 +165,19 @@ func (pkt *PubRec) Size() int {
 // Timestamp returns the timestamp of the moment the packet has been sent.
 func (pkt *PubRec) Timestamp() time.Time {
 	return pkt.timestamp
+}
+
+func (pkt *PubRec) isValidReasonCode() bool {
+	validPubRecReasonCodes := []ReasonCode{ReasonCodeV5Success,
+		ReasonCodeV5NoMatchingSubscribers, ReasonCodeV5UnspecifiedError,
+		ReasonCodeV5ImplementationError, ReasonCodeV5NotAuthorized,
+		ReasonCodeV5TopicNameInvalid, ReasonCodeV5PacketIDInUse,
+		ReasonCodeV5QuotaExceeded, ReasonCodeV5PayloadFormatInvalid}
+
+	for _, code := range validPubRecReasonCodes {
+		if pkt.ReasonCode == code {
+			return true
+		}
+	}
+	return false
 }
