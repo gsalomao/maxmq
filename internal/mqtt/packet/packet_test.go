@@ -23,31 +23,34 @@ import (
 
 func TestPacketNewPacket(t *testing.T) {
 	testCases := []struct {
-		tp    Type
-		flags byte
-		name  string
+		name         string
+		pktType      Type
+		flags        byte
+		remainingLen int
 	}{
-		{tp: CONNECT, flags: 0, name: "CONNECT"},
-		{tp: PINGREQ, flags: 0, name: "PINGREQ"},
-		{tp: SUBSCRIBE, flags: 2, name: "SUBSCRIBE"},
-		{tp: PUBLISH, flags: 0, name: "PUBLISH"},
+		{name: "CONNECT", pktType: CONNECT, flags: 0},
+		{name: "PINGREQ", pktType: PINGREQ, flags: 0},
+		{name: "SUBSCRIBE", pktType: SUBSCRIBE, flags: 2},
+		{name: "PUBLISH", pktType: PUBLISH, flags: 0},
+		{name: "PUBACK", pktType: PUBACK, flags: 0, remainingLen: 2},
+		{name: "PUBREC", pktType: PUBREC, flags: 0, remainingLen: 2},
+		{name: "PUBREL", pktType: PUBREL, flags: 2, remainingLen: 2},
 	}
 
-	for _, test := range testCases {
-		t.Run(
-			test.name, func(t *testing.T) {
-				opts := options{
-					packetType:   test.tp,
-					controlFlags: test.flags,
-					version:      MQTT311,
-				}
-				pkt, err := newPacket(opts)
-				require.Nil(t, err)
-				require.NotNil(t, pkt)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			opts := options{
+				packetType:      tc.pktType,
+				controlFlags:    tc.flags,
+				version:         MQTT311,
+				remainingLength: tc.remainingLen,
+			}
+			pkt, err := newPacket(opts)
+			require.Nil(t, err)
+			require.NotNil(t, pkt)
 
-				assert.Equal(t, pkt.Type().String(), test.name)
-			},
-		)
+			assert.Equal(t, tc.pktType, pkt.Type())
+		})
 	}
 }
 
@@ -60,31 +63,29 @@ func TestPacketNewPacketInvalid(t *testing.T) {
 
 func TestPacketPacketTypeToString(t *testing.T) {
 	testCases := []struct {
-		tp   Type
-		name string
+		name    string
+		pktType Type
 	}{
-		{tp: CONNECT, name: "CONNECT"},
-		{tp: CONNACK, name: "CONNACK"},
-		{tp: PUBLISH, name: "PUBLISH"},
-		{tp: PUBACK, name: "PUBACK"},
-		{tp: PUBREC, name: "PUBREC"},
-		{tp: PUBREL, name: "PUBREL"},
-		{tp: PUBCOMP, name: "PUBCOMP"},
-		{tp: SUBSCRIBE, name: "SUBSCRIBE"},
-		{tp: SUBACK, name: "SUBACK"},
-		{tp: UNSUBSCRIBE, name: "UNSUBSCRIBE"},
-		{tp: UNSUBACK, name: "UNSUBACK"},
-		{tp: PINGREQ, name: "PINGREQ"},
-		{tp: PINGRESP, name: "PINGRESP"},
-		{tp: DISCONNECT, name: "DISCONNECT"},
+		{name: "CONNECT", pktType: CONNECT},
+		{name: "CONNACK", pktType: CONNACK},
+		{name: "PUBLISH", pktType: PUBLISH},
+		{name: "PUBACK", pktType: PUBACK},
+		{name: "PUBREC", pktType: PUBREC},
+		{name: "PUBREL", pktType: PUBREL},
+		{name: "PUBCOMP", pktType: PUBCOMP},
+		{name: "SUBSCRIBE", pktType: SUBSCRIBE},
+		{name: "SUBACK", pktType: SUBACK},
+		{name: "UNSUBSCRIBE", pktType: UNSUBSCRIBE},
+		{name: "UNSUBACK", pktType: UNSUBACK},
+		{name: "PINGREQ", pktType: PINGREQ},
+		{name: "PINGRESP", pktType: PINGRESP},
+		{name: "DISCONNECT", pktType: DISCONNECT},
 	}
 
-	for _, test := range testCases {
-		t.Run(
-			test.name, func(t *testing.T) {
-				assert.Equal(t, test.name, test.tp.String())
-			},
-		)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.name, tc.pktType.String())
+		})
 	}
 }
 
@@ -95,19 +96,17 @@ func TestPacketPacketTypeToStringInvalid(t *testing.T) {
 
 func TestPacketMQTTVersionToString(t *testing.T) {
 	testCases := []struct {
-		ver  MQTTVersion
-		name string
+		name    string
+		version MQTTVersion
 	}{
-		{ver: MQTT31, name: "3.1"},
-		{ver: MQTT311, name: "3.1.1"},
-		{ver: MQTT50, name: "5.0"},
+		{name: "3.1", version: MQTT31},
+		{name: "3.1.1", version: MQTT311},
+		{name: "5.0", version: MQTT50},
 	}
 
-	for _, test := range testCases {
-		t.Run(
-			test.name, func(t *testing.T) {
-				assert.Equal(t, test.name, test.ver.String())
-			},
-		)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.name, tc.version.String())
+		})
 	}
 }

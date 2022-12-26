@@ -243,6 +243,27 @@ func TestPropertiesWritePropertiesPubRec(t *testing.T) {
 	assert.Equal(t, []byte{38, 0, 1, 'b', 0, 1, 1}, msg[15:22])
 }
 
+func TestPropertiesWritePropertiesPubRel(t *testing.T) {
+	buf := &bytes.Buffer{}
+	props := &Properties{}
+
+	props.ReasonString = []byte("test")
+	props.UserProperties = []UserProperty{
+		{Key: []byte{'a'}, Value: []byte{0}},
+		{Key: []byte{'b'}, Value: []byte{1}},
+	}
+
+	err := writeProperties(buf, props, PUBREL)
+	require.Nil(t, err)
+	require.NotEmpty(t, buf)
+
+	msg := buf.Bytes()
+	assert.Equal(t, byte(21), msg[0])
+	assert.Equal(t, []byte{31, 0, 4, 't', 'e', 's', 't'}, msg[1:8])
+	assert.Equal(t, []byte{38, 0, 1, 'a', 0, 1, 0}, msg[8:15])
+	assert.Equal(t, []byte{38, 0, 1, 'b', 0, 1, 1}, msg[15:22])
+}
+
 func TestPropertiesWritePropertiesInvalidProperty(t *testing.T) {
 	buf := &bytes.Buffer{}
 	props := &Properties{MaximumQoS: new(byte), ServerKeepAlive: new(uint16)}
@@ -445,6 +466,23 @@ func TestPropertiesReadPropertiesPubRec(t *testing.T) {
 	msg[0] = byte(len(msg)) - 1
 
 	props, err := readProperties(bytes.NewBuffer(msg), PUBREC)
+	require.Nil(t, err)
+
+	assert.Equal(t, []byte("rs"), props.ReasonString)
+	assert.Equal(t, []byte{'a'}, props.UserProperties[0].Key)
+	assert.Equal(t, []byte{'b'}, props.UserProperties[0].Value)
+}
+
+func TestPropertiesReadPropertiesPubRel(t *testing.T) {
+	msg := []byte{
+		0,                  // property length
+		31, 0, 2, 'r', 's', // ReasonString
+		38, 0, 1, 'a', 0, 1, 'b', // UserProperty
+		38, 0, 1, 'c', 0, 1, 'd', // UserProperty
+	}
+	msg[0] = byte(len(msg)) - 1
+
+	props, err := readProperties(bytes.NewBuffer(msg), PUBREL)
 	require.Nil(t, err)
 
 	assert.Equal(t, []byte("rs"), props.ReasonString)
