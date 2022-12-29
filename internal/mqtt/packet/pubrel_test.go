@@ -54,16 +54,16 @@ func TestPulRecInvalidLength(t *testing.T) {
 		version MQTTVersion
 		length  int
 	}{
-		{name: "V3.1", version: MQTT31, length: 0},
+		{name: "V3.1-TooShort", version: MQTT31, length: 0},
 		{name: "V3.1.1-TooShort", version: MQTT311, length: 1},
 		{name: "V3.1.1-TooLong", version: MQTT311, length: 3},
 		{name: "V5.0", version: MQTT50, length: 1},
 	}
 
-	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			opts := options{packetType: PUBREL, controlFlags: 2,
-				version: test.version, remainingLength: test.length}
+				version: tc.version, remainingLength: tc.length}
 
 			pkt, err := newPacketPubRel(opts)
 			require.NotNil(t, err)
@@ -73,7 +73,7 @@ func TestPulRecInvalidLength(t *testing.T) {
 }
 
 func TestPubRelWrite(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name    string
 		id      ID
 		version MQTTVersion
@@ -116,9 +116,9 @@ func TestPubRelWrite(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			pkt := NewPubRel(test.id, test.version, test.code, test.props)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			pkt := NewPubRel(tc.id, tc.version, tc.code, tc.props)
 			assert.Equal(t, PUBREL, pkt.Type())
 
 			buf := &bytes.Buffer{}
@@ -129,8 +129,7 @@ func TestPubRelWrite(t *testing.T) {
 
 			err = wr.Flush()
 			assert.Nil(t, err)
-
-			assert.Equal(t, test.msg, buf.Bytes())
+			assert.Equal(t, tc.msg, buf.Bytes())
 		})
 	}
 }
@@ -252,23 +251,23 @@ func TestPubRelRead(t *testing.T) {
 			props: &Properties{ReasonString: []byte("Hello")}},
 	}
 
-	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
-			opts := options{packetType: PUBREL, version: test.version,
-				controlFlags: 2, remainingLength: len(test.msg)}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			opts := options{packetType: PUBREL, version: tc.version,
+				controlFlags: 2, remainingLength: len(tc.msg)}
 			pkt, err := newPacketPubRel(opts)
 			require.Nil(t, err)
 			require.NotNil(t, pkt)
 			require.Equal(t, PUBREL, pkt.Type())
 
-			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(test.msg)))
+			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(tc.msg)))
 			require.Nil(t, err)
 
 			pubRel := pkt.(*PubRel)
-			assert.Equal(t, test.version, pubRel.Version)
-			assert.Equal(t, test.id, pubRel.PacketID)
-			assert.Equal(t, test.code, pubRel.ReasonCode)
-			assert.Equal(t, test.props, pubRel.Properties)
+			assert.Equal(t, tc.version, pubRel.Version)
+			assert.Equal(t, tc.id, pubRel.PacketID)
+			assert.Equal(t, tc.code, pubRel.ReasonCode)
+			assert.Equal(t, tc.props, pubRel.Properties)
 		})
 	}
 }
@@ -276,12 +275,8 @@ func TestPubRelRead(t *testing.T) {
 func BenchmarkPubRelReadV3(b *testing.B) {
 	b.ReportAllocs()
 	msg := []byte{0, 1}
-	opts := options{
-		packetType:      PUBREL,
-		version:         MQTT311,
-		controlFlags:    2,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: PUBREL, version: MQTT311, controlFlags: 2,
+		remainingLength: len(msg)}
 	pkt, _ := newPacketPubRel(opts)
 	rd := bufio.NewReaderSize(nil, len(msg))
 
@@ -299,12 +294,8 @@ func BenchmarkPubRelReadV3(b *testing.B) {
 func BenchmarkPubRelReadV5(b *testing.B) {
 	b.ReportAllocs()
 	msg := []byte{0, 1, 0, 0}
-	opts := options{
-		packetType:      PUBREL,
-		version:         MQTT50,
-		controlFlags:    2,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: PUBREL, version: MQTT50, controlFlags: 2,
+		remainingLength: len(msg)}
 	pkt, _ := newPacketPubRel(opts)
 	rd := bufio.NewReaderSize(nil, len(msg))
 
@@ -329,14 +320,14 @@ func TestPubRelReadMissingData(t *testing.T) {
 		{name: "MissingPropertiesLength", length: 3, msg: []byte{0, 1, 0x92}},
 	}
 
-	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			opts := options{packetType: PUBREL, version: MQTT50,
-				controlFlags: 2, remainingLength: test.length}
+				controlFlags: 2, remainingLength: tc.length}
 			pkt, err := newPacketPubRel(opts)
 			require.Nil(t, err)
 
-			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(test.msg)))
+			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(tc.msg)))
 			require.NotNil(t, err)
 		})
 	}
@@ -395,9 +386,9 @@ func TestPubRelSize(t *testing.T) {
 			code:  ReasonCodeV5Success, size: 10},
 	}
 
-	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
-			pkt := NewPubRel(1, test.version, test.code, test.props)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			pkt := NewPubRel(1, tc.version, tc.code, tc.props)
 			require.NotNil(t, pkt)
 
 			buf := &bytes.Buffer{}
@@ -405,8 +396,7 @@ func TestPubRelSize(t *testing.T) {
 
 			err := pkt.Write(wr)
 			require.Nil(t, err)
-
-			assert.Equal(t, test.size, pkt.Size())
+			assert.Equal(t, tc.size, pkt.Size())
 		})
 	}
 }
