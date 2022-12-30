@@ -29,20 +29,28 @@ func bufferSizeOrDefault(bs int) int {
 	return bs
 }
 
-func maxPacketSizeOrDefault(mps int) int {
-	if mps < 20 || mps > 268435456 {
-		return 268435456
-	}
-
-	return mps
-}
-
 func connectTimeoutOrDefault(ct int) int {
 	if ct < 1 {
 		return 5
 	}
 
 	return ct
+}
+
+func defaultVersionOrDefault(ver int) int {
+	if ver < int(packet.MQTT31) || ver > int(packet.MQTT50) {
+		return int(packet.MQTT311)
+	}
+
+	return ver
+}
+
+func maxPacketSizeOrDefault(mps int) int {
+	if mps < 20 || mps > 268435456 {
+		return 268435456
+	}
+
+	return mps
 }
 
 func maximumQosOrDefault(mq int) int {

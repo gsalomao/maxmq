@@ -25,6 +25,9 @@ type Configuration struct {
 	// The size, in bytes, of the MQTT receiver and transmitter buffers.
 	BufferSize int
 
+	// The default MQTT protocol version (3 -> 3.1; 4 -> 3.1.1; 5 -> 5.0).
+	DefaultVersion int
+
 	// The maximum packet size, in bytes, allowed.
 	MaxPacketSize int
 

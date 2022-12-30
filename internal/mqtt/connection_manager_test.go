@@ -31,6 +31,7 @@ func newConfiguration() Configuration {
 		TCPAddress:                    ":1883",
 		ConnectTimeout:                5,
 		BufferSize:                    1024,
+		DefaultVersion:                4,
 		MaxPacketSize:                 268435456,
 		MaxKeepAlive:                  0,
 		MaxSessionExpiryInterval:      0,
@@ -60,6 +61,7 @@ func TestConnectionManagerDefaultValues(t *testing.T) {
 	conf.BufferSize = 0
 	conf.MaxPacketSize = 0
 	conf.ConnectTimeout = 0
+	conf.DefaultVersion = 0
 	conf.MaximumQoS = 3
 	conf.MaxTopicAlias = 1000000
 	conf.MaxInflightMessages = 1000000
@@ -69,6 +71,7 @@ func TestConnectionManagerDefaultValues(t *testing.T) {
 	assert.Equal(t, 1024, cm.conf.BufferSize)
 	assert.Equal(t, 268435456, cm.conf.MaxPacketSize)
 	assert.Equal(t, 5, cm.conf.ConnectTimeout)
+	assert.Equal(t, 4, cm.conf.DefaultVersion)
 	assert.Equal(t, 2, cm.conf.MaximumQoS)
 	assert.Equal(t, 0, cm.conf.MaxTopicAlias)
 	assert.Equal(t, 0, cm.conf.MaxInflightMessages)

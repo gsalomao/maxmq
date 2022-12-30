@@ -89,6 +89,31 @@ func runCommandStart(enableProfile bool) {
 		log.Info().Msg("No config file found")
 	}
 
+	log.Debug().
+		Str("LogLevel", conf.LogLevel).
+		Bool("MetricsEnabled", conf.MetricsEnabled).
+		Str("MetricsAddress", conf.MetricsAddress).
+		Str("MetricsPath", conf.MetricsPath).
+		Bool("MetricsProfiling", conf.MetricsProfiling).
+		Str("MQTTTCPAddress", conf.MQTTTCPAddress).
+		Int("MQTTConnectTimeout", conf.MQTTConnectTimeout).
+		Int("MQTTBufferSize", conf.MQTTBufferSize).
+		Int("MQTTMaxPacketSize", conf.MQTTMaxPacketSize).
+		Int("MQTTMaxKeepAlive", conf.MQTTMaxKeepAlive).
+		Uint32("MQTTSessionExpiration", conf.MQTTSessionExpiration).
+		Int("MQTTMaxInflightMessages", conf.MQTTMaxInflightMessages).
+		Int("MQTTMaximumQoS", conf.MQTTMaximumQoS).
+		Int("MQTTMaxTopicAlias", conf.MQTTMaxTopicAlias).
+		Bool("MQTTRetainAvailable", conf.MQTTRetainAvailable).
+		Bool("MQTTWildcardSubscription", conf.MQTTWildcardSubscription).
+		Bool("MQTTSubscriptionID", conf.MQTTSubscriptionID).
+		Bool("MQTTSharedSubscription", conf.MQTTSharedSubscription).
+		Int("MQTTMaxClientIDLen", conf.MQTTMaxClientIDLen).
+		Bool("MQTTAllowEmptyClientID", conf.MQTTAllowEmptyClientID).
+		Str("MQTTClientIDPrefix", conf.MQTTClientIDPrefix).
+		Int("MQTTDefaultVersion", conf.MQTTDefaultVersion).
+		Msg("Using configuration")
+
 	b, err := newBroker(conf, log, machineID)
 	if err != nil {
 		log.Fatal().Msg("Failed to create broker: " + err.Error())
@@ -114,6 +139,7 @@ func newBroker(conf config.Config, log *logger.Logger,
 		TCPAddress:                    conf.MQTTTCPAddress,
 		ConnectTimeout:                conf.MQTTConnectTimeout,
 		BufferSize:                    conf.MQTTBufferSize,
+		DefaultVersion:                conf.MQTTDefaultVersion,
 		MaxPacketSize:                 conf.MQTTMaxPacketSize,
 		MaxKeepAlive:                  conf.MQTTMaxKeepAlive,
 		MaxSessionExpiryInterval:      conf.MQTTSessionExpiration,

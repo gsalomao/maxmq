@@ -45,8 +45,9 @@ func newConnectionManager(
 	conf *Configuration, idGen IDGenerator, log *logger.Logger,
 ) *connectionManager {
 	conf.BufferSize = bufferSizeOrDefault(conf.BufferSize)
-	conf.MaxPacketSize = maxPacketSizeOrDefault(conf.MaxPacketSize)
 	conf.ConnectTimeout = connectTimeoutOrDefault(conf.ConnectTimeout)
+	conf.DefaultVersion = defaultVersionOrDefault(conf.DefaultVersion)
+	conf.MaxPacketSize = maxPacketSizeOrDefault(conf.MaxPacketSize)
 	conf.MaximumQoS = maximumQosOrDefault(conf.MaximumQoS)
 	conf.MaxTopicAlias = maxTopicAliasOrDefault(conf.MaxTopicAlias)
 	conf.MaxInflightMessages = maxInflightMsgOrDefault(conf.MaxInflightMessages)
@@ -221,7 +222,7 @@ func (m *connectionManager) createConnection(nc net.Conn) connection {
 		netConn:   nc,
 		timeout:   m.conf.ConnectTimeout,
 		connected: true,
-		version:   packet.MQTT311, // TODO: Add default version in the config
+		version:   packet.MQTTVersion(m.conf.DefaultVersion),
 	}
 }
 

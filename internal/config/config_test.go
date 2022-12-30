@@ -50,4 +50,5 @@ func TestConfigLoadConfig(t *testing.T) {
 	assert.Equal(t, 65535, conf.MQTTMaxClientIDLen)
 	assert.Equal(t, "", conf.MQTTClientIDPrefix)
 	assert.Equal(t, true, conf.MQTTAllowEmptyClientID)
+	assert.Equal(t, 4, conf.MQTTDefaultVersion)
 }

@@ -93,13 +93,16 @@ type Config struct {
 	// Provide additional information to MQTT clients including diagnostic
 	// information.
 	MQTTUserProperties map[string]string `mapstructure:"mqtt_user_properties"`
+
+	// Set the default MQTT protocol version.
+	MQTTDefaultVersion int `mapstructure:"mqtt_default_version"`
 }
 
 // ReadConfigFile reads the configuration file.
 //
 // The configuration file can be stored at one of the following locations:
-//  - /etc/maxmq.conf
-//  - /etc/maxmq/maxmq.conf
+//   - /etc/maxmq.conf
+//   - /etc/maxmq/maxmq.conf
 func ReadConfigFile() error {
 	viper.SetConfigName("maxmq.conf")
 	viper.SetConfigType("toml")
@@ -149,6 +152,7 @@ func LoadConfig() (Config, error) {
 	_ = viper.BindEnv("mqtt_max_client_id_len")
 	_ = viper.BindEnv("mqtt_allow_empty_client_id")
 	_ = viper.BindEnv("mqtt_client_id_prefix")
+	_ = viper.BindEnv("mqtt_default_version")
 
 	// Set the default values
 	c := Config{
@@ -170,6 +174,7 @@ func LoadConfig() (Config, error) {
 		MQTTSharedSubscription:   true,
 		MQTTMaxClientIDLen:       65535,
 		MQTTAllowEmptyClientID:   true,
+		MQTTDefaultVersion:       4,
 	}
 
 	err := viper.Unmarshal(&c)
