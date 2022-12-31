@@ -101,14 +101,15 @@ func sessionKeepAlive(conf *Configuration, keepAlive int) int {
 }
 
 func createClientID(prefix []byte) ClientID {
+	guid := xid.New()
 	prefixLen := len(prefix)
-	id := make([]byte, prefixLen+20)
+	guidEncodedLen := 20
+	id := make([]byte, prefixLen+guidEncodedLen)
 
 	if prefixLen > 0 {
 		_ = copy(id, prefix)
 	}
 
-	guid := xid.New()
 	_ = guid.Encode(id[prefixLen:])
 	return ClientID(id)
 }
