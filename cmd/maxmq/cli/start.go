@@ -102,6 +102,7 @@ func runCommandStart(enableProfile bool) {
 		Int("MQTTMaxKeepAlive", conf.MQTTMaxKeepAlive).
 		Uint32("MQTTSessionExpiration", conf.MQTTSessionExpiration).
 		Int("MQTTMaxInflightMessages", conf.MQTTMaxInflightMessages).
+		Int("MQTTMaxInflightRetries", conf.MQTTMaxInflightRetries).
 		Int("MQTTMaximumQoS", conf.MQTTMaximumQoS).
 		Int("MQTTMaxTopicAlias", conf.MQTTMaxTopicAlias).
 		Bool("MQTTRetainAvailable", conf.MQTTRetainAvailable).
@@ -144,6 +145,7 @@ func newBroker(conf config.Config, log *logger.Logger,
 		MaxKeepAlive:                  conf.MQTTMaxKeepAlive,
 		MaxSessionExpiryInterval:      conf.MQTTSessionExpiration,
 		MaxInflightMessages:           conf.MQTTMaxInflightMessages,
+		MaxInflightRetries:            conf.MQTTMaxInflightRetries,
 		MaximumQoS:                    conf.MQTTMaximumQoS,
 		MaxTopicAlias:                 conf.MQTTMaxTopicAlias,
 		RetainAvailable:               conf.MQTTRetainAvailable,

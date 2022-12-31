@@ -51,6 +51,8 @@ func newConnectionManager(
 	conf.MaximumQoS = maximumQosOrDefault(conf.MaximumQoS)
 	conf.MaxTopicAlias = maxTopicAliasOrDefault(conf.MaxTopicAlias)
 	conf.MaxInflightMessages = maxInflightMsgOrDefault(conf.MaxInflightMessages)
+	conf.MaxInflightRetries =
+		maxInflightRetriesOrDefault(conf.MaxInflightRetries)
 	conf.MaxClientIDLen = maxClientIDLenOrDefault(conf.MaxClientIDLen)
 
 	userProps := make([]packet.UserProperty, 0, len(conf.UserProperties))

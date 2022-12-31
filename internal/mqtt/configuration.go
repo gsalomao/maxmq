@@ -41,6 +41,9 @@ type Configuration struct {
 	// simultaneously.
 	MaxInflightMessages int
 
+	// The maximum number of retries to send an inflight message to a client.
+	MaxInflightRetries int
+
 	// The maximum QoS for PUBLISH Packets accepted by the broker.
 	MaximumQoS int
 

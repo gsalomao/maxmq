@@ -36,6 +36,7 @@ func newConfiguration() Configuration {
 		MaxKeepAlive:                  0,
 		MaxSessionExpiryInterval:      0,
 		MaxInflightMessages:           0,
+		MaxInflightRetries:            0,
 		MaximumQoS:                    2,
 		MaxTopicAlias:                 0,
 		RetainAvailable:               true,
@@ -65,6 +66,7 @@ func TestConnectionManagerDefaultValues(t *testing.T) {
 	conf.MaximumQoS = 3
 	conf.MaxTopicAlias = 1000000
 	conf.MaxInflightMessages = 1000000
+	conf.MaxInflightRetries = 1000000
 	conf.MaxClientIDLen = 0
 
 	cm := createConnectionManager(conf)
@@ -75,6 +77,7 @@ func TestConnectionManagerDefaultValues(t *testing.T) {
 	assert.Equal(t, 2, cm.conf.MaximumQoS)
 	assert.Equal(t, 0, cm.conf.MaxTopicAlias)
 	assert.Equal(t, 0, cm.conf.MaxInflightMessages)
+	assert.Equal(t, 0, cm.conf.MaxInflightRetries)
 	assert.Equal(t, 23, cm.conf.MaxClientIDLen)
 }
 

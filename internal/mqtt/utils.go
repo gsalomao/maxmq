@@ -21,67 +21,75 @@ import (
 	"github.com/rs/xid"
 )
 
-func bufferSizeOrDefault(bs int) int {
-	if bs < 1 || bs > 65535 {
+func bufferSizeOrDefault(value int) int {
+	if value < 1 || value > 65535 {
 		return 1024
 	}
 
-	return bs
+	return value
 }
 
-func connectTimeoutOrDefault(ct int) int {
-	if ct < 1 {
+func connectTimeoutOrDefault(value int) int {
+	if value < 1 {
 		return 5
 	}
 
-	return ct
+	return value
 }
 
-func defaultVersionOrDefault(ver int) int {
-	if ver < int(packet.MQTT31) || ver > int(packet.MQTT50) {
+func defaultVersionOrDefault(value int) int {
+	if value < int(packet.MQTT31) || value > int(packet.MQTT50) {
 		return int(packet.MQTT311)
 	}
 
-	return ver
+	return value
 }
 
-func maxPacketSizeOrDefault(mps int) int {
-	if mps < 20 || mps > 268435456 {
+func maxPacketSizeOrDefault(value int) int {
+	if value < 20 || value > 268435456 {
 		return 268435456
 	}
 
-	return mps
+	return value
 }
 
-func maximumQosOrDefault(mq int) int {
-	if mq < 0 || mq > 2 {
+func maximumQosOrDefault(value int) int {
+	if value < 0 || value > 2 {
 		return 2
 	}
 
-	return mq
+	return value
 }
-func maxTopicAliasOrDefault(mta int) int {
-	if mta < 0 || mta > 65535 {
+func maxTopicAliasOrDefault(value int) int {
+	if value < 0 || value > 65535 {
 		return 0
 	}
 
-	return mta
+	return value
 }
 
-func maxInflightMsgOrDefault(im int) int {
-	if im < 0 || im > 65535 {
+func maxInflightMsgOrDefault(value int) int {
+	if value < 0 || value > 65535 {
 		return 0
 	}
 
-	return im
+	return value
 }
 
-func maxClientIDLenOrDefault(idLen int) int {
-	if idLen < 23 || idLen > 65535 {
+func maxInflightRetriesOrDefault(value int) int {
+	if value < 0 || value > 65535 {
+		return 0
+	}
+
+	return value
+}
+
+func maxClientIDLenOrDefault(value int) int {
+	if value < 23 || value > 65535 {
 		return 23
 	}
 
-	return idLen
+	return value
 }
 
 func sessionKeepAlive(conf *Configuration, keepAlive int) int {

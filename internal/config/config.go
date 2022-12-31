@@ -61,6 +61,10 @@ type Config struct {
 	// simultaneously.
 	MQTTMaxInflightMessages int `mapstructure:"mqtt_max_inflight_messages"`
 
+	// The maximum number of retries to send a MQTT inflight message to a
+	// client.
+	MQTTMaxInflightRetries int `mapstructure:"mqtt_max_inflight_retries"`
+
 	// The maximum MQTT QoS for PUBLISH Packets accepted by the broker.
 	MQTTMaximumQoS int `mapstructure:"mqtt_max_qos"`
 
