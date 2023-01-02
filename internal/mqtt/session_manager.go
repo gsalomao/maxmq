@@ -17,6 +17,7 @@ package mqtt
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/gsalomao/maxmq/internal/logger"
@@ -26,47 +27,50 @@ import (
 var errSessionNotFound = errors.New("session not found")
 
 type sessionManager struct {
-	deliverer      packetDeliverer
-	pubSub         pubSub
-	store          store
-	idGen          IDGenerator
 	conf           *Configuration
 	metrics        *metrics
 	log            *logger.Logger
+	sessions       map[ClientID]*Session
+	deliverer      packetDeliverer
+	idGen          IDGenerator
+	mutex          sync.RWMutex
+	pubSub         pubSub
+	store          store
 	userProperties []packet.UserProperty
 }
 
 func newSessionManager(deliverer packetDeliverer, idGen IDGenerator,
 	conf *Configuration, metrics *metrics, props []packet.UserProperty,
-	log *logger.Logger) *sessionManager {
-
+	log *logger.Logger,
+) *sessionManager {
 	sm := sessionManager{
-		deliverer:      deliverer,
-		store:          newStore(),
-		idGen:          idGen,
 		conf:           conf,
 		metrics:        metrics,
-		userProperties: props,
 		log:            log,
+		sessions:       make(map[ClientID]*Session),
+		deliverer:      deliverer,
+		idGen:          idGen,
+		store:          newStore(),
+		userProperties: props,
 	}
 
 	sm.pubSub = newPubSub(&sm, idGen, metrics, log)
 	return &sm
 }
 
-func (m *sessionManager) start() {
-	m.log.Trace().Msg("MQTT Starting session manager")
-	m.pubSub.start()
+func (sm *sessionManager) start() {
+	sm.log.Trace().Msg("MQTT Starting session manager")
+	sm.pubSub.start()
 }
 
-func (m *sessionManager) stop() {
-	m.log.Trace().Msg("MQTT Stopping session manager")
-	m.pubSub.stop()
-	m.log.Debug().Msg("MQTT Session manager stopped with success")
+func (sm *sessionManager) stop() {
+	sm.log.Trace().Msg("MQTT Stopping session manager")
+	sm.pubSub.stop()
+	sm.log.Debug().Msg("MQTT Session manager stopped with success")
 }
 
-func (m *sessionManager) handlePacket(id ClientID, pkt packet.Packet) (*Session,
-	[]packet.Packet, error) {
+func (sm *sessionManager) handlePacket(id ClientID,
+	pkt packet.Packet) (*Session, []packet.Packet, error) {
 
 	var session *Session
 	if pkt.Type() != packet.CONNECT {
@@ -76,7 +80,7 @@ func (m *sessionManager) handlePacket(id ClientID, pkt packet.Packet) (*Session,
 		}
 
 		var err error
-		session, err = m.readSession(id)
+		session, err = sm.readSession(id)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -85,43 +89,43 @@ func (m *sessionManager) handlePacket(id ClientID, pkt packet.Packet) (*Session,
 	switch pkt.Type() {
 	case packet.CONNECT:
 		connPkt, _ := pkt.(*packet.Connect)
-		return m.handleConnect(connPkt)
+		return sm.handleConnect(connPkt)
 	case packet.PINGREQ:
-		return m.handlePingReq(session)
+		return sm.handlePingReq(session)
 	case packet.SUBSCRIBE:
 		subPkt, _ := pkt.(*packet.Subscribe)
-		return m.handleSubscribe(session, subPkt)
+		return sm.handleSubscribe(session, subPkt)
 	case packet.UNSUBSCRIBE:
 		unsubPkt, _ := pkt.(*packet.Unsubscribe)
-		return m.handleUnsubscribe(session, unsubPkt)
+		return sm.handleUnsubscribe(session, unsubPkt)
 	case packet.PUBLISH:
 		pubPkt, _ := pkt.(*packet.Publish)
-		return m.handlePublish(session, pubPkt)
+		return sm.handlePublish(session, pubPkt)
 	case packet.PUBACK:
 		pubAckPkt, _ := pkt.(*packet.PubAck)
-		return m.handlePubAck(session, pubAckPkt)
+		return sm.handlePubAck(session, pubAckPkt)
 	case packet.DISCONNECT:
 		disconnect := pkt.(*packet.Disconnect)
-		return m.handleDisconnect(session, disconnect)
+		return sm.handleDisconnect(session, disconnect)
 	default:
 		return nil, nil, fmt.Errorf("invalid packet type: %v",
 			pkt.Type().String())
 	}
 }
 
-func (m *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
+func (sm *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 	[]packet.Packet, error) {
 
-	m.log.Trace().
+	sm.log.Trace().
 		Bool("CleanSession", pkt.CleanSession).
 		Bytes("ClientId", pkt.ClientID).
 		Uint16("KeepAlive", pkt.KeepAlive).
 		Uint8("Version", uint8(pkt.Version)).
 		Msg("MQTT Received CONNECT packet")
 
-	if pktErr := m.checkPacketConnect(pkt); pktErr != nil {
+	if pktErr := sm.checkPacketConnect(pkt); pktErr != nil {
 		connAck := newConnAck(pkt.Version, pktErr.ReasonCode, 0,
-			false, m.conf, nil, nil)
+			false, sm.conf, nil, nil)
 		return nil, []packet.Packet{&connAck}, pktErr
 	}
 
@@ -130,19 +134,19 @@ func (m *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 	if len(pkt.ClientID) > 0 {
 		id = ClientID(pkt.ClientID)
 	} else {
-		id = createClientID(m.conf.ClientIDPrefix)
+		id = createClientID(sm.conf.ClientIDPrefix)
 		idCreated = true
 	}
 
-	exp := sessionExpiryIntervalOnConnect(pkt, m.conf.MaxSessionExpiryInterval)
+	exp := sessionExpiryIntervalOnConnect(pkt, sm.conf.MaxSessionExpiryInterval)
 
-	session, err := m.readSession(id)
+	session, err := sm.readSession(id)
 	if err == nil && pkt.CleanSession {
-		m.cleanSession(session)
+		sm.cleanSession(session)
 	}
 	if session == nil {
-		session = m.newSession(id)
-		session.KeepAlive = m.conf.ConnectTimeout
+		session = sm.newSession(id)
+		session.KeepAlive = sm.conf.ConnectTimeout
 	}
 
 	session.Version = pkt.Version
@@ -150,9 +154,9 @@ func (m *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 	session.ExpiryInterval = exp
 	session.ConnectedAt = time.Now().UnixMilli()
 	session.connected = true
-	session.KeepAlive = sessionKeepAlive(m.conf, int(pkt.KeepAlive))
+	session.KeepAlive = sessionKeepAlive(sm.conf, int(pkt.KeepAlive))
 
-	m.log.Info().
+	sm.log.Info().
 		Bool("CleanSession", session.CleanSession).
 		Str("ClientId", string(session.ClientID)).
 		Int("InflightMessages", session.inflightMessages.len()).
@@ -164,7 +168,7 @@ func (m *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 
 	code := packet.ReasonCodeV3ConnectionAccepted
 	connAck := newConnAck(session.Version, code, int(pkt.KeepAlive),
-		session.restored, m.conf, pkt.Properties, m.userProperties)
+		session.restored, sm.conf, pkt.Properties, sm.userProperties)
 
 	addAssignedClientID(&connAck, session.Version, session.ClientID, idCreated)
 
@@ -179,10 +183,9 @@ func (m *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 		inflightMsg = inflightMsg.next
 	}
 
-	m.saveSession(session)
 	for _, reply := range replies {
 		if reply.Type() == packet.CONNACK {
-			m.log.Trace().
+			sm.log.Trace().
 				Str("ClientId", string(session.ClientID)).
 				Uint64("SessionId", uint64(session.SessionID)).
 				Bool("SessionPresent", connAck.SessionPresent).
@@ -190,7 +193,7 @@ func (m *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 				Msg("MQTT Sending CONNACK packet")
 		} else if reply.Type() == packet.PUBLISH {
 			pub := reply.(*packet.Publish)
-			m.log.Trace().
+			sm.log.Trace().
 				Str("ClientId", string(session.ClientID)).
 				Uint16("PacketId", uint16(pub.PacketID)).
 				Uint8("QoS", uint8(pub.QoS)).
@@ -202,13 +205,18 @@ func (m *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 		}
 	}
 
+	sm.saveSession(session)
+	sm.mutex.Lock()
+	sm.sessions[session.ClientID] = session
+	sm.mutex.Unlock()
+
 	return session, replies, nil
 }
 
-func (m *sessionManager) handlePingReq(session *Session) (*Session,
+func (sm *sessionManager) handlePingReq(session *Session) (*Session,
 	[]packet.Packet, error) {
 
-	m.log.Trace().
+	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
@@ -217,7 +225,7 @@ func (m *sessionManager) handlePingReq(session *Session) (*Session,
 		Msg("MQTT Received PINGREQ packet")
 
 	reply := packet.NewPingResp()
-	m.log.Trace().
+	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
@@ -228,10 +236,10 @@ func (m *sessionManager) handlePingReq(session *Session) (*Session,
 	return session, []packet.Packet{&reply}, nil
 }
 
-func (m *sessionManager) handleSubscribe(session *Session,
+func (sm *sessionManager) handleSubscribe(session *Session,
 	pkt *packet.Subscribe) (*Session, []packet.Packet, error) {
 
-	m.log.Trace().
+	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
 		Uint16("PacketId", uint16(pkt.PacketID)).
 		Int("Topics", len(pkt.Topics)).
@@ -243,8 +251,8 @@ func (m *sessionManager) handleSubscribe(session *Session,
 	replies := make([]packet.Packet, 0, 1)
 
 	subscriptionID := pkt.Properties.SubscriptionID()
-	if subscriptionID > 0 && !m.conf.SubscriptionIDAvailable {
-		m.log.Info().
+	if subscriptionID > 0 && !sm.conf.SubscriptionIDAvailable {
+		sm.log.Info().
 			Str("ClientId", string(session.ClientID)).
 			Uint16("PacketId", uint16(pkt.PacketID)).
 			Uint64("SessionId", uint64(session.SessionID)).
@@ -260,7 +268,7 @@ func (m *sessionManager) handleSubscribe(session *Session,
 	codes := make([]packet.ReasonCode, 0, len(pkt.Topics))
 
 	for _, topic := range pkt.Topics {
-		subscription, err := m.pubSub.subscribe(session, topic, subscriptionID)
+		subscription, err := sm.pubSub.subscribe(session, topic, subscriptionID)
 		if err != nil {
 			codes = append(codes, packet.ReasonCodeV3Failure)
 			continue
@@ -269,7 +277,7 @@ func (m *sessionManager) handleSubscribe(session *Session,
 		codes = append(codes, packet.ReasonCode(subscription.QoS))
 		session.Subscriptions[subscription.TopicFilter] = subscription
 
-		m.log.Info().
+		sm.log.Info().
 			Str("ClientId", string(session.ClientID)).
 			Uint16("PacketId", uint16(pkt.PacketID)).
 			Uint8("QoS", byte(topic.QoS)).
@@ -281,10 +289,10 @@ func (m *sessionManager) handleSubscribe(session *Session,
 			Msg("MQTT Client subscribed to topic")
 	}
 
-	m.saveSession(session)
+	sm.saveSession(session)
 	subAck := packet.NewSubAck(pkt.PacketID, pkt.Version, codes, nil)
 	replies = append(replies, &subAck)
-	m.log.Trace().
+	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
 		Uint16("PacketId", uint16(subAck.PacketID)).
 		Uint64("SessionId", uint64(session.SessionID)).
@@ -295,10 +303,10 @@ func (m *sessionManager) handleSubscribe(session *Session,
 	return session, replies, nil
 }
 
-func (m *sessionManager) handleUnsubscribe(session *Session,
+func (sm *sessionManager) handleUnsubscribe(session *Session,
 	pkt *packet.Unsubscribe) (*Session, []packet.Packet, error) {
 
-	m.log.Trace().
+	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
 		Uint16("PacketId", uint16(pkt.PacketID)).
 		Uint64("SessionId", uint64(session.SessionID)).
@@ -314,11 +322,11 @@ func (m *sessionManager) handleUnsubscribe(session *Session,
 
 	for _, topic := range pkt.Topics {
 		code := packet.ReasonCodeV5UnspecifiedError
-		err := m.pubSub.unsubscribe(session.ClientID, topic)
+		err := sm.pubSub.unsubscribe(session.ClientID, topic)
 		if err == nil {
 			code = packet.ReasonCodeV5Success
 			delete(session.Subscriptions, topic)
-			m.log.Info().
+			sm.log.Info().
 				Str("ClientId", string(session.ClientID)).
 				Uint16("PacketId", uint16(pkt.PacketID)).
 				Uint64("SessionId", uint64(session.SessionID)).
@@ -336,12 +344,12 @@ func (m *sessionManager) handleUnsubscribe(session *Session,
 		}
 	}
 
-	m.saveSession(session)
+	sm.saveSession(session)
 	replies := make([]packet.Packet, 0, 1)
 
 	unsubAck := packet.NewUnsubAck(pkt.PacketID, pkt.Version, codes, nil)
 	replies = append(replies, &unsubAck)
-	m.log.Trace().
+	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
 		Uint16("PacketId", uint16(unsubAck.PacketID)).
 		Int("ReasonCodes", len(unsubAck.ReasonCodes)).
@@ -353,10 +361,10 @@ func (m *sessionManager) handleUnsubscribe(session *Session,
 	return session, replies, nil
 }
 
-func (m *sessionManager) handlePublish(session *Session,
+func (sm *sessionManager) handlePublish(session *Session,
 	pkt *packet.Publish) (*Session, []packet.Packet, error) {
 
-	m.log.Trace().
+	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
 		Uint16("PacketId", uint16(pkt.PacketID)).
 		Uint8("QoS", uint8(pkt.QoS)).
@@ -365,8 +373,8 @@ func (m *sessionManager) handlePublish(session *Session,
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Received PUBLISH packet")
 
-	msg := m.pubSub.publish(pkt)
-	m.log.Info().
+	msg := sm.pubSub.publish(pkt)
+	sm.log.Info().
 		Str("ClientId", string(session.ClientID)).
 		Uint8("DUP", msg.packet.Dup).
 		Uint64("MessageId", uint64(msg.id)).
@@ -384,7 +392,7 @@ func (m *sessionManager) handlePublish(session *Session,
 			packet.ReasonCodeV5Success, nil)
 
 		replies = append(replies, &pubAck)
-		m.log.Trace().
+		sm.log.Trace().
 			Str("ClientId", string(session.ClientID)).
 			Uint16("PacketId", uint16(pubAck.PacketID)).
 			Uint8("Version", uint8(pubAck.Version)).
@@ -395,10 +403,10 @@ func (m *sessionManager) handlePublish(session *Session,
 	return session, nil, nil
 }
 
-func (m *sessionManager) handlePubAck(session *Session,
+func (sm *sessionManager) handlePubAck(session *Session,
 	pkt *packet.PubAck) (*Session, []packet.Packet, error) {
 
-	m.log.Trace().
+	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
 		Uint16("PacketId", uint16(pkt.PacketID)).
 		Uint8("Version", uint8(session.Version)).
@@ -411,9 +419,9 @@ func (m *sessionManager) handlePubAck(session *Session,
 			pkt.PacketID, session.ClientID)
 	}
 	session.inflightMessages.remove(pkt.PacketID)
-	m.saveSession(session)
+	sm.saveSession(session)
 
-	m.log.Info().
+	sm.log.Info().
 		Str("ClientId", string(session.ClientID)).
 		Int("InflightMessages", session.inflightMessages.len()).
 		Uint64("MessageId", uint64(inflightMsg.messageID)).
@@ -427,10 +435,10 @@ func (m *sessionManager) handlePubAck(session *Session,
 	return session, nil, nil
 }
 
-func (m *sessionManager) handleDisconnect(session *Session,
+func (sm *sessionManager) handleDisconnect(session *Session,
 	pkt *packet.Disconnect) (*Session, []packet.Packet, error) {
 
-	m.log.Trace().
+	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Uint8("Version", uint8(session.Version)).
@@ -440,7 +448,7 @@ func (m *sessionManager) handleDisconnect(session *Session,
 		interval := pkt.Properties.SessionExpiryInterval
 
 		if interval != nil && *interval > 0 && session.ExpiryInterval == 0 {
-			m.log.Debug().
+			sm.log.Debug().
 				Str("ClientId", string(session.ClientID)).
 				Uint8("Version", uint8(session.Version)).
 				Uint32("SessionExpiryInterval", *interval).
@@ -459,11 +467,11 @@ func (m *sessionManager) handleDisconnect(session *Session,
 		}
 	}
 
-	m.disconnect(session)
+	sm.disconnect(session)
 	latency := time.Since(pkt.Timestamp())
-	m.metrics.recordDisconnectLatency(latency)
+	sm.metrics.recordDisconnectLatency(latency)
 
-	m.log.Info().
+	sm.log.Info().
 		Bool("CleanSession", session.CleanSession).
 		Str("ClientId", string(session.ClientID)).
 		Int("InflightMessages", session.inflightMessages.len()).
@@ -476,8 +484,8 @@ func (m *sessionManager) handleDisconnect(session *Session,
 	return session, nil, nil
 }
 
-func (m *sessionManager) publishMessage(id ClientID, msg *message) error {
-	session, err := m.readSession(id)
+func (sm *sessionManager) publishMessage(id ClientID, msg *message) error {
+	session, err := sm.readSession(id)
 	if err != nil {
 		return err
 	}
@@ -491,7 +499,7 @@ func (m *sessionManager) publishMessage(id ClientID, msg *message) error {
 		pkt.Version = session.Version
 	}
 
-	m.log.Trace().
+	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
 		Bool("Connected", session.connected).
 		Int("InflightMessages", session.inflightMessages.len()).
@@ -509,11 +517,11 @@ func (m *sessionManager) publishMessage(id ClientID, msg *message) error {
 		inflightMsg = &inflightMessage{packetID: pkt.PacketID,
 			messageID: msg.id, packet: pkt}
 		session.inflightMessages.add(inflightMsg)
-		m.saveSession(session)
+		sm.saveSession(session)
 	}
 
 	if session.connected {
-		err = m.deliverer.deliverPacket(session.ClientID, pkt)
+		err = sm.deliverer.deliverPacket(session.ClientID, pkt)
 		if err != nil {
 			return err
 		}
@@ -521,11 +529,11 @@ func (m *sessionManager) publishMessage(id ClientID, msg *message) error {
 		if inflightMsg != nil {
 			inflightMsg.tries++
 			inflightMsg.lastSent = time.Now().UnixMicro()
-			m.saveSession(session)
+			sm.saveSession(session)
 		}
 
 		if pkt.QoS == packet.QoS0 {
-			m.log.Info().
+			sm.log.Info().
 				Str("ClientId", string(session.ClientID)).
 				Uint64("MessageId", uint64(msg.id)).
 				Uint16("PacketId", uint16(pkt.PacketID)).
@@ -536,7 +544,7 @@ func (m *sessionManager) publishMessage(id ClientID, msg *message) error {
 				Uint8("Version", uint8(pkt.Version)).
 				Msg("MQTT Message published to client")
 		} else {
-			m.log.Debug().
+			sm.log.Debug().
 				Str("ClientId", string(session.ClientID)).
 				Uint64("MessageId", uint64(msg.id)).
 				Uint16("PacketId", uint16(pkt.PacketID)).
@@ -548,7 +556,7 @@ func (m *sessionManager) publishMessage(id ClientID, msg *message) error {
 				Msg("MQTT Message delivered to client")
 		}
 	} else if pkt.QoS > packet.QoS0 {
-		m.log.Info().
+		sm.log.Info().
 			Str("ClientId", string(session.ClientID)).
 			Int("InflightMessages", session.inflightMessages.len()).
 			Uint64("MessageId", uint64(msg.id)).
@@ -560,7 +568,7 @@ func (m *sessionManager) publishMessage(id ClientID, msg *message) error {
 			Uint8("Version", uint8(pkt.Version)).
 			Msg("MQTT Publication postponed, client not connected")
 	} else {
-		m.log.Info().
+		sm.log.Info().
 			Str("ClientId", string(session.ClientID)).
 			Uint64("MessageId", uint64(msg.id)).
 			Uint16("PacketId", uint16(pkt.PacketID)).
@@ -575,26 +583,26 @@ func (m *sessionManager) publishMessage(id ClientID, msg *message) error {
 	return nil
 }
 
-func (m *sessionManager) checkPacketConnect(pkt *packet.Connect) *packet.Error {
-	if err := m.checkKeepAlive(pkt); err != nil {
+func (sm *sessionManager) checkPacketConnect(pkt *packet.Connect) *packet.Error {
+	if err := sm.checkKeepAlive(pkt); err != nil {
 		return err
 	}
-	if err := m.checkClientID(pkt); err != nil {
+	if err := sm.checkClientID(pkt); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (m *sessionManager) checkKeepAlive(pkt *packet.Connect) *packet.Error {
+func (sm *sessionManager) checkKeepAlive(pkt *packet.Connect) *packet.Error {
 	// For V5.0 clients, the Keep Alive sent in the CONNECT Packet can be
 	// overwritten in the CONNACK Packet.
-	if pkt.Version == packet.MQTT50 || m.conf.MaxKeepAlive == 0 {
+	if pkt.Version == packet.MQTT50 || sm.conf.MaxKeepAlive == 0 {
 		return nil
 	}
 
 	keepAlive := int(pkt.KeepAlive)
-	if keepAlive == 0 || keepAlive > m.conf.MaxKeepAlive {
+	if keepAlive == 0 || keepAlive > sm.conf.MaxKeepAlive {
 		// For MQTT v3.1 and v3.1.1, there is no mechanism to tell the
 		// clients what Keep Alive value they should use. If an MQTT
 		// v3.1 or v3.1.1 client specifies a Keep Alive time greater than
@@ -606,10 +614,10 @@ func (m *sessionManager) checkKeepAlive(pkt *packet.Connect) *packet.Error {
 	return nil
 }
 
-func (m *sessionManager) checkClientID(pkt *packet.Connect) *packet.Error {
+func (sm *sessionManager) checkClientID(pkt *packet.Connect) *packet.Error {
 	idLen := len(pkt.ClientID)
 
-	if idLen == 0 && !m.conf.AllowEmptyClientID {
+	if idLen == 0 && !sm.conf.AllowEmptyClientID {
 		if pkt.Version == packet.MQTT50 {
 			return packet.ErrV5InvalidClientID
 		}
@@ -620,7 +628,7 @@ func (m *sessionManager) checkClientID(pkt *packet.Connect) *packet.Error {
 		return packet.ErrV3IdentifierRejected
 	}
 
-	if idLen > m.conf.MaxClientIDLen {
+	if idLen > sm.conf.MaxClientIDLen {
 		if pkt.Version == packet.MQTT50 {
 			return packet.ErrV5InvalidClientID
 		}
@@ -630,14 +638,14 @@ func (m *sessionManager) checkClientID(pkt *packet.Connect) *packet.Error {
 	return nil
 }
 
-func (m *sessionManager) newSession(id ClientID) *Session {
-	nextId := m.idGen.NextID()
+func (sm *sessionManager) newSession(id ClientID) *Session {
+	nextId := sm.idGen.NextID()
 	session := &Session{
 		ClientID:      id,
 		SessionID:     SessionID(nextId),
 		Subscriptions: make(map[string]Subscription),
 	}
-	m.log.Trace().
+	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Msg("MQTT New session created")
@@ -645,28 +653,28 @@ func (m *sessionManager) newSession(id ClientID) *Session {
 	return session
 }
 
-func (m *sessionManager) readSession(id ClientID) (*Session, error) {
-	m.log.Trace().
+func (sm *sessionManager) readSession(id ClientID) (*Session, error) {
+	sm.log.Trace().
 		Str("ClientId", string(id)).
 		Msg("MQTT Reading session")
 
-	session, err := m.store.readSession(id)
+	session, err := sm.store.readSession(id)
 	if err != nil {
 		if err == errSessionNotFound {
-			m.log.Debug().
+			sm.log.Debug().
 				Str("ClientId", string(id)).
 				Msg("MQTT Session not found")
 			return nil, err
 		}
 
-		m.log.Error().
+		sm.log.Error().
 			Str("ClientId", string(id)).
 			Msg("MQTT Failed to read session: " + err.Error())
 		return nil, fmt.Errorf("failed to read session: %w", err)
 	}
 
 	session.restored = true
-	m.log.Debug().
+	sm.log.Debug().
 		Bool("CleanSession", session.CleanSession).
 		Str("ClientId", string(session.ClientID)).
 		Bool("Connected", session.connected).
@@ -682,8 +690,8 @@ func (m *sessionManager) readSession(id ClientID) (*Session, error) {
 	return session, nil
 }
 
-func (m *sessionManager) saveSession(session *Session) {
-	m.log.Trace().
+func (sm *sessionManager) saveSession(session *Session) {
+	sm.log.Trace().
 		Bool("CleanSession", session.CleanSession).
 		Str("ClientId", string(session.ClientID)).
 		Bool("Connected", session.connected).
@@ -696,9 +704,9 @@ func (m *sessionManager) saveSession(session *Session) {
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Saving session")
 
-	m.store.saveSession(session)
+	sm.store.saveSession(session)
 
-	m.log.Debug().
+	sm.log.Debug().
 		Bool("CleanSession", session.CleanSession).
 		Str("ClientId", string(session.ClientID)).
 		Bool("Connected", session.connected).
@@ -712,8 +720,8 @@ func (m *sessionManager) saveSession(session *Session) {
 		Msg("MQTT Session saved with success")
 }
 
-func (m *sessionManager) deleteSession(session *Session) {
-	m.log.Trace().
+func (sm *sessionManager) deleteSession(session *Session) {
+	sm.log.Trace().
 		Bool("CleanSession", session.CleanSession).
 		Str("ClientId", string(session.ClientID)).
 		Bool("Connected", session.connected).
@@ -726,9 +734,9 @@ func (m *sessionManager) deleteSession(session *Session) {
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Deleting session")
 
-	m.store.deleteSession(session)
+	sm.store.deleteSession(session)
 
-	m.log.Debug().
+	sm.log.Debug().
 		Bool("CleanSession", session.CleanSession).
 		Str("ClientId", string(session.ClientID)).
 		Bool("Connected", session.connected).
@@ -742,11 +750,11 @@ func (m *sessionManager) deleteSession(session *Session) {
 		Msg("MQTT Session deleted with success")
 }
 
-func (m *sessionManager) cleanSession(session *Session) {
+func (sm *sessionManager) cleanSession(session *Session) {
 	for _, sub := range session.Subscriptions {
-		err := m.pubSub.unsubscribe(session.ClientID, sub.TopicFilter)
+		err := sm.pubSub.unsubscribe(session.ClientID, sub.TopicFilter)
 		if err != nil {
-			m.log.Error().
+			sm.log.Error().
 				Str("ClientId", string(session.ClientID)).
 				Bool("Connected", session.connected).
 				Uint64("SessionId", uint64(session.SessionID)).
@@ -758,30 +766,33 @@ func (m *sessionManager) cleanSession(session *Session) {
 	session.clean()
 }
 
-func (m *sessionManager) disconnectSession(id ClientID) {
-	session, err := m.readSession(id)
+func (sm *sessionManager) disconnectSession(id ClientID) {
+	session, err := sm.readSession(id)
 	if err != nil {
-		m.log.Warn().
+		sm.log.Warn().
 			Str("ClientID", string(id)).
 			Msg("MQTT Failed to disconnect session: " + err.Error())
 		return
 	}
 
-	m.disconnect(session)
+	sm.disconnect(session)
 }
 
-func (m *sessionManager) disconnect(session *Session) {
+func (sm *sessionManager) disconnect(session *Session) {
 	if !session.connected {
 		return
 	}
 
 	session.connected = false
+	sm.mutex.Lock()
+	delete(sm.sessions, session.ClientID)
+	sm.mutex.Unlock()
 
 	if session.CleanSession && (session.Version != packet.MQTT50 ||
 		session.ExpiryInterval == 0) {
-		m.cleanSession(session)
-		m.deleteSession(session)
+		sm.cleanSession(session)
+		sm.deleteSession(session)
 	} else {
-		m.saveSession(session)
+		sm.saveSession(session)
 	}
 }
