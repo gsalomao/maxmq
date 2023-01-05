@@ -149,6 +149,9 @@ func (sm *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 		session.KeepAlive = sm.conf.ConnectTimeout
 	}
 
+	session.mutex.Lock()
+	defer session.mutex.Unlock()
+
 	session.Version = pkt.Version
 	session.CleanSession = pkt.CleanSession
 	session.ExpiryInterval = exp
@@ -206,15 +209,15 @@ func (sm *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 	}
 
 	sm.saveSession(session)
-	sm.mutex.Lock()
-	sm.sessions[session.ClientID] = session
-	sm.mutex.Unlock()
 
 	return session, replies, nil
 }
 
 func (sm *sessionManager) handlePingReq(session *Session) (*Session,
 	[]packet.Packet, error) {
+
+	session.mutex.RLock()
+	defer session.mutex.RUnlock()
 
 	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
@@ -224,7 +227,7 @@ func (sm *sessionManager) handlePingReq(session *Session) (*Session,
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Received PINGREQ packet")
 
-	reply := packet.NewPingResp()
+	reply := packet.PingResp{}
 	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
 		Int("KeepAlive", session.KeepAlive).
@@ -238,6 +241,9 @@ func (sm *sessionManager) handlePingReq(session *Session) (*Session,
 
 func (sm *sessionManager) handleSubscribe(session *Session,
 	pkt *packet.Subscribe) (*Session, []packet.Packet, error) {
+
+	session.mutex.Lock()
+	defer session.mutex.Unlock()
 
 	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
@@ -306,6 +312,9 @@ func (sm *sessionManager) handleSubscribe(session *Session,
 func (sm *sessionManager) handleUnsubscribe(session *Session,
 	pkt *packet.Unsubscribe) (*Session, []packet.Packet, error) {
 
+	session.mutex.Lock()
+	defer session.mutex.Unlock()
+
 	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
 		Uint16("PacketId", uint16(pkt.PacketID)).
@@ -364,6 +373,9 @@ func (sm *sessionManager) handleUnsubscribe(session *Session,
 func (sm *sessionManager) handlePublish(session *Session,
 	pkt *packet.Publish) (*Session, []packet.Packet, error) {
 
+	session.mutex.RLock()
+	defer session.mutex.RUnlock()
+
 	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
 		Uint16("PacketId", uint16(pkt.PacketID)).
@@ -406,6 +418,9 @@ func (sm *sessionManager) handlePublish(session *Session,
 func (sm *sessionManager) handlePubAck(session *Session,
 	pkt *packet.PubAck) (*Session, []packet.Packet, error) {
 
+	session.mutex.Lock()
+	defer session.mutex.Unlock()
+
 	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
 		Uint16("PacketId", uint16(pkt.PacketID)).
@@ -437,6 +452,9 @@ func (sm *sessionManager) handlePubAck(session *Session,
 
 func (sm *sessionManager) handleDisconnect(session *Session,
 	pkt *packet.Disconnect) (*Session, []packet.Packet, error) {
+
+	session.mutex.Lock()
+	defer session.mutex.Unlock()
 
 	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
@@ -489,6 +507,9 @@ func (sm *sessionManager) publishMessage(id ClientID, msg *message) error {
 	if err != nil {
 		return err
 	}
+
+	session.mutex.Lock()
+	defer session.mutex.Unlock()
 
 	pkt := msg.packet
 	if pkt.QoS > packet.QoS0 {
@@ -645,6 +666,11 @@ func (sm *sessionManager) newSession(id ClientID) *Session {
 		SessionID:     SessionID(nextId),
 		Subscriptions: make(map[string]Subscription),
 	}
+
+	sm.mutex.Lock()
+	sm.sessions[session.ClientID] = session
+	sm.mutex.Unlock()
+
 	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
 		Uint64("SessionId", uint64(session.SessionID)).
@@ -775,7 +801,9 @@ func (sm *sessionManager) disconnectSession(id ClientID) {
 		return
 	}
 
+	session.mutex.Lock()
 	sm.disconnect(session)
+	session.mutex.Unlock()
 }
 
 func (sm *sessionManager) disconnect(session *Session) {

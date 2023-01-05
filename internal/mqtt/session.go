@@ -15,6 +15,7 @@
 package mqtt
 
 import (
+	"sync"
 	"sync/atomic"
 
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
@@ -61,6 +62,7 @@ type Session struct {
 	restored         bool
 	inflightMessages inflightMessagesList
 	lastPacketID     uint32
+	mutex            sync.RWMutex
 }
 
 func (s *Session) clean() {
