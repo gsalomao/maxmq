@@ -185,6 +185,7 @@ func (sm *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 		inflightMsg.lastSent = time.Now().UnixMicro()
 		inflightMsg = inflightMsg.next
 	}
+	sm.saveSession(session)
 
 	for _, reply := range replies {
 		if reply.Type() == packet.CONNACK {
@@ -196,6 +197,10 @@ func (sm *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 				Msg("MQTT Sending CONNACK packet")
 		} else if reply.Type() == packet.PUBLISH {
 			pub := reply.(*packet.Publish)
+			if pub.Version != session.Version {
+				pub.Version = session.Version
+			}
+
 			sm.log.Trace().
 				Str("ClientId", string(session.ClientID)).
 				Uint16("PacketId", uint16(pub.PacketID)).
@@ -207,8 +212,6 @@ func (sm *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 				Msg("MQTT Sending PUBLISH packet")
 		}
 	}
-
-	sm.saveSession(session)
 
 	return session, replies, nil
 }
@@ -516,9 +519,6 @@ func (sm *sessionManager) publishMessage(id ClientID, msg *message) error {
 		pkt = msg.packet.Clone()
 		pkt.PacketID = session.nextClientID()
 	}
-	if pkt.Version != session.Version {
-		pkt.Version = session.Version
-	}
 
 	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
@@ -542,6 +542,10 @@ func (sm *sessionManager) publishMessage(id ClientID, msg *message) error {
 	}
 
 	if session.connected {
+		if pkt.Version != session.Version {
+			pkt.Version = session.Version
+		}
+
 		err = sm.deliverer.deliverPacket(session.ClientID, pkt)
 		if err != nil {
 			return err
