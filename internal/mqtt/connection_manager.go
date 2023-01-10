@@ -182,36 +182,38 @@ func (cm *connectionManager) handlePacket(conn *connection,
 			pkt.Type().String(), err)
 	}
 
-	var newConnection bool
 	for _, reply := range replies {
+		if reply.Type() == packet.CONNACK {
+			connAck := reply.(*packet.ConnAck)
+			if connAck.ReasonCode == packet.ReasonCodeV3ConnectionAccepted {
+				conn.clientID = session.ClientID
+				conn.version = session.Version
+				conn.timeout = session.KeepAlive
+				conn.connected = session.connected
+				conn.hasSession = true
+				cm.log.Debug().
+					Str("ClientId", string(conn.clientID)).
+					Bool("Connected", conn.connected).
+					Bool("HasSession", conn.hasSession).
+					Int("Timeout", conn.timeout).
+					Int("Version", int(conn.version)).
+					Msg("MQTT New Connection")
+
+				cm.mutex.Lock()
+				cm.connections[conn.clientID] = conn
+				cm.mutex.Unlock()
+			}
+		}
+
 		errReply := cm.replyPacket(pkt, reply, conn)
 		if errReply != nil {
 			err = multierr.Combine(err,
 				errors.New("failed to send packet: "+errReply.Error()))
 			return err
 		}
-
-		if reply.Type() == packet.CONNACK {
-			connAck := reply.(*packet.ConnAck)
-			if connAck.ReasonCode == packet.ReasonCodeV3ConnectionAccepted {
-				newConnection = true
-			}
-		}
 	}
 	if err != nil {
 		return err
-	}
-
-	if newConnection {
-		conn.clientID = session.ClientID
-		conn.version = session.Version
-		conn.timeout = session.KeepAlive
-		conn.connected = session.connected
-		conn.hasSession = true
-
-		cm.mutex.Lock()
-		cm.connections[conn.clientID] = conn
-		cm.mutex.Unlock()
 	}
 
 	if !session.connected {
