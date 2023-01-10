@@ -241,7 +241,7 @@ func TestPubCompRead(t *testing.T) {
 	}{
 		{name: "V3.1", version: MQTT31, msg: []byte{0, 1}, id: 1},
 		{name: "V3.1.1", version: MQTT311, msg: []byte{1, 0}, id: 0x100},
-		{name: "V5.0-Success", version: MQTT50, msg: []byte{1, 0xFF},
+		{name: "V5.0-Success", version: MQTT50, msg: []byte{1, 0xFF, 0},
 			id: 0x1FF, code: ReasonCodeV5Success},
 		{name: "V5.0-PacketIDNotFound", version: MQTT50,
 			msg: []byte{1, 0xFF, 0x92, 0}, id: 0x1FF,
