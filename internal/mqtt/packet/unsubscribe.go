@@ -74,7 +74,8 @@ func (pkt *Unsubscribe) Write(_ *bufio.Writer) error {
 func (pkt *Unsubscribe) Read(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
-		return fmt.Errorf("failed to read remaining bytes: %w", err)
+		return fmt.Errorf("failed to read remaining bytes: %w",
+			ErrV5MalformedPacket)
 	}
 	buf := bytes.NewBuffer(msg)
 

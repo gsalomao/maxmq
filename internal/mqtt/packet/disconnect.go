@@ -109,7 +109,8 @@ func (pkt *Disconnect) Read(r *bufio.Reader) error {
 	if pkt.Version == MQTT50 {
 		rc, err := r.ReadByte()
 		if err != nil {
-			return fmt.Errorf("failed to read Reason Code: %w", err)
+			return fmt.Errorf("failed to read Reason Code: %w",
+				ErrV5MalformedPacket)
 		}
 		pkt.ReasonCode = ReasonCode(rc)
 
@@ -117,7 +118,7 @@ func (pkt *Disconnect) Read(r *bufio.Reader) error {
 			msg := make([]byte, pkt.remainLength-1)
 			if _, err = io.ReadFull(r, msg); err != nil {
 				return fmt.Errorf("failed to read remaining bytes: %w",
-					err)
+					ErrV5MalformedPacket)
 			}
 			buf := bytes.NewBuffer(msg)
 

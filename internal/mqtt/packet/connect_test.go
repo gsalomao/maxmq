@@ -149,7 +149,7 @@ func TestConnectReadProtocolNameMissing(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestConnectReadProtocolNameInvalid(t *testing.T) {
@@ -184,7 +184,7 @@ func TestConnectReadVersionMissing(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV3UnacceptableProtocolVersion)
 }
 
 func TestConnectReadVersionInvalid(t *testing.T) {
@@ -197,7 +197,6 @@ func TestConnectReadVersionInvalid(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV3UnacceptableProtocolVersion)
 }
 
@@ -208,7 +207,7 @@ func TestConnectReadFlagsMissing(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestConnectReadFlagsReservedInvalid(t *testing.T) {
@@ -222,7 +221,6 @@ func TestConnectReadFlagsReservedInvalid(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 	// V5.0
@@ -237,7 +235,6 @@ func TestConnectReadFlagsReservedInvalid(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
@@ -271,7 +268,6 @@ func TestConnectReadFlagsWillQoSInvalid(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 	// V3.1.1 - Invalid Will QoS
@@ -286,7 +282,6 @@ func TestConnectReadFlagsWillQoSInvalid(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 	// V5.0 - No Will Flag
@@ -301,7 +296,6 @@ func TestConnectReadFlagsWillQoSInvalid(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 	// V5.0 - Invalid Will QoS
@@ -318,7 +312,6 @@ func TestConnectReadFlagsWillQoSInvalid(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
@@ -354,7 +347,6 @@ func TestConnectReadFlagsWillRetainInvalid(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 	// V5.0
@@ -371,7 +363,6 @@ func TestConnectReadFlagsWillRetainInvalid(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
@@ -387,7 +378,6 @@ func TestConnectReadFlagsUserNamePasswordInvalid(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 	// V5.0
@@ -403,7 +393,6 @@ func TestConnectReadFlagsUserNamePasswordInvalid(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
@@ -451,7 +440,6 @@ func TestConnectReadKeepAliveInvalid(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	assert.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
@@ -490,8 +478,7 @@ func TestConnectReadPropertiesMalformed(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	assert.NotNil(t, err)
-	assert.ErrorContains(t, err, ErrV5MalformedPacket.Error())
+	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestConnectReadClientIDValid(t *testing.T) {
@@ -569,7 +556,6 @@ func TestConnectReadClientIDMalformed(t *testing.T) {
 		require.Nil(t, err)
 
 		err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-		require.NotNil(t, err)
 		assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 		// V5.0
@@ -585,7 +571,6 @@ func TestConnectReadClientIDMalformed(t *testing.T) {
 		require.Nil(t, err)
 
 		err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-		require.NotNil(t, err)
 		assert.ErrorIs(t, err, ErrV5MalformedPacket)
 	}
 
@@ -632,7 +617,6 @@ func TestConnectReadClientIDMalformed(t *testing.T) {
 		require.Nil(t, err)
 
 		err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-		require.NotNil(t, err)
 		assert.ErrorIs(t, err, ErrV5MalformedPacket)
 	}
 }
@@ -661,7 +645,6 @@ func TestConnectReadClientIDRejected(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV3IdentifierRejected)
 }
 
@@ -704,8 +687,7 @@ func TestConnectReadWillPropertiesMalformed(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
-	assert.ErrorContains(t, err, ErrV5MalformedPacket.Error())
+	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestConnectReadWillTopicValid(t *testing.T) {
@@ -752,7 +734,6 @@ func TestConnectReadWillTopicMissing(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 	// V5.0
@@ -768,7 +749,6 @@ func TestConnectReadWillTopicMissing(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
@@ -818,7 +798,6 @@ func TestConnectReadWillMessageMissing(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 	// V5.0
@@ -835,7 +814,6 @@ func TestConnectReadWillMessageMissing(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
@@ -883,7 +861,6 @@ func TestConnectReadUserNameMissing(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 
 	// v5.0
@@ -899,7 +876,6 @@ func TestConnectReadUserNameMissing(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
@@ -948,7 +924,6 @@ func TestConnectReadPasswordInvalid(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
 	assert.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 

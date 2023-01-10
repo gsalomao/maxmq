@@ -122,7 +122,8 @@ func (pkt *PubAck) Write(w *bufio.Writer) error {
 func (pkt *PubAck) Read(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
-		return fmt.Errorf("failed to read remaining bytes: %w", err)
+		return fmt.Errorf("failed to read remaining bytes: %w",
+			ErrV5MalformedPacket)
 	}
 	buf := bytes.NewBuffer(msg)
 

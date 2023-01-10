@@ -301,7 +301,7 @@ func TestPubAckReadMissingData(t *testing.T) {
 			require.Nil(t, err)
 
 			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(test.msg)))
-			require.NotNil(t, err)
+			require.ErrorIs(t, err, ErrV5MalformedPacket)
 		})
 	}
 }

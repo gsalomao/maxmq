@@ -180,7 +180,7 @@ func TestDisconnectReadInvalidLength(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestDisconnectReadV5MissingReasonCode(t *testing.T) {
@@ -192,7 +192,7 @@ func TestDisconnectReadV5MissingReasonCode(t *testing.T) {
 
 	var msg []byte
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestDisconnectReadV5Properties(t *testing.T) {
@@ -226,7 +226,7 @@ func TestDisconnectReadV5PropertiesInvalid(t *testing.T) {
 	require.Equal(t, DISCONNECT, pkt.Type())
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestDisconnectSize(t *testing.T) {

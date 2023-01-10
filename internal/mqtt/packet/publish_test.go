@@ -235,7 +235,7 @@ func TestPublishReadInvalidLength(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestPublishReadV5InvalidProperty(t *testing.T) {
@@ -256,7 +256,7 @@ func TestPublishReadV5InvalidProperty(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestPublishReadNoTopic(t *testing.T) {
@@ -273,7 +273,7 @@ func TestPublishReadNoTopic(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestPublishReadNoPacketID(t *testing.T) {
@@ -290,7 +290,7 @@ func TestPublishReadNoPacketID(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestPublishReadInvalidTopicName(t *testing.T) {
@@ -311,7 +311,7 @@ func TestPublishReadInvalidTopicName(t *testing.T) {
 			require.Nil(t, err)
 
 			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-			require.NotNil(t, err)
+			require.ErrorIs(t, err, ErrV5MalformedPacket)
 		})
 	}
 }

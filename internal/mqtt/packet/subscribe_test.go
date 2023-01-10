@@ -133,7 +133,7 @@ func TestSubscribeReadInvalidLength(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestSubscribeReadNoPacketID(t *testing.T) {
@@ -148,7 +148,7 @@ func TestSubscribeReadNoPacketID(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestSubscribeReadNoTopic(t *testing.T) {
@@ -165,7 +165,7 @@ func TestSubscribeReadNoTopic(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestSubscribeReadInvalidTopicName(t *testing.T) {
@@ -183,7 +183,7 @@ func TestSubscribeReadInvalidTopicName(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestSubscribeReadNoTopicQoS(t *testing.T) {
@@ -201,7 +201,7 @@ func TestSubscribeReadNoTopicQoS(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestSubscribeReadV3InvalidSubscriptionOptions(t *testing.T) {
@@ -219,7 +219,7 @@ func TestSubscribeReadV3InvalidSubscriptionOptions(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestSubscribeReadV5InvalidSubscriptionOptions(t *testing.T) {
@@ -238,7 +238,7 @@ func TestSubscribeReadV5InvalidSubscriptionOptions(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestSubscribeReadV3InvalidQoS(t *testing.T) {
@@ -256,7 +256,7 @@ func TestSubscribeReadV3InvalidQoS(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestSubscribeReadV5InvalidQoS(t *testing.T) {
@@ -275,7 +275,7 @@ func TestSubscribeReadV5InvalidQoS(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestSubscribeReadV5InvalidRetainHandling(t *testing.T) {
@@ -294,7 +294,7 @@ func TestSubscribeReadV5InvalidRetainHandling(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestSubscribeReadV5InvalidProperties(t *testing.T) {
@@ -311,7 +311,7 @@ func TestSubscribeReadV5InvalidProperties(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestSubscribeSize(t *testing.T) {

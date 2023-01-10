@@ -128,7 +128,8 @@ func (pkt *PubRel) Write(w *bufio.Writer) error {
 func (pkt *PubRel) Read(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
-		return fmt.Errorf("failed to read remaining bytes: %w", err)
+		return fmt.Errorf("failed to read remaining bytes: %w",
+			ErrV5MalformedPacket)
 	}
 	buf := bytes.NewBuffer(msg)
 
@@ -141,7 +142,8 @@ func (pkt *PubRel) Read(r *bufio.Reader) error {
 		pkt.ReasonCode = ReasonCode(code)
 
 		if !pkt.isValidReasonCode() {
-			return fmt.Errorf("invalid reason code: %v", pkt.ReasonCode)
+			return newErrMalformedPacket(
+				fmt.Sprintf("invalid reason code: %v", pkt.ReasonCode))
 		}
 
 		var err error

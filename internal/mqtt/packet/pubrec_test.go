@@ -339,7 +339,7 @@ func TestPubRecReadMissingData(t *testing.T) {
 			require.Nil(t, err)
 
 			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(test.msg)))
-			require.NotNil(t, err)
+			require.ErrorIs(t, err, ErrV5MalformedPacket)
 		})
 	}
 }
@@ -375,7 +375,7 @@ func TestPubRecReadV5InvalidReasonCode(t *testing.T) {
 				require.NotNil(t, pkt)
 
 				err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-				require.NotNil(t, err)
+				require.ErrorIs(t, err, ErrV5MalformedPacket)
 			})
 		}
 	}

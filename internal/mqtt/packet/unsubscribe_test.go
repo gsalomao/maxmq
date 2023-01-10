@@ -186,7 +186,7 @@ func TestUnsubscribeReadInvalidLength(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestUnsubscribeReadNoPacketID(t *testing.T) {
@@ -201,7 +201,7 @@ func TestUnsubscribeReadNoPacketID(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestUnsubscribeReadNoTopic(t *testing.T) {
@@ -216,7 +216,7 @@ func TestUnsubscribeReadNoTopic(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestUnsubscribeReadInvalidTopicName(t *testing.T) {
@@ -234,7 +234,7 @@ func TestUnsubscribeReadInvalidTopicName(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestUnsubscribeReadV5InvalidProperties(t *testing.T) {
@@ -249,7 +249,7 @@ func TestUnsubscribeReadV5InvalidProperties(t *testing.T) {
 	require.Nil(t, err)
 
 	err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-	require.NotNil(t, err)
+	require.ErrorIs(t, err, ErrV5MalformedPacket)
 }
 
 func TestUnsubscribeSize(t *testing.T) {

@@ -74,7 +74,8 @@ func (pkt *Subscribe) Write(_ *bufio.Writer) error {
 func (pkt *Subscribe) Read(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
-		return fmt.Errorf("failed to read remaining bytes: %w", err)
+		return fmt.Errorf("failed to read remaining bytes: %w",
+			ErrV5MalformedPacket)
 	}
 	buf := bytes.NewBuffer(msg)
 
@@ -124,7 +125,7 @@ func (pkt *Subscribe) readTopics(buf *bytes.Buffer) error {
 
 		opts, err := buf.ReadByte()
 		if err != nil {
-			return fmt.Errorf("failed to read topic opts: %w", err)
+			return newErrMalformedPacket("failed to read topic opts")
 		}
 
 		optsMask := byte(0xFC)

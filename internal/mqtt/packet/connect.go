@@ -219,7 +219,7 @@ func (pkt *Connect) readProtocolName(buf *bytes.Buffer) (protocolName, error) {
 func (pkt *Connect) readVersion(buf *bytes.Buffer, name protocolName) error {
 	v, err := buf.ReadByte()
 	if err != nil {
-		return err
+		return ErrV3UnacceptableProtocolVersion
 	}
 	pkt.Version = MQTTVersion(v)
 
@@ -235,7 +235,7 @@ func (pkt *Connect) readVersion(buf *bytes.Buffer, name protocolName) error {
 func (pkt *Connect) readFlags(buf *bytes.Buffer) error {
 	flags, err := buf.ReadByte()
 	if err != nil {
-		return err
+		return newErrMalformedPacket("missing flags")
 	}
 
 	if hasFlag(flags, connectFlagReserved) { // MQTT-3.1.2-3

@@ -305,7 +305,7 @@ func readProperties(b *bytes.Buffer, t Type) (*Properties, error) {
 	_, err := readVarInteger(b, &propsLen)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read properties length: %w",
-			err)
+			ErrV5MalformedPacket)
 	}
 	if propsLen == 0 {
 		return nil, nil
