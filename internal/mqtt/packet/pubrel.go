@@ -136,7 +136,7 @@ func (pkt *PubRel) Read(r *bufio.Reader) error {
 	id, _ := readUint[uint16](buf)
 	pkt.PacketID = ID(id)
 
-	if pkt.Version == MQTT50 && buf.Len() > 0 {
+	if pkt.Version == MQTT50 {
 		var code byte
 		code, _ = buf.ReadByte()
 		pkt.ReasonCode = ReasonCode(code)
@@ -146,10 +146,12 @@ func (pkt *PubRel) Read(r *bufio.Reader) error {
 				fmt.Sprintf("invalid reason code: %v", pkt.ReasonCode))
 		}
 
-		var err error
-		pkt.Properties, err = readProperties(buf, PUBREL)
-		if err != nil {
-			return fmt.Errorf("failed to read properties: %w", err)
+		if pkt.ReasonCode != ReasonCodeV5Success || buf.Len() > 0 {
+			var err error
+			pkt.Properties, err = readProperties(buf, PUBREL)
+			if err != nil {
+				return fmt.Errorf("failed to read properties: %w", err)
+			}
 		}
 	}
 
