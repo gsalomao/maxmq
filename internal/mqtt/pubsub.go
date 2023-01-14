@@ -170,11 +170,11 @@ func (p *pubSub) unsubscribe(id ClientID, topic string) error {
 
 func (p *pubSub) publish(pkt *packet.Publish) *message {
 	id := p.idGen.NextID()
-	msg := &message{id: messageID(id), packet: pkt}
+	msg := &message{id: messageID(id), packetID: pkt.PacketID, packet: pkt}
 	p.log.Trace().
 		Uint8("DUP", msg.packet.Dup).
 		Uint64("MessageId", uint64(msg.id)).
-		Uint16("PacketId", uint16(msg.packet.PacketID)).
+		Uint16("PacketId", uint16(msg.packetID)).
 		Int("QueueLen", p.queue.len()).
 		Uint8("QoS", uint8(msg.packet.QoS)).
 		Uint8("Retain", msg.packet.Retain).
@@ -222,7 +222,9 @@ func (p *pubSub) publishQueuedMessages() {
 		}
 
 		for _, sub := range subscriptions {
-			m := &message{id: msg.id, packet: msg.packet.Clone()}
+			// Create a new instance of the message to avoid each publication
+			// to affect the other publication
+			m := msg.clone()
 
 			err := p.publisher.publishMessage(sub.ClientID, m)
 			if err != nil {

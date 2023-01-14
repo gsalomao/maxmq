@@ -15,6 +15,7 @@
 package mqtt
 
 import (
+	"container/list"
 	"sync"
 	"sync/atomic"
 
@@ -60,7 +61,7 @@ type Session struct {
 	// Has unexported fields
 	connected        bool
 	restored         bool
-	inflightMessages inflightMessagesList
+	inflightMessages list.List
 	lastPacketID     uint32
 	mutex            sync.RWMutex
 }
@@ -79,4 +80,19 @@ func (s *Session) nextClientID() packet.ID {
 	}
 
 	return packet.ID(atomic.AddUint32(&s.lastPacketID, 1))
+}
+
+func (s *Session) findInflightMessage(id packet.ID) *list.Element {
+	elem := s.inflightMessages.Front()
+
+	for elem != nil {
+		msg := elem.Value.(*message)
+		if msg.packetID == id {
+			return elem
+		}
+
+		elem = elem.Next()
+	}
+
+	return nil
 }

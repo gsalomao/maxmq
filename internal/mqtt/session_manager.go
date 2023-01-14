@@ -162,7 +162,7 @@ func (sm *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 	sm.log.Info().
 		Bool("CleanSession", session.CleanSession).
 		Str("ClientId", string(session.ClientID)).
-		Int("InflightMessages", session.inflightMessages.len()).
+		Int("InflightMessages", session.inflightMessages.Len()).
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
@@ -178,12 +178,13 @@ func (sm *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 	replies := make([]packet.Packet, 0, 1)
 	replies = append(replies, &connAck)
 
-	inflightMsg := session.inflightMessages.front()
+	inflightMsg := session.inflightMessages.Front()
 	for inflightMsg != nil {
-		replies = append(replies, inflightMsg.packet)
-		inflightMsg.tries++
-		inflightMsg.lastSent = time.Now().UnixMicro()
-		inflightMsg = inflightMsg.next
+		msg := inflightMsg.Value.(*message)
+		replies = append(replies, msg.packet)
+		msg.tries++
+		msg.lastSent = time.Now().UnixMicro()
+		inflightMsg = inflightMsg.Next()
 	}
 	sm.saveSession(session)
 
@@ -430,24 +431,25 @@ func (sm *sessionManager) handlePubAck(session *Session,
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Received PUBACK packet")
 
-	inflightMsg := session.inflightMessages.find(pkt.PacketID)
+	inflightMsg := session.findInflightMessage(pkt.PacketID)
 	if inflightMsg == nil {
 		return session, nil, fmt.Errorf(
 			"packet ID %v not found for client %s",
 			pkt.PacketID, session.ClientID)
 	}
-	session.inflightMessages.remove(pkt.PacketID)
+	session.inflightMessages.Remove(inflightMsg)
 	sm.saveSession(session)
 
+	msg := inflightMsg.Value.(*message)
 	sm.log.Info().
 		Str("ClientId", string(session.ClientID)).
-		Int("InflightMessages", session.inflightMessages.len()).
-		Uint64("MessageId", uint64(inflightMsg.messageID)).
-		Uint16("PacketId", uint16(inflightMsg.packet.PacketID)).
-		Uint8("QoS", uint8(inflightMsg.packet.QoS)).
-		Uint8("Retain", inflightMsg.packet.Retain).
-		Str("TopicName", inflightMsg.packet.TopicName).
-		Uint8("Version", uint8(inflightMsg.packet.Version)).
+		Int("InflightMessages", session.inflightMessages.Len()).
+		Uint64("MessageId", uint64(msg.id)).
+		Uint16("PacketId", uint16(msg.packet.PacketID)).
+		Uint8("QoS", uint8(msg.packet.QoS)).
+		Uint8("Retain", msg.packet.Retain).
+		Str("TopicName", msg.packet.TopicName).
+		Uint8("Version", uint8(msg.packet.Version)).
 		Msg("MQTT Message published to client")
 
 	return session, nil, nil
@@ -495,7 +497,7 @@ func (sm *sessionManager) handleDisconnect(session *Session,
 	sm.log.Info().
 		Bool("CleanSession", session.CleanSession).
 		Str("ClientId", string(session.ClientID)).
-		Int("InflightMessages", session.inflightMessages.len()).
+		Int("InflightMessages", session.inflightMessages.Len()).
 		Uint32("SessionExpiryInterval", session.ExpiryInterval).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
@@ -516,14 +518,14 @@ func (sm *sessionManager) publishMessage(id ClientID, msg *message) error {
 
 	pkt := msg.packet
 	if pkt.QoS > packet.QoS0 {
-		pkt = msg.packet.Clone()
 		pkt.PacketID = session.nextClientID()
+		msg.packetID = pkt.PacketID
 	}
 
 	sm.log.Trace().
 		Str("ClientId", string(session.ClientID)).
 		Bool("Connected", session.connected).
-		Int("InflightMessages", session.inflightMessages.len()).
+		Int("InflightMessages", session.inflightMessages.Len()).
 		Uint64("MessageId", uint64(msg.id)).
 		Uint16("PacketId", uint16(pkt.PacketID)).
 		Uint8("QoS", uint8(pkt.QoS)).
@@ -533,11 +535,8 @@ func (sm *sessionManager) publishMessage(id ClientID, msg *message) error {
 		Uint8("Version", uint8(pkt.Version)).
 		Msg("MQTT Publishing message to client")
 
-	var inflightMsg *inflightMessage
-	if pkt.QoS > 0 {
-		inflightMsg = &inflightMessage{packetID: pkt.PacketID,
-			messageID: msg.id, packet: pkt}
-		session.inflightMessages.add(inflightMsg)
+	if pkt.QoS > packet.QoS0 {
+		session.inflightMessages.PushBack(msg)
 		sm.saveSession(session)
 	}
 
@@ -551,24 +550,11 @@ func (sm *sessionManager) publishMessage(id ClientID, msg *message) error {
 			return err
 		}
 
-		if inflightMsg != nil {
-			inflightMsg.tries++
-			inflightMsg.lastSent = time.Now().UnixMicro()
+		if pkt.QoS > packet.QoS0 {
+			msg.tries++
+			msg.lastSent = time.Now().UnixMicro()
 			sm.saveSession(session)
-		}
 
-		if pkt.QoS == packet.QoS0 {
-			sm.log.Info().
-				Str("ClientId", string(session.ClientID)).
-				Uint64("MessageId", uint64(msg.id)).
-				Uint16("PacketId", uint16(pkt.PacketID)).
-				Uint8("QoS", uint8(pkt.QoS)).
-				Uint8("Retain", pkt.Retain).
-				Uint64("SessionId", uint64(session.SessionID)).
-				Str("TopicName", pkt.TopicName).
-				Uint8("Version", uint8(pkt.Version)).
-				Msg("MQTT Message published to client")
-		} else {
 			sm.log.Debug().
 				Str("ClientId", string(session.ClientID)).
 				Uint64("MessageId", uint64(msg.id)).
@@ -579,11 +565,22 @@ func (sm *sessionManager) publishMessage(id ClientID, msg *message) error {
 				Str("TopicName", pkt.TopicName).
 				Uint8("Version", uint8(pkt.Version)).
 				Msg("MQTT Message delivered to client")
+		} else {
+			sm.log.Info().
+				Str("ClientId", string(session.ClientID)).
+				Uint64("MessageId", uint64(msg.id)).
+				Uint16("PacketId", uint16(pkt.PacketID)).
+				Uint8("QoS", uint8(pkt.QoS)).
+				Uint8("Retain", pkt.Retain).
+				Uint64("SessionId", uint64(session.SessionID)).
+				Str("TopicName", pkt.TopicName).
+				Uint8("Version", uint8(pkt.Version)).
+				Msg("MQTT Message published to client")
 		}
 	} else if pkt.QoS > packet.QoS0 {
 		sm.log.Info().
 			Str("ClientId", string(session.ClientID)).
-			Int("InflightMessages", session.inflightMessages.len()).
+			Int("InflightMessages", session.inflightMessages.Len()).
 			Uint64("MessageId", uint64(msg.id)).
 			Uint16("PacketId", uint16(pkt.PacketID)).
 			Uint8("QoS", uint8(pkt.QoS)).
@@ -710,7 +707,7 @@ func (sm *sessionManager) readSession(id ClientID) (*Session, error) {
 		Bool("Connected", session.connected).
 		Int64("ConnectedAt", session.ConnectedAt).
 		Uint32("ExpiryInterval", session.ExpiryInterval).
-		Int("InflightMessages", session.inflightMessages.len()).
+		Int("InflightMessages", session.inflightMessages.Len()).
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
@@ -727,7 +724,7 @@ func (sm *sessionManager) saveSession(session *Session) {
 		Bool("Connected", session.connected).
 		Int64("ConnectedAt", session.ConnectedAt).
 		Uint32("ExpiryInterval", session.ExpiryInterval).
-		Int("InflightMessages", session.inflightMessages.len()).
+		Int("InflightMessages", session.inflightMessages.Len()).
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
@@ -742,7 +739,7 @@ func (sm *sessionManager) saveSession(session *Session) {
 		Bool("Connected", session.connected).
 		Int64("ConnectedAt", session.ConnectedAt).
 		Uint32("ExpiryInterval", session.ExpiryInterval).
-		Int("InflightMessages", session.inflightMessages.len()).
+		Int("InflightMessages", session.inflightMessages.Len()).
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
@@ -757,7 +754,7 @@ func (sm *sessionManager) deleteSession(session *Session) {
 		Bool("Connected", session.connected).
 		Int64("ConnectedAt", session.ConnectedAt).
 		Uint32("ExpiryInterval", session.ExpiryInterval).
-		Int("InflightMessages", session.inflightMessages.len()).
+		Int("InflightMessages", session.inflightMessages.Len()).
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
@@ -772,7 +769,7 @@ func (sm *sessionManager) deleteSession(session *Session) {
 		Bool("Connected", session.connected).
 		Int64("ConnectedAt", session.ConnectedAt).
 		Uint32("ExpiryInterval", session.ExpiryInterval).
-		Int("InflightMessages", session.inflightMessages.len()).
+		Int("InflightMessages", session.inflightMessages.Len()).
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).

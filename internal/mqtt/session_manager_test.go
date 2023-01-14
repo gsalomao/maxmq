@@ -833,15 +833,15 @@ func TestSessionManagerConnectWithInflightMessages(t *testing.T) {
 
 	session := &Session{}
 	sm.store.sessions["a"] = session
-	inflightMsgList := make([]*inflightMessage, 0)
+	inflightMsgList := make([]*message, 0)
 
 	for i := 0; i < 10; i++ {
 		topic := fmt.Sprintf("data/%v", i)
 		newPub := packet.NewPublish(packet.ID(i+1), packet.MQTT311, topic,
 			packet.QoS1, 0, 0, nil, nil)
-		msg := inflightMessage{packetID: newPub.PacketID,
-			messageID: messageID(newPub.PacketID), packet: &newPub}
-		session.inflightMessages.add(&msg)
+		msg := message{packetID: newPub.PacketID,
+			id: messageID(newPub.PacketID), packet: &newPub}
+		session.inflightMessages.PushBack(&msg)
 		inflightMsgList = append(inflightMsgList, &msg)
 	}
 
@@ -1303,7 +1303,7 @@ func TestSessionManagerPublish(t *testing.T) {
 	}
 }
 
-func TestSessionManagerPubAckQoS1(t *testing.T) {
+func TestSessionManagerPubAck(t *testing.T) {
 	conf := newConfiguration()
 	sm := createSessionManager(conf)
 	id := ClientID("a")
@@ -1314,23 +1314,20 @@ func TestSessionManagerPubAckQoS1(t *testing.T) {
 
 	publish := packet.NewPublish(1, packet.MQTT311, "data",
 		packet.QoS1, 0, 0, nil, nil)
-	msg := message{id: 1, packet: &publish}
 
-	inflightMsg := &inflightMessage{messageID: msg.id, packetID: 1,
-		packet: &publish}
-	inflightMsg.lastSent = time.Now().UnixMicro()
-	inflightMsg.tries = 1
-	session.inflightMessages.add(inflightMsg)
+	msg := &message{id: 1, packetID: 1, packet: &publish, tries: 1,
+		lastSent: time.Now().UnixMicro()}
+	session.inflightMessages.PushBack(msg)
 
 	pubAck := packet.NewPubAck(publish.PacketID, publish.Version,
 		packet.ReasonCodeV5Success, nil)
 	_, replies, err := sm.handlePacket(id, &pubAck)
 	require.Nil(t, err)
 	assert.Empty(t, replies)
-	assert.Zero(t, session.inflightMessages.len())
+	assert.Zero(t, session.inflightMessages.Len())
 
 	s := sm.store.sessions[session.ClientID]
-	assert.Zero(t, s.inflightMessages.len())
+	assert.Zero(t, s.inflightMessages.Len())
 }
 
 func TestSessionManagerPubAckUnknownMessage(t *testing.T) {
@@ -1529,42 +1526,40 @@ func TestSessionManagerPublishMessage(t *testing.T) {
 
 			pkt := packet.NewPublish(tc.id, packet.MQTT311, "data",
 				tc.qos, 0, 0, nil, nil)
-			msg := message{id: messageID(tc.id), packet: &pkt}
+			msg := &message{id: messageID(tc.id), packet: &pkt}
 
 			pktDeliverer := sm.deliverer.(*delivererMock)
 			pktDeliverer.On("deliverPacket", session.ClientID, mock.Anything).
 				Return(nil)
 
-			err := sm.publishMessage(session.ClientID, &msg)
+			err := sm.publishMessage(session.ClientID, msg)
 			assert.Nil(t, err)
 			pub := pktDeliverer.Calls[0].Arguments.Get(1).(*packet.Publish)
 
 			if tc.qos == 0 {
-				assert.Zero(t, session.inflightMessages.len())
+				assert.Zero(t, session.inflightMessages.Len())
 				assert.Equal(t, &pkt, pub)
 			} else {
-				assert.Equal(t, 1, session.inflightMessages.len())
+				assert.Equal(t, 1, session.inflightMessages.Len())
 
-				inflightMsg := session.inflightMessages.front()
-				require.NotNil(t, inflightMsg)
-				assert.Equal(t, messageID(tc.id), inflightMsg.messageID)
+				firstMsg := session.inflightMessages.Front().Value.(*message)
+				require.NotNil(t, firstMsg)
+				assert.Equal(t, messageID(tc.id), firstMsg.id)
 				assert.Equal(t, packet.ID(session.lastPacketID),
-					inflightMsg.packetID)
-				assert.Equal(t, msg.packet.QoS, inflightMsg.packet.QoS)
-				assert.Equal(t, msg.packet.Version, inflightMsg.packet.Version)
+					firstMsg.packetID)
+				assert.Equal(t, msg.packet.QoS, firstMsg.packet.QoS)
+				assert.Equal(t, msg.packet.Version, firstMsg.packet.Version)
 				assert.Equal(t, msg.packet.TopicName,
-					inflightMsg.packet.TopicName)
-				assert.Equal(t, msg.packet.Payload, inflightMsg.packet.Payload)
-				assert.NotEqual(t, inflightMsg.packet.PacketID,
-					msg.packet.PacketID)
-				assert.NotZero(t, inflightMsg.lastSent)
-				assert.Equal(t, 1, inflightMsg.tries)
-				assert.Equal(t, inflightMsg.packet, pub)
+					firstMsg.packet.TopicName)
+				assert.Equal(t, msg.packet.Payload, firstMsg.packet.Payload)
+				assert.NotZero(t, firstMsg.lastSent)
+				assert.Equal(t, 1, firstMsg.tries)
+				assert.Equal(t, firstMsg.packet, pub)
 
 				s := sm.store.sessions[session.ClientID]
-				assert.Equal(t, 1, s.inflightMessages.len())
-				m := s.inflightMessages.front()
-				assert.Equal(t, inflightMsg, m)
+				assert.Equal(t, 1, s.inflightMessages.Len())
+				m := s.inflightMessages.Front().Value.(*message)
+				assert.Equal(t, firstMsg, m)
 			}
 			pktDeliverer.AssertExpectations(t)
 		})

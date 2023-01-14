@@ -20,16 +20,45 @@ import (
 
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSessionNextClientID(t *testing.T) {
-	s := Session{}
+	session := Session{}
 
 	for i := 0; i < math.MaxUint16; i++ {
-		id := s.nextClientID()
+		id := session.nextClientID()
 		assert.Equal(t, packet.ID(i+1), id)
 	}
 
-	id := s.nextClientID()
+	id := session.nextClientID()
 	assert.Equal(t, packet.ID(1), id)
+}
+
+func TestSessionFindInflightMessage(t *testing.T) {
+	session := &Session{}
+	numOfMessages := 10
+
+	for i := 0; i < numOfMessages; i++ {
+		msg := &message{id: messageID(i), packetID: packet.ID(i)}
+		session.inflightMessages.PushBack(msg)
+	}
+
+	for i := 0; i < numOfMessages; i++ {
+		inflightMsg := session.findInflightMessage(packet.ID(i))
+		require.NotNil(t, inflightMsg)
+
+		msg := inflightMsg.Value.(*message)
+		require.Equal(t, messageID(i), msg.id)
+		require.Equal(t, packet.ID(i), msg.packetID)
+	}
+}
+
+func TestSessionFindInflightMessageNotFound(t *testing.T) {
+	session := &Session{}
+
+	for i := 0; i < 10; i++ {
+		inflightMsg := session.findInflightMessage(packet.ID(i))
+		require.Nil(t, inflightMsg)
+	}
 }
