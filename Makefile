@@ -1,4 +1,4 @@
-# Copyright 2022 The MaxMQ Authors
+# Copyright 2022-2023 The MaxMQ Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,8 +23,8 @@ GREEN       := $(shell tput -Txterm setaf 2)
 YELLOW      := $(shell tput -Txterm setaf 3)
 WHITE       := $(shell tput -Txterm setaf 7)
 CYAN        := $(shell tput -Txterm setaf 6)
-RESET       := $(shell tput -Txterm sgr0)
-BOLD        = \033[0;1m
+RESET       := \033[0m
+BOLD        := \033[0;1m
 
 # Build parameters
 VERSION = $(shell git describe --tags --always --dirty | sed -e 's/^v//')
@@ -33,6 +33,14 @@ VERSION = $(shell git describe --tags --always --dirty | sed -e 's/^v//')
 all: help
 
 LDFLAGS ="-X 'github.com/gsalomao/maxmq/cmd/maxmq/cli.version=${VERSION}'"
+
+## Setup
+.PHONY: init
+init: ## Initialize project
+	$(call print_task,"Installing Git hooks")
+	@cp scripts/githooks/* .git/hooks
+	@chmod +x .git/hooks/*
+	$(call print_task_result,"Installing Git hooks","done")
 
 ## Build
 .PHONY: build
