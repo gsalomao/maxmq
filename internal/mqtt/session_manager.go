@@ -69,17 +69,10 @@ func (sm *sessionManager) stop() {
 func (sm *sessionManager) handlePacket(id ClientID,
 	pkt packet.Packet) (*Session, []packet.Packet, error) {
 
-	var session *Session
 	if pkt.Type() != packet.CONNECT {
 		if len(id) == 0 {
 			return nil, nil, fmt.Errorf("received %v before CONNECT",
 				pkt.Type())
-		}
-
-		var err error
-		session, err = sm.readSession(id)
-		if err != nil {
-			return nil, nil, err
 		}
 	}
 
@@ -88,22 +81,22 @@ func (sm *sessionManager) handlePacket(id ClientID,
 		connPkt, _ := pkt.(*packet.Connect)
 		return sm.handleConnect(connPkt)
 	case packet.PINGREQ:
-		return sm.handlePingReq(session)
+		return sm.handlePingReq(id)
 	case packet.SUBSCRIBE:
 		subPkt, _ := pkt.(*packet.Subscribe)
-		return sm.handleSubscribe(session, subPkt)
+		return sm.handleSubscribe(id, subPkt)
 	case packet.UNSUBSCRIBE:
 		unsubPkt, _ := pkt.(*packet.Unsubscribe)
-		return sm.handleUnsubscribe(session, unsubPkt)
+		return sm.handleUnsubscribe(id, unsubPkt)
 	case packet.PUBLISH:
 		pubPkt, _ := pkt.(*packet.Publish)
-		return sm.handlePublish(session, pubPkt)
+		return sm.handlePublish(id, pubPkt)
 	case packet.PUBACK:
 		pubAckPkt, _ := pkt.(*packet.PubAck)
-		return sm.handlePubAck(session, pubAckPkt)
+		return sm.handlePubAck(id, pubAckPkt)
 	case packet.DISCONNECT:
 		disconnect := pkt.(*packet.Disconnect)
-		return sm.handleDisconnect(session, disconnect)
+		return sm.handleDisconnect(id, disconnect)
 	default:
 		return nil, nil, fmt.Errorf("invalid packet type: %v",
 			pkt.Type().String())
@@ -138,12 +131,14 @@ func (sm *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 	exp := sessionExpiryIntervalOnConnect(pkt, sm.conf.MaxSessionExpiryInterval)
 
 	session, err := sm.readSession(id)
-	if err == nil && pkt.CleanSession {
-		sm.cleanSession(session)
+	if err != nil && err != errSessionNotFound {
+		return nil, nil, err
 	}
 	if session == nil {
 		session = sm.newSession(id)
 		session.KeepAlive = sm.conf.ConnectTimeout
+	} else if pkt.CleanSession {
+		sm.cleanSession(session)
 	}
 
 	session.mutex.Lock()
@@ -214,8 +209,13 @@ func (sm *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 	return session, replies, nil
 }
 
-func (sm *sessionManager) handlePingReq(session *Session) (*Session,
+func (sm *sessionManager) handlePingReq(id ClientID) (*Session,
 	[]packet.Packet, error) {
+
+	session, err := sm.readSession(id)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	session.mutex.RLock()
 	defer session.mutex.RUnlock()
@@ -240,8 +240,13 @@ func (sm *sessionManager) handlePingReq(session *Session) (*Session,
 	return session, []packet.Packet{&reply}, nil
 }
 
-func (sm *sessionManager) handleSubscribe(session *Session,
+func (sm *sessionManager) handleSubscribe(id ClientID,
 	pkt *packet.Subscribe) (*Session, []packet.Packet, error) {
+
+	session, err := sm.readSession(id)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
@@ -310,8 +315,13 @@ func (sm *sessionManager) handleSubscribe(session *Session,
 	return session, replies, nil
 }
 
-func (sm *sessionManager) handleUnsubscribe(session *Session,
+func (sm *sessionManager) handleUnsubscribe(id ClientID,
 	pkt *packet.Unsubscribe) (*Session, []packet.Packet, error) {
+
+	session, err := sm.readSession(id)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
@@ -371,8 +381,13 @@ func (sm *sessionManager) handleUnsubscribe(session *Session,
 	return session, replies, nil
 }
 
-func (sm *sessionManager) handlePublish(session *Session,
+func (sm *sessionManager) handlePublish(id ClientID,
 	pkt *packet.Publish) (*Session, []packet.Packet, error) {
+
+	session, err := sm.readSession(id)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	session.mutex.RLock()
 	defer session.mutex.RUnlock()
@@ -416,8 +431,13 @@ func (sm *sessionManager) handlePublish(session *Session,
 	return session, nil, nil
 }
 
-func (sm *sessionManager) handlePubAck(session *Session,
+func (sm *sessionManager) handlePubAck(id ClientID,
 	pkt *packet.PubAck) (*Session, []packet.Packet, error) {
+
+	session, err := sm.readSession(id)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
@@ -452,8 +472,13 @@ func (sm *sessionManager) handlePubAck(session *Session,
 	return session, nil, nil
 }
 
-func (sm *sessionManager) handleDisconnect(session *Session,
+func (sm *sessionManager) handleDisconnect(id ClientID,
 	pkt *packet.Disconnect) (*Session, []packet.Packet, error) {
+
+	session, err := sm.readSession(id)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
