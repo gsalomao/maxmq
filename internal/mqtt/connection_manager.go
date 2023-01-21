@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ type connectionManager struct {
 }
 
 func newConnectionManager(
-	conf *Configuration, idGen IDGenerator, log *logger.Logger,
+	conf *Configuration, mt *metrics, log *logger.Logger,
 ) *connectionManager {
 	conf.BufferSize = bufferSizeOrDefault(conf.BufferSize)
 	conf.ConnectTimeout = connectTimeoutOrDefault(conf.ConnectTimeout)
@@ -55,28 +55,20 @@ func newConnectionManager(
 		maxInflightRetriesOrDefault(conf.MaxInflightRetries)
 	conf.MaxClientIDLen = maxClientIDLenOrDefault(conf.MaxClientIDLen)
 
-	userProps := make([]packet.UserProperty, 0, len(conf.UserProperties))
-	for k, v := range conf.UserProperties {
-		userProps = append(userProps,
-			packet.UserProperty{Key: []byte(k), Value: []byte(v)})
-	}
-
 	rdOpts := packet.ReaderOptions{
 		BufferSize:    conf.BufferSize,
 		MaxPacketSize: conf.MaxPacketSize,
 	}
 
-	m := newMetrics(conf.MetricsEnabled, log)
 	cm := connectionManager{
 		conf:        conf,
+		metrics:     mt,
 		log:         log,
-		metrics:     m,
 		connections: make(map[ClientID]*connection),
 		reader:      packet.NewReader(rdOpts),
 		writer:      packet.NewWriter(conf.BufferSize),
 	}
 
-	cm.sessionManager = newSessionManager(&cm, idGen, conf, m, userProps, log)
 	return &cm
 }
 

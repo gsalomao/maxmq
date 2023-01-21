@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	"github.com/gsalomao/maxmq/internal/logger"
+	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 )
 
 // Listener is responsible to implement the MQTT protocol conform the v3.1,
@@ -36,24 +37,40 @@ type Listener struct {
 
 // NewListener creates a new MQTT Listener with the given options.
 func NewListener(opts ...OptionsFn) (*Listener, error) {
-	l := &Listener{}
+	lsn := &Listener{}
 
 	for _, fn := range opts {
-		fn(l)
+		fn(lsn)
 	}
 
-	if l.log == nil {
+	if lsn.log == nil {
 		return nil, errors.New("missing logger")
 	}
-	if l.conf == nil {
+	if lsn.conf == nil {
 		return nil, errors.New("missing configuration")
 	}
-	if l.idGen == nil {
+	if lsn.idGen == nil {
 		return nil, errors.New("missing ID generator")
 	}
 
-	l.connManager = newConnectionManager(l.conf, l.idGen, l.log)
-	return l, nil
+	userProps := make([]packet.UserProperty, 0, len(lsn.conf.UserProperties))
+	for k, v := range lsn.conf.UserProperties {
+		userProps = append(userProps,
+			packet.UserProperty{Key: []byte(k), Value: []byte(v)})
+	}
+
+	mt := newMetrics(lsn.conf.MetricsEnabled, lsn.log)
+	cm := newConnectionManager(lsn.conf, mt, lsn.log)
+	ps := newPubSubManager(lsn.idGen, mt, lsn.log)
+	sm := newSessionManager(lsn.conf, lsn.idGen, mt, userProps, lsn.log)
+
+	ps.publisher = sm
+	sm.pubSub = ps
+	sm.deliverer = cm
+	cm.sessionManager = sm
+	lsn.connManager = cm
+
+	return lsn, nil
 }
 
 // Listen starts the execution of the MQTT Listener.

@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,22 +39,19 @@ type sessionManager struct {
 	userProperties []packet.UserProperty
 }
 
-func newSessionManager(deliverer packetDeliverer, idGen IDGenerator,
-	conf *Configuration, metrics *metrics, props []packet.UserProperty,
-	log *logger.Logger,
+func newSessionManager(conf *Configuration, idGen IDGenerator, metrics *metrics,
+	props []packet.UserProperty, log *logger.Logger,
 ) *sessionManager {
 	sm := sessionManager{
 		conf:           conf,
 		metrics:        metrics,
 		log:            log,
 		sessions:       make(map[ClientID]*Session),
-		deliverer:      deliverer,
 		idGen:          idGen,
 		store:          newStore(),
 		userProperties: props,
 	}
 
-	sm.pubSub = newPubSub(&sm, idGen, metrics, log)
 	return &sm
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,19 +32,27 @@ type messagePublisher interface {
 	publishMessage(id ClientID, msg *message) error
 }
 
-func newPubSub(pub messagePublisher, idGen IDGenerator, metrics *metrics,
-	log *logger.Logger) pubSub {
-	return pubSub{
-		publisher: pub,
-		metrics:   metrics,
-		log:       log,
-		tree:      newSubscriptionTree(),
-		idGen:     idGen,
-		action:    make(chan pubSubAction, 1),
+type pubSub interface {
+	start()
+	stop()
+	subscribe(s *Session, t packet.Topic, subsID int) (Subscription, error)
+	unsubscribe(id ClientID, topic string) error
+	publish(pkt *packet.Publish) *message
+}
+
+func newPubSubManager(
+	idGen IDGenerator, metrics *metrics, log *logger.Logger,
+) *pubSubManager {
+	return &pubSubManager{
+		metrics: metrics,
+		log:     log,
+		tree:    newSubscriptionTree(),
+		idGen:   idGen,
+		action:  make(chan pubSubAction, 1),
 	}
 }
 
-type pubSub struct {
+type pubSubManager struct {
 	publisher messagePublisher
 	idGen     IDGenerator
 	metrics   *metrics
@@ -54,13 +62,13 @@ type pubSub struct {
 	action    chan pubSubAction
 }
 
-func (p *pubSub) start() {
+func (p *pubSubManager) start() {
 	p.log.Trace().Msg("MQTT Starting PubSub")
 	go p.run()
 	<-p.action
 }
 
-func (p *pubSub) stop() {
+func (p *pubSubManager) stop() {
 	p.log.Trace().Msg("MQTT Stopping PubSub")
 	p.action <- pubSubActionStop
 
@@ -74,7 +82,7 @@ func (p *pubSub) stop() {
 	p.log.Debug().Msg("MQTT PubSub stopped with success")
 }
 
-func (p *pubSub) run() {
+func (p *pubSubManager) run() {
 	p.action <- pubSubActionStarted
 	p.log.Debug().Msg("MQTT PubSub waiting for actions")
 
@@ -90,7 +98,7 @@ func (p *pubSub) run() {
 	p.action <- pubSubActionStopped
 }
 
-func (p *pubSub) subscribe(session *Session, topic packet.Topic,
+func (p *pubSubManager) subscribe(session *Session, topic packet.Topic,
 	subscriptionID int) (Subscription, error) {
 
 	p.log.Trace().
@@ -144,7 +152,7 @@ func (p *pubSub) subscribe(session *Session, topic packet.Topic,
 	return sub, nil
 }
 
-func (p *pubSub) unsubscribe(id ClientID, topic string) error {
+func (p *pubSubManager) unsubscribe(id ClientID, topic string) error {
 	p.log.Trace().
 		Str("ClientId", string(id)).
 		Str("TopicFilter", topic).
@@ -168,7 +176,7 @@ func (p *pubSub) unsubscribe(id ClientID, topic string) error {
 	return err
 }
 
-func (p *pubSub) publish(pkt *packet.Publish) *message {
+func (p *pubSubManager) publish(pkt *packet.Publish) *message {
 	id := p.idGen.NextID()
 	msg := &message{id: messageID(id), packetID: pkt.PacketID, packet: pkt}
 	p.log.Trace().
@@ -197,7 +205,7 @@ func (p *pubSub) publish(pkt *packet.Publish) *message {
 	return msg
 }
 
-func (p *pubSub) publishQueuedMessages() {
+func (p *pubSubManager) publishQueuedMessages() {
 	for p.queue.len() > 0 {
 		msg := p.queue.dequeue()
 		p.log.Trace().

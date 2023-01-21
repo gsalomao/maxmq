@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -54,7 +54,17 @@ func createConnectionManager(conf Configuration) *connectionManager {
 	log := newLogger()
 	idGen := &idGeneratorMock{}
 	idGen.On("NextID").Return(sessionIDTest)
-	return newConnectionManager(&conf, idGen, &log)
+
+	mt := newMetrics(conf.MetricsEnabled, &log)
+	cm := newConnectionManager(&conf, mt, &log)
+	ps := newPubSubManager(idGen, mt, &log)
+	sm := newSessionManager(&conf, idGen, mt, nil, &log)
+
+	ps.publisher = sm
+	sm.pubSub = ps
+	sm.deliverer = cm
+	cm.sessionManager = sm
+	return cm
 }
 
 func TestConnectionManagerDefaultValues(t *testing.T) {

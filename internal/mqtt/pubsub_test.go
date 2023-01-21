@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,24 +35,26 @@ func (d *messagePublisherMock) publishMessage(id ClientID, msg *message) error {
 	return args.Error(0)
 }
 
-func createPubSub() pubSub {
+func createPubSubManager() *pubSubManager {
 	log := newLogger()
-	pubMock := messagePublisherMock{}
+	pubMock := &messagePublisherMock{}
 	idGen := &idGeneratorMock{}
 
 	m := newMetrics(true, &log)
-	return newPubSub(&pubMock, idGen, m, &log)
+	ps := newPubSubManager(idGen, m, &log)
+	ps.publisher = pubMock
+	return ps
 }
 
-func TestPubSubStartStop(t *testing.T) {
-	ps := createPubSub()
+func TestPubSubManagerStartStop(t *testing.T) {
+	ps := createPubSubManager()
 	ps.start()
 	<-time.After(10 * time.Millisecond)
 	ps.stop()
 }
 
-func TestPubSubRun(t *testing.T) {
-	ps := createPubSub()
+func TestPubSubManagerRun(t *testing.T) {
+	ps := createPubSubManager()
 	go ps.run()
 	<-ps.action
 	ps.action <- pubSubActionPublishMessage
@@ -60,7 +62,7 @@ func TestPubSubRun(t *testing.T) {
 	<-ps.action
 }
 
-func TestPubSubSubscribeTopic(t *testing.T) {
+func TestPubSubManagerSubscribeTopic(t *testing.T) {
 	testCases := []packet.Topic{
 		{Name: "sensor/temp0", QoS: packet.QoS0, RetainHandling: 0,
 			RetainAsPublished: false, NoLocal: false},
@@ -73,7 +75,7 @@ func TestPubSubSubscribeTopic(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.Name, func(t *testing.T) {
 			session := Session{ClientID: "a"}
-			ps := createPubSub()
+			ps := createPubSubManager()
 			subscriptionID := rand.Int()
 
 			sub, err := ps.subscribe(&session, test, subscriptionID)
@@ -88,16 +90,16 @@ func TestPubSubSubscribeTopic(t *testing.T) {
 	}
 }
 
-func TestPubSubSubscribeError(t *testing.T) {
+func TestPubSubManagerSubscribeError(t *testing.T) {
 	session := Session{ClientID: "a"}
 	topic := packet.Topic{Name: "sensor/temp#", QoS: packet.QoS0}
-	ps := createPubSub()
+	ps := createPubSubManager()
 
 	_, err := ps.subscribe(&session, topic, 0)
 	assert.NotNil(t, err)
 }
 
-func TestPubSubUnsubscribeTopic(t *testing.T) {
+func TestPubSubManagerUnsubscribeTopic(t *testing.T) {
 	testCases := []packet.Topic{
 		{Name: "sensor"},
 		{Name: "sensor/temp"},
@@ -107,7 +109,7 @@ func TestPubSubUnsubscribeTopic(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.Name, func(t *testing.T) {
 			session := Session{ClientID: "a"}
-			ps := createPubSub()
+			ps := createPubSubManager()
 
 			sub, err := ps.subscribe(&session, test, 0)
 			require.Nil(t, err)
@@ -118,7 +120,7 @@ func TestPubSubUnsubscribeTopic(t *testing.T) {
 	}
 }
 
-func TestPubSubUnsubscribeSubscriptionNotFound(t *testing.T) {
+func TestPubSubManagerUnsubscribeSubscriptionNotFound(t *testing.T) {
 	testCases := []packet.Topic{
 		{Name: "sensor"},
 		{Name: "sensor/temp"},
@@ -128,7 +130,7 @@ func TestPubSubUnsubscribeSubscriptionNotFound(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.Name, func(t *testing.T) {
 			session := Session{ClientID: "a"}
-			ps := createPubSub()
+			ps := createPubSubManager()
 
 			err := ps.unsubscribe(session.ClientID, test.Name)
 			assert.Equal(t, ErrSubscriptionNotFound, err)
@@ -136,8 +138,8 @@ func TestPubSubUnsubscribeSubscriptionNotFound(t *testing.T) {
 	}
 }
 
-func TestPubSubPublishQoS0Message(t *testing.T) {
-	ps := createPubSub()
+func TestPubSubManagerPublishMessage(t *testing.T) {
+	ps := createPubSubManager()
 	require.Zero(t, ps.queue.len())
 
 	msgID := 10
@@ -156,8 +158,8 @@ func TestPubSubPublishQoS0Message(t *testing.T) {
 	assert.Equal(t, pubSubActionPublishMessage, act)
 }
 
-func TestPubSubPublishQueuedMessagesNoSubscription(t *testing.T) {
-	ps := createPubSub()
+func TestPubSubManagerPublishQueuedMessagesNoSubscription(t *testing.T) {
+	ps := createPubSubManager()
 	pkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS0,
 		0, 0, nil, nil)
 	msg := message{id: 1, packet: &pkt}
@@ -167,7 +169,7 @@ func TestPubSubPublishQueuedMessagesNoSubscription(t *testing.T) {
 	assert.Zero(t, ps.queue.len())
 }
 
-func TestPubSubPublishQueuedQoS0Message(t *testing.T) {
+func TestPubSubManagerPublishQueuedQoS0Message(t *testing.T) {
 	testCases := []struct {
 		name  string
 		id    packet.ID
@@ -182,7 +184,7 @@ func TestPubSubPublishQueuedQoS0Message(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-			ps := createPubSub()
+			ps := createPubSubManager()
 			id := ClientID("client-a")
 
 			for _, topic := range test.subs {
@@ -210,8 +212,8 @@ func TestPubSubPublishQueuedQoS0Message(t *testing.T) {
 	}
 }
 
-func TestPubSubProcessQueuedMessagesFailedToDeliver(t *testing.T) {
-	ps := createPubSub()
+func TestPubSubManagerProcessQueuedMessagesFailedToDeliver(t *testing.T) {
+	ps := createPubSubManager()
 	id := ClientID("client-1")
 	sub := Subscription{ClientID: id, TopicFilter: "data", QoS: packet.QoS0}
 
