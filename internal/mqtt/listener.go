@@ -111,7 +111,7 @@ func (l *Listener) Listen() error {
 			}
 			if err != errConnectionTimeout && err != errProtocolError {
 				l.log.Warn().
-					Msg("MQTT Failed to handle connection: " + err.Error())
+					Msg("MQTT Connection closed with error: " + err.Error())
 			}
 		}()
 	}

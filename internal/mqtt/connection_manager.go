@@ -116,6 +116,9 @@ func (cm *connectionManager) handle(nc net.Conn) error {
 
 		err = cm.handlePacket(&conn, pkt)
 		if err != nil {
+			cm.log.Warn().
+				Msg(fmt.Sprintf("MQTT Failed to handle packet %v: %v",
+					pkt.Type().String(), err.Error()))
 			return err
 		}
 
@@ -169,10 +172,6 @@ func (cm *connectionManager) handlePacket(conn *connection,
 	pkt packet.Packet) error {
 
 	session, replies, err := cm.sessionManager.handlePacket(conn.clientID, pkt)
-	if err != nil {
-		err = fmt.Errorf("failed to handle packet %v: %w",
-			pkt.Type().String(), err)
-	}
 
 	for _, reply := range replies {
 		if reply.Type() == packet.CONNACK {

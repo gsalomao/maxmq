@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -62,6 +62,7 @@ type Session struct {
 	connected        bool
 	restored         bool
 	inflightMessages list.List
+	unAckPubPackets  list.List
 	lastPacketID     uint32
 	mutex            sync.RWMutex
 }
@@ -88,6 +89,21 @@ func (s *Session) findInflightMessage(id packet.ID) *list.Element {
 	for elem != nil {
 		msg := elem.Value.(*message)
 		if msg.packetID == id {
+			return elem
+		}
+
+		elem = elem.Next()
+	}
+
+	return nil
+}
+
+func (s *Session) findUnAckPubPacket(id packet.ID) *list.Element {
+	elem := s.unAckPubPackets.Front()
+
+	for elem != nil {
+		pkt := elem.Value.(*packet.Publish)
+		if pkt.PacketID == id {
 			return elem
 		}
 

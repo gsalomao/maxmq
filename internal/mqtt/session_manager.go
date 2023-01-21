@@ -158,6 +158,7 @@ func (sm *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
+		Int("UnAckPubPackets", session.unAckPubPackets.Len()).
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Client connected")
 
@@ -196,11 +197,13 @@ func (sm *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 
 			sm.log.Trace().
 				Str("ClientId", string(session.ClientID)).
+				Int("InflightMessages", session.inflightMessages.Len()).
 				Uint16("PacketId", uint16(pub.PacketID)).
 				Uint8("QoS", uint8(pub.QoS)).
 				Uint8("Retain", pub.Retain).
 				Uint64("SessionId", uint64(session.SessionID)).
 				Str("TopicName", pub.TopicName).
+				Int("UnAckPubPackets", session.unAckPubPackets.Len()).
 				Uint8("Version", uint8(pkt.Version)).
 				Msg("MQTT Sending PUBLISH packet")
 		}
@@ -401,21 +404,27 @@ func (sm *sessionManager) handlePublish(id ClientID,
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Received PUBLISH packet")
 
-	msg := sm.pubSub.publish(pkt)
-	sm.log.Info().
-		Str("ClientId", string(session.ClientID)).
-		Uint8("DUP", msg.packet.Dup).
-		Uint64("MessageId", uint64(msg.id)).
-		Uint16("PacketId", uint16(msg.packet.PacketID)).
-		Uint8("QoS", uint8(msg.packet.QoS)).
-		Uint8("Retain", msg.packet.Retain).
-		Uint64("SessionId", uint64(session.SessionID)).
-		Str("TopicName", msg.packet.TopicName).
-		Uint8("Version", uint8(session.Version)).
-		Msg("MQTT Client published a packet")
+	if pkt.QoS < packet.QoS2 {
+		msg := sm.pubSub.publish(pkt)
+		sm.log.Info().
+			Str("ClientId", string(session.ClientID)).
+			Uint8("DUP", msg.packet.Dup).
+			Uint64("MessageId", uint64(msg.id)).
+			Uint16("PacketId", uint16(msg.packet.PacketID)).
+			Uint8("QoS", uint8(msg.packet.QoS)).
+			Uint8("Retain", msg.packet.Retain).
+			Uint64("SessionId", uint64(session.SessionID)).
+			Str("TopicName", msg.packet.TopicName).
+			Uint8("Version", uint8(session.Version)).
+			Msg("MQTT Client published a packet")
 
-	if pkt.QoS > packet.QoS0 {
-		replies := make([]packet.Packet, 0, 1)
+		if pkt.QoS == packet.QoS0 {
+			return session, nil, nil
+		}
+	}
+
+	replies := make([]packet.Packet, 0, 1)
+	if pkt.QoS == packet.QoS1 {
 		pubAck := packet.NewPubAck(pkt.PacketID, pkt.Version,
 			packet.ReasonCodeV5Success, nil)
 
@@ -425,10 +434,25 @@ func (sm *sessionManager) handlePublish(id ClientID,
 			Uint16("PacketId", uint16(pubAck.PacketID)).
 			Uint8("Version", uint8(pubAck.Version)).
 			Msg("MQTT Sending PUBACK packet")
-		return session, replies, nil
+	} else {
+		if p := session.findUnAckPubPacket(pkt.PacketID); p == nil {
+			session.unAckPubPackets.PushBack(pkt)
+			sm.saveSession(session)
+		}
+
+		pubRec := packet.NewPubRec(pkt.PacketID, pkt.Version,
+			packet.ReasonCodeV5Success, nil)
+
+		replies = append(replies, &pubRec)
+		sm.log.Trace().
+			Str("ClientId", string(session.ClientID)).
+			Uint16("PacketId", uint16(pubRec.PacketID)).
+			Int("UnAckPubPackets", session.unAckPubPackets.Len()).
+			Uint8("Version", uint8(pubRec.Version)).
+			Msg("MQTT Sending PUBREC packet")
 	}
 
-	return session, nil, nil
+	return session, replies, nil
 }
 
 func (sm *sessionManager) handlePubAck(id ClientID,
@@ -523,6 +547,7 @@ func (sm *sessionManager) handleDisconnect(id ClientID,
 		Uint32("SessionExpiryInterval", session.ExpiryInterval).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
+		Int("UnAckPubPackets", session.unAckPubPackets.Len()).
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Client disconnected")
 
@@ -733,6 +758,7 @@ func (sm *sessionManager) readSession(id ClientID) (*Session, error) {
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
+		Int("UnAckPubPackets", session.unAckPubPackets.Len()).
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Session read with success")
 
@@ -750,6 +776,7 @@ func (sm *sessionManager) saveSession(session *Session) {
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
+		Int("UnAckPubPackets", session.unAckPubPackets.Len()).
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Saving session")
 
@@ -765,6 +792,7 @@ func (sm *sessionManager) saveSession(session *Session) {
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
+		Int("UnAckPubPackets", session.unAckPubPackets.Len()).
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Session saved with success")
 }
@@ -780,6 +808,7 @@ func (sm *sessionManager) deleteSession(session *Session) {
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
+		Int("UnAckPubPackets", session.unAckPubPackets.Len()).
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Deleting session")
 
@@ -795,6 +824,7 @@ func (sm *sessionManager) deleteSession(session *Session) {
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
+		Int("UnAckPubPackets", session.unAckPubPackets.Len()).
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Session deleted with success")
 }
