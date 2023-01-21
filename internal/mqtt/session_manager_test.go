@@ -1020,6 +1020,9 @@ func TestSessionManagerSubscribe(t *testing.T) {
 		{version: packet.MQTT31, qos: packet.QoS1},
 		{version: packet.MQTT311, qos: packet.QoS1},
 		{version: packet.MQTT50, qos: packet.QoS1},
+		{version: packet.MQTT31, qos: packet.QoS2},
+		{version: packet.MQTT311, qos: packet.QoS2},
+		{version: packet.MQTT50, qos: packet.QoS2},
 	}
 
 	for _, tc := range testCases {
