@@ -81,7 +81,8 @@ func (sm *sessionManager) handlePacket(id ClientID,
 		connPkt, _ := pkt.(*packet.Connect)
 		return sm.handleConnect(connPkt)
 	case packet.PINGREQ:
-		return sm.handlePingReq(id)
+		pingReqPkt, _ := pkt.(*packet.PingReq)
+		return sm.handlePingReq(id, pingReqPkt)
 	case packet.SUBSCRIBE:
 		subPkt, _ := pkt.(*packet.Subscribe)
 		return sm.handleSubscribe(id, subPkt)
@@ -212,8 +213,13 @@ func (sm *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 	return session, replies, nil
 }
 
-func (sm *sessionManager) handlePingReq(id ClientID) (*Session,
-	[]packet.Packet, error) {
+func (sm *sessionManager) handlePingReq(id ClientID,
+	pkt *packet.PingReq) (*Session, []packet.Packet, error) {
+
+	sm.log.Trace().
+		Str("ClientId", string(id)).
+		Uint8("Version", uint8(pkt.Version)).
+		Msg("MQTT Received PINGREQ packet")
 
 	session, err := sm.readSession(id)
 	if err != nil {
@@ -222,14 +228,6 @@ func (sm *sessionManager) handlePingReq(id ClientID) (*Session,
 
 	session.mutex.RLock()
 	defer session.mutex.RUnlock()
-
-	sm.log.Trace().
-		Str("ClientId", string(session.ClientID)).
-		Int("KeepAlive", session.KeepAlive).
-		Uint64("SessionId", uint64(session.SessionID)).
-		Int("Subscriptions", len(session.Subscriptions)).
-		Uint8("Version", uint8(session.Version)).
-		Msg("MQTT Received PINGREQ packet")
 
 	reply := packet.PingResp{}
 	sm.log.Trace().
@@ -246,6 +244,13 @@ func (sm *sessionManager) handlePingReq(id ClientID) (*Session,
 func (sm *sessionManager) handleSubscribe(id ClientID,
 	pkt *packet.Subscribe) (*Session, []packet.Packet, error) {
 
+	sm.log.Trace().
+		Str("ClientId", string(id)).
+		Uint16("PacketId", uint16(pkt.PacketID)).
+		Int("Topics", len(pkt.Topics)).
+		Uint8("Version", uint8(pkt.Version)).
+		Msg("MQTT Received SUBSCRIBE packet")
+
 	session, err := sm.readSession(id)
 	if err != nil {
 		return nil, nil, err
@@ -253,15 +258,6 @@ func (sm *sessionManager) handleSubscribe(id ClientID,
 
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
-
-	sm.log.Trace().
-		Str("ClientId", string(session.ClientID)).
-		Uint16("PacketId", uint16(pkt.PacketID)).
-		Int("Topics", len(pkt.Topics)).
-		Uint64("SessionId", uint64(session.SessionID)).
-		Int("Subscriptions", len(session.Subscriptions)).
-		Uint8("Version", uint8(pkt.Version)).
-		Msg("MQTT Received SUBSCRIBE packet")
 
 	replies := make([]packet.Packet, 0, 1)
 
@@ -321,6 +317,13 @@ func (sm *sessionManager) handleSubscribe(id ClientID,
 func (sm *sessionManager) handleUnsubscribe(id ClientID,
 	pkt *packet.Unsubscribe) (*Session, []packet.Packet, error) {
 
+	sm.log.Trace().
+		Str("ClientId", string(id)).
+		Uint16("PacketId", uint16(pkt.PacketID)).
+		Int("Topics", len(pkt.Topics)).
+		Uint8("Version", uint8(pkt.Version)).
+		Msg("MQTT Received UNSUBSCRIBE packet")
+
 	session, err := sm.readSession(id)
 	if err != nil {
 		return nil, nil, err
@@ -328,15 +331,6 @@ func (sm *sessionManager) handleUnsubscribe(id ClientID,
 
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
-
-	sm.log.Trace().
-		Str("ClientId", string(session.ClientID)).
-		Uint16("PacketId", uint16(pkt.PacketID)).
-		Uint64("SessionId", uint64(session.SessionID)).
-		Int("Subscriptions", len(session.Subscriptions)).
-		Int("Topics", len(pkt.Topics)).
-		Uint8("Version", uint8(pkt.Version)).
-		Msg("MQTT Received UNSUBSCRIBE packet")
 
 	var codes []packet.ReasonCode
 	if pkt.Version == packet.MQTT50 {
@@ -387,6 +381,14 @@ func (sm *sessionManager) handleUnsubscribe(id ClientID,
 func (sm *sessionManager) handlePublish(id ClientID,
 	pkt *packet.Publish) (*Session, []packet.Packet, error) {
 
+	sm.log.Trace().
+		Str("ClientId", string(id)).
+		Uint16("PacketId", uint16(pkt.PacketID)).
+		Uint8("QoS", uint8(pkt.QoS)).
+		Str("TopicName", pkt.TopicName).
+		Uint8("Version", uint8(pkt.Version)).
+		Msg("MQTT Received PUBLISH packet")
+
 	session, err := sm.readSession(id)
 	if err != nil {
 		return nil, nil, err
@@ -394,15 +396,6 @@ func (sm *sessionManager) handlePublish(id ClientID,
 
 	session.mutex.RLock()
 	defer session.mutex.RUnlock()
-
-	sm.log.Trace().
-		Str("ClientId", string(session.ClientID)).
-		Uint16("PacketId", uint16(pkt.PacketID)).
-		Uint8("QoS", uint8(pkt.QoS)).
-		Uint64("SessionId", uint64(session.SessionID)).
-		Str("TopicName", pkt.TopicName).
-		Uint8("Version", uint8(session.Version)).
-		Msg("MQTT Received PUBLISH packet")
 
 	if pkt.QoS < packet.QoS2 {
 		msg := sm.pubSub.publish(pkt)
@@ -458,6 +451,12 @@ func (sm *sessionManager) handlePublish(id ClientID,
 func (sm *sessionManager) handlePubAck(id ClientID,
 	pkt *packet.PubAck) (*Session, []packet.Packet, error) {
 
+	sm.log.Trace().
+		Str("ClientId", string(id)).
+		Uint16("PacketId", uint16(pkt.PacketID)).
+		Uint8("Version", uint8(pkt.Version)).
+		Msg("MQTT Received PUBACK packet")
+
 	session, err := sm.readSession(id)
 	if err != nil {
 		return nil, nil, err
@@ -465,12 +464,6 @@ func (sm *sessionManager) handlePubAck(id ClientID,
 
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
-
-	sm.log.Trace().
-		Str("ClientId", string(session.ClientID)).
-		Uint16("PacketId", uint16(pkt.PacketID)).
-		Uint8("Version", uint8(session.Version)).
-		Msg("MQTT Received PUBACK packet")
 
 	inflightMsg := session.findInflightMessage(pkt.PacketID)
 	if inflightMsg == nil {
@@ -499,6 +492,11 @@ func (sm *sessionManager) handlePubAck(id ClientID,
 func (sm *sessionManager) handleDisconnect(id ClientID,
 	pkt *packet.Disconnect) (*Session, []packet.Packet, error) {
 
+	sm.log.Trace().
+		Str("ClientId", string(id)).
+		Uint8("Version", uint8(pkt.Version)).
+		Msg("MQTT Received DISCONNECT packet")
+
 	session, err := sm.readSession(id)
 	if err != nil {
 		return nil, nil, err
@@ -506,12 +504,6 @@ func (sm *sessionManager) handleDisconnect(id ClientID,
 
 	session.mutex.Lock()
 	defer session.mutex.Unlock()
-
-	sm.log.Trace().
-		Str("ClientId", string(session.ClientID)).
-		Uint64("SessionId", uint64(session.SessionID)).
-		Uint8("Version", uint8(session.Version)).
-		Msg("MQTT Received DISCONNECT packet")
 
 	if session.Version == packet.MQTT50 && pkt.Properties != nil {
 		interval := pkt.Properties.SessionExpiryInterval
