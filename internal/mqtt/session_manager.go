@@ -159,7 +159,7 @@ func (sm *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
-		Int("UnAckPubPackets", session.unAckPubPackets.Len()).
+		Int("UnAckPubMessages", session.unAckPubMessages.Len()).
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Client connected")
 
@@ -204,7 +204,7 @@ func (sm *sessionManager) handleConnect(pkt *packet.Connect) (*Session,
 				Uint8("Retain", pub.Retain).
 				Uint64("SessionId", uint64(session.SessionID)).
 				Str("TopicName", pub.TopicName).
-				Int("UnAckPubPackets", session.unAckPubPackets.Len()).
+				Int("UnAckPubMessages", session.unAckPubMessages.Len()).
 				Uint8("Version", uint8(pkt.Version)).
 				Msg("MQTT Sending PUBLISH packet")
 		}
@@ -431,8 +431,8 @@ func (sm *sessionManager) handlePublish(id ClientID,
 			Uint8("Version", uint8(pubAck.Version)).
 			Msg("MQTT Sending PUBACK packet")
 	} else {
-		if p := session.findUnAckPubPacket(pkt.PacketID); p == nil {
-			session.unAckPubPackets.PushBack(pkt)
+		if m := session.findUnAckPubMessage(pkt.PacketID); m == nil {
+			session.unAckPubMessages.PushBack(msg)
 			sm.saveSession(session)
 		}
 
@@ -443,7 +443,7 @@ func (sm *sessionManager) handlePublish(id ClientID,
 		sm.log.Trace().
 			Str("ClientId", string(session.ClientID)).
 			Uint16("PacketId", uint16(pubRec.PacketID)).
-			Int("UnAckPubPackets", session.unAckPubPackets.Len()).
+			Int("UnAckPubMessages", session.unAckPubMessages.Len()).
 			Uint8("Version", uint8(pubRec.Version)).
 			Msg("MQTT Sending PUBREC packet")
 	}
@@ -542,7 +542,7 @@ func (sm *sessionManager) handleDisconnect(id ClientID,
 		Uint32("SessionExpiryInterval", session.ExpiryInterval).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
-		Int("UnAckPubPackets", session.unAckPubPackets.Len()).
+		Int("UnAckPubMessages", session.unAckPubMessages.Len()).
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Client disconnected")
 
@@ -753,7 +753,7 @@ func (sm *sessionManager) readSession(id ClientID) (*Session, error) {
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
-		Int("UnAckPubPackets", session.unAckPubPackets.Len()).
+		Int("UnAckPubMessages", session.unAckPubMessages.Len()).
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Session read with success")
 
@@ -771,7 +771,7 @@ func (sm *sessionManager) saveSession(session *Session) {
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
-		Int("UnAckPubPackets", session.unAckPubPackets.Len()).
+		Int("UnAckPubMessages", session.unAckPubMessages.Len()).
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Saving session")
 
@@ -787,7 +787,7 @@ func (sm *sessionManager) saveSession(session *Session) {
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
-		Int("UnAckPubPackets", session.unAckPubPackets.Len()).
+		Int("UnAckPubMessages", session.unAckPubMessages.Len()).
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Session saved with success")
 }
@@ -803,7 +803,7 @@ func (sm *sessionManager) deleteSession(session *Session) {
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
-		Int("UnAckPubPackets", session.unAckPubPackets.Len()).
+		Int("UnAckPubMessages", session.unAckPubMessages.Len()).
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Deleting session")
 
@@ -819,7 +819,7 @@ func (sm *sessionManager) deleteSession(session *Session) {
 		Int("KeepAlive", session.KeepAlive).
 		Uint64("SessionId", uint64(session.SessionID)).
 		Int("Subscriptions", len(session.Subscriptions)).
-		Int("UnAckPubPackets", session.unAckPubPackets.Len()).
+		Int("UnAckPubMessages", session.unAckPubMessages.Len()).
 		Uint8("Version", uint8(session.Version)).
 		Msg("MQTT Session deleted with success")
 }

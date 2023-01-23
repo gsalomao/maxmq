@@ -62,7 +62,7 @@ type Session struct {
 	connected        bool
 	restored         bool
 	inflightMessages list.List
-	unAckPubPackets  list.List
+	unAckPubMessages list.List
 	lastPacketID     uint32
 	mutex            sync.RWMutex
 }
@@ -98,12 +98,12 @@ func (s *Session) findInflightMessage(id packet.ID) *list.Element {
 	return nil
 }
 
-func (s *Session) findUnAckPubPacket(id packet.ID) *list.Element {
-	elem := s.unAckPubPackets.Front()
+func (s *Session) findUnAckPubMessage(id packet.ID) *list.Element {
+	elem := s.unAckPubMessages.Front()
 
 	for elem != nil {
-		pkt := elem.Value.(*packet.Publish)
-		if pkt.PacketID == id {
+		msg := elem.Value.(*message)
+		if msg.packetID == id {
 			return elem
 		}
 

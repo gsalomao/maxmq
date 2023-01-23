@@ -1671,8 +1671,10 @@ func TestSessionManagerPublishQoS2(t *testing.T) {
 			pubPkt := packet.NewPublish(1, tc.version, tc.topic, packet.QoS2,
 				0, 0, []byte(tc.payload), nil)
 
+			msg := &message{id: 10, packetID: pubPkt.PacketID, packet: &pubPkt}
+
 			idGen := sm.idGen.(*idGeneratorMock)
-			idGen.On("NextID").Return(10)
+			idGen.On("NextID").Return(int(msg.id))
 
 			session, replies, err := sm.handlePacket(id, &pubPkt)
 			require.Nil(t, err)
@@ -1687,10 +1689,10 @@ func TestSessionManagerPublishQoS2(t *testing.T) {
 			assert.Equal(t, packet.ReasonCodeV5Success, pubRec.ReasonCode)
 
 			require.NotNil(t, session)
-			require.Equal(t, 1, session.unAckPubPackets.Len())
+			require.Equal(t, 1, session.unAckPubMessages.Len())
 
-			pkt := session.unAckPubPackets.Front().Value.(*packet.Publish)
-			assert.Same(t, &pubPkt, pkt)
+			unAckMsg := session.unAckPubMessages.Front().Value.(*message)
+			assert.Equal(t, msg, unAckMsg)
 		})
 	}
 }
@@ -1721,11 +1723,19 @@ func TestSessionManagerPublishQoS2NoDuplication(t *testing.T) {
 			pubPkt1 := packet.NewPublish(1, tc.version, tc.topic,
 				packet.QoS2, 0, 0, []byte(tc.payload), nil)
 
+			msg1 := &message{id: 10, packetID: pubPkt1.PacketID,
+				packet: &pubPkt1}
+
 			pubPkt2 := packet.NewPublish(2, tc.version, tc.topic,
 				packet.QoS2, 0, 0, []byte(tc.payload), nil)
 
+			msg2 := &message{id: 11, packetID: pubPkt2.PacketID,
+				packet: &pubPkt2}
+
 			idGen := sm.idGen.(*idGeneratorMock)
-			idGen.On("NextID").Return(10)
+			idGen.On("NextID").Return(int(msg1.id)).Once()
+			idGen.On("NextID").Return(int(msg2.id)).Once()
+			idGen.On("NextID").Return(int(msg2.id + 1)).Once()
 
 			_, replies, err := sm.handlePacket(id, &pubPkt1)
 			require.Nil(t, err)
@@ -1746,13 +1756,13 @@ func TestSessionManagerPublishQoS2NoDuplication(t *testing.T) {
 			assert.Equal(t, packet.ReasonCodeV5Success, pubRec.ReasonCode)
 
 			require.NotNil(t, session)
-			require.Equal(t, 2, session.unAckPubPackets.Len())
+			require.Equal(t, 2, session.unAckPubMessages.Len())
 
-			pkt := session.unAckPubPackets.Front()
-			assert.Same(t, &pubPkt1, pkt.Value)
+			unAckMsg := session.unAckPubMessages.Front()
+			assert.Equal(t, msg1, unAckMsg.Value)
 
-			pkt = pkt.Next()
-			assert.Same(t, &pubPkt2, pkt.Value)
+			unAckMsg = unAckMsg.Next()
+			assert.Equal(t, msg2, unAckMsg.Value)
 		})
 	}
 }
