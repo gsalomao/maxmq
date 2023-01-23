@@ -22,6 +22,9 @@ import (
 
 // PingReq represents the PINGREQ Packet from MQTT specifications.
 type PingReq struct {
+	// Version represents the MQTT version.
+	Version MQTTVersion
+
 	// Unexported fields
 	timestamp time.Time
 	size      int
@@ -41,6 +44,7 @@ func newPacketPingReq(opts options) (Packet, error) {
 	}
 
 	return &PingReq{
+		Version:   opts.version,
 		size:      opts.fixedHeaderLength,
 		timestamp: opts.timestamp,
 	}, nil
