@@ -37,24 +37,20 @@ type pubSub interface {
 	stop()
 	subscribe(s *Session, t packet.Topic, subsID int) (Subscription, error)
 	unsubscribe(id ClientID, topic string) error
-	publish(pkt *packet.Publish) *message
+	publish(msg *message)
 }
 
-func newPubSubManager(
-	idGen IDGenerator, metrics *metrics, log *logger.Logger,
-) *pubSubManager {
+func newPubSubManager(metrics *metrics, log *logger.Logger) *pubSubManager {
 	return &pubSubManager{
 		metrics: metrics,
 		log:     log,
 		tree:    newSubscriptionTree(),
-		idGen:   idGen,
 		action:  make(chan pubSubAction, 1),
 	}
 }
 
 type pubSubManager struct {
 	publisher messagePublisher
-	idGen     IDGenerator
 	metrics   *metrics
 	log       *logger.Logger
 	tree      subscriptionTree
@@ -176,9 +172,7 @@ func (p *pubSubManager) unsubscribe(id ClientID, topic string) error {
 	return err
 }
 
-func (p *pubSubManager) publish(pkt *packet.Publish) *message {
-	id := p.idGen.NextID()
-	msg := &message{id: messageID(id), packetID: pkt.PacketID, packet: pkt}
+func (p *pubSubManager) publish(msg *message) {
 	p.log.Trace().
 		Uint8("DUP", msg.packet.Dup).
 		Uint64("MessageId", uint64(msg.id)).
@@ -201,8 +195,6 @@ func (p *pubSubManager) publish(pkt *packet.Publish) *message {
 		Uint8("Retain", msg.packet.Retain).
 		Str("TopicName", msg.packet.TopicName).
 		Msg("MQTT Message queued for processing")
-
-	return msg
 }
 
 func (p *pubSubManager) publishQueuedMessages() {

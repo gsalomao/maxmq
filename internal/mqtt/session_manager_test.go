@@ -59,9 +59,8 @@ func (ps *pubSubMock) unsubscribe(id ClientID, topic string) error {
 	return args.Error(0)
 }
 
-func (ps *pubSubMock) publish(pkt *packet.Publish) *message {
-	args := ps.Called(pkt)
-	return args.Get(0).(*message)
+func (ps *pubSubMock) publish(msg *message) {
+	ps.Called(msg)
 }
 
 func createSessionManager(conf Configuration) *sessionManager {
@@ -75,7 +74,7 @@ func createSessionManager(conf Configuration) *sessionManager {
 
 	m := newMetrics(true, &log)
 	idGen := &idGeneratorMock{}
-	idGen.On("NextID").Return(1)
+	idGen.On("NextID").Return(1).Once()
 
 	ps := &pubSubMock{}
 	dl := &delivererMock{}
@@ -1578,10 +1577,15 @@ func TestSessionManagerPublishQoS0(t *testing.T) {
 
 			pubPkt := packet.NewPublish(1, tc.version, tc.topic, packet.QoS0,
 				0, 0, []byte(tc.payload), nil)
-			msg := &message{id: 1, packetID: 1, packet: &pubPkt}
+
+			msg := &message{id: 10, packetID: pubPkt.PacketID,
+				packet: &pubPkt}
+
+			idGen := sm.idGen.(*idGeneratorMock)
+			idGen.On("NextID").Return(int(msg.id))
 
 			ps := sm.pubSub.(*pubSubMock)
-			ps.On("publish", &pubPkt).Return(msg)
+			ps.On("publish", msg)
 
 			_, replies, err := sm.handlePacket(id, &pubPkt)
 			require.Nil(t, err)
@@ -1615,10 +1619,15 @@ func TestSessionManagerPublishQoS1(t *testing.T) {
 
 			pubPkt := packet.NewPublish(1, tc.version, tc.topic, packet.QoS1,
 				0, 0, []byte(tc.payload), nil)
-			msg := &message{id: 1, packetID: 1, packet: &pubPkt}
+
+			msg := &message{id: 10, packetID: pubPkt.PacketID,
+				packet: &pubPkt}
+
+			idGen := sm.idGen.(*idGeneratorMock)
+			idGen.On("NextID").Return(int(msg.id))
 
 			ps := sm.pubSub.(*pubSubMock)
-			ps.On("publish", &pubPkt).Return(msg)
+			ps.On("publish", msg)
 
 			_, replies, err := sm.handlePacket(id, &pubPkt)
 			require.Nil(t, err)
@@ -1661,6 +1670,9 @@ func TestSessionManagerPublishQoS2(t *testing.T) {
 
 			pubPkt := packet.NewPublish(1, tc.version, tc.topic, packet.QoS2,
 				0, 0, []byte(tc.payload), nil)
+
+			idGen := sm.idGen.(*idGeneratorMock)
+			idGen.On("NextID").Return(10)
 
 			session, replies, err := sm.handlePacket(id, &pubPkt)
 			require.Nil(t, err)
@@ -1711,6 +1723,9 @@ func TestSessionManagerPublishQoS2NoDuplication(t *testing.T) {
 
 			pubPkt2 := packet.NewPublish(2, tc.version, tc.topic,
 				packet.QoS2, 0, 0, []byte(tc.payload), nil)
+
+			idGen := sm.idGen.(*idGeneratorMock)
+			idGen.On("NextID").Return(10)
 
 			_, replies, err := sm.handlePacket(id, &pubPkt1)
 			require.Nil(t, err)

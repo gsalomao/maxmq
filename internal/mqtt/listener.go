@@ -61,7 +61,7 @@ func NewListener(opts ...OptionsFn) (*Listener, error) {
 
 	mt := newMetrics(lsn.conf.MetricsEnabled, lsn.log)
 	cm := newConnectionManager(lsn.conf, mt, lsn.log)
-	ps := newPubSubManager(lsn.idGen, mt, lsn.log)
+	ps := newPubSubManager(mt, lsn.log)
 	sm := newSessionManager(lsn.conf, lsn.idGen, mt, userProps, lsn.log)
 
 	ps.publisher = sm

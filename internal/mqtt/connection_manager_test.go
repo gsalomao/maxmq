@@ -57,7 +57,7 @@ func createConnectionManager(conf Configuration) *connectionManager {
 
 	mt := newMetrics(conf.MetricsEnabled, &log)
 	cm := newConnectionManager(&conf, mt, &log)
-	ps := newPubSubManager(idGen, mt, &log)
+	ps := newPubSubManager(mt, &log)
 	sm := newSessionManager(&conf, idGen, mt, nil, &log)
 
 	ps.publisher = sm

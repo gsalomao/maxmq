@@ -38,10 +38,9 @@ func (d *messagePublisherMock) publishMessage(id ClientID, msg *message) error {
 func createPubSubManager() *pubSubManager {
 	log := newLogger()
 	pubMock := &messagePublisherMock{}
-	idGen := &idGeneratorMock{}
 
 	m := newMetrics(true, &log)
-	ps := newPubSubManager(idGen, m, &log)
+	ps := newPubSubManager(m, &log)
 	ps.publisher = pubMock
 	return ps
 }
@@ -142,27 +141,24 @@ func TestPubSubManagerPublishMessage(t *testing.T) {
 	ps := createPubSubManager()
 	require.Zero(t, ps.queue.len())
 
-	msgID := 10
-	idGen := ps.idGen.(*idGeneratorMock)
-	idGen.On("NextID").Return(msgID)
-
 	pkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS1,
 		0, 0, nil, nil)
+	msg := &message{packetID: pkt.PacketID, packet: &pkt}
 
-	msg := ps.publish(&pkt)
-	assert.Equal(t, messageID(msgID), msg.id)
-	assert.Equal(t, &pkt, msg.packet)
-	assert.Equal(t, 1, ps.queue.len())
+	ps.publish(msg)
 
 	act := <-ps.action
 	assert.Equal(t, pubSubActionPublishMessage, act)
+
+	assert.Equal(t, 1, ps.queue.len())
+	assert.Same(t, msg, ps.queue.list.Front().Value.(*message))
 }
 
 func TestPubSubManagerPublishQueuedMessagesNoSubscription(t *testing.T) {
 	ps := createPubSubManager()
 	pkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS0,
 		0, 0, nil, nil)
-	msg := message{id: 1, packet: &pkt}
+	msg := message{packetID: pkt.PacketID, packet: &pkt}
 	ps.queue.enqueue(&msg)
 
 	ps.publishQueuedMessages()
@@ -197,7 +193,7 @@ func TestPubSubManagerPublishQueuedQoS0Message(t *testing.T) {
 
 			pkt := packet.NewPublish(test.id, packet.MQTT311, test.topic,
 				packet.QoS0, 0, 0, nil, nil)
-			msg := &message{id: messageID(test.id), packet: &pkt}
+			msg := &message{packetID: pkt.PacketID, packet: &pkt}
 
 			pubMock := ps.publisher.(*messagePublisherMock)
 			pubMock.On("publishMessage", id, msg).Return(nil)
@@ -222,7 +218,7 @@ func TestPubSubManagerProcessQueuedMessagesFailedToDeliver(t *testing.T) {
 
 	pkt := packet.NewPublish(1, packet.MQTT311, "data",
 		packet.QoS0, 0, 0, nil, nil)
-	msg := &message{id: 1, packet: &pkt}
+	msg := &message{packetID: pkt.PacketID, packet: &pkt}
 
 	pubMock := ps.publisher.(*messagePublisherMock)
 	pubMock.On("publishMessage", id, msg).

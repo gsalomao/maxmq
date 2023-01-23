@@ -394,11 +394,14 @@ func (sm *sessionManager) handlePublish(id ClientID,
 		return nil, nil, err
 	}
 
+	msgID := sm.idGen.NextID()
+	msg := &message{id: messageID(msgID), packetID: pkt.PacketID, packet: pkt}
+
 	session.mutex.RLock()
 	defer session.mutex.RUnlock()
 
 	if pkt.QoS < packet.QoS2 {
-		msg := sm.pubSub.publish(pkt)
+		sm.pubSub.publish(msg)
 		sm.log.Info().
 			Str("ClientId", string(session.ClientID)).
 			Uint8("DUP", msg.packet.Dup).
