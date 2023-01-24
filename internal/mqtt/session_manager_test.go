@@ -1689,9 +1689,10 @@ func TestSessionManagerPublishQoS2(t *testing.T) {
 			assert.Equal(t, packet.ReasonCodeV5Success, pubRec.ReasonCode)
 
 			require.NotNil(t, session)
-			require.Equal(t, 1, session.unAckPubMessages.Len())
+			require.Len(t, session.unAckPubMessages, 1)
 
-			unAckMsg := session.unAckPubMessages.Front().Value.(*message)
+			unAckMsg, ok := session.unAckPubMessages[msg.packetID]
+			require.True(t, ok)
 			assert.Equal(t, msg, unAckMsg)
 		})
 	}
@@ -1756,13 +1757,15 @@ func TestSessionManagerPublishQoS2NoDuplication(t *testing.T) {
 			assert.Equal(t, packet.ReasonCodeV5Success, pubRec.ReasonCode)
 
 			require.NotNil(t, session)
-			require.Equal(t, 2, session.unAckPubMessages.Len())
+			require.Len(t, session.unAckPubMessages, 2)
 
-			unAckMsg := session.unAckPubMessages.Front()
-			assert.Equal(t, msg1, unAckMsg.Value)
+			unAckMsg1, ok := session.unAckPubMessages[msg1.packetID]
+			require.True(t, ok)
+			assert.Equal(t, msg1, unAckMsg1)
 
-			unAckMsg = unAckMsg.Next()
-			assert.Equal(t, msg2, unAckMsg.Value)
+			unAckMsg2, ok := session.unAckPubMessages[msg2.packetID]
+			require.True(t, ok)
+			assert.Equal(t, msg2, unAckMsg2)
 		})
 	}
 }

@@ -62,7 +62,7 @@ type Session struct {
 	connected        bool
 	restored         bool
 	inflightMessages list.List
-	unAckPubMessages list.List
+	unAckPubMessages map[packet.ID]*message
 	lastPacketID     uint32
 	mutex            sync.RWMutex
 }
@@ -85,21 +85,6 @@ func (s *Session) nextClientID() packet.ID {
 
 func (s *Session) findInflightMessage(id packet.ID) *list.Element {
 	elem := s.inflightMessages.Front()
-
-	for elem != nil {
-		msg := elem.Value.(*message)
-		if msg.packetID == id {
-			return elem
-		}
-
-		elem = elem.Next()
-	}
-
-	return nil
-}
-
-func (s *Session) findUnAckPubMessage(id packet.ID) *list.Element {
-	elem := s.unAckPubMessages.Front()
 
 	for elem != nil {
 		msg := elem.Value.(*message)

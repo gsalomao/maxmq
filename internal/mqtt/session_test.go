@@ -62,35 +62,3 @@ func TestSessionFindInflightMessageNotFound(t *testing.T) {
 		require.Nil(t, inflightMsg)
 	}
 }
-
-func TestSessionFindUnAckPubMessage(t *testing.T) {
-	session := &Session{}
-	numOfMessages := 10
-	messages := make([]*message, 0, numOfMessages)
-
-	for i := 0; i < numOfMessages; i++ {
-		pkt := packet.NewPublish(packet.ID(i), packet.MQTT311, "topic",
-			packet.QoS2, 0, 0, []byte("data"), nil)
-
-		msg := &message{packetID: pkt.PacketID, packet: &pkt}
-		session.unAckPubMessages.PushBack(msg)
-		messages = append(messages, msg)
-	}
-
-	for i := 0; i < numOfMessages; i++ {
-		unAckMsg := session.findUnAckPubMessage(packet.ID(i))
-		require.NotNil(t, unAckMsg)
-
-		msg := unAckMsg.Value.(*message)
-		require.Same(t, messages[i], msg)
-	}
-}
-
-func TestSessionFindUnAckPubPacketNotFound(t *testing.T) {
-	session := &Session{}
-
-	for i := 0; i < 10; i++ {
-		pkt := session.findUnAckPubMessage(packet.ID(i))
-		require.Nil(t, pkt)
-	}
-}
