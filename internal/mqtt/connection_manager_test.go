@@ -101,8 +101,7 @@ func TestConnectionManagerHandlePacket(t *testing.T) {
 	conn, sConn := net.Pipe()
 	done := make(chan bool)
 	go func() {
-		err := cm.handle(sConn)
-		assert.Nil(t, err)
+		cm.handle(sConn)
 		done <- true
 	}()
 
@@ -159,8 +158,7 @@ func TestConnectionManagerHandleNetConnClosed(t *testing.T) {
 	conn, sConn := net.Pipe()
 	done := make(chan bool)
 	go func() {
-		err := cm.handle(sConn)
-		assert.Nil(t, err)
+		cm.handle(sConn)
 		done <- true
 	}()
 
@@ -176,8 +174,7 @@ func TestConnectionManagerHandleSetDeadlineFailure(t *testing.T) {
 	conn, sConn := net.Pipe()
 	_ = conn.Close()
 
-	err := cm.handle(sConn)
-	assert.NotNil(t, err)
+	cm.handle(sConn) // It is expected to run and return immediately
 }
 
 func TestConnectionManagerHandleReadFailure(t *testing.T) {
@@ -189,8 +186,7 @@ func TestConnectionManagerHandleReadFailure(t *testing.T) {
 
 	done := make(chan bool)
 	go func() {
-		err := cm.handle(sConn)
-		assert.NotNil(t, err)
+		cm.handle(sConn)
 		done <- true
 	}()
 
@@ -210,8 +206,7 @@ func TestConnectionManagerKeepAliveExceeded(t *testing.T) {
 
 	done := make(chan bool)
 	go func() {
-		err := cm.handle(sConn)
-		assert.NotNil(t, err)
+		cm.handle(sConn)
 		done <- true
 	}()
 
@@ -238,8 +233,7 @@ func TestConnectionManagerHandleWritePacketFailure(t *testing.T) {
 
 	done := make(chan bool)
 	go func() {
-		err := cm.handle(sConn)
-		assert.NotNil(t, err)
+		cm.handle(sConn)
 		done <- true
 	}()
 
@@ -261,8 +255,7 @@ func TestConnectionManagerHandleInvalidPacket(t *testing.T) {
 
 	done := make(chan bool)
 	go func() {
-		err := cm.handle(sConn)
-		assert.NotNil(t, err)
+		cm.handle(sConn)
 		done <- true
 	}()
 
@@ -281,8 +274,7 @@ func TestConnectionManagerHandleDisconnect(t *testing.T) {
 
 	done := make(chan bool)
 	go func() {
-		err := cm.handle(sConn)
-		assert.Nil(t, err)
+		cm.handle(sConn)
 		done <- true
 	}()
 

@@ -99,8 +99,7 @@ func (sm *sessionManager) handlePacket(id ClientID,
 		disconnect := pkt.(*packet.Disconnect)
 		return sm.handleDisconnect(id, disconnect)
 	default:
-		return nil, nil, fmt.Errorf("invalid packet type: %v",
-			pkt.Type().String())
+		return nil, nil, errors.New("invalid packet type")
 	}
 }
 
@@ -427,12 +426,21 @@ func (sm *sessionManager) handlePublish(id ClientID,
 		replies = append(replies, &pubAck)
 		sm.log.Trace().
 			Str("ClientId", string(session.ClientID)).
+			Uint64("MessageId", uint64(msg.id)).
 			Uint16("PacketId", uint16(pubAck.PacketID)).
 			Uint8("Version", uint8(pubAck.Version)).
 			Msg("MQTT Sending PUBACK packet")
 	} else {
 		unAckMsg, ok := session.unAckPubMessages[pkt.PacketID]
 		if !ok || unAckMsg.packet == nil {
+			sm.log.Trace().
+				Str("ClientId", string(session.ClientID)).
+				Uint64("MessageId", uint64(msg.id)).
+				Uint16("PacketId", uint16(pkt.PacketID)).
+				Int("UnAckPubMessages", len(session.unAckPubMessages)).
+				Uint8("Version", uint8(pkt.Version)).
+				Msg("MQTT Adding message to unacknowledged messages")
+
 			session.unAckPubMessages[pkt.PacketID] = msg
 			sm.saveSession(session)
 		}

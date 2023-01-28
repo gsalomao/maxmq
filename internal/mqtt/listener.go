@@ -105,14 +105,7 @@ func (l *Listener) Listen() error {
 
 		l.log.Trace().Msg("MQTT New TCP connection")
 		go func() {
-			err = l.connManager.handle(tcpConn)
-			if err == nil {
-				return
-			}
-			if err != errConnectionTimeout && err != errProtocolError {
-				l.log.Warn().
-					Msg("MQTT Connection closed with error: " + err.Error())
-			}
+			l.connManager.handle(tcpConn)
 		}()
 	}
 
