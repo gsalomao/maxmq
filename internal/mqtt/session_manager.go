@@ -431,7 +431,8 @@ func (sm *sessionManager) handlePublish(id ClientID,
 			Uint8("Version", uint8(pubAck.Version)).
 			Msg("MQTT Sending PUBACK packet")
 	} else {
-		if _, ok := session.unAckPubMessages[pkt.PacketID]; !ok {
+		unAckMsg, ok := session.unAckPubMessages[pkt.PacketID]
+		if !ok || unAckMsg.packet == nil {
 			session.unAckPubMessages[pkt.PacketID] = msg
 			sm.saveSession(session)
 		}
@@ -442,6 +443,7 @@ func (sm *sessionManager) handlePublish(id ClientID,
 		replies = append(replies, &pubRec)
 		sm.log.Trace().
 			Str("ClientId", string(session.ClientID)).
+			Uint64("MessageId", uint64(msg.id)).
 			Uint16("PacketId", uint16(pubRec.PacketID)).
 			Int("UnAckPubMessages", len(session.unAckPubMessages)).
 			Uint8("Version", uint8(pubRec.Version)).

@@ -1741,19 +1741,19 @@ func TestSessionManagerPublishQoS2NoDuplication(t *testing.T) {
 			_, replies, err := sm.handlePacket(id, &pubPkt1)
 			require.Nil(t, err)
 			pubRec := replies[0].(*packet.PubRec)
-			assert.Equal(t, packet.ID(1), pubRec.PacketID)
+			assert.Equal(t, msg1.packetID, pubRec.PacketID)
 			assert.Equal(t, packet.ReasonCodeV5Success, pubRec.ReasonCode)
 
 			_, replies, err = sm.handlePacket(id, &pubPkt2)
 			require.Nil(t, err)
 			pubRec = replies[0].(*packet.PubRec)
-			assert.Equal(t, packet.ID(2), pubRec.PacketID)
+			assert.Equal(t, msg2.packetID, pubRec.PacketID)
 			assert.Equal(t, packet.ReasonCodeV5Success, pubRec.ReasonCode)
 
 			session, replies, err := sm.handlePacket(id, &pubPkt1)
 			require.Nil(t, err)
 			pubRec = replies[0].(*packet.PubRec)
-			assert.Equal(t, packet.ID(1), pubRec.PacketID)
+			assert.Equal(t, msg1.packetID, pubRec.PacketID)
 			assert.Equal(t, packet.ReasonCodeV5Success, pubRec.ReasonCode)
 
 			require.NotNil(t, session)
@@ -1766,6 +1766,57 @@ func TestSessionManagerPublishQoS2NoDuplication(t *testing.T) {
 			unAckMsg2, ok := session.unAckPubMessages[msg2.packetID]
 			require.True(t, ok)
 			assert.Equal(t, msg2, unAckMsg2)
+		})
+	}
+}
+
+func TestSessionManagerPublishQoS2SamePacketIDNewMessage(t *testing.T) {
+	testCases := []struct {
+		topic   string
+		version packet.MQTTVersion
+		payload string
+	}{
+		{topic: "data/temp/1", version: packet.MQTT31, payload: "1"},
+		{topic: "data/temp/2", version: packet.MQTT311, payload: "2"},
+		{topic: "data/temp/3", version: packet.MQTT50, payload: "3"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.topic, func(t *testing.T) {
+			conf := newConfiguration()
+			sm := createSessionManager(conf)
+			id := ClientID("a")
+
+			connect := &packet.Connect{ClientID: []byte(id),
+				Version: tc.version}
+
+			session, _, err := sm.handlePacket("", connect)
+			require.Nil(t, err)
+
+			pubPkt := packet.NewPublish(10, tc.version, tc.topic,
+				packet.QoS2, 0, 0, []byte(tc.payload), nil)
+
+			msg1 := &message{id: 10, packetID: pubPkt.PacketID, tries: 1,
+				lastSent: time.Now().UnixMicro()}
+			session.unAckPubMessages[msg1.packetID] = msg1
+
+			msg2 := &message{id: 11, packetID: pubPkt.PacketID, packet: &pubPkt}
+
+			idGen := sm.idGen.(*idGeneratorMock)
+			idGen.On("NextID").Return(int(msg2.id))
+
+			_, replies, err := sm.handlePacket(id, &pubPkt)
+			require.Nil(t, err)
+			pubRec := replies[0].(*packet.PubRec)
+			assert.Equal(t, msg2.packetID, pubRec.PacketID)
+			assert.Equal(t, packet.ReasonCodeV5Success, pubRec.ReasonCode)
+
+			require.NotNil(t, session)
+			require.Len(t, session.unAckPubMessages, 1)
+
+			unAckMsg, ok := session.unAckPubMessages[msg2.packetID]
+			require.True(t, ok)
+			assert.Equal(t, msg2, unAckMsg)
 		})
 	}
 }
