@@ -25,6 +25,7 @@ import (
 )
 
 var errSessionNotFound = errors.New("session not found")
+var errPacketIDNotFound = errors.New("packet ID not found")
 
 type sessionManager struct {
 	conf           *Configuration
@@ -95,6 +96,9 @@ func (sm *sessionManager) handlePacket(id ClientID,
 	case packet.PUBACK:
 		pubAckPkt, _ := pkt.(*packet.PubAck)
 		return sm.handlePubAck(id, pubAckPkt)
+	case packet.PUBREL:
+		pubRelPkt, _ := pkt.(*packet.PubRel)
+		return sm.handlePubRel(id, pubRelPkt)
 	case packet.DISCONNECT:
 		disconnect := pkt.(*packet.Disconnect)
 		return sm.handleDisconnect(id, disconnect)
@@ -500,6 +504,74 @@ func (sm *sessionManager) handlePubAck(id ClientID,
 		Msg("MQTT Message published to client")
 
 	return session, nil, nil
+}
+
+func (sm *sessionManager) handlePubRel(id ClientID,
+	pkt *packet.PubRel) (*Session, []packet.Packet, error) {
+
+	sm.log.Trace().
+		Str("ClientId", string(id)).
+		Uint16("PacketId", uint16(pkt.PacketID)).
+		Uint8("Version", uint8(pkt.Version)).
+		Msg("MQTT Received PUBREL packet")
+
+	session, err := sm.readSession(id)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	session.mutex.Lock()
+	defer session.mutex.Unlock()
+
+	replies := make([]packet.Packet, 0, 1)
+	msg, ok := session.unAckPubMessages[pkt.PacketID]
+	if !ok {
+		if session.Version != packet.MQTT50 {
+			return session, nil, errPacketIDNotFound
+		}
+
+		pubComp := packet.NewPubComp(pkt.PacketID, pkt.Version,
+			packet.ReasonCodeV5PacketIDNotFound, nil)
+		replies = append(replies, &pubComp)
+
+		return session, replies, nil
+	}
+
+	if msg.packet != nil {
+		msgToPub := &message{id: msg.id, packetID: msg.packetID,
+			packet: msg.packet}
+
+		sm.pubSub.publish(msgToPub)
+		sm.log.Info().
+			Str("ClientId", string(session.ClientID)).
+			Uint64("MessageId", uint64(msgToPub.id)).
+			Uint16("PacketId", uint16(msgToPub.packet.PacketID)).
+			Uint8("QoS", uint8(msgToPub.packet.QoS)).
+			Uint8("Retain", msgToPub.packet.Retain).
+			Str("TopicName", msgToPub.packet.TopicName).
+			Int("UnAckPubMessages", len(session.unAckPubMessages)).
+			Uint8("Version", uint8(msgToPub.packet.Version)).
+			Msg("MQTT Client published a packet")
+
+		msg.lastSent = time.Now().UnixMicro()
+		msg.tries = 1
+		msg.packet = nil
+		sm.saveSession(session)
+	}
+
+	pubComp := packet.NewPubComp(pkt.PacketID, pkt.Version,
+		packet.ReasonCodeV5Success, nil)
+	replies = append(replies, &pubComp)
+
+	sm.log.Trace().
+		Str("ClientId", string(session.ClientID)).
+		Uint64("MessageId", uint64(msg.id)).
+		Uint16("PacketId", uint16(pubComp.PacketID)).
+		Int("UnAckPubMessages", len(session.unAckPubMessages)).
+		Uint8("Version", uint8(pubComp.Version)).
+		Msg("MQTT Sending PUBCOMP packet")
+
+	return session, replies, nil
 }
 
 func (sm *sessionManager) handleDisconnect(id ClientID,
