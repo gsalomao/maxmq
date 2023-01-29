@@ -211,6 +211,39 @@ func TestSubscriptionTreeInsertSameTopicFilter(t *testing.T) {
 	assert.Empty(t, node.children)
 }
 
+func TestSubscriptionTreeInsertWithoutLooseNext(t *testing.T) {
+	subscriptions := []Subscription{
+		{ClientID: "id-0", TopicFilter: "data", QoS: packet.QoS0},
+		{ClientID: "id-1", TopicFilter: "data", QoS: packet.QoS1},
+	}
+	tree := newSubscriptionTree()
+
+	_, err := tree.insert(subscriptions[0])
+	require.Nil(t, err)
+	_, err = tree.insert(subscriptions[1])
+	require.Nil(t, err)
+	_, err = tree.insert(subscriptions[0])
+	require.Nil(t, err)
+
+	require.Len(t, tree.root.children, 1)
+	node := tree.root.children["data"]
+	require.NotNil(t, node.subscription)
+
+	sub := node.subscription
+	require.NotNil(t, sub)
+	assert.Equal(t, subscriptions[0].TopicFilter, sub.TopicFilter)
+	assert.Equal(t, subscriptions[0].QoS, sub.QoS)
+	assert.Empty(t, node.children)
+	assert.NotNil(t, sub.next)
+
+	sub = sub.next
+	require.NotNil(t, sub)
+	assert.Equal(t, subscriptions[1].TopicFilter, sub.TopicFilter)
+	assert.Equal(t, subscriptions[1].QoS, sub.QoS)
+	assert.Empty(t, node.children)
+	assert.Nil(t, sub.next)
+}
+
 func TestSubscriptionTreeRemoveSubscription(t *testing.T) {
 	testCases := []string{"a", "/topic", "topic/level", "topic/level/3",
 		"topic//test"}
@@ -347,7 +380,7 @@ func TestSubscriptionTreeRemoveSameTopicFilter(t *testing.T) {
 	assert.Empty(t, tree.root.children)
 }
 
-func TestSubscriptionTreeRemoveSameTopicDifferentSession(t *testing.T) {
+func TestSubscriptionTreeRemoveSameTopicDifferentClientID(t *testing.T) {
 	id := ClientID("id-0")
 	sub := Subscription{ClientID: id, TopicFilter: "data"}
 	tree := newSubscriptionTree()

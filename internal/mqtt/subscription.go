@@ -157,60 +157,38 @@ func newSubscriptionNode() *subscriptionNode {
 }
 
 func (n *subscriptionNode) insert(sub *Subscription) bool {
-	var parent *Subscription
 	var exists bool
+	subscription := &n.subscription
 
-	subscription := n.subscription
-
-	for subscription != nil {
-		if sameSubscription(sub, subscription) {
+	for *subscription != nil {
+		if sameSubscription(*subscription, sub) {
+			exists = true
+			sub.next = (*subscription).next
 			break
 		}
 
-		parent = subscription
-		subscription = subscription.next
+		subscription = &(*subscription).next
 	}
 
-	if subscription != nil {
-		exists = true
-	}
-
-	if parent != nil {
-		parent.next = sub
-	} else {
-		n.subscription = sub
-	}
-
+	*subscription = sub
 	return exists
 }
 
 func (n *subscriptionNode) remove(id ClientID) error {
-	var parent *Subscription
-	sub := n.subscription
+	sub := &n.subscription
 
-	for sub != nil {
-		if id == sub.ClientID {
+	for *sub != nil {
+		if id == (*sub).ClientID {
 			break
 		}
-
-		parent = sub
-		sub = sub.next
+		sub = &(*sub).next
 	}
 
-	if sub == nil {
+	if *sub == nil {
 		return ErrSubscriptionNotFound
 	}
 
-	if parent == nil {
-		if sub.next == nil {
-			n.subscription = nil
-		} else {
-			n.subscription = sub.next
-		}
-	} else {
-		parent.next = sub.next
-	}
-
+	*sub = (*sub).next
 	return nil
 }
 
