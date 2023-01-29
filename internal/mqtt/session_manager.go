@@ -104,6 +104,8 @@ func (sm *sessionManager) packetHandler(t packet.Type) (packetHandler, error) {
 		return sm.handlePubRec, nil
 	case packet.PUBREL:
 		return sm.handlePubRel, nil
+	case packet.PUBCOMP:
+		return sm.handlePubComp, nil
 	case packet.DISCONNECT:
 		return sm.handleDisconnect, nil
 	default:
@@ -664,6 +666,50 @@ func (sm *sessionManager) handlePubRel(id ClientID,
 		Msg("MQTT Sending PUBCOMP packet")
 
 	return session, replies, nil
+}
+
+func (sm *sessionManager) handlePubComp(id ClientID,
+	pkt packet.Packet) (*Session, []packet.Packet, error) {
+
+	pubComp := pkt.(*packet.PubComp)
+	sm.log.Trace().
+		Str("ClientId", string(id)).
+		Uint16("PacketId", uint16(pubComp.PacketID)).
+		Uint8("Version", uint8(pubComp.Version)).
+		Msg("MQTT Received PUBCOMP packet")
+
+	session, err := sm.readSession(id)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	session.mutex.Lock()
+	defer session.mutex.Unlock()
+
+	inflightMsg := session.findInflightMessage(pubComp.PacketID)
+	if inflightMsg == nil {
+		sm.log.Warn().
+			Str("ClientId", string(id)).
+			Int("InflightMessages", session.inflightMessages.Len()).
+			Uint16("PacketId", uint16(pubComp.PacketID)).
+			Uint8("Version", uint8(session.Version)).
+			Msg("MQTT Received PUBCOMP with unknown packet ID")
+		return session, nil, errPacketIDNotFound
+	}
+
+	session.inflightMessages.Remove(inflightMsg)
+	sm.saveSession(session)
+
+	msg := inflightMsg.Value.(*message)
+	sm.log.Info().
+		Str("ClientId", string(session.ClientID)).
+		Int("InflightMessages", session.inflightMessages.Len()).
+		Uint64("MessageId", uint64(msg.id)).
+		Uint16("PacketId", uint16(msg.packetID)).
+		Uint8("Version", uint8(pubComp.Version)).
+		Msg("MQTT Message published to client")
+
+	return session, nil, nil
 }
 
 func (sm *sessionManager) handleDisconnect(id ClientID,

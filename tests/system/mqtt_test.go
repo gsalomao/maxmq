@@ -211,3 +211,55 @@ func TestMQTTPublishQoS1(t *testing.T) {
 	sub.Disconnect(1)
 	<-time.After(100 * time.Millisecond)
 }
+
+func TestMQTTPublishQoS2(t *testing.T) {
+	pub := newMQTTClient("paho-pub", true)
+	token := pub.Connect()
+	token.WaitTimeout(100 * time.Millisecond)
+	require.True(t, pub.IsConnected())
+	require.True(t, pub.IsConnectionOpen())
+
+	sub := newMQTTClient("paho-sub", false)
+	token = sub.Connect()
+	token.WaitTimeout(100 * time.Millisecond)
+	require.True(t, sub.IsConnected())
+	require.True(t, sub.IsConnectionOpen())
+
+	received := make(chan paho.Message)
+	token = sub.Subscribe("data/#", 2,
+		func(c paho.Client, msg paho.Message) {
+			received <- msg
+		},
+	)
+	assert.True(t, token.WaitTimeout(100*time.Millisecond))
+
+	token = pub.Publish("data/1", 2, false, []byte("msg-1"))
+	assert.True(t, token.WaitTimeout(100*time.Millisecond))
+
+	msg := <-received
+	assert.Equal(t, uint8(2), msg.Qos())
+	assert.Equal(t, []byte("msg-1"), msg.Payload())
+	<-time.After(100 * time.Millisecond)
+
+	sub.Disconnect(1)
+	<-time.After(100 * time.Millisecond)
+
+	token = pub.Publish("data/2", 2, false, []byte("msg-2"))
+	assert.True(t, token.WaitTimeout(100*time.Millisecond))
+	<-time.After(100 * time.Millisecond)
+
+	pub.Disconnect(1)
+	<-time.After(100 * time.Millisecond)
+
+	token = sub.Connect()
+	token.WaitTimeout(100 * time.Millisecond)
+	<-time.After(100 * time.Millisecond)
+
+	msg = <-received
+	assert.Equal(t, uint8(2), msg.Qos())
+	assert.Equal(t, []byte("msg-2"), msg.Payload())
+	<-time.After(100 * time.Millisecond)
+
+	sub.Disconnect(1)
+	<-time.After(100 * time.Millisecond)
+}

@@ -2396,6 +2396,101 @@ func TestSessionManagerPubRelReadSessionError(t *testing.T) {
 	}
 }
 
+func TestSessionManagerPubComp(t *testing.T) {
+	testCases := []packet.MQTTVersion{
+		packet.MQTT31,
+		packet.MQTT311,
+		packet.MQTT50,
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.String(), func(t *testing.T) {
+			conf := newConfiguration()
+			sm := createSessionManager(conf)
+			id := ClientID("a")
+
+			pkt := &packet.Connect{ClientID: []byte(id), Version: tc}
+
+			session, _, err := sm.handlePacket("", pkt)
+			require.Nil(t, err)
+
+			msg := &message{packetID: 1, tries: 1,
+				lastSent: time.Now().UnixMicro()}
+			session.inflightMessages.PushBack(msg)
+
+			pubComp := packet.NewPubComp(msg.packetID, tc,
+				packet.ReasonCodeV5Success, nil)
+
+			session, replies, err := sm.handlePacket(id, &pubComp)
+			require.Nil(t, err)
+			require.Empty(t, replies)
+
+			require.NotNil(t, session)
+			require.Equal(t, 0, session.inflightMessages.Len())
+		})
+	}
+}
+
+func TestSessionManagerPubCompPacketNotFound(t *testing.T) {
+	testCases := []packet.MQTTVersion{
+		packet.MQTT31,
+		packet.MQTT311,
+		packet.MQTT50,
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.String(), func(t *testing.T) {
+			conf := newConfiguration()
+			sm := createSessionManager(conf)
+			id := ClientID("a")
+
+			pkt := &packet.Connect{ClientID: []byte(id), Version: tc}
+
+			session, _, err := sm.handlePacket("", pkt)
+			require.Nil(t, err)
+
+			msg := &message{packetID: 1, tries: 1,
+				lastSent: time.Now().UnixMicro()}
+			session.inflightMessages.PushBack(msg)
+
+			pubComp := packet.NewPubComp(2, tc, packet.ReasonCodeV5Success,
+				nil)
+
+			session, replies, err := sm.handlePacket(id, &pubComp)
+			require.NotNil(t, err)
+			require.Empty(t, replies)
+
+			require.NotNil(t, session)
+			require.Equal(t, 1, session.inflightMessages.Len())
+			assert.Equal(t, msg, session.inflightMessages.Front().Value)
+		})
+	}
+}
+
+func TestSessionManagerPubCompReadSessionError(t *testing.T) {
+	testCases := []packet.MQTTVersion{
+		packet.MQTT31,
+		packet.MQTT311,
+		packet.MQTT50,
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.String(), func(t *testing.T) {
+			conf := newConfiguration()
+			sm := createSessionManager(conf)
+			id := ClientID("a")
+
+			pubComp := packet.NewPubComp(1, tc, packet.ReasonCodeV5Success,
+				nil)
+
+			session, replies, err := sm.handlePacket(id, &pubComp)
+			assert.Nil(t, session)
+			assert.Empty(t, replies)
+			assert.NotNil(t, err)
+		})
+	}
+}
+
 func TestSessionManagerDisconnect(t *testing.T) {
 	testCases := []packet.MQTTVersion{
 		packet.MQTT31,

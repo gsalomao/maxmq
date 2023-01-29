@@ -23,22 +23,22 @@ import (
 
 func TestPacketNewPacket(t *testing.T) {
 	testCases := []struct {
-		name         string
 		pktType      Type
 		flags        byte
 		remainingLen int
 	}{
-		{name: "CONNECT", pktType: CONNECT, flags: 0},
-		{name: "PINGREQ", pktType: PINGREQ, flags: 0},
-		{name: "SUBSCRIBE", pktType: SUBSCRIBE, flags: 2},
-		{name: "PUBLISH", pktType: PUBLISH, flags: 0},
-		{name: "PUBACK", pktType: PUBACK, flags: 0, remainingLen: 2},
-		{name: "PUBREC", pktType: PUBREC, flags: 0, remainingLen: 2},
-		{name: "PUBREL", pktType: PUBREL, flags: 2, remainingLen: 2},
+		{pktType: CONNECT, flags: 0},
+		{pktType: PINGREQ, flags: 0},
+		{pktType: SUBSCRIBE, flags: 2},
+		{pktType: PUBLISH, flags: 0},
+		{pktType: PUBACK, flags: 0, remainingLen: 2},
+		{pktType: PUBREC, flags: 0, remainingLen: 2},
+		{pktType: PUBREL, flags: 2, remainingLen: 2},
+		{pktType: PUBCOMP, flags: 0, remainingLen: 2},
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.pktType.String(), func(t *testing.T) {
 			opts := options{
 				packetType:      tc.pktType,
 				controlFlags:    tc.flags,
