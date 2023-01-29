@@ -435,6 +435,14 @@ func (sm *sessionManager) handlePublish(id ClientID,
 			Uint8("Version", uint8(pubAck.Version)).
 			Msg("MQTT Sending PUBACK packet")
 	} else {
+		sm.log.Debug().
+			Str("ClientId", string(session.ClientID)).
+			Uint64("MessageId", uint64(msg.id)).
+			Uint16("PacketId", uint16(pkt.PacketID)).
+			Int("UnAckPubMessages", len(session.unAckPubMessages)).
+			Uint8("Version", uint8(pkt.Version)).
+			Msg("MQTT Received packet from client")
+
 		unAckMsg, ok := session.unAckPubMessages[pkt.PacketID]
 		if !ok || unAckMsg.packet == nil {
 			sm.log.Trace().
@@ -484,9 +492,14 @@ func (sm *sessionManager) handlePubAck(id ClientID,
 
 	inflightMsg := session.findInflightMessage(pkt.PacketID)
 	if inflightMsg == nil {
-		return session, nil, fmt.Errorf(
-			"packet ID %v not found for client %s",
-			pkt.PacketID, session.ClientID)
+		sm.log.Warn().
+			Str("ClientId", string(id)).
+			Int("InflightMessages", session.inflightMessages.Len()).
+			Uint16("PacketId", uint16(pkt.PacketID)).
+			Uint8("Version", uint8(session.Version)).
+			Msg("MQTT Received PUBACK with unknown packet ID")
+
+		return session, nil, errPacketIDNotFound
 	}
 	session.inflightMessages.Remove(inflightMsg)
 	sm.saveSession(session)
@@ -526,6 +539,13 @@ func (sm *sessionManager) handlePubRel(id ClientID,
 	replies := make([]packet.Packet, 0, 1)
 	msg, ok := session.unAckPubMessages[pkt.PacketID]
 	if !ok {
+		sm.log.Warn().
+			Str("ClientId", string(id)).
+			Uint16("PacketId", uint16(pkt.PacketID)).
+			Int("UnAckPubMessages", len(session.unAckPubMessages)).
+			Uint8("Version", uint8(session.Version)).
+			Msg("MQTT Received PUBREL with unknown packet ID")
+
 		if session.Version != packet.MQTT50 {
 			return session, nil, errPacketIDNotFound
 		}
