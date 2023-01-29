@@ -70,11 +70,9 @@ func (sm *sessionManager) stop() {
 func (sm *sessionManager) handlePacket(id ClientID,
 	pkt packet.Packet) (*Session, []packet.Packet, error) {
 
-	if pkt.Type() != packet.CONNECT {
-		if len(id) == 0 {
-			return nil, nil, fmt.Errorf("received %v before CONNECT",
-				pkt.Type())
-		}
+	if pkt.Type() != packet.CONNECT && len(id) == 0 {
+		return nil, nil, fmt.Errorf("received %v before CONNECT",
+			pkt.Type())
 	}
 
 	switch pkt.Type() {
@@ -96,6 +94,9 @@ func (sm *sessionManager) handlePacket(id ClientID,
 	case packet.PUBACK:
 		pubAckPkt, _ := pkt.(*packet.PubAck)
 		return sm.handlePubAck(id, pubAckPkt)
+	case packet.PUBREC:
+		pubRecPkt, _ := pkt.(*packet.PubRec)
+		return sm.handlePubRec(id, pubRecPkt)
 	case packet.PUBREL:
 		pubRelPkt, _ := pkt.(*packet.PubRel)
 		return sm.handlePubRel(id, pubRelPkt)
@@ -517,6 +518,71 @@ func (sm *sessionManager) handlePubAck(id ClientID,
 		Msg("MQTT Message published to client")
 
 	return session, nil, nil
+}
+
+func (sm *sessionManager) handlePubRec(id ClientID,
+	pkt *packet.PubRec) (*Session, []packet.Packet, error) {
+
+	sm.log.Trace().
+		Str("ClientId", string(id)).
+		Uint16("PacketId", uint16(pkt.PacketID)).
+		Uint8("Version", uint8(pkt.Version)).
+		Msg("MQTT Received PUBREC packet")
+
+	session, err := sm.readSession(id)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	session.mutex.Lock()
+	defer session.mutex.Unlock()
+
+	replies := make([]packet.Packet, 0, 1)
+	inflightMsg := session.findInflightMessage(pkt.PacketID)
+	if inflightMsg == nil {
+		sm.log.Warn().
+			Str("ClientId", string(id)).
+			Int("InflightMessages", session.inflightMessages.Len()).
+			Uint16("PacketId", uint16(pkt.PacketID)).
+			Uint8("Version", uint8(session.Version)).
+			Msg("MQTT Received PUBREC with unknown packet ID")
+
+		if session.Version != packet.MQTT50 {
+			return session, nil, errPacketIDNotFound
+		}
+
+		pubRel := packet.NewPubRel(pkt.PacketID, session.Version,
+			packet.ReasonCodeV5PacketIDNotFound, nil)
+		replies = append(replies, &pubRel)
+
+		return session, replies, nil
+	}
+
+	msg := inflightMsg.Value.(*message)
+	sm.log.Debug().
+		Str("ClientId", string(session.ClientID)).
+		Int("InflightMessages", session.inflightMessages.Len()).
+		Uint64("MessageId", uint64(msg.id)).
+		Uint16("PacketId", uint16(msg.packetID)).
+		Uint8("Version", uint8(session.Version)).
+		Msg("MQTT Client received the packet")
+
+	msg.packet = nil
+	sm.saveSession(session)
+
+	pubRel := packet.NewPubRel(pkt.PacketID, session.Version,
+		packet.ReasonCodeV5Success, nil)
+	replies = append(replies, &pubRel)
+
+	sm.log.Trace().
+		Str("ClientId", string(session.ClientID)).
+		Uint64("MessageId", uint64(msg.id)).
+		Uint16("PacketId", uint16(pubRel.PacketID)).
+		Int("UnAckPubMessages", len(session.unAckPubMessages)).
+		Uint8("Version", uint8(pubRel.Version)).
+		Msg("MQTT Sending PUBREL packet")
+
+	return session, replies, nil
 }
 
 func (sm *sessionManager) handlePubRel(id ClientID,

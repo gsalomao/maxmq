@@ -1927,6 +1927,218 @@ func TestSessionManagerPubAckReadSessionError(t *testing.T) {
 	}
 }
 
+func TestSessionManagerPubRec(t *testing.T) {
+	testCases := []packet.MQTTVersion{
+		packet.MQTT31,
+		packet.MQTT311,
+		packet.MQTT50,
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.String(), func(t *testing.T) {
+			conf := newConfiguration()
+			sm := createSessionManager(conf)
+			id := ClientID("a")
+
+			connect := packet.Connect{ClientID: []byte(id), Version: tc}
+
+			session, _, err := sm.handlePacket("", &connect)
+			require.Nil(t, err)
+
+			pub := packet.NewPublish(1, tc, "topic",
+				packet.QoS2, 0, 0, []byte("data"), nil)
+
+			msg := &message{packetID: pub.PacketID, packet: &pub, tries: 1,
+				lastSent: time.Now().UnixMicro()}
+			session.inflightMessages.PushBack(msg)
+
+			pubRec := packet.NewPubRec(pub.PacketID, pub.Version,
+				packet.ReasonCodeV5Success, nil)
+
+			session, replies, err := sm.handlePacket(id, &pubRec)
+			require.Nil(t, err)
+
+			require.Len(t, replies, 1)
+			reply := replies[0]
+			require.Equal(t, packet.PUBREL, reply.Type())
+
+			pubRel := reply.(*packet.PubRel)
+			assert.Equal(t, pub.PacketID, pubRel.PacketID)
+			assert.Equal(t, tc, pubRel.Version)
+			assert.Equal(t, packet.ReasonCodeV5Success, pubRel.ReasonCode)
+
+			require.NotNil(t, session)
+			require.Equal(t, 1, session.inflightMessages.Len())
+
+			inflightMsg := session.inflightMessages.Front().Value.(*message)
+			assert.Equal(t, msg.id, inflightMsg.id)
+			assert.Equal(t, msg.packetID, inflightMsg.packetID)
+			assert.Nil(t, inflightMsg.packet)
+			assert.Equal(t, msg.tries, inflightMsg.tries)
+			assert.Equal(t, msg.lastSent, inflightMsg.lastSent)
+		})
+	}
+}
+
+func TestSessionManagerPubRecDuplicatePacketNoError(t *testing.T) {
+	testCases := []packet.MQTTVersion{
+		packet.MQTT31,
+		packet.MQTT311,
+		packet.MQTT50,
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.String(), func(t *testing.T) {
+			conf := newConfiguration()
+			sm := createSessionManager(conf)
+			id := ClientID("a")
+
+			connect := packet.Connect{ClientID: []byte(id), Version: tc}
+
+			session, _, err := sm.handlePacket("", &connect)
+			require.Nil(t, err)
+
+			pub := packet.NewPublish(1, tc, "topic",
+				packet.QoS2, 0, 0, []byte("data"), nil)
+
+			msg := &message{packetID: pub.PacketID, packet: &pub, tries: 1,
+				lastSent: time.Now().UnixMicro()}
+			session.inflightMessages.PushBack(msg)
+
+			pubRec := packet.NewPubRec(pub.PacketID, pub.Version,
+				packet.ReasonCodeV5Success, nil)
+
+			_, _, err = sm.handlePacket(id, &pubRec)
+			require.Nil(t, err)
+
+			session, replies, err := sm.handlePacket(id, &pubRec)
+			require.Nil(t, err)
+
+			require.Len(t, replies, 1)
+			reply := replies[0]
+			require.Equal(t, packet.PUBREL, reply.Type())
+
+			pubRel := reply.(*packet.PubRel)
+			assert.Equal(t, pub.PacketID, pubRel.PacketID)
+			assert.Equal(t, tc, pubRel.Version)
+			assert.Equal(t, packet.ReasonCodeV5Success, pubRel.ReasonCode)
+
+			require.NotNil(t, session)
+			require.Equal(t, 1, session.inflightMessages.Len())
+
+			inflightMsg := session.inflightMessages.Front().Value.(*message)
+			assert.Equal(t, msg.id, inflightMsg.id)
+			assert.Equal(t, msg.packetID, inflightMsg.packetID)
+			assert.Nil(t, inflightMsg.packet)
+			assert.Equal(t, msg.tries, inflightMsg.tries)
+			assert.Equal(t, msg.lastSent, inflightMsg.lastSent)
+		})
+	}
+}
+
+func TestSessionManagerPubRecV3PacketIDNotFound(t *testing.T) {
+	testCases := []packet.MQTTVersion{
+		packet.MQTT31,
+		packet.MQTT311,
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.String(), func(t *testing.T) {
+			conf := newConfiguration()
+			sm := createSessionManager(conf)
+			id := ClientID("a")
+
+			connect := packet.Connect{ClientID: []byte(id), Version: tc}
+
+			session, _, err := sm.handlePacket("", &connect)
+			require.Nil(t, err)
+
+			pub := packet.NewPublish(1, tc, "topic",
+				packet.QoS2, 0, 0, []byte("data"), nil)
+
+			msg := &message{packetID: pub.PacketID, packet: &pub, tries: 1,
+				lastSent: time.Now().UnixMicro()}
+			session.inflightMessages.PushBack(msg)
+
+			pubRec := packet.NewPubRec(2, tc, packet.ReasonCodeV5Success,
+				nil)
+
+			session, replies, err := sm.handlePacket(id, &pubRec)
+			assert.NotNil(t, err)
+			assert.Len(t, replies, 0)
+
+			require.NotNil(t, session)
+			require.Equal(t, 1, session.inflightMessages.Len())
+
+			inflightMsg := session.inflightMessages.Front().Value.(*message)
+			assert.Equal(t, msg, inflightMsg)
+		})
+	}
+}
+
+func TestSessionManagerPubRecV5PacketIDNotFound(t *testing.T) {
+	conf := newConfiguration()
+	sm := createSessionManager(conf)
+	id := ClientID("a")
+
+	connect := packet.Connect{ClientID: []byte(id), Version: packet.MQTT50}
+
+	session, _, err := sm.handlePacket("", &connect)
+	require.Nil(t, err)
+
+	pub := packet.NewPublish(1, packet.MQTT50, "topic",
+		packet.QoS2, 0, 0, []byte("data"), nil)
+
+	msg := &message{packetID: pub.PacketID, packet: &pub, tries: 1,
+		lastSent: time.Now().UnixMicro()}
+	session.inflightMessages.PushBack(msg)
+
+	pubRec := packet.NewPubRec(2, packet.MQTT50, packet.ReasonCodeV5Success,
+		nil)
+
+	session, replies, err := sm.handlePacket(id, &pubRec)
+	require.Nil(t, err)
+
+	require.Len(t, replies, 1)
+	reply := replies[0]
+	require.Equal(t, packet.PUBREL, reply.Type())
+
+	pubRel := reply.(*packet.PubRel)
+	assert.Equal(t, pubRec.PacketID, pubRel.PacketID)
+	assert.Equal(t, packet.MQTT50, pubRel.Version)
+	assert.Equal(t, packet.ReasonCodeV5PacketIDNotFound, pubRel.ReasonCode)
+
+	require.NotNil(t, session)
+	require.Equal(t, 1, session.inflightMessages.Len())
+
+	inflightMsg := session.inflightMessages.Front().Value.(*message)
+	assert.Equal(t, msg, inflightMsg)
+}
+
+func TestSessionManagerPubRecReadSessionError(t *testing.T) {
+	testCases := []packet.MQTTVersion{
+		packet.MQTT31,
+		packet.MQTT311,
+		packet.MQTT50,
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.String(), func(t *testing.T) {
+			conf := newConfiguration()
+			sm := createSessionManager(conf)
+			id := ClientID("a")
+
+			pubRec := packet.NewPubRec(1, tc, packet.ReasonCodeV5Success,
+				nil)
+
+			session, replies, err := sm.handlePacket(id, &pubRec)
+			assert.Nil(t, session)
+			assert.Empty(t, replies)
+			assert.NotNil(t, err)
+		})
+	}
+}
+
 func TestSessionManagerPubRel(t *testing.T) {
 	testCases := []packet.MQTTVersion{
 		packet.MQTT31,
