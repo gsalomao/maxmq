@@ -101,7 +101,7 @@ func TestSessionManagerConnectNewSession(t *testing.T) {
 
 			pkt := &packet.Connect{ClientID: []byte(id), Version: tc}
 
-			session, replies, err := sm.handleConnect(pkt)
+			session, replies, err := sm.handlePacket("", pkt)
 			require.Nil(t, err)
 			require.NotNil(t, session)
 
