@@ -180,15 +180,7 @@ func (sm *sessionManager) handleConnect(_ ClientID,
 
 	replies := make([]packet.Packet, 0, 1)
 	replies = append(replies, &connAck)
-
-	inflightMsg := session.inflightMessages.Front()
-	for inflightMsg != nil {
-		msg := inflightMsg.Value.(*message)
-		replies = append(replies, msg.packet)
-		msg.tries++
-		msg.lastSent = time.Now().UnixMicro()
-		inflightMsg = inflightMsg.Next()
-	}
+	appendPendingInflightMessages(&replies, session)
 	sm.saveSession(session)
 
 	for _, reply := range replies {

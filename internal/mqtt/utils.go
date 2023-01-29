@@ -16,6 +16,7 @@ package mqtt
 
 import (
 	"math"
+	"time"
 
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 	"github.com/rs/xid"
@@ -326,4 +327,18 @@ func sessionExpiryIntervalOnConnect(p *packet.Connect, maxExp uint32) uint32 {
 	}
 
 	return sessionExp
+}
+
+func appendPendingInflightMessages(replies *[]packet.Packet, session *Session) {
+
+	inflightMsg := session.inflightMessages.Front()
+	for inflightMsg != nil {
+		msg := inflightMsg.Value.(*message)
+		if msg.packet != nil {
+			msg.tries++
+			msg.lastSent = time.Now().UnixMicro()
+			*replies = append(*replies, msg.packet)
+		}
+		inflightMsg = inflightMsg.Next()
+	}
 }

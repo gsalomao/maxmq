@@ -957,6 +957,39 @@ func TestSessionManagerConnectWithInflightMessages(t *testing.T) {
 	}
 }
 
+func TestSessionManagerConnectWithInflightMessagesWithoutPacket(t *testing.T) {
+	testCases := []packet.MQTTVersion{
+		packet.MQTT31,
+		packet.MQTT311,
+		packet.MQTT50,
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.String(), func(t *testing.T) {
+			conf := newConfiguration()
+			sm := createSessionManager(conf)
+
+			session := &Session{}
+			sm.store.sessions["a"] = session
+
+			for i := 0; i < 10; i++ {
+				msg := message{id: messageID(i + 1), packetID: packet.ID(i + 1)}
+				session.inflightMessages.PushBack(&msg)
+			}
+
+			connect := packet.Connect{ClientID: []byte{'a'}, Version: tc}
+
+			session, replies, err := sm.handlePacket("", &connect)
+			require.Nil(t, err)
+			require.NotNil(t, session)
+
+			require.Len(t, replies, 1)
+			reply := replies[0]
+			assert.Equal(t, packet.CONNACK, reply.Type())
+		})
+	}
+}
+
 func TestSessionManagerPingReq(t *testing.T) {
 	testCases := []packet.MQTTVersion{
 		packet.MQTT31,
