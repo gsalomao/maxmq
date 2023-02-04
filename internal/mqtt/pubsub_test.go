@@ -141,9 +141,9 @@ func TestPubSubManagerPublishMessage(t *testing.T) {
 	ps := createPubSubManager()
 	require.Zero(t, ps.queue.len())
 
-	pkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS1,
+	pubPkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS1,
 		0, 0, nil, nil)
-	msg := &message{packetID: pkt.PacketID, packet: &pkt}
+	msg := &message{packetID: pubPkt.PacketID, packet: &pubPkt}
 
 	ps.publish(msg)
 
@@ -156,9 +156,9 @@ func TestPubSubManagerPublishMessage(t *testing.T) {
 
 func TestPubSubManagerPublishQueuedMessagesNoSubscription(t *testing.T) {
 	ps := createPubSubManager()
-	pkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS0,
+	pubPkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS0,
 		0, 0, nil, nil)
-	msg := message{packetID: pkt.PacketID, packet: &pkt}
+	msg := message{packetID: pubPkt.PacketID, packet: &pubPkt}
 	ps.queue.enqueue(&msg)
 
 	ps.publishQueuedMessages()
@@ -191,9 +191,9 @@ func TestPubSubManagerPublishQueuedQoS0Message(t *testing.T) {
 				require.Nil(t, err)
 			}
 
-			pkt := packet.NewPublish(test.id, packet.MQTT311, test.topic,
+			pubPkt := packet.NewPublish(test.id, packet.MQTT311, test.topic,
 				packet.QoS0, 0, 0, nil, nil)
-			msg := &message{packetID: pkt.PacketID, packet: &pkt}
+			msg := &message{packetID: pubPkt.PacketID, packet: &pubPkt}
 
 			pubMock := ps.publisher.(*messagePublisherMock)
 			pubMock.On("publishMessage", id, msg).Return(nil)
@@ -216,9 +216,9 @@ func TestPubSubManagerProcessQueuedMessagesFailedToDeliver(t *testing.T) {
 	_, err := ps.tree.insert(sub)
 	require.Nil(t, err)
 
-	pkt := packet.NewPublish(1, packet.MQTT311, "data", packet.QoS0, 0, 0,
-		nil, nil)
-	msg := &message{packetID: pkt.PacketID, packet: &pkt}
+	pubPkt := packet.NewPublish(1, packet.MQTT311, "data", packet.QoS0,
+		0, 0, nil, nil)
+	msg := &message{packetID: pubPkt.PacketID, packet: &pubPkt}
 
 	pubMock := ps.publisher.(*messagePublisherMock)
 	pubMock.On("publishMessage", id, msg).
