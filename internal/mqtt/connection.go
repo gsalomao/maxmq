@@ -25,7 +25,7 @@ import (
 type connection struct {
 	netConn    net.Conn
 	version    packet.MQTTVersion
-	clientID   ClientID
+	clientID   clientID
 	timeout    int
 	connected  bool
 	hasSession bool

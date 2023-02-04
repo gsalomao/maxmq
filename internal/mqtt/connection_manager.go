@@ -35,7 +35,7 @@ type connectionManager struct {
 	sessionManager *sessionManager
 	log            *logger.Logger
 	metrics        *metrics
-	connections    map[ClientID]*connection
+	connections    map[clientID]*connection
 	mutex          sync.RWMutex
 	reader         packet.Reader
 	writer         packet.Writer
@@ -64,7 +64,7 @@ func newConnectionManager(
 		conf:        conf,
 		metrics:     mt,
 		log:         log,
-		connections: make(map[ClientID]*connection),
+		connections: make(map[clientID]*connection),
 		reader:      packet.NewReader(rdOpts),
 		writer:      packet.NewWriter(conf.BufferSize),
 	}
@@ -178,7 +178,7 @@ func (cm *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 func (cm *connectionManager) handlePacket(conn *connection,
 	pkt packet.Packet) error {
 
-	session, replies, err := cm.sessionManager.handlePacket(conn.clientID, pkt)
+	s, replies, err := cm.sessionManager.handlePacket(conn.clientID, pkt)
 	if err != nil {
 		cm.log.Error().
 			Str("ClientId", string(conn.clientID)).
@@ -194,10 +194,10 @@ func (cm *connectionManager) handlePacket(conn *connection,
 		if reply.Type() == packet.CONNACK {
 			connAck := reply.(*packet.ConnAck)
 			if connAck.ReasonCode == packet.ReasonCodeV3ConnectionAccepted {
-				conn.clientID = session.ClientID
-				conn.version = session.Version
-				conn.timeout = session.KeepAlive
-				conn.connected = session.connected
+				conn.clientID = s.clientID
+				conn.version = s.version
+				conn.timeout = s.keepAlive
+				conn.connected = s.connected
 				conn.hasSession = true
 				cm.log.Debug().
 					Str("ClientId", string(conn.clientID)).
@@ -231,7 +231,7 @@ func (cm *connectionManager) handlePacket(conn *connection,
 		return err
 	}
 
-	if !session.connected {
+	if !s.connected {
 		cm.disconnect(conn)
 		cm.closeConnection(conn, false)
 	}
@@ -320,7 +320,7 @@ func (cm *connectionManager) replyPacket(pkt packet.Packet,
 	return err
 }
 
-func (cm *connectionManager) deliverPacket(id ClientID,
+func (cm *connectionManager) deliverPacket(id clientID,
 	pkt *packet.Publish) error {
 
 	cm.mutex.RLock()

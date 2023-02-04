@@ -22,43 +22,22 @@ import (
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 )
 
-// ClientID represents the MQTT Client ID.
-type ClientID string
-
-// SessionID represents the Session identification.
-type SessionID uint64
+type clientID string
+type sessionID uint64
 
 type packetDeliverer interface {
-	deliverPacket(id ClientID, pkt *packet.Publish) error
+	deliverPacket(id clientID, pkt *packet.Publish) error
 }
 
-// Session stores the MQTT session.
-type Session struct {
-	SessionID SessionID
-
-	// ClientID represents the ID of the client owner of the session.
-	ClientID ClientID
-
-	// KeepAlive represents the MQTT keep alive of the session.
-	KeepAlive int
-
-	// ConnectedAt represents the timestamp of the last connection.
-	ConnectedAt int64
-
-	// Subscriptions contains all subscriptions for the session.
-	Subscriptions map[string]Subscription
-
-	// ExpiryInterval represents the interval, in seconds, which the session
-	// expires.
-	ExpiryInterval uint32
-
-	// Version represents the MQTT version.
-	Version packet.MQTTVersion
-
-	// CleanSession indicates if the session is temporary or not.
-	CleanSession bool
-
-	// Has unexported fields
+type session struct {
+	sessionID        sessionID
+	clientID         clientID
+	keepAlive        int
+	connectedAt      int64
+	subscriptions    map[string]Subscription
+	expiryInterval   uint32
+	version          packet.MQTTVersion
+	cleanSession     bool
 	connected        bool
 	restored         bool
 	inflightMessages list.List
@@ -67,13 +46,13 @@ type Session struct {
 	mutex            sync.RWMutex
 }
 
-func (s *Session) clean() {
-	s.Subscriptions = make(map[string]Subscription)
+func (s *session) clean() {
+	s.subscriptions = make(map[string]Subscription)
 	s.connected = false
 	s.restored = false
 }
 
-func (s *Session) nextClientID() packet.ID {
+func (s *session) nextClientID() packet.ID {
 	id := atomic.LoadUint32(&s.lastPacketID)
 	if id == uint32(65535) || id == uint32(0) {
 		atomic.StoreUint32(&s.lastPacketID, 1)
@@ -83,7 +62,7 @@ func (s *Session) nextClientID() packet.ID {
 	return packet.ID(atomic.AddUint32(&s.lastPacketID, 1))
 }
 
-func (s *Session) findInflightMessage(id packet.ID) *list.Element {
+func (s *session) findInflightMessage(id packet.ID) *list.Element {
 	elem := s.inflightMessages.Front()
 
 	for elem != nil {

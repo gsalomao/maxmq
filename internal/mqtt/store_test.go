@@ -23,43 +23,43 @@ import (
 )
 
 func TestStoreReadSession(t *testing.T) {
-	s := newStore()
+	st := newStore()
 
-	id := ClientID('a')
-	_, err := s.readSession(id)
+	id := clientID('a')
+	_, err := st.readSession(id)
 	assert.Equal(t, errSessionNotFound, err)
 }
 
 func TestStoreSaveSession(t *testing.T) {
-	s := newStore()
+	st := newStore()
 
-	id := ClientID('a')
-	session := &Session{
-		ClientID:       id,
-		ConnectedAt:    time.Now().Unix(),
-		ExpiryInterval: 60,
+	id := clientID('a')
+	s := &session{
+		clientID:       id,
+		connectedAt:    time.Now().Unix(),
+		expiryInterval: 60,
 	}
-	s.saveSession(session)
+	st.saveSession(s)
 
-	savedSession, err := s.readSession(id)
+	savedSession, err := st.readSession(id)
 	require.Nil(t, err)
-	assert.Equal(t, session, savedSession)
+	assert.Equal(t, s, savedSession)
 }
 
 func TestStoreDeleteSession(t *testing.T) {
-	s := newStore()
+	st := newStore()
 
-	id := ClientID('a')
-	session := Session{
-		ClientID:       id,
-		ConnectedAt:    time.Now().Unix(),
-		ExpiryInterval: 60,
+	id := clientID('a')
+	s := session{
+		clientID:       id,
+		connectedAt:    time.Now().Unix(),
+		expiryInterval: 60,
 	}
-	s.saveSession(&session)
-	_, err := s.readSession(id)
+	st.saveSession(&s)
+	_, err := st.readSession(id)
 	require.Nil(t, err)
 
-	s.deleteSession(&session)
-	_, err = s.readSession(id)
+	st.deleteSession(&s)
+	_, err = st.readSession(id)
 	assert.Equal(t, errSessionNotFound, err)
 }

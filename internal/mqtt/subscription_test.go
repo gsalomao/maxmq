@@ -26,7 +26,7 @@ import (
 )
 
 func assertSubscription(t *testing.T, tree *subscriptionTree, sub Subscription,
-	id ClientID) {
+	id clientID) {
 
 	words := strings.Split(sub.TopicFilter, "/")
 	nodes := tree.root.children
@@ -65,7 +65,7 @@ func assertSubscription(t *testing.T, tree *subscriptionTree, sub Subscription,
 func TestSubscriptionTreeInsertSubscription(t *testing.T) {
 	testCases := []string{"a", "/topic", "topic/level", "topic/level/a",
 		"topic//test"}
-	id := ClientID("client-1")
+	id := clientID("client-1")
 
 	for _, test := range testCases {
 		t.Run(test, func(t *testing.T) {
@@ -84,7 +84,7 @@ func TestSubscriptionTreeInsertSubscription(t *testing.T) {
 
 func BenchmarkSubscriptionTreeInsertSubscription(b *testing.B) {
 	b.ReportAllocs()
-	id := ClientID("client-1")
+	id := clientID("client-1")
 	tree := newSubscriptionTree()
 
 	for i := 0; i < b.N; i++ {
@@ -99,7 +99,7 @@ func BenchmarkSubscriptionTreeInsertSubscription(b *testing.B) {
 }
 
 func TestSubscriptionTreeInsertMultipleSubscriptions(t *testing.T) {
-	id := ClientID("client-1")
+	id := clientID("client-1")
 	subscriptions := []Subscription{
 		{ClientID: id, TopicFilter: "topic/0", QoS: packet.QoS0},
 		{ClientID: id, TopicFilter: "topic/1", QoS: packet.QoS1},
@@ -124,12 +124,12 @@ func TestSubscriptionTreeInsertMultipleSubscriptions(t *testing.T) {
 
 func TestSubscriptionTreeInsertSubscriptionsSameTopic(t *testing.T) {
 	subscriptions := []Subscription{
-		{ClientID: ClientID("0"), TopicFilter: "topic"},
-		{ClientID: ClientID("1"), TopicFilter: "topic"},
-		{ClientID: ClientID("2"), TopicFilter: "topic"},
-		{ClientID: ClientID("3"), TopicFilter: "raw/#"},
-		{ClientID: ClientID("4"), TopicFilter: "raw/#"},
-		{ClientID: ClientID("5"), TopicFilter: "raw/#"},
+		{ClientID: clientID("0"), TopicFilter: "topic"},
+		{ClientID: clientID("1"), TopicFilter: "topic"},
+		{ClientID: clientID("2"), TopicFilter: "topic"},
+		{ClientID: clientID("3"), TopicFilter: "raw/#"},
+		{ClientID: clientID("4"), TopicFilter: "raw/#"},
+		{ClientID: clientID("5"), TopicFilter: "raw/#"},
 	}
 
 	tree := newSubscriptionTree()
@@ -147,7 +147,7 @@ func TestSubscriptionTreeInsertSubscriptionsSameTopic(t *testing.T) {
 func TestSubscriptionTreeInsertTopicFilterWithWildcard(t *testing.T) {
 	testCases := []string{"+", "#", "a/+", "a/#", "a/b/+", "a/b/#", "/a/+/c/+",
 		"/a/b/c/#"}
-	id := ClientID("client-1")
+	id := clientID("client-1")
 
 	for _, test := range testCases {
 		t.Run(test, func(t *testing.T) {
@@ -166,7 +166,7 @@ func TestSubscriptionTreeInsertTopicFilterWithWildcard(t *testing.T) {
 func TestSubscriptionTreeInsertInvalidTopicFilter(t *testing.T) {
 	testCases := []string{"", "sensor#", "sensor/room#", "sensor/#/temp",
 		"sensor+"}
-	id := ClientID("client-1")
+	id := clientID("client-1")
 
 	for _, test := range testCases {
 		t.Run(test, func(t *testing.T) {
@@ -181,7 +181,7 @@ func TestSubscriptionTreeInsertInvalidTopicFilter(t *testing.T) {
 }
 
 func TestSubscriptionTreeInsertSameTopicFilter(t *testing.T) {
-	id := ClientID("client-1")
+	id := clientID("client-1")
 	subscriptions := []Subscription{
 		{ClientID: id, TopicFilter: "data", QoS: packet.QoS0},
 		{ClientID: id, TopicFilter: "data", QoS: packet.QoS1},
@@ -247,7 +247,7 @@ func TestSubscriptionTreeInsertWithoutLooseNext(t *testing.T) {
 func TestSubscriptionTreeRemoveSubscription(t *testing.T) {
 	testCases := []string{"a", "/topic", "topic/level", "topic/level/3",
 		"topic//test"}
-	id := ClientID("client-1")
+	id := clientID("client-1")
 
 	for _, test := range testCases {
 		t.Run(test, func(t *testing.T) {
@@ -267,7 +267,7 @@ func TestSubscriptionTreeRemoveSubscription(t *testing.T) {
 
 func BenchmarkSubscriptionTreeRemoveSubscription(b *testing.B) {
 	b.ReportAllocs()
-	id := ClientID("client-1")
+	id := clientID("client-1")
 	tree := newSubscriptionTree()
 
 	for i := 0; i < b.N; i++ {
@@ -297,7 +297,7 @@ func TestSubscriptionTreeRemoveUnknownSubscription(t *testing.T) {
 		{topics: []string{"/topic/level", "/topic/data"}},
 		{topics: []string{"/topic/level/#", "/topic/level/2"}},
 	}
-	id := ClientID("client-1")
+	id := clientID("client-1")
 
 	for _, test := range testCases {
 		t.Run(fmt.Sprintf("%s-%s", test.topics[0], test.topics[1]),
@@ -326,7 +326,7 @@ func TestSubscriptionTreeRemoveSiblingSubscription(t *testing.T) {
 		{topics: []string{"/topic/level", "/topic/data"}},
 		{topics: []string{"/topic/+/1", "/topic/+/2"}},
 	}
-	id := ClientID("client-1")
+	id := clientID("client-1")
 
 	for _, test := range testCases {
 		t.Run(fmt.Sprintf("%s-%s", test.topics[0], test.topics[1]),
@@ -351,7 +351,7 @@ func TestSubscriptionTreeRemoveSiblingSubscription(t *testing.T) {
 }
 
 func TestSubscriptionTreeRemoveSameTopicFilter(t *testing.T) {
-	ids := []ClientID{ClientID("id-0"), ClientID("id-1"), ClientID("id-2")}
+	ids := []clientID{clientID("id-0"), clientID("id-1"), clientID("id-2")}
 	subscriptions := []Subscription{
 		{ClientID: ids[0], TopicFilter: "data/#", QoS: packet.QoS0},
 		{ClientID: ids[1], TopicFilter: "data/#", QoS: packet.QoS1},
@@ -381,7 +381,7 @@ func TestSubscriptionTreeRemoveSameTopicFilter(t *testing.T) {
 }
 
 func TestSubscriptionTreeRemoveSameTopicDifferentClientID(t *testing.T) {
-	id := ClientID("id-0")
+	id := clientID("id-0")
 	sub := Subscription{ClientID: id, TopicFilter: "data"}
 	tree := newSubscriptionTree()
 
@@ -418,7 +418,7 @@ func TestSubscriptionTreeFindMatches(t *testing.T) {
 		{subs: []string{"raw", "raw/temp", "raw/temp/5"}, topic: "raw/temp/5",
 			matches: 1},
 	}
-	id := ClientID("id-0")
+	id := clientID("id-0")
 
 	for _, test := range testCases {
 		t.Run(test.topic, func(t *testing.T) {
@@ -452,7 +452,7 @@ func TestSubscriptionTreeFindMatchesSameTopicFilter(t *testing.T) {
 			tree := newSubscriptionTree()
 
 			for i := 0; i < test.clients; i++ {
-				id := ClientID(strconv.Itoa(i))
+				id := clientID(strconv.Itoa(i))
 				sub := Subscription{ClientID: id, TopicFilter: test.topicFilter}
 
 				_, err := tree.insert(sub)

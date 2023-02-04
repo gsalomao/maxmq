@@ -20,37 +20,37 @@ import (
 
 type store struct {
 	mu       sync.RWMutex
-	sessions map[ClientID]*Session
+	sessions map[clientID]*session
 }
 
 func newStore() store {
 	return store{
-		sessions: make(map[ClientID]*Session),
+		sessions: make(map[clientID]*session),
 	}
 }
 
-func (s *store) readSession(id ClientID) (*Session, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+func (st *store) readSession(id clientID) (*session, error) {
+	st.mu.RLock()
+	defer st.mu.RUnlock()
 
-	session, ok := s.sessions[id]
+	s, ok := st.sessions[id]
 	if !ok {
 		return nil, errSessionNotFound
 	}
 
-	return session, nil
+	return s, nil
 }
 
-func (s *store) saveSession(session *Session) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (st *store) saveSession(s *session) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
 
-	s.sessions[session.ClientID] = session
+	st.sessions[s.clientID] = s
 }
 
-func (s *store) deleteSession(session *Session) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (st *store) deleteSession(s *session) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
 
-	delete(s.sessions, session.ClientID)
+	delete(st.sessions, s.clientID)
 }

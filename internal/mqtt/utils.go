@@ -101,7 +101,7 @@ func sessionKeepAlive(conf *Configuration, keepAlive int) int {
 	return keepAlive
 }
 
-func createClientID(prefix []byte) ClientID {
+func createClientID(prefix []byte) clientID {
 	guid := xid.New()
 	prefixLen := len(prefix)
 	guidEncodedLen := 20
@@ -112,10 +112,10 @@ func createClientID(prefix []byte) ClientID {
 	}
 
 	_ = guid.Encode(id[prefixLen:])
-	return ClientID(id)
+	return clientID(id)
 }
 
-func addAssignedClientID(p *packet.ConnAck, v packet.MQTTVersion, id ClientID,
+func addAssignedClientID(p *packet.ConnAck, v packet.MQTTVersion, id clientID,
 	created bool) {
 
 	if v == packet.MQTT50 && created {
@@ -329,9 +329,8 @@ func sessionExpiryIntervalOnConnect(p *packet.Connect, maxExp uint32) uint32 {
 	return sessionExp
 }
 
-func appendPendingInflightMessages(replies *[]packet.Packet, session *Session) {
-
-	inflightMsg := session.inflightMessages.Front()
+func appendPendingInflightMessages(replies *[]packet.Packet, s *session) {
+	inflightMsg := s.inflightMessages.Front()
 	for inflightMsg != nil {
 		msg := inflightMsg.Value.(*message)
 		if msg.packet != nil {

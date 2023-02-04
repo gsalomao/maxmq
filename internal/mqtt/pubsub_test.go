@@ -30,7 +30,7 @@ type messagePublisherMock struct {
 	mock.Mock
 }
 
-func (d *messagePublisherMock) publishMessage(id ClientID, msg *message) error {
+func (d *messagePublisherMock) publishMessage(id clientID, msg *message) error {
 	args := d.Called(id, msg)
 	return args.Error(0)
 }
@@ -73,11 +73,11 @@ func TestPubSubManagerSubscribeTopic(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.Name, func(t *testing.T) {
-			session := Session{ClientID: "a"}
+			s := &session{clientID: "a"}
 			ps := createPubSubManager()
 			subscriptionID := rand.Int()
 
-			sub, err := ps.subscribe(&session, test, subscriptionID)
+			sub, err := ps.subscribe(s, test, subscriptionID)
 			assert.Nil(t, err)
 			assert.Equal(t, subscriptionID, sub.ID)
 			assert.Equal(t, test.Name, sub.TopicFilter)
@@ -90,11 +90,11 @@ func TestPubSubManagerSubscribeTopic(t *testing.T) {
 }
 
 func TestPubSubManagerSubscribeError(t *testing.T) {
-	session := Session{ClientID: "a"}
+	s := &session{clientID: "a"}
 	topic := packet.Topic{Name: "sensor/temp#", QoS: packet.QoS0}
 	ps := createPubSubManager()
 
-	_, err := ps.subscribe(&session, topic, 0)
+	_, err := ps.subscribe(s, topic, 0)
 	assert.NotNil(t, err)
 }
 
@@ -107,13 +107,13 @@ func TestPubSubManagerUnsubscribeTopic(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.Name, func(t *testing.T) {
-			session := Session{ClientID: "a"}
+			s := &session{clientID: "a"}
 			ps := createPubSubManager()
 
-			sub, err := ps.subscribe(&session, test, 0)
+			sub, err := ps.subscribe(s, test, 0)
 			require.Nil(t, err)
 
-			err = ps.unsubscribe(session.ClientID, sub.TopicFilter)
+			err = ps.unsubscribe(s.clientID, sub.TopicFilter)
 			assert.Nil(t, err)
 		})
 	}
@@ -128,10 +128,10 @@ func TestPubSubManagerUnsubscribeSubscriptionNotFound(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run(test.Name, func(t *testing.T) {
-			session := Session{ClientID: "a"}
+			s := session{clientID: "a"}
 			ps := createPubSubManager()
 
-			err := ps.unsubscribe(session.ClientID, test.Name)
+			err := ps.unsubscribe(s.clientID, test.Name)
 			assert.Equal(t, ErrSubscriptionNotFound, err)
 		})
 	}
@@ -181,7 +181,7 @@ func TestPubSubManagerPublishQueuedQoS0Message(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			ps := createPubSubManager()
-			id := ClientID("client-a")
+			id := clientID("client-a")
 
 			for _, topic := range test.subs {
 				sub := Subscription{ClientID: id, TopicFilter: topic,
@@ -210,14 +210,14 @@ func TestPubSubManagerPublishQueuedQoS0Message(t *testing.T) {
 
 func TestPubSubManagerProcessQueuedMessagesFailedToDeliver(t *testing.T) {
 	ps := createPubSubManager()
-	id := ClientID("client-1")
+	id := clientID("client-1")
 	sub := Subscription{ClientID: id, TopicFilter: "data", QoS: packet.QoS0}
 
 	_, err := ps.tree.insert(sub)
 	require.Nil(t, err)
 
-	pkt := packet.NewPublish(1, packet.MQTT311, "data",
-		packet.QoS0, 0, 0, nil, nil)
+	pkt := packet.NewPublish(1, packet.MQTT311, "data", packet.QoS0, 0, 0,
+		nil, nil)
 	msg := &message{packetID: pkt.PacketID, packet: &pkt}
 
 	pubMock := ps.publisher.(*messagePublisherMock)

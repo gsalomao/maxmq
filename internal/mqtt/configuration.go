@@ -34,7 +34,7 @@ type Configuration struct {
 	// The maximum Keep Alive value, in seconds, allowed by the broker.
 	MaxKeepAlive int
 
-	// The maximum Session Expire Interval, in seconds, allowed by the broker.
+	// The maximum session Expire Interval, in seconds, allowed by the broker.
 	MaxSessionExpiryInterval uint32
 
 	// The maximum number of QoS 1 or 2 messages that can be processed

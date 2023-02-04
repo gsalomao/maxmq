@@ -29,14 +29,14 @@ const (
 type pubSubAction byte
 
 type messagePublisher interface {
-	publishMessage(id ClientID, msg *message) error
+	publishMessage(id clientID, msg *message) error
 }
 
 type pubSub interface {
 	start()
 	stop()
-	subscribe(s *Session, t packet.Topic, subsID int) (Subscription, error)
-	unsubscribe(id ClientID, topic string) error
+	subscribe(s *session, t packet.Topic, subsID int) (Subscription, error)
+	unsubscribe(id clientID, topic string) error
 	publish(msg *message)
 }
 
@@ -94,11 +94,11 @@ func (p *pubSubManager) run() {
 	p.action <- pubSubActionStopped
 }
 
-func (p *pubSubManager) subscribe(session *Session, topic packet.Topic,
+func (p *pubSubManager) subscribe(s *session, topic packet.Topic,
 	subscriptionID int) (Subscription, error) {
 
 	p.log.Trace().
-		Str("ClientId", string(session.ClientID)).
+		Str("ClientId", string(s.clientID)).
 		Bool("NoLocal", topic.NoLocal).
 		Uint8("QoS", byte(topic.QoS)).
 		Bool("RetainAsPublished", topic.RetainAsPublished).
@@ -109,7 +109,7 @@ func (p *pubSubManager) subscribe(session *Session, topic packet.Topic,
 
 	sub := Subscription{
 		ID:                subscriptionID,
-		ClientID:          session.ClientID,
+		ClientID:          s.clientID,
 		TopicFilter:       topic.Name,
 		QoS:               topic.QoS,
 		RetainHandling:    topic.RetainHandling,
@@ -120,7 +120,7 @@ func (p *pubSubManager) subscribe(session *Session, topic packet.Topic,
 	exists, err := p.tree.insert(sub)
 	if err != nil {
 		p.log.Error().
-			Str("ClientId", string(session.ClientID)).
+			Str("ClientId", string(s.clientID)).
 			Bool("NoLocal", topic.NoLocal).
 			Uint8("QoS", byte(topic.QoS)).
 			Bool("RetainAsPublished", topic.RetainAsPublished).
@@ -136,7 +136,7 @@ func (p *pubSubManager) subscribe(session *Session, topic packet.Topic,
 	}
 
 	p.log.Debug().
-		Str("ClientId", string(session.ClientID)).
+		Str("ClientId", string(s.clientID)).
 		Bool("NoLocal", topic.NoLocal).
 		Uint8("QoS", byte(topic.QoS)).
 		Bool("RetainAsPublished", topic.RetainAsPublished).
@@ -148,7 +148,7 @@ func (p *pubSubManager) subscribe(session *Session, topic packet.Topic,
 	return sub, nil
 }
 
-func (p *pubSubManager) unsubscribe(id ClientID, topic string) error {
+func (p *pubSubManager) unsubscribe(id clientID, topic string) error {
 	p.log.Trace().
 		Str("ClientId", string(id)).
 		Str("TopicFilter", topic).

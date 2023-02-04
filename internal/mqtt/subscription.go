@@ -34,7 +34,7 @@ type Subscription struct {
 	next *Subscription
 
 	// ClientID is the MQTT Client Identifier which created the subscription.
-	ClientID ClientID
+	ClientID clientID
 
 	// TopicFilter is the MQTT Topic Filter.
 	TopicFilter string
@@ -96,7 +96,7 @@ func (t *subscriptionTree) insert(sub Subscription) (exists bool, err error) {
 	return
 }
 
-func (t *subscriptionTree) remove(id ClientID, topic string) error {
+func (t *subscriptionTree) remove(id clientID, topic string) error {
 	words := strings.Split(topic, "/")
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
@@ -174,7 +174,7 @@ func (n *subscriptionNode) insert(sub *Subscription) bool {
 	return exists
 }
 
-func (n *subscriptionNode) remove(id ClientID) error {
+func (n *subscriptionNode) remove(id clientID) error {
 	sub := &n.subscription
 
 	for *sub != nil {

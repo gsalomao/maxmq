@@ -24,28 +24,28 @@ import (
 )
 
 func TestSessionNextClientID(t *testing.T) {
-	session := Session{}
+	s := session{}
 
 	for i := 0; i < math.MaxUint16; i++ {
-		id := session.nextClientID()
+		id := s.nextClientID()
 		assert.Equal(t, packet.ID(i+1), id)
 	}
 
-	id := session.nextClientID()
+	id := s.nextClientID()
 	assert.Equal(t, packet.ID(1), id)
 }
 
 func TestSessionFindInflightMessage(t *testing.T) {
-	session := &Session{}
+	s := &session{}
 	numOfMessages := 10
 
 	for i := 0; i < numOfMessages; i++ {
 		msg := &message{id: messageID(i), packetID: packet.ID(i)}
-		session.inflightMessages.PushBack(msg)
+		s.inflightMessages.PushBack(msg)
 	}
 
 	for i := 0; i < numOfMessages; i++ {
-		inflightMsg := session.findInflightMessage(packet.ID(i))
+		inflightMsg := s.findInflightMessage(packet.ID(i))
 		require.NotNil(t, inflightMsg)
 
 		msg := inflightMsg.Value.(*message)
@@ -55,10 +55,10 @@ func TestSessionFindInflightMessage(t *testing.T) {
 }
 
 func TestSessionFindInflightMessageNotFound(t *testing.T) {
-	session := &Session{}
+	s := &session{}
 
 	for i := 0; i < 10; i++ {
-		inflightMsg := session.findInflightMessage(packet.ID(i))
+		inflightMsg := s.findInflightMessage(packet.ID(i))
 		require.Nil(t, inflightMsg)
 	}
 }

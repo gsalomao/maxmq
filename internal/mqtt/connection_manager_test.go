@@ -125,7 +125,7 @@ func TestConnectionManagerHandlePacket(t *testing.T) {
 	require.True(t, ok)
 	require.NotNil(t, c)
 	assert.True(t, c.connected)
-	assert.Equal(t, ClientID("client-0"), c.clientID)
+	assert.Equal(t, clientID("client-0"), c.clientID)
 	assert.Equal(t, packet.MQTT311, c.version)
 	assert.Equal(t, 10, c.timeout)
 
