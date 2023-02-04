@@ -48,10 +48,10 @@ func (ps *pubSubMock) stop() {
 }
 
 func (ps *pubSubMock) subscribe(s *session, t packet.Topic,
-	subsID int,
-) (Subscription, error) {
+	subsID int) (subscription, error) {
+
 	args := ps.Called(s, t, subsID)
-	return args.Get(0).(Subscription), args.Error(1)
+	return args.Get(0).(subscription), args.Error(1)
 }
 
 func (ps *pubSubMock) unsubscribe(id clientID, topic string) error {
@@ -141,9 +141,9 @@ func TestSessionManagerConnectExistingSession(t *testing.T) {
 			s := &session{clientID: id, sessionID: 1, version: tc,
 				connectedAt:    time.Now().Add(-1 * time.Minute).Unix(),
 				expiryInterval: conf.MaxSessionExpiryInterval,
-				subscriptions:  make(map[string]Subscription)}
+				subscriptions:  make(map[string]subscription)}
 
-			sub := Subscription{ID: 1, TopicFilter: "test", ClientID: id}
+			sub := subscription{id: 1, topicFilter: "test", clientID: id}
 			s.subscriptions["test"] = sub
 			sm.store.sessions[s.clientID] = s
 
@@ -186,14 +186,14 @@ func TestSessionManagerConnectExistingSessionWithCleanSession(t *testing.T) {
 			s := &session{clientID: id, sessionID: 1, version: tc,
 				connectedAt:    time.Now().Add(-1 * time.Minute).Unix(),
 				expiryInterval: conf.MaxSessionExpiryInterval,
-				subscriptions:  make(map[string]Subscription)}
+				subscriptions:  make(map[string]subscription)}
 
-			sub := Subscription{ID: 1, TopicFilter: "test", ClientID: id}
+			sub := subscription{id: 1, topicFilter: "test", clientID: id}
 			s.subscriptions["test"] = sub
 			sm.store.sessions[s.clientID] = s
 
 			ps := sm.pubSub.(*pubSubMock)
-			ps.On("unsubscribe", id, sub.TopicFilter).Return(nil)
+			ps.On("unsubscribe", id, sub.topicFilter).Return(nil)
 
 			pkt := &packet.Connect{ClientID: []byte(id), Version: tc,
 				CleanSession: true}
@@ -1070,12 +1070,12 @@ func TestSessionManagerSubscribe(t *testing.T) {
 			subPkt := packet.Subscribe{PacketID: 1, Version: tc.version,
 				Topics: []packet.Topic{{Name: "data", QoS: tc.qos}}}
 
-			subs := Subscription{ID: 0, ClientID: id, TopicFilter: "data",
-				QoS: tc.qos}
+			sub := subscription{id: 0, clientID: id, topicFilter: "data",
+				qos: tc.qos}
 
 			ps := sm.pubSub.(*pubSubMock)
 			ps.On("subscribe", s, subPkt.Topics[0], 0).
-				Return(subs, nil)
+				Return(sub, nil)
 
 			s, replies, err := sm.handlePacket(id, &subPkt)
 			require.Nil(t, err)
@@ -1091,7 +1091,7 @@ func TestSessionManagerSubscribe(t *testing.T) {
 			assert.Equal(t, packet.ReasonCode(tc.qos), subAck.ReasonCodes[0])
 
 			require.Len(t, s.subscriptions, 1)
-			assert.Equal(t, subs, s.subscriptions["data"])
+			assert.Equal(t, sub, s.subscriptions["data"])
 			ps.AssertExpectations(t)
 		})
 	}
@@ -1121,7 +1121,7 @@ func TestSessionManagerSubscribeError(t *testing.T) {
 			ps := sm.pubSub.(*pubSubMock)
 			ps.On("subscribe", mock.Anything, mock.Anything,
 				mock.Anything).
-				Return(Subscription{}, errors.New("invalid subscription"))
+				Return(subscription{}, errors.New("invalid subscription"))
 
 			s, replies, err := sm.handlePacket(id, &subPkt)
 			require.Nil(t, err)
@@ -1194,13 +1194,13 @@ func TestSessionManagerSubscribeMultipleTopics(t *testing.T) {
 				},
 			}
 
-			subs := []Subscription{
-				{ID: 0, ClientID: id, TopicFilter: subPkt.Topics[0].Name,
-					QoS: subPkt.Topics[0].QoS},
-				{ID: 0, ClientID: id, TopicFilter: subPkt.Topics[1].Name,
-					QoS: subPkt.Topics[1].QoS},
-				{ID: 0, ClientID: id, TopicFilter: subPkt.Topics[2].Name,
-					QoS: subPkt.Topics[2].QoS},
+			subs := []subscription{
+				{id: 0, clientID: id, topicFilter: subPkt.Topics[0].Name,
+					qos: subPkt.Topics[0].QoS},
+				{id: 0, clientID: id, topicFilter: subPkt.Topics[1].Name,
+					qos: subPkt.Topics[1].QoS},
+				{id: 0, clientID: id, topicFilter: subPkt.Topics[2].Name,
+					qos: subPkt.Topics[2].QoS},
 			}
 
 			ps := sm.pubSub.(*pubSubMock)
@@ -1211,7 +1211,7 @@ func TestSessionManagerSubscribeMultipleTopics(t *testing.T) {
 				On("subscribe", s, subPkt.Topics[2], 0).
 				Return(subs[2], nil).
 				On("subscribe", s, subPkt.Topics[3], 0).
-				Return(Subscription{}, errors.New("invalid topic"))
+				Return(subscription{}, errors.New("invalid topic"))
 
 			s, replies, err := sm.handlePacket(id, &subPkt)
 			require.Nil(t, err)
@@ -1259,12 +1259,12 @@ func TestSessionManagerSubscribeV5WithSubID(t *testing.T) {
 	subPkt := packet.Subscribe{PacketID: 2, Version: packet.MQTT50,
 		Properties: props, Topics: []packet.Topic{{Name: "topic"}}}
 
-	subs := Subscription{ID: *props.SubscriptionIdentifier, ClientID: id,
-		TopicFilter: subPkt.Topics[0].Name}
+	sub := subscription{id: *props.SubscriptionIdentifier, clientID: id,
+		topicFilter: subPkt.Topics[0].Name}
 
 	ps := sm.pubSub.(*pubSubMock)
 	ps.On("subscribe", mock.Anything, mock.Anything,
-		*props.SubscriptionIdentifier).Return(subs, nil)
+		*props.SubscriptionIdentifier).Return(sub, nil)
 
 	_, replies, err := sm.handlePacket(id, &subPkt)
 	assert.Nil(t, err)
@@ -1324,8 +1324,8 @@ func TestSessionManagerUnsubscribeV3(t *testing.T) {
 			s, _, err := sm.handlePacket("", pkt)
 			require.Nil(t, err)
 
-			subs := Subscription{ID: 1, ClientID: id, TopicFilter: "data"}
-			s.subscriptions["data"] = subs
+			sub := subscription{id: 1, clientID: id, topicFilter: "data"}
+			s.subscriptions["data"] = sub
 
 			ps := sm.pubSub.(*pubSubMock)
 			ps.On("unsubscribe", id, "data").Return(nil)
@@ -1362,8 +1362,8 @@ func TestSessionManagerUnsubscribeV5(t *testing.T) {
 	s, _, err := sm.handlePacket("", pkt)
 	require.Nil(t, err)
 
-	subs := Subscription{ID: 1, ClientID: id, TopicFilter: "data"}
-	s.subscriptions["data"] = subs
+	sub := subscription{id: 1, clientID: id, topicFilter: "data"}
+	s.subscriptions["data"] = sub
 
 	ps := sm.pubSub.(*pubSubMock)
 	ps.On("unsubscribe", id, "data").Return(nil)
@@ -1432,7 +1432,7 @@ func TestSessionManagerUnsubscribeV3MissingSubscription(t *testing.T) {
 			require.Nil(t, err)
 
 			ps := sm.pubSub.(*pubSubMock)
-			ps.On("unsubscribe", id, "data").Return(ErrSubscriptionNotFound)
+			ps.On("unsubscribe", id, "data").Return(errSubscriptionNotFound)
 
 			unsub := packet.Unsubscribe{PacketID: 1, Version: tc,
 				Topics: []string{"data"}}
@@ -1464,7 +1464,7 @@ func TestSessionManagerUnsubscribeV5MissingSubscription(t *testing.T) {
 	require.Nil(t, err)
 
 	ps := sm.pubSub.(*pubSubMock)
-	ps.On("unsubscribe", id, "data").Return(ErrSubscriptionNotFound)
+	ps.On("unsubscribe", id, "data").Return(errSubscriptionNotFound)
 
 	unsub := packet.Unsubscribe{PacketID: 1, Version: packet.MQTT50,
 		Topics: []string{"data"}}
@@ -1502,12 +1502,12 @@ func TestSessionManagerUnsubscribeV3MultipleTopics(t *testing.T) {
 			s, _, err := sm.handlePacket("", pkt)
 			require.Nil(t, err)
 
-			s.subscriptions["data/0"] = Subscription{ID: 1, ClientID: id,
-				TopicFilter: "data/0", QoS: packet.QoS0}
-			s.subscriptions["data/1"] = Subscription{ID: 3, ClientID: id,
-				TopicFilter: "data/1", QoS: packet.QoS1}
-			s.subscriptions["data/#"] = Subscription{ID: 3, ClientID: id,
-				TopicFilter: "data/#", QoS: packet.QoS2}
+			s.subscriptions["data/0"] = subscription{id: 1, clientID: id,
+				topicFilter: "data/0", qos: packet.QoS0}
+			s.subscriptions["data/1"] = subscription{id: 3, clientID: id,
+				topicFilter: "data/1", qos: packet.QoS1}
+			s.subscriptions["data/#"] = subscription{id: 3, clientID: id,
+				topicFilter: "data/#", qos: packet.QoS2}
 
 			ps := sm.pubSub.(*pubSubMock)
 			ps.On("unsubscribe", id, "data/0").Return(nil).
@@ -1546,12 +1546,12 @@ func TestSessionManagerUnsubscribeV5MultipleTopics(t *testing.T) {
 	s, _, err := sm.handlePacket("", pkt)
 	require.Nil(t, err)
 
-	s.subscriptions["data/0"] = Subscription{ID: 1, ClientID: id,
-		TopicFilter: "data/0", QoS: packet.QoS0}
-	s.subscriptions["data/1"] = Subscription{ID: 3, ClientID: id,
-		TopicFilter: "data/1", QoS: packet.QoS1}
-	s.subscriptions["data/#"] = Subscription{ID: 3, ClientID: id,
-		TopicFilter: "data/#", QoS: packet.QoS2}
+	s.subscriptions["data/0"] = subscription{id: 1, clientID: id,
+		topicFilter: "data/0", qos: packet.QoS0}
+	s.subscriptions["data/1"] = subscription{id: 3, clientID: id,
+		topicFilter: "data/1", qos: packet.QoS1}
+	s.subscriptions["data/#"] = subscription{id: 3, clientID: id,
+		topicFilter: "data/#", qos: packet.QoS2}
 
 	ps := sm.pubSub.(*pubSubMock)
 	ps.On("unsubscribe", id, "data/0").Return(nil).
@@ -2504,7 +2504,7 @@ func TestSessionManagerDisconnect(t *testing.T) {
 			s, _, err := sm.handlePacket("", pkt)
 			require.Nil(t, err)
 
-			sub := Subscription{ID: 1, TopicFilter: "test", ClientID: id}
+			sub := subscription{id: 1, topicFilter: "test", clientID: id}
 			s.subscriptions["test"] = sub
 
 			disconnect := packet.NewDisconnect(tc, packet.ReasonCodeV5Success,
@@ -2543,7 +2543,7 @@ func TestSessionManagerDisconnectCleanSession(t *testing.T) {
 			s, _, err := sm.handlePacket("", pkt)
 			require.Nil(t, err)
 
-			sub := Subscription{ID: 1, TopicFilter: "test", ClientID: id}
+			sub := subscription{id: 1, topicFilter: "test", clientID: id}
 			s.subscriptions["test"] = sub
 
 			ps := sm.pubSub.(*pubSubMock)

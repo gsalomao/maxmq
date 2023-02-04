@@ -34,7 +34,7 @@ type session struct {
 	clientID         clientID
 	keepAlive        int
 	connectedAt      int64
-	subscriptions    map[string]Subscription
+	subscriptions    map[string]subscription
 	expiryInterval   uint32
 	version          packet.MQTTVersion
 	cleanSession     bool
@@ -47,7 +47,7 @@ type session struct {
 }
 
 func (s *session) clean() {
-	s.subscriptions = make(map[string]Subscription)
+	s.subscriptions = make(map[string]subscription)
 	s.connected = false
 	s.restored = false
 }

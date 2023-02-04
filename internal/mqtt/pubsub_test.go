@@ -79,12 +79,12 @@ func TestPubSubManagerSubscribeTopic(t *testing.T) {
 
 			sub, err := ps.subscribe(s, test, subscriptionID)
 			assert.Nil(t, err)
-			assert.Equal(t, subscriptionID, sub.ID)
-			assert.Equal(t, test.Name, sub.TopicFilter)
-			assert.Equal(t, test.QoS, sub.QoS)
-			assert.Equal(t, test.RetainHandling, sub.RetainHandling)
-			assert.Equal(t, test.RetainAsPublished, sub.RetainAsPublished)
-			assert.Equal(t, test.NoLocal, sub.NoLocal)
+			assert.Equal(t, subscriptionID, sub.id)
+			assert.Equal(t, test.Name, sub.topicFilter)
+			assert.Equal(t, test.QoS, sub.qos)
+			assert.Equal(t, test.RetainHandling, sub.retainHandling)
+			assert.Equal(t, test.RetainAsPublished, sub.retainAsPublished)
+			assert.Equal(t, test.NoLocal, sub.noLocal)
 		})
 	}
 }
@@ -113,7 +113,7 @@ func TestPubSubManagerUnsubscribeTopic(t *testing.T) {
 			sub, err := ps.subscribe(s, test, 0)
 			require.Nil(t, err)
 
-			err = ps.unsubscribe(s.clientID, sub.TopicFilter)
+			err = ps.unsubscribe(s.clientID, sub.topicFilter)
 			assert.Nil(t, err)
 		})
 	}
@@ -132,7 +132,7 @@ func TestPubSubManagerUnsubscribeSubscriptionNotFound(t *testing.T) {
 			ps := createPubSubManager()
 
 			err := ps.unsubscribe(s.clientID, test.Name)
-			assert.Equal(t, ErrSubscriptionNotFound, err)
+			assert.Equal(t, errSubscriptionNotFound, err)
 		})
 	}
 }
@@ -184,8 +184,8 @@ func TestPubSubManagerPublishQueuedQoS0Message(t *testing.T) {
 			id := clientID("client-a")
 
 			for _, topic := range test.subs {
-				sub := Subscription{ClientID: id, TopicFilter: topic,
-					QoS: packet.QoS0}
+				sub := subscription{clientID: id, topicFilter: topic,
+					qos: packet.QoS0}
 
 				_, err := ps.tree.insert(sub)
 				require.Nil(t, err)
@@ -211,7 +211,7 @@ func TestPubSubManagerPublishQueuedQoS0Message(t *testing.T) {
 func TestPubSubManagerProcessQueuedMessagesFailedToDeliver(t *testing.T) {
 	ps := createPubSubManager()
 	id := clientID("client-1")
-	sub := Subscription{ClientID: id, TopicFilter: "data", QoS: packet.QoS0}
+	sub := subscription{clientID: id, topicFilter: "data", qos: packet.QoS0}
 
 	_, err := ps.tree.insert(sub)
 	require.Nil(t, err)

@@ -35,7 +35,7 @@ type messagePublisher interface {
 type pubSub interface {
 	start()
 	stop()
-	subscribe(s *session, t packet.Topic, subsID int) (Subscription, error)
+	subscribe(s *session, t packet.Topic, subsID int) (subscription, error)
 	unsubscribe(id clientID, topic string) error
 	publish(msg *message)
 }
@@ -95,7 +95,7 @@ func (p *pubSubManager) run() {
 }
 
 func (p *pubSubManager) subscribe(s *session, topic packet.Topic,
-	subscriptionID int) (Subscription, error) {
+	subscriptionID int) (subscription, error) {
 
 	p.log.Trace().
 		Str("ClientId", string(s.clientID)).
@@ -107,14 +107,14 @@ func (p *pubSubManager) subscribe(s *session, topic packet.Topic,
 		Str("TopicFilter", topic.Name).
 		Msg("MQTT Subscribing to topic")
 
-	sub := Subscription{
-		ID:                subscriptionID,
-		ClientID:          s.clientID,
-		TopicFilter:       topic.Name,
-		QoS:               topic.QoS,
-		RetainHandling:    topic.RetainHandling,
-		RetainAsPublished: topic.RetainAsPublished,
-		NoLocal:           topic.NoLocal,
+	sub := subscription{
+		id:                subscriptionID,
+		clientID:          s.clientID,
+		topicFilter:       topic.Name,
+		qos:               topic.QoS,
+		retainHandling:    topic.RetainHandling,
+		retainAsPublished: topic.RetainAsPublished,
+		noLocal:           topic.NoLocal,
 	}
 
 	exists, err := p.tree.insert(sub)
@@ -128,7 +128,7 @@ func (p *pubSubManager) subscribe(s *session, topic packet.Topic,
 			Int("SubscriptionID", subscriptionID).
 			Str("TopicFilter", topic.Name).
 			Msg("MQTT Failed to subscribe to topic")
-		return Subscription{}, err
+		return subscription{}, err
 	}
 
 	if !exists {
@@ -226,10 +226,10 @@ func (p *pubSubManager) publishQueuedMessages() {
 			// to affect the other publication
 			m := msg.clone()
 
-			err := p.publisher.publishMessage(sub.ClientID, m)
+			err := p.publisher.publishMessage(sub.clientID, m)
 			if err != nil {
 				p.log.Error().
-					Str("ClientId", string(sub.ClientID)).
+					Str("ClientId", string(sub.clientID)).
 					Uint8("DUP", m.packet.Dup).
 					Uint64("MessageId", uint64(m.id)).
 					Uint16("PacketId", uint16(m.packet.PacketID)).

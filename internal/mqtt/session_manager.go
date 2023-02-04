@@ -248,12 +248,12 @@ func (sm *sessionManager) handlePingReq(id clientID,
 func (sm *sessionManager) handleSubscribe(id clientID,
 	pkt packet.Packet) (*session, []packet.Packet, error) {
 
-	sub := pkt.(*packet.Subscribe)
+	subPkt := pkt.(*packet.Subscribe)
 	sm.log.Trace().
 		Str("ClientId", string(id)).
-		Uint16("PacketId", uint16(sub.PacketID)).
-		Int("Topics", len(sub.Topics)).
-		Uint8("Version", uint8(sub.Version)).
+		Uint16("PacketId", uint16(subPkt.PacketID)).
+		Int("Topics", len(subPkt.Topics)).
+		Uint8("Version", uint8(subPkt.Version)).
 		Msg("MQTT Received SUBSCRIBE packet")
 
 	s, err := sm.readSession(id)
@@ -266,13 +266,13 @@ func (sm *sessionManager) handleSubscribe(id clientID,
 
 	replies := make([]packet.Packet, 0, 1)
 
-	subscriptionID := sub.Properties.SubscriptionID()
+	subscriptionID := subPkt.Properties.SubscriptionID()
 	if subscriptionID > 0 && !sm.conf.SubscriptionIDAvailable {
 		sm.log.Info().
 			Str("ClientId", string(s.clientID)).
-			Uint16("PacketId", uint16(sub.PacketID)).
+			Uint16("PacketId", uint16(subPkt.PacketID)).
 			Uint64("SessionId", uint64(s.sessionID)).
-			Uint8("Version", uint8(sub.Version)).
+			Uint8("Version", uint8(subPkt.Version)).
 			Msg("MQTT Received SUBSCRIBE with subscription ID (not available)")
 
 		disconnect := packet.NewDisconnect(s.version,
@@ -281,34 +281,34 @@ func (sm *sessionManager) handleSubscribe(id clientID,
 		return s, replies, packet.ErrV5SubscriptionIDNotSupported
 	}
 
-	codes := make([]packet.ReasonCode, 0, len(sub.Topics))
+	codes := make([]packet.ReasonCode, 0, len(subPkt.Topics))
 
-	for _, topic := range sub.Topics {
-		var subscription Subscription
+	for _, topic := range subPkt.Topics {
+		var sub subscription
 
-		subscription, err = sm.pubSub.subscribe(s, topic, subscriptionID)
+		sub, err = sm.pubSub.subscribe(s, topic, subscriptionID)
 		if err != nil {
 			codes = append(codes, packet.ReasonCodeV3Failure)
 			continue
 		}
 
-		codes = append(codes, packet.ReasonCode(subscription.QoS))
-		s.subscriptions[subscription.TopicFilter] = subscription
+		codes = append(codes, packet.ReasonCode(sub.qos))
+		s.subscriptions[sub.topicFilter] = sub
 
 		sm.log.Info().
 			Str("ClientId", string(s.clientID)).
-			Uint16("PacketId", uint16(sub.PacketID)).
+			Uint16("PacketId", uint16(subPkt.PacketID)).
 			Uint8("QoS", byte(topic.QoS)).
 			Uint64("SessionId", uint64(s.sessionID)).
 			Int("Subscriptions", len(s.subscriptions)).
 			Str("TopicFilter", topic.Name).
-			Int("Topics", len(sub.Topics)).
-			Uint8("Version", uint8(sub.Version)).
+			Int("Topics", len(subPkt.Topics)).
+			Uint8("Version", uint8(subPkt.Version)).
 			Msg("MQTT Client subscribed to topic")
 	}
 
 	sm.saveSession(s)
-	subAck := packet.NewSubAck(sub.PacketID, sub.Version, codes, nil)
+	subAck := packet.NewSubAck(subPkt.PacketID, subPkt.Version, codes, nil)
 	replies = append(replies, &subAck)
 	sm.log.Trace().
 		Str("ClientId", string(s.clientID)).
@@ -360,7 +360,7 @@ func (sm *sessionManager) handleUnsubscribe(id clientID,
 				Int("Topics", len(unsub.Topics)).
 				Uint8("Version", uint8(unsub.Version)).
 				Msg("MQTT Client unsubscribed to topic")
-		} else if err == ErrSubscriptionNotFound {
+		} else if err == errSubscriptionNotFound {
 			code = packet.ReasonCodeV5NoSubscriptionExisted
 		}
 
@@ -928,7 +928,7 @@ func (sm *sessionManager) newSession(id clientID) *session {
 	s := &session{
 		clientID:         id,
 		sessionID:        sessionID(nextId),
-		subscriptions:    make(map[string]Subscription),
+		subscriptions:    make(map[string]subscription),
 		unAckPubMessages: make(map[packet.ID]*message),
 	}
 
@@ -1048,13 +1048,13 @@ func (sm *sessionManager) deleteSession(s *session) {
 
 func (sm *sessionManager) cleanSession(s *session) {
 	for _, sub := range s.subscriptions {
-		err := sm.pubSub.unsubscribe(s.clientID, sub.TopicFilter)
+		err := sm.pubSub.unsubscribe(s.clientID, sub.topicFilter)
 		if err != nil {
 			sm.log.Error().
 				Str("ClientId", string(s.clientID)).
 				Bool("Connected", s.connected).
 				Uint64("SessionId", uint64(s.sessionID)).
-				Str("Topic", sub.TopicFilter).
+				Str("Topic", sub.topicFilter).
 				Uint8("Version", uint8(s.version)).
 				Msg("MQTT Failed to unsubscribe when cleaning session")
 		}
