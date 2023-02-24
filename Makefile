@@ -57,6 +57,14 @@ image: ## Build Docker image
 	@docker tag maxmq:${VERSION} maxmq:latest
 	$(call print_task_result,"Building Docker image","done")
 
+.PHONE: update
+update: ## Update dependencies
+	$(call print_task,"Updating dependencies")
+	@go get -u ./...
+	@go mod tidy
+	@go mod vendor
+	$(call print_task_result,"Updating dependencies","done")
+
 .PHONY: clean
 clean: ## Clean build folder
 	$(call print_task,"Cleaning build folder")
