@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ type UnsubAck struct {
 	PacketID ID
 
 	// Version represents the MQTT version.
-	Version MQTTVersion
+	Version Version
 
 	// Unexported fields
 	timestamp time.Time
@@ -45,7 +45,7 @@ type UnsubAck struct {
 }
 
 // NewUnsubAck creates a UNSUBACK Packet.
-func NewUnsubAck(id ID, v MQTTVersion, c []ReasonCode, p *Properties) UnsubAck {
+func NewUnsubAck(id ID, v Version, c []ReasonCode, p *Properties) UnsubAck {
 	return UnsubAck{
 		PacketID:    id,
 		Version:     v,

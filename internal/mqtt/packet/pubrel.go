@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ type PubRel struct {
 	ReasonCode ReasonCode
 
 	// Version represents the MQTT version.
-	Version MQTTVersion
+	Version Version
 
 	// Unexported fields
 	timestamp    time.Time
@@ -75,7 +75,7 @@ func newPacketPubRel(opts options) (Packet, error) {
 }
 
 // NewPubRel creates a PUBREL Packet.
-func NewPubRel(id ID, v MQTTVersion, c ReasonCode, p *Properties) PubRel {
+func NewPubRel(id ID, v Version, c ReasonCode, p *Properties) PubRel {
 	return PubRel{
 		PacketID:   id,
 		Version:    v,

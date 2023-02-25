@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,7 +52,7 @@ func TestPubRecInvalidVersion(t *testing.T) {
 func TestPubRecInvalidLength(t *testing.T) {
 	testCases := []struct {
 		name    string
-		version MQTTVersion
+		version Version
 		length  int
 	}{
 		{name: "V3.1", version: MQTT31, length: 0},
@@ -77,7 +77,7 @@ func TestPubRecWrite(t *testing.T) {
 	tests := []struct {
 		name    string
 		id      ID
-		version MQTTVersion
+		version Version
 		code    ReasonCode
 		props   *Properties
 		msg     []byte
@@ -237,7 +237,7 @@ func TestPubRecWriteV5InvalidReasonCode(t *testing.T) {
 func TestPubRecRead(t *testing.T) {
 	testCases := []struct {
 		name    string
-		version MQTTVersion
+		version Version
 		msg     []byte
 		id      ID
 		code    ReasonCode
@@ -384,7 +384,7 @@ func TestPubRecReadV5InvalidReasonCode(t *testing.T) {
 func TestPubRecSize(t *testing.T) {
 	testCases := []struct {
 		name    string
-		version MQTTVersion
+		version Version
 		code    ReasonCode
 		props   *Properties
 		size    int

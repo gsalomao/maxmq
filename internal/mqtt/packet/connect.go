@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -66,7 +66,7 @@ type Connect struct {
 	KeepAlive uint16
 
 	// Version represents the MQTT version.
-	Version MQTTVersion
+	Version Version
 
 	// WillQoS indicates the QoS level to be used when publishing the Will
 	// Message.
@@ -107,7 +107,7 @@ const (
 
 type protocolName []byte
 
-var protocolNames = map[MQTTVersion]protocolName{
+var protocolNames = map[Version]protocolName{
 	MQTT31:  {'M', 'Q', 'I', 's', 'd', 'p'},
 	MQTT311: {'M', 'Q', 'T', 'T'},
 	MQTT50:  {'M', 'Q', 'T', 'T'},
@@ -221,7 +221,7 @@ func (pkt *Connect) readVersion(buf *bytes.Buffer, name protocolName) error {
 	if err != nil {
 		return ErrV3UnacceptableProtocolVersion
 	}
-	pkt.Version = MQTTVersion(v)
+	pkt.Version = Version(v)
 
 	if n, ok := protocolNames[pkt.Version]; !ok { // MQTT-3.1.2-2
 		return ErrV3UnacceptableProtocolVersion

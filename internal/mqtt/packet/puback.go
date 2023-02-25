@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ type PubAck struct {
 	PacketID ID
 
 	// Version represents the MQTT version.
-	Version MQTTVersion
+	Version Version
 
 	// Unexported fields
 	timestamp    time.Time
@@ -73,7 +73,7 @@ func newPacketPubAck(opts options) (Packet, error) {
 }
 
 // NewPubAck creates a PUBACK Packet.
-func NewPubAck(id ID, v MQTTVersion, c ReasonCode, p *Properties) PubAck {
+func NewPubAck(id ID, v Version, c ReasonCode, p *Properties) PubAck {
 	return PubAck{
 		PacketID:   id,
 		Version:    v,

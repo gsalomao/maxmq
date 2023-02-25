@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import (
 // Reader is responsible for read packets.
 type Reader interface {
 	// ReadPacket reads and unpack a MQTT Packet from the io.Reader.
-	ReadPacket(r io.Reader, v MQTTVersion) (Packet, error)
+	ReadPacket(r io.Reader, v Version) (Packet, error)
 }
 
 // ReaderOptions contains the options for the Reader.
@@ -57,7 +57,7 @@ func NewReader(o ReaderOptions) Reader {
 
 // ReadPacket reads and unpack a MQTT Packet from the io.Reader.
 // It returns an error if it fails to read or unpack the packet.
-func (r *reader) ReadPacket(rd io.Reader, v MQTTVersion) (Packet, error) {
+func (r *reader) ReadPacket(rd io.Reader, v Version) (Packet, error) {
 	ctrlByte := make([]byte, 1)
 
 	_, err := rd.Read(ctrlByte)

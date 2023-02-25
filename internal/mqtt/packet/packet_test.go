@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -97,7 +97,7 @@ func TestPacketPacketTypeToStringInvalid(t *testing.T) {
 func TestPacketMQTTVersionToString(t *testing.T) {
 	testCases := []struct {
 		name    string
-		version MQTTVersion
+		version Version
 	}{
 		{name: "3.1", version: MQTT31},
 		{name: "3.1.1", version: MQTT311},

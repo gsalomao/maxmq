@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import (
 func TestConnAckNew(t *testing.T) {
 	testCases := []struct {
 		id             ClientID
-		version        MQTTVersion
+		version        Version
 		code           ReasonCode
 		sessionPresent bool
 		keepAlive      int
@@ -57,7 +57,7 @@ func TestConnAckNew(t *testing.T) {
 func TestConnAckWrite(t *testing.T) {
 	testCases := []struct {
 		name    string
-		version MQTTVersion
+		version Version
 		code    ReasonCode
 		msg     []byte
 	}{
@@ -128,7 +128,7 @@ func BenchmarkConnAckWriteV5(b *testing.B) {
 
 func TestConnAckWriteSessionPresent(t *testing.T) {
 	testCases := []struct {
-		version MQTTVersion
+		version Version
 		value   bool
 		msg     []byte
 	}{
@@ -249,7 +249,7 @@ func TestConnAckReadUnsupported(t *testing.T) {
 func TestConnAckSize(t *testing.T) {
 	testCases := []struct {
 		name    string
-		version MQTTVersion
+		version Version
 		code    ReasonCode
 		props   *Properties
 		size    int

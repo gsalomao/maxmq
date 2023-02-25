@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -56,7 +56,7 @@ func TestPublishWrite(t *testing.T) {
 	testCases := []struct {
 		name    string
 		id      ID
-		version MQTTVersion
+		version Version
 		topic   string
 		qos     QoS
 		retain  byte
@@ -167,7 +167,7 @@ func TestPublishRead(t *testing.T) {
 	testCases := []struct {
 		name    string
 		id      ID
-		version MQTTVersion
+		version Version
 		topic   string
 		qos     QoS
 		retain  byte
@@ -319,7 +319,7 @@ func TestPublishReadInvalidTopicName(t *testing.T) {
 func TestPublishSize(t *testing.T) {
 	testCases := []struct {
 		name      string
-		version   MQTTVersion
+		version   Version
 		remainLen int
 		size      int
 	}{
@@ -368,7 +368,7 @@ func TestPublishClone(t *testing.T) {
 	testCases := []struct {
 		name    string
 		id      ID
-		version MQTTVersion
+		version Version
 		topic   string
 		qos     QoS
 		dup     uint8

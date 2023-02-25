@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import (
 // PingReq represents the PINGREQ Packet from MQTT specifications.
 type PingReq struct {
 	// Version represents the MQTT version.
-	Version MQTTVersion
+	Version Version
 
 	// Unexported fields
 	timestamp time.Time

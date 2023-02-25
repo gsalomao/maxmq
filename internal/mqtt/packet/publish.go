@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,7 +51,7 @@ type Publish struct {
 	QoS QoS
 
 	// Version represents the MQTT version.
-	Version MQTTVersion
+	Version Version
 
 	// Dup indicates that this is the first occasion that the client or broker
 	// has attempted to send this packet.
@@ -97,7 +97,7 @@ func newPacketPublish(opts options) (Packet, error) {
 	}, nil
 }
 
-func NewPublish(id ID, version MQTTVersion, topic string, qos QoS, dup uint8,
+func NewPublish(id ID, version Version, topic string, qos QoS, dup uint8,
 	retain uint8, payload []byte, props *Properties) Publish {
 	return Publish{
 		PacketID:   id,

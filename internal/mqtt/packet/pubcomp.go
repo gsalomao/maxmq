@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ type PubComp struct {
 	ReasonCode ReasonCode
 
 	// Version represents the MQTT version.
-	Version MQTTVersion
+	Version Version
 
 	// Unexported fields
 	timestamp    time.Time
@@ -73,7 +73,7 @@ func newPacketPubComp(opts options) (Packet, error) {
 }
 
 // NewPubComp creates a PUBCOMP Packet.
-func NewPubComp(id ID, v MQTTVersion, c ReasonCode, p *Properties) PubComp {
+func NewPubComp(id ID, v Version, c ReasonCode, p *Properties) PubComp {
 	return PubComp{
 		PacketID:   id,
 		Version:    v,

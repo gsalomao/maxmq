@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ type Disconnect struct {
 	Properties *Properties
 
 	// Version represents the MQTT version.
-	Version MQTTVersion
+	Version Version
 
 	// ReasonCode represents the reason code based on the MQTT specifications.
 	ReasonCode ReasonCode
@@ -65,7 +65,7 @@ func newPacketDisconnect(opts options) (Packet, error) {
 }
 
 // NewDisconnect creates a DISCONNECT Packet.
-func NewDisconnect(v MQTTVersion, c ReasonCode, p *Properties) Disconnect {
+func NewDisconnect(v Version, c ReasonCode, p *Properties) Disconnect {
 	return Disconnect{
 		Version:    v,
 		ReasonCode: c,

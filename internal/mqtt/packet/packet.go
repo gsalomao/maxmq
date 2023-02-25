@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,12 +47,12 @@ const (
 	DISCONNECT
 )
 
-// MQTTVersion represents the MQTT version.
-type MQTTVersion byte
+// Version represents the MQTT version.
+type Version byte
 
 // MQTT version.
 const (
-	MQTT31 MQTTVersion = iota + 3
+	MQTT31 Version = iota + 3
 	MQTT311
 	MQTT50
 )
@@ -117,7 +117,7 @@ type options struct {
 	fixedHeaderLength int
 	remainingLength   int
 	packetType        Type
-	version           MQTTVersion
+	version           Version
 	controlFlags      byte
 }
 
@@ -171,14 +171,14 @@ func (pt Type) String() string {
 	return n
 }
 
-var versionToString = map[MQTTVersion]string{
+var versionToString = map[Version]string{
 	MQTT31:  "3.1",
 	MQTT311: "3.1.1",
 	MQTT50:  "5.0",
 }
 
-// String returns the MQTTVersion in string format.
-func (ver MQTTVersion) String() string {
+// String returns the Version in string format.
+func (ver Version) String() string {
 	v := versionToString[ver]
 	return v
 }

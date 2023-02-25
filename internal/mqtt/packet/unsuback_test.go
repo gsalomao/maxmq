@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ func TestUnsubAckWrite(t *testing.T) {
 	testCases := []struct {
 		name    string
 		id      ID
-		version MQTTVersion
+		version Version
 		codes   []ReasonCode
 		msg     []byte
 	}{
@@ -157,7 +157,7 @@ func TestUnsubAckReadUnsupported(t *testing.T) {
 func TestUnsubAckSize(t *testing.T) {
 	testCases := []struct {
 		name    string
-		version MQTTVersion
+		version Version
 		codes   []ReasonCode
 		props   *Properties
 		size    int
