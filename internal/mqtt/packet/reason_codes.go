@@ -19,6 +19,14 @@ package packet
 type ReasonCode byte
 
 const (
+	// ReasonCodeSuccess indicates that the operation completed with success.
+	ReasonCodeSuccess ReasonCode = 0x00
+
+	// ReasonCodeFailed indicates that the operation failed.
+	ReasonCodeFailed ReasonCode = 0x80
+)
+
+const (
 	// ReasonCodeV3ConnectionAccepted indicates that connection was accepted.
 	ReasonCodeV3ConnectionAccepted ReasonCode = 0x00
 
