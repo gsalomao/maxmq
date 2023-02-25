@@ -148,5 +148,7 @@ func colorize(color, msg string) string {
 
 // Run implements the zerolog.Hook interface to add log ID into the log event.
 func (l Logger) Run(e *zerolog.Event, _ zerolog.Level, _ string) {
-	e.Uint64("LogId", l.generator.NextID())
+	if l.generator != nil {
+		e.Uint64("LogId", l.generator.NextID())
+	}
 }

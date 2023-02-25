@@ -45,6 +45,16 @@ func TestLoggerLog(t *testing.T) {
 	assert.Contains(t, out.String(), msg)
 }
 
+func TestLoggerLogWithoutIDGenerator(t *testing.T) {
+	out := bytes.NewBufferString("")
+	log := New(out, nil)
+	msg := gofakeit.Phrase()
+
+	log.Info().Msg(msg)
+	assert.Contains(t, out.String(), "INFO")
+	assert.Contains(t, out.String(), msg)
+}
+
 func TestLoggerWithField(t *testing.T) {
 	gen := logIDGenMock{}
 	gen.On("NextID").Return(1)
