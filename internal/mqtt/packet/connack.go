@@ -29,6 +29,14 @@ type ConnAck struct {
 	// Properties represents the CONNACK properties (MQTT V5.0 only).
 	Properties *Properties
 
+	// ClientID identifies the client to the broker.
+	ClientID ClientID
+
+	// KeepAlive is a time interval, measured in seconds, that is permitted to
+	// elapse between the point at which the Client finishes transmitting one
+	// Control Packet and the point it starts sending the next.
+	KeepAlive int
+
 	// Version represents the MQTT version.
 	Version MQTTVersion
 
@@ -45,13 +53,15 @@ type ConnAck struct {
 }
 
 // NewConnAck creates a CONNACK Packet.
-func NewConnAck(
-	v MQTTVersion, c ReasonCode, sessionPresent bool, p *Properties,
-) ConnAck {
+func NewConnAck(id ClientID, v MQTTVersion, c ReasonCode, sessionPresent bool,
+	keepAlive int, p *Properties) ConnAck {
+
 	return ConnAck{
+		ClientID:       id,
 		Version:        v,
 		ReasonCode:     c,
 		SessionPresent: sessionPresent,
+		KeepAlive:      keepAlive,
 		Properties:     p,
 	}
 }
