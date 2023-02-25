@@ -297,7 +297,7 @@ func (cm *connectionManager) replyPacket(pkt packet.Packet,
 		Uint8("Version", uint8(conn.version)).
 		Msg("MQTT Sending packet")
 
-	err := cm.writer.WritePacket(reply, conn.netConn)
+	err := cm.writer.WritePacket(conn.netConn, reply)
 	if err != nil {
 		cm.log.Warn().
 			Str("ClientId", string(conn.clientID)).
@@ -340,7 +340,7 @@ func (cm *connectionManager) deliverPacket(id clientID,
 		Uint8("Version", uint8(pkt.Version)).
 		Msg("MQTT Delivering packet to client")
 
-	err := cm.writer.WritePacket(pkt, conn.netConn)
+	err := cm.writer.WritePacket(conn.netConn, pkt)
 	if err != nil {
 		return err
 	}
