@@ -24,9 +24,9 @@ import (
 )
 
 // Reader is responsible for read packets.
-type Reader struct {
-	readerPool    sync.Pool
-	maxPacketSize int
+type Reader interface {
+	// ReadPacket reads and unpack a MQTT Packet from the io.Reader.
+	ReadPacket(r io.Reader, v MQTTVersion) (Packet, error)
 }
 
 // ReaderOptions contains the options for the Reader.
@@ -38,9 +38,14 @@ type ReaderOptions struct {
 	MaxPacketSize int
 }
 
+type reader struct {
+	readerPool    sync.Pool
+	maxPacketSize int
+}
+
 // NewReader creates a buffered Reader using ReaderOptions.
 func NewReader(o ReaderOptions) Reader {
-	return Reader{
+	return &reader{
 		readerPool: sync.Pool{
 			New: func() interface{} {
 				return bufio.NewReaderSize(nil, o.BufferSize)
@@ -50,9 +55,9 @@ func NewReader(o ReaderOptions) Reader {
 	}
 }
 
-// ReadPacket reads and unpack a packet from the io.Reader.
+// ReadPacket reads and unpack a MQTT Packet from the io.Reader.
 // It returns an error if it fails to read or unpack the packet.
-func (r *Reader) ReadPacket(rd io.Reader, ver MQTTVersion) (Packet, error) {
+func (r *reader) ReadPacket(rd io.Reader, v MQTTVersion) (Packet, error) {
 	ctrlByte := make([]byte, 1)
 
 	_, err := rd.Read(ctrlByte)
@@ -81,7 +86,7 @@ func (r *Reader) ReadPacket(rd io.Reader, ver MQTTVersion) (Packet, error) {
 		fixedHeaderLength: 1 + n,
 		remainingLength:   remainLen,
 		timestamp:         now,
-		version:           ver,
+		version:           v,
 	}
 
 	pkt, err := newPacket(opts)
