@@ -65,7 +65,10 @@ func (pkt *UnsubAck) Write(w *bufio.Writer) error {
 		}
 	}
 
-	pktLen := buf.Len() + len(pkt.ReasonCodes) + 2 // +2 for packet ID
+	pktLen := buf.Len() + 2 // +2 for packet ID
+	if pkt.Version == MQTT50 {
+		pktLen += len(pkt.ReasonCodes)
+	}
 
 	err := multierr.Combine(
 		w.WriteByte(byte(UNSUBACK)<<packetTypeBit),
@@ -75,10 +78,13 @@ func (pkt *UnsubAck) Write(w *bufio.Writer) error {
 	)
 	_, errBuf := buf.WriteTo(w)
 	err = multierr.Combine(err, errBuf)
-	for _, code := range pkt.ReasonCodes {
-		err = multierr.Combine(w.WriteByte(byte(code)))
-		if err != nil {
-			break
+
+	if pkt.Version == MQTT50 {
+		for _, code := range pkt.ReasonCodes {
+			err = multierr.Combine(w.WriteByte(byte(code)))
+			if err != nil {
+				break
+			}
 		}
 	}
 	if err != nil {
