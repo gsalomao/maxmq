@@ -15,7 +15,10 @@
 package mqtt
 
 import (
+	"time"
+
 	"github.com/gsalomao/maxmq/internal/logger"
+	"github.com/gsalomao/maxmq/internal/mqtt/handler"
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 )
 
@@ -28,143 +31,95 @@ const (
 
 type pubSubAction byte
 
-type messagePublisher interface {
-	publishMessage(id clientID, msg *message) error
+type packetDeliverer interface {
+	deliverPacket(id packet.ClientID, pkt *packet.Publish) error
 }
 
-type pubSub interface {
-	start()
-	stop()
-	subscribe(s *session, t packet.Topic, subsID int) (subscription, error)
-	unsubscribe(id clientID, topic string) error
-	publish(msg *message)
-}
+func newPubSubManager(pd packetDeliverer, sm handler.SessionStore,
+	mt *metrics, l *logger.Logger) *pubSubManager {
 
-func newPubSubManager(metrics *metrics, log *logger.Logger) *pubSubManager {
 	return &pubSubManager{
-		metrics: metrics,
-		log:     log,
-		tree:    newSubscriptionTree(),
-		action:  make(chan pubSubAction, 1),
+		deliverer:  pd,
+		sessionMgr: sm,
+		metrics:    mt,
+		log:        l,
+		tree:       handler.NewSubscriptionTree(),
+		action:     make(chan pubSubAction, 1),
 	}
 }
 
 type pubSubManager struct {
-	publisher messagePublisher
-	metrics   *metrics
-	log       *logger.Logger
-	tree      subscriptionTree
-	queue     messageQueue
-	action    chan pubSubAction
+	deliverer  packetDeliverer
+	sessionMgr handler.SessionStore
+	metrics    *metrics
+	log        *logger.Logger
+	tree       handler.SubscriptionTree
+	queue      handler.MessageQueue
+	action     chan pubSubAction
 }
 
-func (p *pubSubManager) start() {
-	p.log.Trace().Msg("MQTT Starting PubSub")
-	go p.run()
-	<-p.action
-}
-
-func (p *pubSubManager) stop() {
-	p.log.Trace().Msg("MQTT Stopping PubSub")
-	p.action <- pubSubActionStop
-
-	for {
-		act := <-p.action
-		if act == pubSubActionStopped {
-			break
-		}
-	}
-
-	p.log.Debug().Msg("MQTT PubSub stopped with success")
-}
-
-func (p *pubSubManager) run() {
-	p.action <- pubSubActionStarted
-	p.log.Debug().Msg("MQTT PubSub waiting for actions")
-
-	for {
-		a := <-p.action
-		if a == pubSubActionPublishMessage {
-			p.publishQueuedMessages()
-		} else {
-			break
-		}
-	}
-
-	p.action <- pubSubActionStopped
-}
-
-func (p *pubSubManager) subscribe(s *session, topic packet.Topic,
-	subscriptionID int) (subscription, error) {
-
-	p.log.Trace().
-		Str("ClientId", string(s.clientID)).
-		Bool("NoLocal", topic.NoLocal).
-		Uint8("QoS", byte(topic.QoS)).
-		Bool("RetainAsPublished", topic.RetainAsPublished).
-		Uint8("RetainHandling", topic.RetainHandling).
-		Int("SubscriptionID", subscriptionID).
-		Str("TopicFilter", topic.Name).
+// Subscribe adds the given subscription.
+func (m *pubSubManager) Subscribe(s *handler.Subscription) error {
+	m.log.Trace().
+		Str("ClientId", string(s.ClientID)).
+		Bool("NoLocal", s.NoLocal).
+		Uint8("QoS", byte(s.QoS)).
+		Bool("RetainAsPublished", s.RetainAsPublished).
+		Uint8("RetainHandling", s.RetainHandling).
+		Int("SubscriptionID", s.ID).
+		Str("TopicFilter", s.TopicFilter).
 		Msg("MQTT Subscribing to topic")
 
-	sub := subscription{
-		id:                subscriptionID,
-		clientID:          s.clientID,
-		topicFilter:       topic.Name,
-		qos:               topic.QoS,
-		retainHandling:    topic.RetainHandling,
-		retainAsPublished: topic.RetainAsPublished,
-		noLocal:           topic.NoLocal,
-	}
-
-	exists, err := p.tree.insert(sub)
+	exists, err := m.tree.Insert(*s)
 	if err != nil {
-		p.log.Error().
-			Str("ClientId", string(s.clientID)).
-			Bool("NoLocal", topic.NoLocal).
-			Uint8("QoS", byte(topic.QoS)).
-			Bool("RetainAsPublished", topic.RetainAsPublished).
-			Uint8("RetainHandling", topic.RetainHandling).
-			Int("SubscriptionID", subscriptionID).
-			Str("TopicFilter", topic.Name).
+		m.log.Error().
+			Str("ClientId", string(s.ClientID)).
+			Bool("NoLocal", s.NoLocal).
+			Uint8("QoS", byte(s.QoS)).
+			Bool("RetainAsPublished", s.RetainAsPublished).
+			Uint8("RetainHandling", s.RetainHandling).
+			Int("SubscriptionID", s.ID).
+			Str("TopicFilter", s.TopicFilter).
 			Msg("MQTT Failed to subscribe to topic")
-		return subscription{}, err
+		return err
 	}
 
 	if !exists {
-		p.metrics.recordSubscribe()
+		m.metrics.recordSubscribe()
 	}
 
-	p.log.Debug().
-		Str("ClientId", string(s.clientID)).
-		Bool("NoLocal", topic.NoLocal).
-		Uint8("QoS", byte(topic.QoS)).
-		Bool("RetainAsPublished", topic.RetainAsPublished).
-		Uint8("RetainHandling", topic.RetainHandling).
-		Int("SubscriptionID", subscriptionID).
-		Str("TopicFilter", topic.Name).
+	m.log.Debug().
+		Str("ClientId", string(s.ClientID)).
+		Bool("NoLocal", s.NoLocal).
+		Uint8("QoS", byte(s.QoS)).
+		Bool("RetainAsPublished", s.RetainAsPublished).
+		Uint8("RetainHandling", s.RetainHandling).
+		Int("SubscriptionID", s.ID).
+		Str("TopicFilter", s.TopicFilter).
 		Msg("MQTT Subscribed to topic")
 
-	return sub, nil
+	return nil
 }
 
-func (p *pubSubManager) unsubscribe(id clientID, topic string) error {
-	p.log.Trace().
+// Unsubscribe removes the subscription for the given client identifier and
+// topic.
+func (m *pubSubManager) Unsubscribe(id packet.ClientID, topic string) error {
+	m.log.Trace().
 		Str("ClientId", string(id)).
 		Str("TopicFilter", topic).
 		Msg("MQTT Unsubscribing to topic")
 
-	err := p.tree.remove(id, topic)
+	err := m.tree.Remove(id, topic)
 	if err != nil {
-		p.log.Warn().
+		m.log.Warn().
 			Str("ClientId", string(id)).
 			Str("TopicFilter", topic).
 			Msg("MQTT Failed to remove subscription: " + err.Error())
 		return err
 	}
 
-	p.metrics.recordUnsubscribe()
-	p.log.Debug().
+	m.metrics.recordUnsubscribe()
+	m.log.Debug().
 		Str("ClientId", string(id)).
 		Str("TopicFilter", topic).
 		Msg("MQTT Unsubscribed to topic")
@@ -172,84 +127,212 @@ func (p *pubSubManager) unsubscribe(id clientID, topic string) error {
 	return err
 }
 
-func (p *pubSubManager) publish(msg *message) {
-	p.log.Trace().
-		Uint8("DUP", msg.packet.Dup).
-		Uint64("MessageId", uint64(msg.id)).
-		Uint16("PacketId", uint16(msg.packetID)).
-		Int("QueueLen", p.queue.len()).
-		Uint8("QoS", uint8(msg.packet.QoS)).
-		Uint8("Retain", msg.packet.Retain).
-		Str("TopicName", msg.packet.TopicName).
+// Publish publishes the given message to all subscriptions.
+func (m *pubSubManager) Publish(msg *handler.Message) error {
+	m.log.Trace().
+		Uint8("DUP", msg.Packet.Dup).
+		Uint64("MessageId", uint64(msg.ID)).
+		Uint16("PacketId", uint16(msg.PacketID)).
+		Int("QueueLen", m.queue.Len()).
+		Uint8("QoS", uint8(msg.Packet.QoS)).
+		Uint8("Retain", msg.Packet.Retain).
+		Str("TopicName", msg.Packet.TopicName).
 		Msg("MQTT Adding message into the queue")
 
-	p.queue.enqueue(msg)
-	p.action <- pubSubActionPublishMessage
+	m.queue.Enqueue(msg)
+	m.action <- pubSubActionPublishMessage
 
-	p.log.Debug().
-		Uint8("DUP", msg.packet.Dup).
-		Uint64("MessageId", uint64(msg.id)).
-		Uint16("PacketId", uint16(msg.packet.PacketID)).
-		Int("QueueLen", p.queue.len()).
-		Uint8("QoS", uint8(msg.packet.QoS)).
-		Uint8("Retain", msg.packet.Retain).
-		Str("TopicName", msg.packet.TopicName).
+	m.log.Debug().
+		Uint8("DUP", msg.Packet.Dup).
+		Uint64("MessageId", uint64(msg.ID)).
+		Uint16("PacketId", uint16(msg.Packet.PacketID)).
+		Int("QueueLen", m.queue.Len()).
+		Uint8("QoS", uint8(msg.Packet.QoS)).
+		Uint8("Retain", msg.Packet.Retain).
+		Str("TopicName", msg.Packet.TopicName).
 		Msg("MQTT Message queued for processing")
+
+	return nil
 }
 
-func (p *pubSubManager) publishQueuedMessages() {
-	for p.queue.len() > 0 {
-		msg := p.queue.dequeue()
-		p.log.Trace().
-			Uint8("DUP", msg.packet.Dup).
-			Uint64("MessageId", uint64(msg.id)).
-			Uint16("PacketId", uint16(msg.packet.PacketID)).
-			Int("QueueLen", p.queue.len()).
-			Uint8("QoS", uint8(msg.packet.QoS)).
-			Uint8("Retain", msg.packet.Retain).
-			Str("TopicName", msg.packet.TopicName).
-			Uint8("Version", uint8(msg.packet.Version)).
+func (m *pubSubManager) start() {
+	m.log.Trace().Msg("MQTT Starting PubSub")
+	go m.run()
+	<-m.action
+}
+
+func (m *pubSubManager) stop() {
+	m.log.Trace().Msg("MQTT Stopping PubSub")
+	m.action <- pubSubActionStop
+
+	for {
+		act := <-m.action
+		if act == pubSubActionStopped {
+			break
+		}
+	}
+
+	m.log.Debug().Msg("MQTT PubSub stopped with success")
+}
+
+func (m *pubSubManager) run() {
+	m.action <- pubSubActionStarted
+	m.log.Debug().Msg("MQTT PubSub waiting for actions")
+
+	for {
+		a := <-m.action
+		if a == pubSubActionPublishMessage {
+			m.handleQueuedMessages()
+		} else {
+			break
+		}
+	}
+
+	m.action <- pubSubActionStopped
+}
+
+func (m *pubSubManager) handleQueuedMessages() {
+	for m.queue.Len() > 0 {
+		msg := m.queue.Dequeue()
+		m.log.Trace().
+			Uint8("DUP", msg.Packet.Dup).
+			Uint64("MessageId", uint64(msg.ID)).
+			Uint16("PacketId", uint16(msg.Packet.PacketID)).
+			Int("QueueLen", m.queue.Len()).
+			Uint8("QoS", uint8(msg.Packet.QoS)).
+			Uint8("Retain", msg.Packet.Retain).
+			Str("TopicName", msg.Packet.TopicName).
+			Uint8("Version", uint8(msg.Packet.Version)).
 			Msg("MQTT Publishing queued message")
 
-		subscriptions := p.tree.findMatches(msg.packet.TopicName)
-		if len(subscriptions) > 0 {
-			p.log.Trace().
-				Uint64("MessageId", uint64(msg.id)).
-				Uint16("PacketId", uint16(msg.packet.PacketID)).
+		subscriptions := m.tree.FindMatches(msg.Packet.TopicName)
+		if len(subscriptions) == 0 {
+			m.log.Trace().
+				Uint64("MessageId", uint64(msg.ID)).
+				Uint16("PacketId", uint16(msg.Packet.PacketID)).
 				Int("Subscriptions", len(subscriptions)).
-				Str("TopicName", msg.packet.TopicName).
-				Msg("MQTT Found subscriptions")
+				Str("TopicName", msg.Packet.TopicName).
+				Msg("MQTT No subscription found")
+			continue
 		}
 
 		for _, sub := range subscriptions {
-			// Create a new instance of the message to avoid each publication
-			// to affect the other publication
-			m := msg.clone()
-
-			err := p.publisher.publishMessage(sub.clientID, m)
-			if err != nil {
-				p.log.Error().
-					Str("ClientId", string(sub.clientID)).
-					Uint8("DUP", m.packet.Dup).
-					Uint64("MessageId", uint64(m.id)).
-					Uint16("PacketId", uint16(m.packet.PacketID)).
-					Uint8("QoS", uint8(m.packet.QoS)).
-					Uint8("Retain", m.packet.Retain).
-					Str("TopicName", m.packet.TopicName).
-					Uint8("Version", uint8(m.packet.Version)).
-					Msg("MQTT Failed to publish message to session: " +
-						err.Error())
-			}
+			m.publishMsgToClient(sub.ClientID, msg.Clone())
 		}
 
-		p.log.Debug().
-			Uint8("DUP", msg.packet.Dup).
-			Uint64("MessageId", uint64(msg.id)).
-			Uint16("PacketId", uint16(msg.packet.PacketID)).
-			Int("QueueLen", p.queue.len()).
-			Uint8("QoS", uint8(msg.packet.QoS)).
-			Uint8("Retain", msg.packet.Retain).
-			Str("TopicName", msg.packet.TopicName).
+		m.log.Debug().
+			Uint8("DUP", msg.Packet.Dup).
+			Uint64("MessageId", uint64(msg.ID)).
+			Uint16("PacketId", uint16(msg.Packet.PacketID)).
+			Int("QueueLen", m.queue.Len()).
+			Uint8("QoS", uint8(msg.Packet.QoS)).
+			Uint8("Retain", msg.Packet.Retain).
+			Str("TopicName", msg.Packet.TopicName).
 			Msg("MQTT Queued message published with success")
+	}
+}
+
+func (m *pubSubManager) publishMsgToClient(id packet.ClientID,
+	msg *handler.Message) {
+
+	s, err := m.sessionMgr.ReadSession(id)
+	if err != nil {
+		m.log.Error().
+			Str("ClientId", string(id)).
+			Uint64("MessageId", uint64(msg.ID)).
+			Uint16("PacketId", uint16(msg.PacketID)).
+			Uint8("QoS", uint8(msg.Packet.QoS)).
+			Uint8("Retain", msg.Packet.Retain).
+			Str("TopicName", msg.Packet.TopicName).
+			Uint8("Version", uint8(msg.Packet.Version)).
+			Msg("MQTT Failed to read session (PUBSUB): " + err.Error())
+		return
+	}
+
+	s.Mutex.Lock()
+	defer s.Mutex.Unlock()
+
+	msg.Packet.Version = s.Version
+	if msg.Packet.QoS > packet.QoS0 {
+		msg.Packet.PacketID = s.NextPacketID()
+		msg.PacketID = msg.Packet.PacketID
+	}
+
+	m.log.Trace().
+		Str("ClientId", string(s.ClientID)).
+		Bool("Connected", s.Connected).
+		Int("InflightMessages", s.InflightMessages.Len()).
+		Uint64("MessageId", uint64(msg.ID)).
+		Uint16("PacketId", uint16(msg.PacketID)).
+		Uint8("QoS", uint8(msg.Packet.QoS)).
+		Uint8("Retain", msg.Packet.Retain).
+		Uint64("SessionId", uint64(s.SessionID)).
+		Str("TopicName", msg.Packet.TopicName).
+		Uint8("Version", uint8(msg.Packet.Version)).
+		Msg("MQTT Publishing message to client")
+
+	if msg.Packet.QoS > packet.QoS0 {
+		if s.Connected {
+			msg.Tries = 1
+			msg.LastSent = time.Now().UnixMicro()
+		}
+		s.InflightMessages.PushBack(msg)
+
+		err = m.sessionMgr.SaveSession(s)
+		if err != nil {
+			m.log.Error().
+				Str("ClientId", string(s.ClientID)).
+				Bool("Connected", s.Connected).
+				Int("InflightMessages", s.InflightMessages.Len()).
+				Uint64("MessageId", uint64(msg.ID)).
+				Uint16("PacketId", uint16(msg.PacketID)).
+				Uint8("QoS", uint8(msg.Packet.QoS)).
+				Uint8("Retain", msg.Packet.Retain).
+				Uint64("SessionId", uint64(s.SessionID)).
+				Str("TopicName", msg.Packet.TopicName).
+				Uint8("Version", uint8(msg.Packet.Version)).
+				Msg("MQTT Failed to save session (PUBSUB): " + err.Error())
+			return
+		}
+	}
+
+	if s.Connected {
+		err = m.deliverer.deliverPacket(s.ClientID, msg.Packet)
+		if err == nil {
+			if msg.Packet.QoS > packet.QoS0 {
+				m.log.Debug().
+					Str("ClientId", string(s.ClientID)).
+					Uint64("MessageId", uint64(msg.ID)).
+					Uint16("PacketId", uint16(msg.PacketID)).
+					Uint8("QoS", uint8(msg.Packet.QoS)).
+					Uint8("Retain", msg.Packet.Retain).
+					Uint64("SessionId", uint64(s.SessionID)).
+					Str("TopicName", msg.Packet.TopicName).
+					Uint8("Version", uint8(msg.Packet.Version)).
+					Msg("MQTT Message delivered to client")
+			} else {
+				m.log.Info().
+					Str("ClientId", string(s.ClientID)).
+					Uint64("MessageId", uint64(msg.ID)).
+					Uint16("PacketId", uint16(msg.PacketID)).
+					Uint8("QoS", uint8(msg.Packet.QoS)).
+					Uint8("Retain", msg.Packet.Retain).
+					Uint64("SessionId", uint64(s.SessionID)).
+					Str("TopicName", msg.Packet.TopicName).
+					Uint8("Version", uint8(msg.Packet.Version)).
+					Msg("MQTT Message published to client")
+			}
+		} else {
+			m.log.Error().
+				Str("ClientId", string(s.ClientID)).
+				Uint8("DUP", msg.Packet.Dup).
+				Uint64("MessageId", uint64(msg.ID)).
+				Uint16("PacketId", uint16(msg.Packet.PacketID)).
+				Uint8("QoS", uint8(msg.Packet.QoS)).
+				Uint8("Retain", msg.Packet.Retain).
+				Str("TopicName", msg.Packet.TopicName).
+				Uint8("Version", uint8(msg.Packet.Version)).
+				Msg("MQTT Failed to deliver message: " + err.Error())
+		}
 	}
 }

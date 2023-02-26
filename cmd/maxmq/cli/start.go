@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import (
 	"github.com/gsalomao/maxmq/internal/logger"
 	"github.com/gsalomao/maxmq/internal/metrics"
 	"github.com/gsalomao/maxmq/internal/mqtt"
+	"github.com/gsalomao/maxmq/internal/mqtt/handler"
 	"github.com/gsalomao/maxmq/internal/snowflake"
 	"github.com/mattn/go-colorable"
 	"github.com/spf13/cobra"
@@ -136,7 +137,7 @@ func newLogger(out io.Writer, machineID int) (*logger.Logger, error) {
 func newBroker(conf config.Config, log *logger.Logger,
 	machineID int) (*broker.Broker, error) {
 
-	mqttConf := mqtt.Configuration{
+	mqttConf := handler.Configuration{
 		TCPAddress:                    conf.MQTTTCPAddress,
 		ConnectTimeout:                conf.MQTTConnectTimeout,
 		BufferSize:                    conf.MQTTBufferSize,

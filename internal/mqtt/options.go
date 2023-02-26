@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package mqtt
 
 import (
 	"github.com/gsalomao/maxmq/internal/logger"
+	"github.com/gsalomao/maxmq/internal/mqtt/handler"
 )
 
 // IDGenerator generates an identifier numbers.
@@ -28,7 +29,7 @@ type IDGenerator interface {
 type OptionsFn func(l *Listener)
 
 // WithConfiguration sets the MQTT configuration into the MQTT Listener.
-func WithConfiguration(cf Configuration) OptionsFn {
+func WithConfiguration(cf handler.Configuration) OptionsFn {
 	return func(l *Listener) {
 		l.conf = &cf
 	}

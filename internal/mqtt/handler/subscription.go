@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mqtt
+package handler
 
 import (
 	"errors"
@@ -22,35 +22,78 @@ import (
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 )
 
-var errSubscriptionInvalidWildcard = errors.New("invalid wildcard")
-var errSubscriptionNotFound = errors.New("subscription not found")
+// ErrSubscriptionInvalidWildcard indicates that the Subscription has invalid
+// wildcard in its topic filter.
+var ErrSubscriptionInvalidWildcard = errors.New("invalid wildcard")
 
-type subscription struct {
-	next              *subscription
-	clientID          clientID
-	topicFilter       string
-	id                int
-	qos               packet.QoS
-	retainHandling    byte
-	retainAsPublished bool
-	noLocal           bool
+// ErrSubscriptionNotFound indicates that the Subscription has not been found.
+var ErrSubscriptionNotFound = errors.New("subscription not found")
+
+// SubscriptionID represents the Subscription identifier.
+type SubscriptionID int
+
+// SubscriptionManager is responsible for managing subscriptions.
+type SubscriptionManager interface {
+	// Subscribe adds the given Subscription.
+	Subscribe(s *Subscription) error
+
+	// Unsubscribe removes the Subscription for the given client identifier and
+	// topic.
+	Unsubscribe(id packet.ClientID, topic string) error
+
+	// Publish publishes the given message to all subscriptions.
+	Publish(msg *Message) error
 }
 
-type subscriptionTree struct {
+// Subscription represents a subscription of given client to a given topic.
+type Subscription struct {
+	// ClientID represents the identifier of the client which subscribed.
+	ClientID packet.ClientID
+
+	// TopicFilter represents the topic which the client subscribed.
+	TopicFilter string
+
+	// ID represents the subscription identifier
+	ID int
+
+	// QoS represents the quality-of-service level of the subscription.
+	QoS packet.QoS
+
+	// RetainHandling indicates whether the retained message are sent when the
+	// subscription is established or not.
+	RetainHandling byte
+
+	// RetainAsPublished indicates whether the RETAIN flag is kept when messages
+	// are forwarded using this subscription or not.
+	RetainAsPublished bool
+
+	// NoLocal indicates whether the messages must not be forwarded to a
+	// connection with a client ID equal to the client ID of the publishing
+	// connection or not.
+	NoLocal bool
+
+	// Unexported fields
+	next *Subscription
+}
+
+// SubscriptionTree stores subscriptions using a tree.
+type SubscriptionTree struct {
 	root  *subscriptionNode
 	mutex sync.RWMutex
 }
 
-func newSubscriptionTree() subscriptionTree {
-	return subscriptionTree{root: newSubscriptionNode()}
+// NewSubscriptionTree creates a new SubscriptionTree.
+func NewSubscriptionTree() SubscriptionTree {
+	return SubscriptionTree{root: newSubscriptionNode()}
 }
 
-func (t *subscriptionTree) insert(sub subscription) (exists bool, err error) {
-	if len(sub.topicFilter) == 0 {
+// Insert inserts the given subscription into the SubscriptionTree.
+func (t *SubscriptionTree) Insert(sub Subscription) (exists bool, err error) {
+	if len(sub.TopicFilter) == 0 {
 		return false, errors.New("empty topic filter")
 	}
 
-	words := strings.Split(sub.topicFilter, "/")
+	words := strings.Split(sub.TopicFilter, "/")
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
 
@@ -77,7 +120,8 @@ func (t *subscriptionTree) insert(sub subscription) (exists bool, err error) {
 	return
 }
 
-func (t *subscriptionTree) remove(id clientID, topic string) error {
+// Remove removes the Subscription for a given client identifier and topic.
+func (t *SubscriptionTree) Remove(id packet.ClientID, topic string) error {
 	words := strings.Split(topic, "/")
 	t.mutex.Lock()
 	defer t.mutex.Unlock()
@@ -89,7 +133,7 @@ func (t *subscriptionTree) remove(id clientID, topic string) error {
 	for i, word := range words {
 		node, ok := nodes[word]
 		if !ok {
-			return errSubscriptionNotFound
+			return ErrSubscriptionNotFound
 		}
 
 		if i == len(words)-1 {
@@ -117,11 +161,12 @@ func (t *subscriptionTree) remove(id clientID, topic string) error {
 	return nil
 }
 
-func (t *subscriptionTree) findMatches(topic string) []subscription {
+// FindMatches finds all subscriptions which match with the given topic.
+func (t *SubscriptionTree) FindMatches(topic string) []Subscription {
 	t.mutex.RLock()
 	defer t.mutex.RUnlock()
 
-	subs := make([]subscription, 0)
+	subs := make([]Subscription, 0)
 	words := strings.Split(topic, "/")
 	t.root.findMatches(&subs, words)
 
@@ -129,7 +174,7 @@ func (t *subscriptionTree) findMatches(topic string) []subscription {
 }
 
 type subscriptionNode struct {
-	subscription *subscription
+	subscription *Subscription
 	children     map[string]*subscriptionNode
 }
 
@@ -137,7 +182,7 @@ func newSubscriptionNode() *subscriptionNode {
 	return &subscriptionNode{children: make(map[string]*subscriptionNode)}
 }
 
-func (n *subscriptionNode) insert(sub *subscription) bool {
+func (n *subscriptionNode) insert(sub *Subscription) bool {
 	var exists bool
 	sub2 := &n.subscription
 
@@ -155,25 +200,25 @@ func (n *subscriptionNode) insert(sub *subscription) bool {
 	return exists
 }
 
-func (n *subscriptionNode) remove(id clientID) error {
+func (n *subscriptionNode) remove(id packet.ClientID) error {
 	sub := &n.subscription
 
 	for *sub != nil {
-		if id == (*sub).clientID {
+		if id == (*sub).ClientID {
 			break
 		}
 		sub = &(*sub).next
 	}
 
 	if *sub == nil {
-		return errSubscriptionNotFound
+		return ErrSubscriptionNotFound
 	}
 
 	*sub = (*sub).next
 	return nil
 }
 
-func (n *subscriptionNode) findMatches(subs *[]subscription, topic []string) {
+func (n *subscriptionNode) findMatches(subs *[]Subscription, topic []string) {
 	topicLen := len(topic)
 
 	node, ok := n.children[topic[0]]
@@ -200,7 +245,7 @@ func (n *subscriptionNode) findMatches(subs *[]subscription, topic []string) {
 	}
 }
 
-func (n *subscriptionNode) getAllSubscriptions(subs *[]subscription) {
+func (n *subscriptionNode) getAllSubscriptions(subs *[]Subscription) {
 	sub := n.subscription
 	for sub != nil {
 		*subs = append(*subs, *sub)
@@ -212,18 +257,18 @@ func validateTopicWord(word string, isLastWord bool) error {
 	wl := len(word)
 
 	if (wl > 1 || !isLastWord) && strings.Contains(word, "#") {
-		return errSubscriptionInvalidWildcard
+		return ErrSubscriptionInvalidWildcard
 	}
 	if wl > 1 && strings.Contains(word, "+") {
-		return errSubscriptionInvalidWildcard
+		return ErrSubscriptionInvalidWildcard
 	}
 
 	return nil
 }
 
-func sameSubscription(sub1 *subscription, sub2 *subscription) bool {
-	if sub1.clientID == sub2.clientID &&
-		sub1.topicFilter == sub2.topicFilter {
+func sameSubscription(sub1 *Subscription, sub2 *Subscription) bool {
+	if sub1.ClientID == sub2.ClientID &&
+		sub1.TopicFilter == sub2.TopicFilter {
 		return true
 	}
 

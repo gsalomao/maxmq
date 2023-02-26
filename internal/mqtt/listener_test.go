@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/gsalomao/maxmq/internal/logger"
+	"github.com/gsalomao/maxmq/internal/mqtt/handler"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -73,7 +74,7 @@ func TestListenerNewListener(t *testing.T) {
 		idGen := &idGeneratorMock{}
 
 		_, err := NewListener(
-			WithConfiguration(Configuration{}),
+			WithConfiguration(handler.Configuration{}),
 			WithIDGenerator(idGen),
 		)
 
@@ -82,7 +83,7 @@ func TestListenerNewListener(t *testing.T) {
 
 	t.Run("MissingIDGenerator", func(t *testing.T) {
 		_, err := NewListener(
-			WithConfiguration(Configuration{}),
+			WithConfiguration(handler.Configuration{}),
 			WithLogger(&log),
 		)
 
@@ -95,7 +96,7 @@ func TestListenerRunInvalidTCPAddress(t *testing.T) {
 	idGen := &idGeneratorMock{}
 
 	l, err := NewListener(
-		WithConfiguration(Configuration{TCPAddress: "."}),
+		WithConfiguration(handler.Configuration{TCPAddress: "."}),
 		WithLogger(&log),
 		WithIDGenerator(idGen),
 	)
@@ -111,7 +112,7 @@ func TestListenerRunAndStop(t *testing.T) {
 	idGen := &idGeneratorMock{}
 
 	l, err := NewListener(
-		WithConfiguration(Configuration{TCPAddress: ":1883"}),
+		WithConfiguration(handler.Configuration{TCPAddress: ":1883"}),
 		WithLogger(&log),
 		WithIDGenerator(idGen),
 	)
@@ -136,7 +137,7 @@ func TestListenerHandleConnection(t *testing.T) {
 	idGen.On("NextID").Return(1)
 
 	l, err := NewListener(
-		WithConfiguration(Configuration{TCPAddress: ":1883"}),
+		WithConfiguration(handler.Configuration{TCPAddress: ":1883"}),
 		WithLogger(&log),
 		WithIDGenerator(idGen),
 	)
@@ -164,7 +165,7 @@ func TestListenerHandleConnectionFailure(t *testing.T) {
 	idGen.On("NextID").Return(1)
 
 	l, err := NewListener(
-		WithConfiguration(Configuration{TCPAddress: ":1883"}),
+		WithConfiguration(handler.Configuration{TCPAddress: ":1883"}),
 		WithLogger(&log),
 		WithIDGenerator(idGen),
 	)

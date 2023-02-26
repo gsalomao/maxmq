@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mqtt
+package handler
 
 // Configuration holds the MQTT runtime configuration.
 type Configuration struct {
@@ -78,4 +78,22 @@ type Configuration struct {
 
 	// Indicate whether the broker exports metrics or not.
 	MetricsEnabled bool
+}
+
+func newDefaultConfiguration() Configuration {
+	return Configuration{
+		ConnectTimeout:                5,
+		MaxPacketSize:                 268435456,
+		MaxKeepAlive:                  0,
+		MaxSessionExpiryInterval:      0,
+		MaxInflightMessages:           0,
+		MaximumQoS:                    2,
+		MaxTopicAlias:                 0,
+		RetainAvailable:               true,
+		WildcardSubscriptionAvailable: true,
+		SubscriptionIDAvailable:       true,
+		SharedSubscriptionAvailable:   true,
+		MaxClientIDLen:                65535,
+		AllowEmptyClientID:            true,
+	}
 }

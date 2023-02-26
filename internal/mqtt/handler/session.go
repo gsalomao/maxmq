@@ -1,4 +1,4 @@
-// Copyright 2023 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,10 +35,10 @@ type SessionID uint64
 
 // SessionStore is responsible to handle the storage of the session.
 type SessionStore interface {
-	// NewSession creates a new Session for given packet.ClientID.
+	// NewSession creates a new Session for given client identifier.
 	NewSession(id packet.ClientID) *Session
 
-	// ReadSession reads the Session for the given packet.ClientID.
+	// ReadSession reads the Session for the given client identifier.
 	ReadSession(id packet.ClientID) (*Session, error)
 
 	// SaveSession saves the given Session.

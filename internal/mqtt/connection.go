@@ -25,6 +25,7 @@ import (
 type connection struct {
 	netConn    net.Conn
 	version    packet.Version
+	clientID   packet.ClientID
 	timeout    int
 	connected  bool
 	hasSession bool

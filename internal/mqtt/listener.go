@@ -20,19 +20,19 @@ import (
 	"sync"
 
 	"github.com/gsalomao/maxmq/internal/logger"
-	"github.com/gsalomao/maxmq/internal/mqtt/packet"
+	"github.com/gsalomao/maxmq/internal/mqtt/handler"
 )
 
 // Listener is responsible to implement the MQTT protocol conform the v3.1,
 // v3.1.1, and v5.0 specifications.
 type Listener struct {
-	tcpLsn      net.Listener
-	idGen       IDGenerator
-	log         *logger.Logger
-	conf        *Configuration
-	connManager *connectionManager
-	running     bool
-	mtx         sync.Mutex
+	tcpLsn        net.Listener
+	idGen         IDGenerator
+	log           *logger.Logger
+	conf          *handler.Configuration
+	connectionMgr *connectionManager
+	running       bool
+	mtx           sync.Mutex
 }
 
 // NewListener creates a new MQTT Listener with the given options.
@@ -53,23 +53,11 @@ func NewListener(opts ...OptionsFn) (*Listener, error) {
 		return nil, errors.New("missing ID generator")
 	}
 
-	userProps := make([]packet.UserProperty, 0, len(lsn.conf.UserProperties))
-	for k, v := range lsn.conf.UserProperties {
-		userProps = append(userProps,
-			packet.UserProperty{Key: []byte(k), Value: []byte(v)})
-	}
-
 	mt := newMetrics(lsn.conf.MetricsEnabled, lsn.log)
-	cm := newConnectionManager(lsn.conf, mt, lsn.log)
-	ps := newPubSubManager(mt, lsn.log)
-	sm := newSessionManager(lsn.conf, lsn.idGen, mt, userProps, lsn.log)
+	st := newSessionStore(lsn.idGen, lsn.log)
+	cm := newConnectionManager(lsn.conf, st, mt, lsn.idGen, lsn.log)
 
-	ps.publisher = sm
-	sm.pubSub = ps
-	sm.deliverer = cm
-	cm.sessionManager = sm
-	lsn.connManager = cm
-
+	lsn.connectionMgr = cm
 	return lsn, nil
 }
 
@@ -82,7 +70,7 @@ func (l *Listener) Listen() error {
 		return err
 	}
 
-	l.connManager.start()
+	l.connectionMgr.start()
 
 	l.log.Info().Msg("MQTT Listening on " + tcpLsn.Addr().String())
 	l.tcpLsn = tcpLsn
@@ -103,9 +91,10 @@ func (l *Listener) Listen() error {
 			continue
 		}
 
+		conn := l.connectionMgr.newConnection(tcpConn)
 		l.log.Trace().Msg("MQTT New TCP connection")
 		go func() {
-			l.connManager.handle(tcpConn)
+			l.connectionMgr.handle(conn)
 		}()
 	}
 
@@ -118,7 +107,7 @@ func (l *Listener) Listen() error {
 func (l *Listener) Stop() {
 	l.log.Debug().Msg("MQTT Stopping listener")
 
-	l.connManager.stop()
+	l.connectionMgr.stop()
 	l.setRunningState(false)
 	_ = l.tcpLsn.Close()
 }

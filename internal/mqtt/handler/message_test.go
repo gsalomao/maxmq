@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mqtt
+package handler
 
 import (
 	"testing"
@@ -20,50 +20,60 @@ import (
 
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
+
+type messageIDGenMock struct {
+	mock.Mock
+}
+
+func (g *messageIDGenMock) NextID() uint64 {
+	args := g.Called()
+	return args.Get(0).(uint64)
+}
 
 func TestMessageClone(t *testing.T) {
 	pkt := packet.NewPublish(5, packet.MQTT311, "topic", packet.QoS1,
 		0, 0, []byte("data"), nil)
-	msg1 := &message{id: 100, packetID: pkt.PacketID, packet: &pkt,
-		lastSent: time.Now().Unix(), tries: 3}
+	msg1 := &Message{ID: 100, PacketID: pkt.PacketID, Packet: &pkt,
+		LastSent: time.Now().Unix(), Tries: 3}
 
-	msg2 := msg1.clone()
+	msg2 := msg1.Clone()
 	require.NotNil(t, msg2)
 	assert.NotSame(t, msg1, msg2)
 	assert.Equal(t, msg1, msg2)
-	assert.NotSame(t, msg1.packet, msg2.packet)
-	assert.Equal(t, msg1.packet, msg2.packet)
+	assert.NotSame(t, msg1.Packet, msg2.Packet)
+	assert.Equal(t, msg1.Packet, msg2.Packet)
 }
 
 func TestMessageQueueEnqueueMessage(t *testing.T) {
-	mq := messageQueue{}
+	mq := MessageQueue{}
 	require.Zero(t, mq.list.Len())
 
-	msg := message{id: 1}
-	mq.enqueue(&msg)
+	msg := Message{ID: 1}
+	mq.Enqueue(&msg)
 	require.Equal(t, 1, mq.list.Len())
 }
 
 func TestMessageQueueDequeueMessage(t *testing.T) {
-	msg1 := message{id: 1}
-	mq := messageQueue{}
-	mq.enqueue(&msg1)
+	msg1 := Message{ID: 1}
+	mq := MessageQueue{}
+	mq.Enqueue(&msg1)
 
-	msg2 := mq.dequeue()
+	msg2 := mq.Dequeue()
 	require.Zero(t, mq.list.Len())
-	assert.Equal(t, msg1.id, msg2.id)
+	assert.Equal(t, msg1.ID, msg2.ID)
 }
 
 func TestMessageQueueGetQueueLen(t *testing.T) {
-	mq := messageQueue{}
-	assert.Zero(t, mq.len())
+	mq := MessageQueue{}
+	assert.Zero(t, mq.Len())
 
-	msg := message{id: 1}
-	mq.enqueue(&msg)
-	assert.Equal(t, 1, mq.len())
+	msg := Message{ID: 1}
+	mq.Enqueue(&msg)
+	assert.Equal(t, 1, mq.Len())
 
-	_ = mq.dequeue()
-	assert.Zero(t, mq.len())
+	_ = mq.Dequeue()
+	assert.Zero(t, mq.Len())
 }

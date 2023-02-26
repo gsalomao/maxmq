@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/gsalomao/maxmq/internal/logger"
+	"github.com/gsalomao/maxmq/internal/mqtt/handler"
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 	"go.uber.org/multierr"
 )
@@ -30,61 +31,82 @@ import (
 var errConnectionTimeout = errors.New("timeout - no packet received")
 var errProtocolError = errors.New("protocol error")
 
-type connectionManager struct {
-	conf           *Configuration
-	sessionManager *sessionManager
-	log            *logger.Logger
-	metrics        *metrics
-	connections    map[clientID]*connection
-	mutex          sync.RWMutex
-	reader         packet.Reader
-	writer         packet.Writer
+type packetHandler interface {
+	// HandlePacket handles the received packet from client.
+	HandlePacket(id packet.ClientID, pkt packet.Packet) ([]packet.Packet, error)
 }
 
-func newConnectionManager(
-	conf *Configuration, mt *metrics, log *logger.Logger,
-) *connectionManager {
-	conf.BufferSize = bufferSizeOrDefault(conf.BufferSize)
-	conf.ConnectTimeout = connectTimeoutOrDefault(conf.ConnectTimeout)
-	conf.DefaultVersion = defaultVersionOrDefault(conf.DefaultVersion)
-	conf.MaxPacketSize = maxPacketSizeOrDefault(conf.MaxPacketSize)
-	conf.MaximumQoS = maximumQosOrDefault(conf.MaximumQoS)
-	conf.MaxTopicAlias = maxTopicAliasOrDefault(conf.MaxTopicAlias)
-	conf.MaxInflightMessages = maxInflightMsgOrDefault(conf.MaxInflightMessages)
-	conf.MaxInflightRetries =
-		maxInflightRetriesOrDefault(conf.MaxInflightRetries)
-	conf.MaxClientIDLen = maxClientIDLenOrDefault(conf.MaxClientIDLen)
+type connectionManager struct {
+	conf         *handler.Configuration
+	sessionStore handler.SessionStore
+	log          *logger.Logger
+	metrics      *metrics
+	pubSub       *pubSubManager
+	connections  map[packet.ClientID]*connection
+	handlers     map[packet.Type]packetHandler
+	mutex        sync.RWMutex
+	reader       packet.Reader
+	writer       packet.Writer
+}
+
+func newConnectionManager(c *handler.Configuration, st handler.SessionStore,
+	mt *metrics, idGen IDGenerator, l *logger.Logger) *connectionManager {
+
+	c.BufferSize = bufferSizeOrDefault(c.BufferSize)
+	c.ConnectTimeout = connectTimeoutOrDefault(c.ConnectTimeout)
+	c.DefaultVersion = defaultVersionOrDefault(c.DefaultVersion)
+	c.MaxPacketSize = maxPacketSizeOrDefault(c.MaxPacketSize)
+	c.MaximumQoS = maximumQosOrDefault(c.MaximumQoS)
+	c.MaxTopicAlias = maxTopicAliasOrDefault(c.MaxTopicAlias)
+	c.MaxInflightMessages = maxInflightMsgOrDefault(c.MaxInflightMessages)
+	c.MaxInflightRetries = maxInflightRetriesOrDefault(c.MaxInflightRetries)
+	c.MaxClientIDLen = maxClientIDLenOrDefault(c.MaxClientIDLen)
 
 	rdOpts := packet.ReaderOptions{
-		BufferSize:    conf.BufferSize,
-		MaxPacketSize: conf.MaxPacketSize,
+		BufferSize:    c.BufferSize,
+		MaxPacketSize: c.MaxPacketSize,
 	}
 
-	cm := connectionManager{
-		conf:        conf,
-		metrics:     mt,
-		log:         log,
-		connections: make(map[clientID]*connection),
-		reader:      packet.NewReader(rdOpts),
-		writer:      packet.NewWriter(conf.BufferSize),
+	cm := &connectionManager{
+		conf:         c,
+		sessionStore: st,
+		metrics:      mt,
+		log:          l,
+		connections:  make(map[packet.ClientID]*connection),
+		reader:       packet.NewReader(rdOpts),
+		writer:       packet.NewWriter(c.BufferSize),
 	}
 
-	return &cm
+	ps := newPubSubManager(cm, st, mt, l)
+	cm.pubSub = ps
+	cm.handlers = map[packet.Type]packetHandler{
+		packet.CONNECT:     handler.NewConnectHandler(c, st, l),
+		packet.DISCONNECT:  handler.NewDisconnectHandler(st, ps, l),
+		packet.PINGREQ:     handler.NewPingReqHandler(st, l),
+		packet.SUBSCRIBE:   handler.NewSubscribeHandler(c, st, ps, l),
+		packet.UNSUBSCRIBE: handler.NewUnsubscribeHandler(st, ps, l),
+		packet.PUBLISH:     handler.NewPublishHandler(st, ps, idGen, l),
+		packet.PUBACK:      handler.NewPubAckHandler(st, l),
+		packet.PUBREC:      handler.NewPubRecHandler(st, l),
+		packet.PUBREL:      handler.NewPubRelHandler(st, ps, l),
+		packet.PUBCOMP:     handler.NewPubCompHandler(st, l),
+	}
+
+	return cm
 }
 
 func (cm *connectionManager) start() {
 	cm.log.Trace().Msg("MQTT Starting connection manager")
-	cm.sessionManager.start()
+	cm.pubSub.start()
 }
 
 func (cm *connectionManager) stop() {
 	cm.log.Trace().Msg("MQTT Stopping connection manager")
-	cm.sessionManager.stop()
+	cm.pubSub.stop()
 	cm.log.Debug().Msg("MQTT Connection manager stopped with success")
 }
 
-func (cm *connectionManager) handle(nc net.Conn) {
-	conn := cm.createConnection(nc)
+func (cm *connectionManager) handle(conn connection) {
 	defer cm.closeConnection(&conn, true)
 
 	cm.metrics.recordConnection()
@@ -103,6 +125,7 @@ func (cm *connectionManager) handle(nc net.Conn) {
 				Int("Timeout", conn.timeout).
 				Int("Version", int(conn.version)).
 				Msg("MQTT Failed to set read deadline: " + err.Error())
+			break
 		}
 
 		cm.log.Trace().
@@ -178,7 +201,15 @@ func (cm *connectionManager) readPacket(conn *connection) (pkt packet.Packet,
 func (cm *connectionManager) handlePacket(conn *connection,
 	pkt packet.Packet) error {
 
-	s, replies, err := cm.sessionManager.handlePacket(conn.clientID, pkt)
+	var replies []packet.Packet
+	var err error
+
+	hd, ok := cm.handlers[pkt.Type()]
+	if ok {
+		replies, err = hd.HandlePacket(conn.clientID, pkt)
+	} else {
+		err = errors.New("invalid packet type")
+	}
 	if err != nil {
 		cm.log.Error().
 			Str("ClientId", string(conn.clientID)).
@@ -193,11 +224,11 @@ func (cm *connectionManager) handlePacket(conn *connection,
 	for _, reply := range replies {
 		if reply.Type() == packet.CONNACK {
 			connAck := reply.(*packet.ConnAck)
-			if connAck.ReasonCode == packet.ReasonCodeV3ConnectionAccepted {
-				conn.clientID = s.clientID
-				conn.version = s.version
-				conn.timeout = s.keepAlive
-				conn.connected = s.connected
+			if connAck.ReasonCode == packet.ReasonCodeSuccess {
+				conn.clientID = connAck.ClientID
+				conn.version = connAck.Version
+				conn.timeout = connAck.KeepAlive
+				conn.connected = true
 				conn.hasSession = true
 				cm.log.Debug().
 					Str("ClientId", string(conn.clientID)).
@@ -205,7 +236,7 @@ func (cm *connectionManager) handlePacket(conn *connection,
 					Bool("HasSession", conn.hasSession).
 					Int("Timeout", conn.timeout).
 					Int("Version", int(conn.version)).
-					Msg("MQTT New Connection")
+					Msg("MQTT New connection")
 
 				cm.mutex.Lock()
 				cm.connections[conn.clientID] = conn
@@ -226,36 +257,72 @@ func (cm *connectionManager) handlePacket(conn *connection,
 			err = multierr.Combine(err, errReply)
 			return err
 		}
+
+		if reply.Type() == packet.DISCONNECT {
+			conn.hasSession = false
+			cm.closeConnection(conn, false)
+			break
+		}
 	}
 	if err != nil {
 		return err
 	}
 
-	if !s.connected {
-		cm.disconnect(conn)
+	if pkt.Type() == packet.DISCONNECT {
+		conn.hasSession = false
 		cm.closeConnection(conn, false)
+
+		latency := time.Since(pkt.Timestamp())
+		cm.metrics.recordDisconnectLatency(latency)
 	}
 
 	return nil
 }
 
-func (cm *connectionManager) createConnection(nc net.Conn) connection {
+func (cm *connectionManager) newConnection(nc net.Conn) connection {
 	return connection{
-		netConn:   nc,
-		timeout:   cm.conf.ConnectTimeout,
-		connected: true,
-		version:   packet.MQTTVersion(cm.conf.DefaultVersion),
+		netConn: nc,
+		timeout: cm.conf.ConnectTimeout,
+		version: packet.Version(cm.conf.DefaultVersion),
 	}
 }
 
-func (cm *connectionManager) disconnect(conn *connection) {
-	if conn.hasSession {
-		cm.mutex.Lock()
-		defer cm.mutex.Unlock()
-
-		conn.hasSession = false
-		delete(cm.connections, conn.clientID)
+func (cm *connectionManager) disconnectSession(conn *connection) {
+	s, err := cm.sessionStore.ReadSession(conn.clientID)
+	if err != nil {
+		cm.log.Error().
+			Str("ClientId", string(conn.clientID)).
+			Bool("Connected", conn.connected).
+			Bool("HasSession", conn.hasSession).
+			Int("Timeout", conn.timeout).
+			Int("Version", int(conn.version)).
+			Msg("MQTT Failed to read session (CONNMGR): " + err.Error())
+		return
 	}
+
+	if s.CleanSession {
+		err = cm.sessionStore.DeleteSession(s)
+		if err != nil {
+			cm.log.Error().
+				Str("ClientId", string(s.ClientID)).
+				Uint64("SessionId", uint64(s.SessionID)).
+				Uint8("Version", uint8(s.Version)).
+				Msg("MQTT Failed to delete session (CONNMGR): " + err.Error())
+			return
+		}
+	} else {
+		s.Connected = false
+		err = cm.sessionStore.SaveSession(s)
+		if err != nil {
+			cm.log.Error().
+				Str("ClientId", string(s.ClientID)).
+				Uint64("SessionId", uint64(s.SessionID)).
+				Uint8("Version", uint8(s.Version)).
+				Msg("MQTT Failed to save session (CONNMGR): " + err.Error())
+			return
+		}
+	}
+	conn.hasSession = false
 }
 
 func (cm *connectionManager) closeConnection(conn *connection, force bool) {
@@ -273,11 +340,16 @@ func (cm *connectionManager) closeConnection(conn *connection, force bool) {
 	}
 
 	_ = conn.netConn.Close()
-	conn.connected = false
+
+	if conn.connected {
+		cm.mutex.Lock()
+		delete(cm.connections, conn.clientID)
+		conn.connected = false
+		cm.mutex.Unlock()
+	}
 
 	if conn.hasSession {
-		cm.sessionManager.disconnectSession(conn.clientID)
-		cm.disconnect(conn)
+		cm.disconnectSession(conn)
 	}
 
 	cm.metrics.recordDisconnection()
@@ -320,7 +392,7 @@ func (cm *connectionManager) replyPacket(pkt packet.Packet,
 	return err
 }
 
-func (cm *connectionManager) deliverPacket(id clientID,
+func (cm *connectionManager) deliverPacket(id packet.ClientID,
 	pkt *packet.Publish) error {
 
 	cm.mutex.RLock()

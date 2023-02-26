@@ -70,6 +70,9 @@ const (
 // ID represents the packet ID
 type ID uint16
 
+// ClientID represents the MQTT Client ID.
+type ClientID string
+
 // Packet represents the MQTT packet.
 type Packet interface {
 	// Write encodes the packet into bytes and writes it into bufio.Writer.
