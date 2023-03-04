@@ -23,22 +23,22 @@
 #
 # Priority
 #
-- name: "🟥 priority: critical"
+- name: "priority: critical"
   color: "b60205"
   aliases: [ ]
-  description: Must be fixed ASAP
+  description: Must be handled as soon as possible
 
-- name: "🟧 priority: high"
+- name: "priority: high"
   color: "ff9f1c"
   aliases: [ ]
   description: Stalls work on the project or its dependents
 
-- name: "🟨 priority: medium"
+- name: "priority: medium"
   color: "ffcc00"
   aliases: [ ]
-  description: Not blocking but should be fixed soon
+  description: Not blocking but should be handled soon
 
-- name: "🟩 priority: low"
+- name: "priority: low"
   color: "cfda2c"
   aliases: [ ]
   description: Low priority and doesn't need to be rushed
@@ -46,27 +46,27 @@
 #
 # Status
 #
-- name: "🏁 status: ready"
+- name: "status: ready"
   color: "cccccc"
   aliases: [ ]
   description: Ready for work
 
-- name: "🚧 status: blocked"
+- name: "status: blocked"
   color: "999999"
   aliases: [ ]
   description: Blocked & therefore, not ready for work
 
-- name: "🧹 status: not ready"
+- name: "status: not ready"
   color: "666666"
   aliases: [ ]
   description: Needs more details before it can be worked on
 
-- name: "⛔️ status: invalid"
+- name: "status: invalid"
   color: "eeeeee"
   aliases: [ ]
   description: Inappropriate or invalid
 
-- name: "🖇️ status: duplicate"
+- name: "status: duplicate"
   color: "eeeeee"
   aliases: [ ]
   description: Indicates similar issues, pull requests, or discussions
@@ -74,17 +74,17 @@
 #
 # Goal
 #
-- name: "🌟 goal: feature"
+- name: "goal: feature"
   color: "357C3C"
   aliases: [ ]
   description: Addition of new feature
 
-- name: "✨ goal: improvement"
+- name: "goal: improvement"
   color: "019267"
   aliases: [ ]
   description: Improvement to an existing feature
 
-- name: "🛠 goal: fix"
+- name: "goal: fix"
   color: "146356"
   aliases: [ ]
   description: Bug fix
@@ -92,17 +92,17 @@
 #
 # Talk
 #
-- name: "❓ talk: question"
+- name: "talk: question"
   color: "f9bbe5"
   aliases: [ ]
   description: Can be resolved with an answer
 
-- name: "💬 talk: discussion"
+- name: "talk: discussion"
   color: "f9bbe5"
   aliases: [ ]
   description: Open for discussions and feedback
 
-- name: "💡️ talk: suggestion"
+- name: "talk: suggestion"
   color: "f9bbe5"
   aliases: [ ]
   description: Any suggestion
