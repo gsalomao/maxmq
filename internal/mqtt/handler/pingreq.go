@@ -35,20 +35,20 @@ func NewPingReqHandler(st SessionStore, l *logger.Logger) *PingReqHandler {
 }
 
 // HandlePacket handles the given packet as a PINGREQ packet.
-func (h *PingReqHandler) HandlePacket(id packet.ClientID,
-	pkt packet.Packet) ([]packet.Packet, error) {
-
-	pingReqPkt := pkt.(*packet.PingReq)
+func (h *PingReqHandler) HandlePacket(
+	id packet.ClientID, p packet.Packet,
+) ([]packet.Packet, error) {
+	pingReq := p.(*packet.PingReq)
 	h.log.Trace().
 		Str("ClientId", string(id)).
-		Uint8("Version", uint8(pingReqPkt.Version)).
+		Uint8("Version", uint8(pingReq.Version)).
 		Msg("MQTT Received PINGREQ packet")
 
 	s, err := h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
-			Uint8("Version", uint8(pingReqPkt.Version)).
+			Uint8("Version", uint8(pingReq.Version)).
 			Msg("MQTT Failed to read session (PINGREQ): " + err.Error())
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (h *PingReqHandler) HandlePacket(id packet.ClientID,
 	s.Mutex.RLock()
 	defer s.Mutex.RUnlock()
 
-	pingRespPkt := packet.PingResp{}
+	pingResp := packet.PingResp{}
 	h.log.Trace().
 		Str("ClientId", string(s.ClientID)).
 		Int("KeepAlive", s.KeepAlive).
@@ -65,5 +65,5 @@ func (h *PingReqHandler) HandlePacket(id packet.ClientID,
 		Uint8("Version", uint8(s.Version)).
 		Msg("MQTT Sending PINGRESP packet")
 
-	return []packet.Packet{&pingRespPkt}, nil
+	return []packet.Packet{&pingResp}, nil
 }

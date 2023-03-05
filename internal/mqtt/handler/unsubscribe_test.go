@@ -40,8 +40,7 @@ func TestUnsubscribeHandlerHandlePacket(t *testing.T) {
 			h := NewUnsubscribeHandler(st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: tc,
-				Subscriptions: make(map[string]*Subscription)}
+			s := &Session{ClientID: id, Version: tc, Subscriptions: make(map[string]*Subscription)}
 
 			sub := &Subscription{ClientID: id, TopicFilter: "data"}
 			s.Subscriptions["data"] = sub
@@ -50,9 +49,7 @@ func TestUnsubscribeHandlerHandlePacket(t *testing.T) {
 			st.On("SaveSession", s).Return(nil)
 			subMgr.On("Unsubscribe", id, sub.TopicFilter).Return(nil)
 
-			unsubPkt := &packet.Unsubscribe{PacketID: 1, Version: tc,
-				Topics: []string{"data"}}
-
+			unsubPkt := &packet.Unsubscribe{PacketID: 1, Version: tc, Topics: []string{"data"}}
 			replies, err := h.HandlePacket(id, unsubPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -65,8 +62,7 @@ func TestUnsubscribeHandlerHandlePacket(t *testing.T) {
 			assert.Equal(t, unsubPkt.Version, unsubAckPkt.Version)
 
 			require.Len(t, unsubAckPkt.ReasonCodes, 1)
-			assert.Equal(t, packet.ReasonCodeV5Success,
-				unsubAckPkt.ReasonCodes[0])
+			assert.Equal(t, packet.ReasonCodeV5Success, unsubAckPkt.ReasonCodes[0])
 
 			assert.Empty(t, s.Subscriptions)
 			st.AssertExpectations(t)
@@ -89,8 +85,7 @@ func TestUnsubscribeHandlerHandlePacketMultipleTopics(t *testing.T) {
 			h := NewUnsubscribeHandler(st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: tc,
-				Subscriptions: make(map[string]*Subscription)}
+			s := &Session{ClientID: id, Version: tc, Subscriptions: make(map[string]*Subscription)}
 
 			subs := []*Subscription{
 				{ClientID: id, TopicFilter: "data/0", QoS: packet.QoS0},
@@ -104,15 +99,11 @@ func TestUnsubscribeHandlerHandlePacketMultipleTopics(t *testing.T) {
 
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
-			subMgr.On("Unsubscribe", id, subs[0].TopicFilter).
-				Once().Return(nil)
-			subMgr.On("Unsubscribe", id, subs[1].TopicFilter).
-				Once().Return(nil)
+			subMgr.On("Unsubscribe", id, subs[0].TopicFilter).Once().Return(nil)
+			subMgr.On("Unsubscribe", id, subs[1].TopicFilter).Once().Return(nil)
 
 			topicNames := []string{"data/0", "data/#"}
-			unsubPkt := &packet.Unsubscribe{PacketID: 1, Version: tc,
-				Topics: topicNames}
-
+			unsubPkt := &packet.Unsubscribe{PacketID: 1, Version: tc, Topics: topicNames}
 			replies, err := h.HandlePacket(id, unsubPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -124,8 +115,7 @@ func TestUnsubscribeHandlerHandlePacketMultipleTopics(t *testing.T) {
 			assert.Equal(t, unsubPkt.PacketID, unsubAckPkt.PacketID)
 			assert.Equal(t, unsubPkt.Version, unsubAckPkt.Version)
 
-			codes := []packet.ReasonCode{packet.ReasonCodeV5Success,
-				packet.ReasonCodeV5Success}
+			codes := []packet.ReasonCode{packet.ReasonCodeV5Success, packet.ReasonCodeV5Success}
 			assert.Equal(t, codes, unsubAckPkt.ReasonCodes)
 
 			require.NotNil(t, s)
@@ -141,10 +131,8 @@ func TestUnsubscribeHandlerHandlePacketUnsubscribeError(t *testing.T) {
 		err  error
 		code packet.ReasonCode
 	}{
-		{err: ErrSubscriptionNotFound,
-			code: packet.ReasonCodeV5NoSubscriptionExisted},
-		{err: errors.New("failed"),
-			code: packet.ReasonCodeV5UnspecifiedError},
+		{ErrSubscriptionNotFound, packet.ReasonCodeV5NoSubscriptionExisted},
+		{errors.New("failed"), packet.ReasonCodeV5UnspecifiedError},
 	}
 
 	for _, tc := range testCases {
@@ -159,12 +147,10 @@ func TestUnsubscribeHandlerHandlePacketUnsubscribeError(t *testing.T) {
 				Subscriptions: make(map[string]*Subscription)}
 
 			st.On("ReadSession", id).Return(s, nil)
-			subMgr.On("Unsubscribe", id, "data").
-				Return(tc.err)
+			subMgr.On("Unsubscribe", id, "data").Return(tc.err)
 
-			unsubPkt := &packet.Unsubscribe{PacketID: 1,
-				Version: packet.MQTT311, Topics: []string{"data"}}
-
+			unsubPkt := &packet.Unsubscribe{PacketID: 1, Version: packet.MQTT311,
+				Topics: []string{"data"}}
 			replies, err := h.HandlePacket(id, unsubPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -199,12 +185,9 @@ func TestUnsubscribeHandlerHandlePacketReadSessionError(t *testing.T) {
 			h := NewUnsubscribeHandler(st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			st.On("ReadSession", id).
-				Return(nil, errors.New("failed"))
+			st.On("ReadSession", id).Return(nil, errors.New("failed"))
 
-			unsubPkt := &packet.Unsubscribe{PacketID: 1, Version: tc,
-				Topics: []string{"data"}}
-
+			unsubPkt := &packet.Unsubscribe{PacketID: 1, Version: tc, Topics: []string{"data"}}
 			replies, err := h.HandlePacket(id, unsubPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)
@@ -229,8 +212,7 @@ func TestUnsubscribeHandlerHandlePacketSaveSessionError(t *testing.T) {
 			h := NewUnsubscribeHandler(st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: tc,
-				Subscriptions: make(map[string]*Subscription)}
+			s := &Session{ClientID: id, Version: tc, Subscriptions: make(map[string]*Subscription)}
 
 			subs := []*Subscription{
 				{ClientID: id, TopicFilter: "data/0", QoS: packet.QoS0},
@@ -242,15 +224,11 @@ func TestUnsubscribeHandlerHandlePacketSaveSessionError(t *testing.T) {
 
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(errors.New("failed"))
-			subMgr.On("Unsubscribe", id, subs[0].TopicFilter).
-				Return(nil)
-			subMgr.On("Unsubscribe", id, subs[1].TopicFilter).
-				Return(nil)
+			subMgr.On("Unsubscribe", id, subs[0].TopicFilter).Return(nil)
+			subMgr.On("Unsubscribe", id, subs[1].TopicFilter).Return(nil)
 
 			topicNames := []string{"data/0", "data/1"}
-			unsubPkt := &packet.Unsubscribe{PacketID: 1, Version: tc,
-				Topics: topicNames}
-
+			unsubPkt := &packet.Unsubscribe{PacketID: 1, Version: tc, Topics: topicNames}
 			replies, err := h.HandlePacket(id, unsubPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)

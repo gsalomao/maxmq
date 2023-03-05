@@ -40,11 +40,10 @@ func TestPubRelHandlerHandlePacket(t *testing.T) {
 			h := NewPubRelHandler(st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: tc,
-				UnAckMessages: make(map[packet.ID]*Message)}
+			s := &Session{ClientID: id, Version: tc, UnAckMessages: make(map[packet.ID]*Message)}
 
-			pubPkt := packet.NewPublish(1, tc, "topic",
-				packet.QoS2, 0, 0, []byte("data"), nil)
+			pubPkt := packet.NewPublish(1 /*id*/, tc, "topic" /*topic*/, packet.QoS2,
+				0 /*dup*/, 0 /*retain*/, []byte("data") /*payload*/, nil /*props*/)
 
 			msg := &Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 			s.UnAckMessages[msg.PacketID] = msg.Clone()
@@ -53,9 +52,7 @@ func TestPubRelHandlerHandlePacket(t *testing.T) {
 			st.On("SaveSession", s).Return(nil)
 			subMgr.On("Publish", msg).Return(nil)
 
-			pubRelPkt := packet.NewPubRel(pubPkt.PacketID, tc,
-				packet.ReasonCodeV5Success, nil)
-
+			pubRelPkt := packet.NewPubRel(pubPkt.PacketID, tc, packet.ReasonCodeV5Success, nil /*props*/)
 			replies, err := h.HandlePacket(id, &pubRelPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -96,17 +93,13 @@ func TestPubRelHandlerHandlePacketAlreadyReleased(t *testing.T) {
 			h := NewPubRelHandler(st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: tc,
-				UnAckMessages: make(map[packet.ID]*Message)}
+			s := &Session{ClientID: id, Version: tc, UnAckMessages: make(map[packet.ID]*Message)}
 
 			msg := &Message{PacketID: 1}
 			s.UnAckMessages[msg.PacketID] = msg
-
 			st.On("ReadSession", id).Return(s, nil)
 
-			pubRelPkt := packet.NewPubRel(msg.PacketID, tc,
-				packet.ReasonCodeV5Success, nil)
-
+			pubRelPkt := packet.NewPubRel(msg.PacketID, tc, packet.ReasonCodeV5Success, nil /*props*/)
 			replies, err := h.HandlePacket(id, &pubRelPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -144,14 +137,10 @@ func TestPubRelHandlerHandlePacketV3PacketNotFound(t *testing.T) {
 			h := NewPubRelHandler(st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: tc,
-				UnAckMessages: make(map[packet.ID]*Message)}
-
+			s := &Session{ClientID: id, Version: tc, UnAckMessages: make(map[packet.ID]*Message)}
 			st.On("ReadSession", id).Return(s, nil)
 
-			pubRelPkt := packet.NewPubRel(10, tc, packet.ReasonCodeV5Success,
-				nil)
-
+			pubRelPkt := packet.NewPubRel(10 /*id*/, tc, packet.ReasonCodeV5Success, nil /*props*/)
 			replies, err := h.HandlePacket(id, &pubRelPkt)
 			assert.NotNil(t, err)
 			assert.Len(t, replies, 0)
@@ -168,14 +157,10 @@ func TestPubRelHandlerHandlePacketV5PacketNotFound(t *testing.T) {
 	h := NewPubRelHandler(st, subMgr, &log)
 
 	id := packet.ClientID("a")
-	s := &Session{ClientID: id, Version: packet.MQTT50,
-		UnAckMessages: make(map[packet.ID]*Message)}
-
+	s := &Session{ClientID: id, Version: packet.MQTT50, UnAckMessages: make(map[packet.ID]*Message)}
 	st.On("ReadSession", id).Return(s, nil)
 
-	pubRelPkt := packet.NewPubRel(10, packet.MQTT50,
-		packet.ReasonCodeV5Success, nil)
-
+	pubRelPkt := packet.NewPubRel(10 /*id*/, packet.MQTT50, packet.ReasonCodeV5Success, nil /*props*/)
 	replies, err := h.HandlePacket(id, &pubRelPkt)
 	require.Nil(t, err)
 	require.Len(t, replies, 1)
@@ -206,11 +191,10 @@ func TestPubRelHandlerHandlePacketPublishError(t *testing.T) {
 			h := NewPubRelHandler(st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: tc,
-				UnAckMessages: make(map[packet.ID]*Message)}
+			s := &Session{ClientID: id, Version: tc, UnAckMessages: make(map[packet.ID]*Message)}
 
-			pubPkt := packet.NewPublish(1, tc, "topic",
-				packet.QoS2, 0, 0, []byte("data"), nil)
+			pubPkt := packet.NewPublish(1 /*id*/, tc, "topic" /*topic*/, packet.QoS2,
+				0 /*dup*/, 0 /*retain*/, []byte("data") /*payload*/, nil /*props*/)
 
 			msg := &Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 			s.UnAckMessages[msg.PacketID] = msg.Clone()
@@ -218,9 +202,7 @@ func TestPubRelHandlerHandlePacketPublishError(t *testing.T) {
 			st.On("ReadSession", id).Return(s, nil)
 			subMgr.On("Publish", msg).Return(errors.New("failed"))
 
-			pubRelPkt := packet.NewPubRel(1, tc, packet.ReasonCodeV5Success,
-				nil)
-
+			pubRelPkt := packet.NewPubRel(1 /*id*/, tc, packet.ReasonCodeV5Success, nil /*props*/)
 			replies, err := h.HandlePacket(id, &pubRelPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)
@@ -245,12 +227,9 @@ func TestPubRelHandlerHandlePacketReadSessionError(t *testing.T) {
 			h := NewPubRelHandler(st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			st.On("ReadSession", id).
-				Return(nil, ErrSessionNotFound)
+			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)
 
-			pubRelPkt := packet.NewPubRel(1, tc, packet.ReasonCodeV5Success,
-				nil)
-
+			pubRelPkt := packet.NewPubRel(1 /*id*/, tc, packet.ReasonCodeV5Success, nil /*props*/)
 			replies, err := h.HandlePacket(id, &pubRelPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)
@@ -275,11 +254,10 @@ func TestPubRelHandlerHandlePacketSaveSessionError(t *testing.T) {
 			h := NewPubRelHandler(st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: tc,
-				UnAckMessages: make(map[packet.ID]*Message)}
+			s := &Session{ClientID: id, Version: tc, UnAckMessages: make(map[packet.ID]*Message)}
 
-			pubPkt := packet.NewPublish(1, tc, "topic",
-				packet.QoS2, 0, 0, []byte("data"), nil)
+			pubPkt := packet.NewPublish(1 /*id*/, tc, "topic" /*topic*/, packet.QoS2,
+				0 /*dup*/, 0 /*retain*/, []byte("data") /*payload*/, nil /*props*/)
 
 			msg := &Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 			s.UnAckMessages[msg.PacketID] = msg.Clone()
@@ -288,9 +266,7 @@ func TestPubRelHandlerHandlePacketSaveSessionError(t *testing.T) {
 			st.On("SaveSession", s).Return(errors.New("failed"))
 			subMgr.On("Publish", msg).Return(nil)
 
-			pubRelPkt := packet.NewPubRel(1, tc, packet.ReasonCodeV5Success,
-				nil)
-
+			pubRelPkt := packet.NewPubRel(1 /*id*/, tc, packet.ReasonCodeV5Success, nil /*props*/)
 			replies, err := h.HandlePacket(id, &pubRelPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)

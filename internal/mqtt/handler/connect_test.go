@@ -45,13 +45,11 @@ func TestConnectHandlerHandlePacketNewSession(t *testing.T) {
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id}
 
-			st.On("ReadSession", id).
-				Return(nil, ErrSessionNotFound)
+			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)
 			st.On("NewSession", id).Return(s)
 			st.On("SaveSession", s).Return(nil)
 
 			connPkt := &packet.Connect{ClientID: []byte(id), Version: tc}
-
 			replies, err := h.HandlePacket("", connPkt)
 			assert.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -100,7 +98,6 @@ func TestConnectHandlerHandlePacketExistingSession(t *testing.T) {
 			st.On("SaveSession", s).Return(nil)
 
 			connPkt := &packet.Connect{ClientID: []byte(id), Version: tc}
-
 			replies, err := h.HandlePacket("", connPkt)
 			assert.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -148,9 +145,7 @@ func TestConnectHandlerHandlePacketExistingWithCleanSession(t *testing.T) {
 			st.On("NewSession", id).Return(s)
 			st.On("SaveSession", s).Return(nil)
 
-			connPkt := &packet.Connect{ClientID: []byte(id), Version: tc,
-				CleanSession: true}
-
+			connPkt := &packet.Connect{ClientID: []byte(id), Version: tc, CleanSession: true}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -195,17 +190,14 @@ func TestConnectHandlerHandlePacketWithInflightMessages(t *testing.T) {
 
 				topic := fmt.Sprintf("data/%v", i)
 				newPub := packet.NewPublish(packet.ID(i+1), tc, topic, qos,
-					0, 0, nil, nil)
-
-				msg := Message{ID: MessageID(newPub.PacketID),
-					PacketID: newPub.PacketID, Packet: &newPub}
+					0 /*dup*/, 0 /*retain*/, nil /*payload*/, nil /*props*/)
+				msg := Message{ID: MessageID(newPub.PacketID), PacketID: newPub.PacketID, Packet: &newPub}
 
 				s.InflightMessages.PushBack(&msg)
 				inflightMsgList = append(inflightMsgList, &msg)
 			}
 
 			connPkt := &packet.Connect{ClientID: []byte{'a'}, Version: tc}
-
 			replies, err := h.HandlePacket("", connPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 11)
@@ -254,7 +246,6 @@ func TestConnectHandlerHandlePacketWithInflightMessagesNoPacket(t *testing.T) {
 			}
 
 			connPkt := &packet.Connect{ClientID: []byte{'a'}, Version: tc}
-
 			replies, err := h.HandlePacket("", connPkt)
 			assert.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -290,7 +281,6 @@ func TestConnectHandlerHandlePacketClientIDTooBig(t *testing.T) {
 			h := NewConnectHandler(&conf, st, &log)
 
 			connPkt := &packet.Connect{ClientID: tc.id, Version: tc.version}
-
 			replies, err := h.HandlePacket("", connPkt)
 			assert.NotNil(t, err)
 			require.Len(t, replies, 1)
@@ -326,7 +316,6 @@ func TestConnectHandlerHandlePacketAllowEmptyClientID(t *testing.T) {
 			st.On("SaveSession", s).Return(nil)
 
 			connPkt := &packet.Connect{Version: tc}
-
 			replies, err := h.HandlePacket("", connPkt)
 			assert.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -349,9 +338,9 @@ func TestConnectHandlerHandlePacketDenyEmptyClientID(t *testing.T) {
 		version packet.Version
 		code    packet.ReasonCode
 	}{
-		{version: packet.MQTT31, code: packet.ReasonCodeV3IdentifierRejected},
-		{version: packet.MQTT311, code: packet.ReasonCodeV3IdentifierRejected},
-		{version: packet.MQTT50, code: packet.ReasonCodeV5InvalidClientID},
+		{packet.MQTT31, packet.ReasonCodeV3IdentifierRejected},
+		{packet.MQTT311, packet.ReasonCodeV3IdentifierRejected},
+		{packet.MQTT50, packet.ReasonCodeV5InvalidClientID},
 	}
 
 	for _, tc := range testCases {
@@ -364,7 +353,6 @@ func TestConnectHandlerHandlePacketDenyEmptyClientID(t *testing.T) {
 			h := NewConnectHandler(&conf, st, &log)
 
 			connPkt := &packet.Connect{Version: tc.version}
-
 			replies, err := h.HandlePacket("", connPkt)
 			assert.NotNil(t, err)
 			require.Len(t, replies, 1)
@@ -391,7 +379,6 @@ func TestConnectHandlerHandlePacketV5AssignClientID(t *testing.T) {
 	st.On("SaveSession", s).Return(nil)
 
 	connPkt := &packet.Connect{Version: packet.MQTT50}
-
 	replies, err := h.HandlePacket("", connPkt)
 	assert.Nil(t, err)
 	require.Len(t, replies, 1)
@@ -425,7 +412,6 @@ func TestConnectHandlerHandlePacketV5AssignClientIDWithPrefix(t *testing.T) {
 	st.On("SaveSession", s).Return(nil)
 
 	connPkt := &packet.Connect{Version: packet.MQTT50}
-
 	replies, err := h.HandlePacket("", connPkt)
 	assert.Nil(t, err)
 	require.Len(t, replies, 1)
@@ -451,8 +437,8 @@ func TestConnectHandlerHandlePacketV5MaxSessionExpiryInterval(t *testing.T) {
 		interval    uint32
 		maxInterval uint32
 	}{
-		{interval: 0, maxInterval: 100},
-		{interval: 100, maxInterval: 100},
+		{0, 100},
+		{100, 100},
 	}
 
 	for _, tc := range testCases {
@@ -469,9 +455,7 @@ func TestConnectHandlerHandlePacketV5MaxSessionExpiryInterval(t *testing.T) {
 			st.On("SaveSession", s).Return(nil)
 
 			props := &packet.Properties{SessionExpiryInterval: &tc.interval}
-			connPkt := &packet.Connect{ClientID: []byte("a"),
-				Version: packet.MQTT50, Properties: props}
-
+			connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT50, Properties: props}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -496,10 +480,10 @@ func TestConnectHandlerHandlePacketV5AboveMaxSessionExpInterval(t *testing.T) {
 		maxInterval uint32
 		resp        uint32
 	}{
-		{interval: 101, maxInterval: 100, resp: 100},
-		{interval: 2000, maxInterval: 1000, resp: 1000},
-		{interval: 100000, maxInterval: 80000, resp: 80000},
-		{interval: 50000000, maxInterval: 32000000, resp: 32000000},
+		{101, 100, 100},
+		{2000, 1000, 1000},
+		{100000, 80000, 80000},
+		{50000000, 32000000, 32000000},
 	}
 
 	for _, tc := range testCases {
@@ -516,9 +500,7 @@ func TestConnectHandlerHandlePacketV5AboveMaxSessionExpInterval(t *testing.T) {
 			st.On("SaveSession", s).Return(nil)
 
 			props := &packet.Properties{SessionExpiryInterval: &tc.interval}
-			connPkt := &packet.Connect{ClientID: []byte("a"),
-				Version: packet.MQTT50, Properties: props}
-
+			connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT50, Properties: props}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -546,10 +528,10 @@ func TestConnectHandlerHandlePacketV3MaxKeepAliveRejected(t *testing.T) {
 		keepAlive    uint16
 		maxKeepAlive uint16
 	}{
-		{keepAlive: 0, maxKeepAlive: 100},
-		{keepAlive: 101, maxKeepAlive: 100},
-		{keepAlive: 501, maxKeepAlive: 500},
-		{keepAlive: 65535, maxKeepAlive: 65534},
+		{0, 100},
+		{101, 100},
+		{501, 500},
+		{65535, 65534},
 	}
 
 	for _, tc := range testCases {
@@ -562,9 +544,8 @@ func TestConnectHandlerHandlePacketV3MaxKeepAliveRejected(t *testing.T) {
 			log := logger.New(&bytes.Buffer{}, nil)
 			h := NewConnectHandler(&conf, st, &log)
 
-			connPkt := &packet.Connect{ClientID: []byte("a"),
-				Version: packet.MQTT311, KeepAlive: tc.keepAlive}
-
+			connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT311,
+				KeepAlive: tc.keepAlive}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.NotNil(t, err)
 			require.Len(t, replies, 1)
@@ -573,8 +554,7 @@ func TestConnectHandlerHandlePacketV3MaxKeepAliveRejected(t *testing.T) {
 			require.Equal(t, packet.CONNACK, reply.Type())
 
 			connAckPkt := reply.(*packet.ConnAck)
-			assert.Equal(t, packet.ReasonCodeV3IdentifierRejected,
-				connAckPkt.ReasonCode)
+			assert.Equal(t, packet.ReasonCodeV3IdentifierRejected, connAckPkt.ReasonCode)
 		})
 	}
 }
@@ -591,9 +571,7 @@ func TestConnectHandlerHandlePacketV3MaxKeepAliveAccepted(t *testing.T) {
 	st.On("ReadSession", mock.Anything).Return(s, nil)
 	st.On("SaveSession", s).Return(nil)
 
-	connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT311,
-		KeepAlive: 100}
-
+	connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT311, KeepAlive: 100}
 	replies, err := h.HandlePacket("", connPkt)
 	assert.Nil(t, err)
 	require.Len(t, replies, 1)
@@ -602,8 +580,7 @@ func TestConnectHandlerHandlePacketV3MaxKeepAliveAccepted(t *testing.T) {
 	require.Equal(t, packet.CONNACK, reply.Type())
 
 	connAckPkt := reply.(*packet.ConnAck)
-	assert.Equal(t, packet.ReasonCodeV3ConnectionAccepted,
-		connAckPkt.ReasonCode)
+	assert.Equal(t, packet.ReasonCodeV3ConnectionAccepted, connAckPkt.ReasonCode)
 
 	assert.True(t, s.Connected)
 	assert.Equal(t, conf.MaxKeepAlive, s.KeepAlive)
@@ -622,9 +599,7 @@ func TestConnectHandlerHandlePacketV5MaxKeepAliveAccepted(t *testing.T) {
 	st.On("ReadSession", mock.Anything).Return(s, nil)
 	st.On("SaveSession", s).Return(nil)
 
-	connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT50,
-		KeepAlive: 200}
-
+	connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT50, KeepAlive: 200}
 	replies, err := h.HandlePacket("", connPkt)
 	assert.Nil(t, err)
 	require.Len(t, replies, 1)
@@ -640,8 +615,7 @@ func TestConnectHandlerHandlePacketV5MaxKeepAliveAccepted(t *testing.T) {
 
 	require.NotNil(t, connAckPkt.Properties)
 	assert.NotNil(t, connAckPkt.Properties.ServerKeepAlive)
-	assert.Equal(t, conf.MaxKeepAlive,
-		int(*connAckPkt.Properties.ServerKeepAlive))
+	assert.Equal(t, conf.MaxKeepAlive, int(*connAckPkt.Properties.ServerKeepAlive))
 	st.AssertExpectations(t)
 }
 
@@ -650,10 +624,10 @@ func TestConnectHandlerHandlePacketV5MaxInflightMessages(t *testing.T) {
 		maxInflight uint16
 		resp        uint16
 	}{
-		{maxInflight: 0, resp: 0},
-		{maxInflight: 255, resp: 255},
-		{maxInflight: 65534, resp: 65534},
-		{maxInflight: 65535, resp: 0},
+		{0, 0},
+		{255, 255},
+		{65534, 65534},
+		{65535, 0},
 	}
 
 	for _, tc := range testCases {
@@ -669,9 +643,7 @@ func TestConnectHandlerHandlePacketV5MaxInflightMessages(t *testing.T) {
 			st.On("ReadSession", mock.Anything).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
 
-			connPkt := &packet.Connect{ClientID: []byte("a"),
-				Version: packet.MQTT50}
-
+			connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT50}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -700,12 +672,12 @@ func TestConnectHandlerHandlePacketV5MaxPacketSize(t *testing.T) {
 		maxSize uint32
 		resp    uint32
 	}{
-		{maxSize: 0, resp: 0},
-		{maxSize: 255, resp: 255},
-		{maxSize: 65535, resp: 65535},
-		{maxSize: 16777215, resp: 16777215},
-		{maxSize: 268435455, resp: 268435455},
-		{maxSize: 268435456, resp: 0},
+		{0, 0},
+		{255, 255},
+		{65535, 65535},
+		{16777215, 16777215},
+		{268435455, 268435455},
+		{268435456, 0},
 	}
 
 	for _, tc := range testCases {
@@ -721,9 +693,7 @@ func TestConnectHandlerHandlePacketV5MaxPacketSize(t *testing.T) {
 			st.On("ReadSession", mock.Anything).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
 
-			connPkt := &packet.Connect{ClientID: []byte("a"),
-				Version: packet.MQTT50}
-
+			connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT50}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -739,8 +709,7 @@ func TestConnectHandlerHandlePacketV5MaxPacketSize(t *testing.T) {
 			if tc.resp > 0 {
 				require.NotNil(t, connAckPkt.Properties)
 				require.NotNil(t, connAckPkt.Properties.MaximumPacketSize)
-				assert.Equal(t, tc.resp,
-					*connAckPkt.Properties.MaximumPacketSize)
+				assert.Equal(t, tc.resp, *connAckPkt.Properties.MaximumPacketSize)
 			} else {
 				assert.Nil(t, connAckPkt.Properties)
 			}
@@ -768,9 +737,7 @@ func TestConnectHandlerHandlePacketV5MaximumQoS(t *testing.T) {
 			st.On("ReadSession", mock.Anything).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
 
-			connPkt := &packet.Connect{ClientID: []byte("a"),
-				Version: packet.MQTT50}
-
+			connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT50}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -795,10 +762,12 @@ func TestConnectHandlerHandlePacketV5MaximumQoS(t *testing.T) {
 }
 
 func TestConnectHandlerHandlePacketV5TopicAliasMaximum(t *testing.T) {
-	testCases := []struct{ maxAlias uint16 }{
-		{maxAlias: 0},
-		{maxAlias: 255},
-		{maxAlias: 65535},
+	testCases := []struct {
+		maxAlias uint16
+	}{
+		{0},
+		{255},
+		{65535},
 	}
 
 	for _, tc := range testCases {
@@ -814,9 +783,7 @@ func TestConnectHandlerHandlePacketV5TopicAliasMaximum(t *testing.T) {
 			st.On("ReadSession", mock.Anything).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
 
-			connPkt := &packet.Connect{ClientID: []byte("a"),
-				Version: packet.MQTT50}
-
+			connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT50}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -832,8 +799,7 @@ func TestConnectHandlerHandlePacketV5TopicAliasMaximum(t *testing.T) {
 			if tc.maxAlias > 0 {
 				require.NotNil(t, connAckPkt.Properties)
 				require.NotNil(t, connAckPkt.Properties.TopicAliasMaximum)
-				assert.Equal(t, tc.maxAlias,
-					*connAckPkt.Properties.TopicAliasMaximum)
+				assert.Equal(t, tc.maxAlias, *connAckPkt.Properties.TopicAliasMaximum)
 			} else {
 				assert.Nil(t, connAckPkt.Properties)
 			}
@@ -842,9 +808,11 @@ func TestConnectHandlerHandlePacketV5TopicAliasMaximum(t *testing.T) {
 }
 
 func TestConnectHandlerHandlePacketV5RetainAvailable(t *testing.T) {
-	testCases := []struct{ available bool }{
-		{available: false},
-		{available: true},
+	testCases := []struct {
+		available bool
+	}{
+		{false},
+		{true},
 	}
 
 	for _, tc := range testCases {
@@ -860,9 +828,7 @@ func TestConnectHandlerHandlePacketV5RetainAvailable(t *testing.T) {
 			st.On("ReadSession", mock.Anything).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
 
-			connPkt := &packet.Connect{ClientID: []byte("a"),
-				Version: packet.MQTT50}
-
+			connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT50}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -888,8 +854,8 @@ func TestConnectHandlerHandlePacketV5RetainAvailable(t *testing.T) {
 
 func TestConnectHandlerHandlePacketV5WildcardSubsAvailable(t *testing.T) {
 	testCases := []struct{ available bool }{
-		{available: false},
-		{available: true},
+		{false},
+		{true},
 	}
 
 	for _, tc := range testCases {
@@ -905,9 +871,7 @@ func TestConnectHandlerHandlePacketV5WildcardSubsAvailable(t *testing.T) {
 			st.On("ReadSession", mock.Anything).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
 
-			connPkt := &packet.Connect{ClientID: []byte("a"),
-				Version: packet.MQTT50}
-
+			connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT50}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -922,10 +886,8 @@ func TestConnectHandlerHandlePacketV5WildcardSubsAvailable(t *testing.T) {
 
 			if !tc.available {
 				require.NotNil(t, connAckPkt.Properties)
-				require.NotNil(t,
-					connAckPkt.Properties.WildcardSubscriptionAvailable)
-				assert.Equal(t, byte(0),
-					*connAckPkt.Properties.WildcardSubscriptionAvailable)
+				require.NotNil(t, connAckPkt.Properties.WildcardSubscriptionAvailable)
+				assert.Equal(t, byte(0), *connAckPkt.Properties.WildcardSubscriptionAvailable)
 			} else {
 				assert.Nil(t, connAckPkt.Properties)
 			}
@@ -935,8 +897,8 @@ func TestConnectHandlerHandlePacketV5WildcardSubsAvailable(t *testing.T) {
 
 func TestConnectHandlerHandlePacketV5SubscriptionIDAvailable(t *testing.T) {
 	testCases := []struct{ available bool }{
-		{available: false},
-		{available: true},
+		{false},
+		{true},
 	}
 
 	for _, tc := range testCases {
@@ -952,9 +914,7 @@ func TestConnectHandlerHandlePacketV5SubscriptionIDAvailable(t *testing.T) {
 			st.On("ReadSession", mock.Anything).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
 
-			connPkt := &packet.Connect{ClientID: []byte("a"),
-				Version: packet.MQTT50}
-
+			connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT50}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -969,10 +929,8 @@ func TestConnectHandlerHandlePacketV5SubscriptionIDAvailable(t *testing.T) {
 
 			if !tc.available {
 				require.NotNil(t, connAckPkt.Properties)
-				require.NotNil(t,
-					connAckPkt.Properties.SubscriptionIDAvailable)
-				assert.Equal(t, byte(0),
-					*connAckPkt.Properties.SubscriptionIDAvailable)
+				require.NotNil(t, connAckPkt.Properties.SubscriptionIDAvailable)
+				assert.Equal(t, byte(0), *connAckPkt.Properties.SubscriptionIDAvailable)
 			} else {
 				assert.Nil(t, connAckPkt.Properties)
 			}
@@ -982,8 +940,8 @@ func TestConnectHandlerHandlePacketV5SubscriptionIDAvailable(t *testing.T) {
 
 func TestConnectHandlerHandlePacketV5SharedSubscriptionAvailable(t *testing.T) {
 	testCases := []struct{ available bool }{
-		{available: false},
-		{available: true},
+		{false},
+		{true},
 	}
 
 	for _, tc := range testCases {
@@ -999,9 +957,7 @@ func TestConnectHandlerHandlePacketV5SharedSubscriptionAvailable(t *testing.T) {
 			st.On("ReadSession", mock.Anything).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
 
-			connPkt := &packet.Connect{ClientID: []byte("a"),
-				Version: packet.MQTT50}
-
+			connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT50}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -1016,10 +972,8 @@ func TestConnectHandlerHandlePacketV5SharedSubscriptionAvailable(t *testing.T) {
 
 			if !tc.available {
 				require.NotNil(t, connAckPkt.Properties)
-				require.NotNil(t,
-					connAckPkt.Properties.SharedSubscriptionAvailable)
-				assert.Equal(t, byte(0),
-					*connAckPkt.Properties.SharedSubscriptionAvailable)
+				require.NotNil(t, connAckPkt.Properties.SharedSubscriptionAvailable)
+				assert.Equal(t, byte(0), *connAckPkt.Properties.SharedSubscriptionAvailable)
 			} else {
 				assert.Nil(t, connAckPkt.Properties)
 			}
@@ -1040,7 +994,6 @@ func TestConnectHandlerHandlePacketV5UserProperty(t *testing.T) {
 	st.On("SaveSession", s).Return(nil)
 
 	connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT50}
-
 	replies, err := h.HandlePacket("", connPkt)
 	assert.Nil(t, err)
 	require.Len(t, replies, 1)
@@ -1063,9 +1016,9 @@ func TestConnectHandlerHandlePacketReadSessionError(t *testing.T) {
 		version packet.Version
 		code    packet.ReasonCode
 	}{
-		{version: packet.MQTT31, code: packet.ReasonCodeV3ServerUnavailable},
-		{version: packet.MQTT311, code: packet.ReasonCodeV3ServerUnavailable},
-		{version: packet.MQTT50, code: packet.ReasonCodeV5ServerUnavailable},
+		{packet.MQTT31, packet.ReasonCodeV3ServerUnavailable},
+		{packet.MQTT311, packet.ReasonCodeV3ServerUnavailable},
+		{packet.MQTT50, packet.ReasonCodeV5ServerUnavailable},
 	}
 
 	for _, tc := range testCases {
@@ -1075,12 +1028,9 @@ func TestConnectHandlerHandlePacketReadSessionError(t *testing.T) {
 			log := logger.New(&bytes.Buffer{}, nil)
 			h := NewConnectHandler(&conf, st, &log)
 
-			st.On("ReadSession", mock.Anything).
-				Return(nil, errors.New("failed"))
+			st.On("ReadSession", mock.Anything).Return(nil, errors.New("failed"))
 
-			connPkt := &packet.Connect{ClientID: []byte("a"),
-				Version: tc.version}
-
+			connPkt := &packet.Connect{ClientID: []byte("a"), Version: tc.version}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.NotNil(t, err)
 			require.Len(t, replies, 1)
@@ -1100,9 +1050,9 @@ func TestConnectHandlerHandlePacketDeleteSessionError(t *testing.T) {
 		version packet.Version
 		code    packet.ReasonCode
 	}{
-		{version: packet.MQTT31, code: packet.ReasonCodeV3ServerUnavailable},
-		{version: packet.MQTT311, code: packet.ReasonCodeV3ServerUnavailable},
-		{version: packet.MQTT50, code: packet.ReasonCodeV5ServerUnavailable},
+		{packet.MQTT31, packet.ReasonCodeV3ServerUnavailable},
+		{packet.MQTT311, packet.ReasonCodeV3ServerUnavailable},
+		{packet.MQTT50, packet.ReasonCodeV5ServerUnavailable},
 	}
 
 	for _, tc := range testCases {
@@ -1114,12 +1064,9 @@ func TestConnectHandlerHandlePacketDeleteSessionError(t *testing.T) {
 
 			s := &Session{}
 			st.On("ReadSession", mock.Anything).Return(s, nil)
-			st.On("DeleteSession", s).
-				Return(errors.New("failed"))
+			st.On("DeleteSession", s).Return(errors.New("failed"))
 
-			connPkt := &packet.Connect{ClientID: []byte("a"),
-				Version: tc.version, CleanSession: true}
-
+			connPkt := &packet.Connect{ClientID: []byte("a"), Version: tc.version, CleanSession: true}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.NotNil(t, err)
 			require.Len(t, replies, 1)
@@ -1139,9 +1086,9 @@ func TestConnectHandlerHandlePacketSaveSessionError(t *testing.T) {
 		version packet.Version
 		code    packet.ReasonCode
 	}{
-		{version: packet.MQTT31, code: packet.ReasonCodeV3ServerUnavailable},
-		{version: packet.MQTT311, code: packet.ReasonCodeV3ServerUnavailable},
-		{version: packet.MQTT50, code: packet.ReasonCodeV5ServerUnavailable},
+		{packet.MQTT31, packet.ReasonCodeV3ServerUnavailable},
+		{packet.MQTT311, packet.ReasonCodeV3ServerUnavailable},
+		{packet.MQTT50, packet.ReasonCodeV5ServerUnavailable},
 	}
 
 	for _, tc := range testCases {
@@ -1153,12 +1100,9 @@ func TestConnectHandlerHandlePacketSaveSessionError(t *testing.T) {
 
 			s := &Session{}
 			st.On("ReadSession", mock.Anything).Return(s, nil)
-			st.On("SaveSession", s).
-				Return(errors.New("failed"))
+			st.On("SaveSession", s).Return(errors.New("failed"))
 
-			connPkt := &packet.Connect{ClientID: []byte("a"),
-				Version: tc.version}
-
+			connPkt := &packet.Connect{ClientID: []byte("a"), Version: tc.version}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.NotNil(t, err)
 			require.Len(t, replies, 1)

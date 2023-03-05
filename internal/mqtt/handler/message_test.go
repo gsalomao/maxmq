@@ -34,10 +34,10 @@ func (g *messageIDGenMock) NextID() uint64 {
 }
 
 func TestMessageClone(t *testing.T) {
-	pkt := packet.NewPublish(5, packet.MQTT311, "topic", packet.QoS1,
-		0, 0, []byte("data"), nil)
-	msg1 := &Message{ID: 100, PacketID: pkt.PacketID, Packet: &pkt,
-		LastSent: time.Now().Unix(), Tries: 3}
+	pkt := packet.NewPublish(5 /*id*/, packet.MQTT311, "topic" /*topic*/, packet.QoS1,
+		0 /*dup*/, 0 /*retain*/, []byte("data") /*payload*/, nil /*props*/)
+	msg1 := &Message{ID: 100, PacketID: pkt.PacketID, Packet: &pkt, LastSent: time.Now().Unix(),
+		Tries: 3}
 
 	msg2 := msg1.Clone()
 	require.NotNil(t, msg2)

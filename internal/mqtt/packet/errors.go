@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,43 +19,41 @@ import (
 )
 
 var (
-	// ErrV3UnacceptableProtocolVersion indicates that the broker does not
-	// support the level of the MQTT protocol.
+	// ErrV3UnacceptableProtocolVersion indicates that the broker does not support the level of the
+	// MQTT protocol.
 	ErrV3UnacceptableProtocolVersion = &Error{
 		ReasonCode: ReasonCodeV3UnacceptableProtocolVersion,
 		Reason:     "unacceptable protocol version",
 	}
 
-	// ErrV3IdentifierRejected indicates that the client identifier is correct
-	// UTF-8 but not allowed.
+	// ErrV3IdentifierRejected indicates that the client identifier is correct UTF-8 but not allowed.
 	ErrV3IdentifierRejected = &Error{
 		ReasonCode: ReasonCodeV3IdentifierRejected,
 		Reason:     "client ID not allowed",
 	}
 
-	// ErrV5MalformedPacket indicates that data within the packet could not be
-	// correctly parsed.
+	// ErrV5MalformedPacket indicates that data within the packet could not be correctly parsed.
 	ErrV5MalformedPacket = &Error{
 		ReasonCode: ReasonCodeV5MalformedPacket,
 		Reason:     "malformed packet",
 	}
 
-	// ErrV5ProtocolError indicates that data in the packet does not conform
-	// with the V5.x specification.
+	// ErrV5ProtocolError indicates that data in the packet does not conform with the V5.0
+	// specification.
 	ErrV5ProtocolError = &Error{
 		ReasonCode: ReasonCodeV5ProtocolError,
 		Reason:     "protocol error",
 	}
 
-	// ErrV5InvalidClientID indicates that client ID in the packet is valid, but
-	// it is not allowed by the broker.
+	// ErrV5InvalidClientID indicates that client ID in the packet is valid, but it is not allowed by
+	// the broker.
 	ErrV5InvalidClientID = &Error{
 		ReasonCode: ReasonCodeV5InvalidClientID,
 		Reason:     "invalid client identifier",
 	}
 
-	// ErrV5SubscriptionIDNotSupported indicates that the broker does not
-	// support subscription identifiers.
+	// ErrV5SubscriptionIDNotSupported indicates that the broker does not support subscription
+	// identifiers.
 	ErrV5SubscriptionIDNotSupported = &Error{
 		ReasonCode: ReasonCodeV5SubscriptionIDNotSupported,
 		Reason:     "subscription identifier not supported",

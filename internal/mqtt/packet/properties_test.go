@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -606,15 +606,15 @@ func TestPropertiesReadPropertiesProtocolError(t *testing.T) {
 			35, 0, 15, 35, 0, 16}}, // TopicAlias
 	}
 
-	for _, test := range testCases {
-		n := fmt.Sprintf("%v-%v", test.pktType.String(), test.props[0])
+	for _, tc := range testCases {
+		n := fmt.Sprintf("%v-%v", tc.pktType.String(), tc.props[0])
 		t.Run(n, func(t *testing.T) {
 			// Property
-			msg := []byte{byte(len(test.props))}
-			msg = append(msg, test.props...)
+			msg := []byte{byte(len(tc.props))}
+			msg = append(msg, tc.props...)
 			msg = append(msg, 0, 1, 'a') // client ID
 
-			_, err := readProperties(bytes.NewBuffer(msg), test.pktType)
+			_, err := readProperties(bytes.NewBuffer(msg), tc.pktType)
 			assert.ErrorContains(t, err, ErrV5ProtocolError.Error())
 		})
 	}
@@ -695,11 +695,11 @@ func TestPropertiesReset(t *testing.T) {
 func TestPropertiesSubscriptionIDValid(t *testing.T) {
 	testCases := []int{0, 255, 65535, 4294967295}
 
-	for _, id := range testCases {
-		t.Run(fmt.Sprint(id), func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(fmt.Sprint(tc), func(t *testing.T) {
 			props := &Properties{SubscriptionIdentifier: new(int)}
-			*props.SubscriptionIdentifier = id
-			assert.Equal(t, id, props.SubscriptionID())
+			*props.SubscriptionIdentifier = tc
+			assert.Equal(t, tc, props.SubscriptionID())
 		})
 	}
 }

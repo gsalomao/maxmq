@@ -45,12 +45,12 @@ type SubAck struct {
 }
 
 // NewSubAck creates a SUBACK Packet.
-func NewSubAck(id ID, v Version, c []ReasonCode, p *Properties) SubAck {
+func NewSubAck(id ID, v Version, c []ReasonCode, props *Properties) SubAck {
 	return SubAck{
 		PacketID:    id,
 		Version:     v,
 		ReasonCodes: c,
-		Properties:  p,
+		Properties:  props,
 	}
 }
 
@@ -92,8 +92,7 @@ func (pkt *SubAck) Write(w *bufio.Writer) error {
 	return nil
 }
 
-// Read reads the packet bytes from bytes.Buffer and decodes them into the
-// packet.
+// Read reads the packet bytes from bytes.Buffer and decodes them into the packet.
 // It is not supported by the SUBACK Packet.
 func (pkt *SubAck) Read(_ *bufio.Reader) error {
 	return errors.New("unsupported (SUBACK)")

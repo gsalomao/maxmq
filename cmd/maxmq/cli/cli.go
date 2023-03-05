@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,8 +31,7 @@ var version = "0.0.0"
 
 // New creates an instance of the command line interface.
 func New(out io.Writer, args []string) CLI {
-	description := "MaxMQ is a Cloud-Native and High-Performance MQTT Broker " +
-		"for IoT."
+	description := "MaxMQ is a Cloud-Native and High-Performance MQTT Broker for IoT."
 	cli := CLI{
 		rootCmd: &cobra.Command{
 			Use:     "maxmq",
@@ -52,7 +51,7 @@ func New(out io.Writer, args []string) CLI {
 }
 
 // Run executes the command line interface.
-func (c CLI) Run() error {
+func (c *CLI) Run() error {
 	return c.rootCmd.Execute()
 }
 

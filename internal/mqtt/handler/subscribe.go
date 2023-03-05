@@ -28,9 +28,9 @@ type SubscribeHandler struct {
 }
 
 // NewSubscribeHandler creates a new SubscribeHandler.
-func NewSubscribeHandler(c *Configuration, st SessionStore,
-	subMgr SubscriptionManager, l *logger.Logger) *SubscribeHandler {
-
+func NewSubscribeHandler(
+	c *Configuration, st SessionStore, subMgr SubscriptionManager, l *logger.Logger,
+) *SubscribeHandler {
 	return &SubscribeHandler{
 		conf:            c,
 		log:             l,
@@ -40,22 +40,22 @@ func NewSubscribeHandler(c *Configuration, st SessionStore,
 }
 
 // HandlePacket handles the given packet as a SUBSCRIBE packet.
-func (h *SubscribeHandler) HandlePacket(id packet.ClientID,
-	pkt packet.Packet) ([]packet.Packet, error) {
-
-	subPkt := pkt.(*packet.Subscribe)
+func (h *SubscribeHandler) HandlePacket(
+	id packet.ClientID, p packet.Packet,
+) ([]packet.Packet, error) {
+	sub := p.(*packet.Subscribe)
 	h.log.Trace().
 		Str("ClientId", string(id)).
-		Uint16("PacketId", uint16(subPkt.PacketID)).
-		Int("Topics", len(subPkt.Topics)).
-		Uint8("Version", uint8(subPkt.Version)).
+		Uint16("PacketId", uint16(sub.PacketID)).
+		Int("Topics", len(sub.Topics)).
+		Uint8("Version", uint8(sub.Version)).
 		Msg("MQTT Received SUBSCRIBE packet")
 
 	s, err := h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
-			Uint8("Version", uint8(subPkt.Version)).
+			Uint8("Version", uint8(sub.Version)).
 			Msg("MQTT Failed to read session (SUBSCRIBE): " + err.Error())
 		return nil, err
 	}
@@ -63,11 +63,11 @@ func (h *SubscribeHandler) HandlePacket(id packet.ClientID,
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
 
-	subsID := subPkt.Properties.SubscriptionID()
+	subsID := sub.Properties.SubscriptionID()
 	if subsID > 0 && !h.conf.SubscriptionIDAvailable {
 		h.log.Info().
 			Str("ClientId", string(s.ClientID)).
-			Uint16("PacketId", uint16(subPkt.PacketID)).
+			Uint16("PacketId", uint16(sub.PacketID)).
 			Uint64("SessionId", uint64(s.SessionID)).
 			Uint8("Version", uint8(s.Version)).
 			Msg("MQTT Received SUBSCRIBE with subscription ID (not available)")
@@ -76,7 +76,7 @@ func (h *SubscribeHandler) HandlePacket(id packet.ClientID,
 		return []packet.Packet{&discPkt}, packet.ErrV5SubscriptionIDNotSupported
 	}
 
-	codes, sessionChanged := h.subscribe(s, subPkt, subsID)
+	codes, sessionChanged := h.subscribe(s, sub, subsID)
 	if sessionChanged {
 		err = h.sessionStore.SaveSession(s)
 		if err != nil {
@@ -85,31 +85,30 @@ func (h *SubscribeHandler) HandlePacket(id packet.ClientID,
 				Uint64("SessionId", uint64(s.SessionID)).
 				Uint8("Version", uint8(s.Version)).
 				Msg("MQTT Failed to save session (SUBSCRIBE): " + err.Error())
-			h.unsubscribe(codes, s, subPkt.Topics)
+			h.unsubscribe(codes, s, sub.Topics)
 		}
 	}
 
-	subAckPkt := packet.NewSubAck(subPkt.PacketID, s.Version, codes, nil)
+	subAck := packet.NewSubAck(sub.PacketID, s.Version, codes, nil)
 	replies := make([]packet.Packet, 0, 1)
-	replies = append(replies, &subAckPkt)
+	replies = append(replies, &subAck)
 	h.log.Trace().
 		Str("ClientId", string(s.ClientID)).
-		Uint16("PacketId", uint16(subAckPkt.PacketID)).
+		Uint16("PacketId", uint16(subAck.PacketID)).
 		Uint64("SessionId", uint64(s.SessionID)).
 		Int("Subscriptions", len(s.Subscriptions)).
-		Uint8("Version", uint8(subAckPkt.Version)).
+		Uint8("Version", uint8(subAck.Version)).
 		Msg("MQTT Sending SUBACK packet")
-
 	return replies, nil
 }
 
-func (h *SubscribeHandler) subscribe(s *Session,
-	pkt *packet.Subscribe, subsID int) ([]packet.ReasonCode, bool) {
-
+func (h *SubscribeHandler) subscribe(
+	s *Session, p *packet.Subscribe, subsID int,
+) ([]packet.ReasonCode, bool) {
 	var sessionChanged bool
-	codes := make([]packet.ReasonCode, 0, len(pkt.Topics))
+	codes := make([]packet.ReasonCode, 0, len(p.Topics))
 
-	for _, topic := range pkt.Topics {
+	for _, topic := range p.Topics {
 		sub := &Subscription{
 			ID:                subsID,
 			ClientID:          s.ClientID,
@@ -125,7 +124,7 @@ func (h *SubscribeHandler) subscribe(s *Session,
 			h.log.Warn().
 				Str("ClientId", string(sub.ClientID)).
 				Bool("NoLocal", sub.NoLocal).
-				Uint16("PacketId", uint16(pkt.PacketID)).
+				Uint16("PacketId", uint16(p.PacketID)).
 				Uint8("QoS", byte(sub.QoS)).
 				Bool("RetainAsPublished", sub.RetainAsPublished).
 				Uint8("RetainHandling", sub.RetainHandling).
@@ -146,7 +145,7 @@ func (h *SubscribeHandler) subscribe(s *Session,
 		h.log.Info().
 			Str("ClientId", string(s.ClientID)).
 			Bool("NoLocal", sub.NoLocal).
-			Uint16("PacketId", uint16(pkt.PacketID)).
+			Uint16("PacketId", uint16(p.PacketID)).
 			Uint8("QoS", byte(sub.QoS)).
 			Bool("RetainAsPublished", sub.RetainAsPublished).
 			Uint8("RetainHandling", sub.RetainHandling).
@@ -161,9 +160,9 @@ func (h *SubscribeHandler) subscribe(s *Session,
 	return codes, sessionChanged
 }
 
-func (h *SubscribeHandler) unsubscribe(codes []packet.ReasonCode, s *Session,
-	topics []packet.Topic) {
-
+func (h *SubscribeHandler) unsubscribe(
+	codes []packet.ReasonCode, s *Session, topics []packet.Topic,
+) {
 	for idx, code := range codes {
 		if code == packet.ReasonCodeV3Failure {
 			continue

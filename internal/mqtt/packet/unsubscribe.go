@@ -69,8 +69,7 @@ func (pkt *Unsubscribe) Write(_ *bufio.Writer) error {
 	return errors.New("unsupported (UNSUBSCRIBE)")
 }
 
-// Read reads the packet bytes from bufio.Reader and decodes them into the
-// packet.
+// Read reads the packet bytes from bufio.Reader and decodes them into the packet.
 func (pkt *Unsubscribe) Read(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
@@ -110,8 +109,7 @@ func (pkt *Unsubscribe) Size() int {
 	return pkt.size
 }
 
-// Timestamp returns the timestamp of the moment which the packet has been
-// received.
+// Timestamp returns the timestamp of the moment which the packet has been received.
 func (pkt *Unsubscribe) Timestamp() time.Time {
 	return pkt.timestamp
 }

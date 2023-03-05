@@ -32,9 +32,9 @@ type ConnAck struct {
 	// ClientID identifies the client to the broker.
 	ClientID ClientID
 
-	// KeepAlive is a time interval, measured in seconds, that is permitted to
-	// elapse between the point at which the Client finishes transmitting one
-	// Control Packet and the point it starts sending the next.
+	// KeepAlive is a time interval, measured in seconds, that is permitted to elapse between the
+	// point at which the Client finishes transmitting one Control Packet and the point it starts
+	// sending the next.
 	KeepAlive int
 
 	// Version represents the MQTT version.
@@ -43,8 +43,7 @@ type ConnAck struct {
 	// ReasonCode represents the reason code based on the MQTT specifications.
 	ReasonCode ReasonCode
 
-	// SessionPresent indicates if there is already a session associated with
-	// the Client ID.
+	// SessionPresent indicates if there is already a session associated with the Client ID.
 	SessionPresent bool
 
 	// Unexported fields
@@ -53,16 +52,16 @@ type ConnAck struct {
 }
 
 // NewConnAck creates a CONNACK Packet.
-func NewConnAck(id ClientID, v Version, c ReasonCode, sessionPresent bool,
-	keepAlive int, p *Properties) ConnAck {
-
+func NewConnAck(
+	id ClientID, v Version, c ReasonCode, sessionPresent bool, keepAlive int, props *Properties,
+) ConnAck {
 	return ConnAck{
 		ClientID:       id,
 		Version:        v,
 		ReasonCode:     c,
 		SessionPresent: sessionPresent,
 		KeepAlive:      keepAlive,
-		Properties:     p,
+		Properties:     props,
 	}
 }
 
@@ -71,8 +70,7 @@ func (pkt *ConnAck) Write(w *bufio.Writer) error {
 	buf := &bytes.Buffer{}
 
 	if pkt.Version == MQTT50 {
-		err := writeProperties(buf, pkt.Properties, CONNACK)
-		if err != nil {
+		if err := writeProperties(buf, pkt.Properties, CONNACK); err != nil {
 			return fmt.Errorf("failed to write properties: %w", err)
 		}
 	}

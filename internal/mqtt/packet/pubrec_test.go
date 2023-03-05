@@ -35,8 +35,7 @@ func TestPubRecInvalidPacketType(t *testing.T) {
 }
 
 func TestPubRecInvalidControlFlags(t *testing.T) {
-	opts := options{packetType: PUBREC, controlFlags: 1, version: MQTT311,
-		remainingLength: 2}
+	opts := options{packetType: PUBREC, controlFlags: 1, version: MQTT311, remainingLength: 2}
 	pkt, err := newPacketPubRec(opts)
 	require.NotNil(t, err)
 	require.Nil(t, pkt)
@@ -55,16 +54,15 @@ func TestPubRecInvalidLength(t *testing.T) {
 		version Version
 		length  int
 	}{
-		{name: "V3.1", version: MQTT31, length: 0},
-		{name: "V3.1.1-TooShort", version: MQTT311, length: 1},
-		{name: "V3.1.1-TooLong", version: MQTT311, length: 3},
-		{name: "V5.0", version: MQTT50, length: 1},
+		{"V3.1", MQTT31, 0},
+		{"V3.1.1-TooShort", MQTT311, 1},
+		{"V3.1.1-TooLong", MQTT311, 3},
+		{"V5.0", MQTT50, 1},
 	}
 
-	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
-			opts := options{packetType: PUBREC, version: test.version,
-				remainingLength: test.length}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			opts := options{packetType: PUBREC, version: tc.version, remainingLength: tc.length}
 
 			pkt, err := newPacketPubRec(opts)
 			require.NotNil(t, err)
@@ -74,7 +72,7 @@ func TestPubRecInvalidLength(t *testing.T) {
 }
 
 func TestPubRecWrite(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name    string
 		id      ID
 		version Version
@@ -82,44 +80,19 @@ func TestPubRecWrite(t *testing.T) {
 		props   *Properties
 		msg     []byte
 	}{
-		{
-			name:    "V3.1",
-			id:      0x01,
-			version: MQTT31,
-			msg:     []byte{0x50, 2, 0, 1},
-		},
-		{
-			name:    "V3.1.1",
-			id:      0xFF,
-			version: MQTT311,
-			msg:     []byte{0x50, 2, 0, 0xFF},
-		},
-		{
-			name:    "V5.0-Success",
-			id:      0x100,
-			version: MQTT50,
-			msg:     []byte{0x50, 2, 1, 0},
-		},
-		{
-			name:    "V5.0-NoMatchingSubscribers",
-			id:      0x01FF,
-			version: MQTT50,
-			code:    ReasonCodeV5NoMatchingSubscribers,
-			msg:     []byte{0x50, 4, 1, 0xFF, 0x10, 0},
-		},
-		{
-			name:    "V5.0-Properties",
-			id:      0xFFFE,
-			version: MQTT50,
-			code:    ReasonCodeV5UnspecifiedError,
-			props:   &Properties{ReasonString: []byte{'a'}},
-			msg:     []byte{0x50, 8, 0xFF, 0xFE, 0x80, 4, 0x1F, 0, 1, 'a'},
-		},
+		{name: "V3.1", id: 0x01, version: MQTT31, msg: []byte{0x50, 2, 0, 1}},
+		{name: "V3.1.1", id: 0xFF, version: MQTT311, msg: []byte{0x50, 2, 0, 0xFF}},
+		{name: "V5.0-Success", id: 0x100, version: MQTT50, msg: []byte{0x50, 2, 1, 0}},
+		{name: "V5.0-NoMatchingSubscribers", id: 0x01FF, version: MQTT50,
+			code: ReasonCodeV5NoMatchingSubscribers, msg: []byte{0x50, 4, 1, 0xFF, 0x10, 0}},
+		{name: "V5.0-Properties", id: 0xFFFE, version: MQTT50, code: ReasonCodeV5UnspecifiedError,
+			props: &Properties{ReasonString: []byte{'a'}},
+			msg:   []byte{0x50, 8, 0xFF, 0xFE, 0x80, 4, 0x1F, 0, 1, 'a'}},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			pkt := NewPubRec(test.id, test.version, test.code, test.props)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			pkt := NewPubRec(tc.id, tc.version, tc.code, tc.props)
 			assert.Equal(t, PUBREC, pkt.Type())
 
 			buf := &bytes.Buffer{}
@@ -131,7 +104,7 @@ func TestPubRecWrite(t *testing.T) {
 			err = wr.Flush()
 			assert.Nil(t, err)
 
-			assert.Equal(t, test.msg, buf.Bytes())
+			assert.Equal(t, tc.msg, buf.Bytes())
 		})
 	}
 }
@@ -140,7 +113,7 @@ func BenchmarkPubRecWriteV3(b *testing.B) {
 	b.ReportAllocs()
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
-	pkt := NewPubRec(4, MQTT311, ReasonCodeV5Success, nil)
+	pkt := NewPubRec(4 /*id*/, MQTT311, ReasonCodeV5Success, nil /*props*/)
 
 	for n := 0; n < b.N; n++ {
 		buf.Reset()
@@ -155,7 +128,7 @@ func BenchmarkPubRecWriteV3(b *testing.B) {
 func BenchmarkPubRecWriteV5(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
-	pkt := NewPubRec(4, MQTT50, ReasonCodeV5Success, nil)
+	pkt := NewPubRec(4 /*id*/, MQTT50, ReasonCodeV5Success, nil /*props*/)
 
 	b.ReportAllocs()
 
@@ -170,7 +143,7 @@ func BenchmarkPubRecWriteV5(b *testing.B) {
 }
 
 func TestPubRecWriteFailure(t *testing.T) {
-	pkt := NewPubRec(5, MQTT50, ReasonCodeV5Success, nil)
+	pkt := NewPubRec(5 /*id*/, MQTT50, ReasonCodeV5Success, nil /*props*/)
 	require.NotNil(t, pkt)
 
 	conn, _ := net.Pipe()
@@ -185,7 +158,7 @@ func TestPubRecWriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{TopicAlias: new(uint16)}
 	*props.TopicAlias = 10
 
-	pkt := NewPubRec(5, MQTT50, ReasonCodeV5Success, props)
+	pkt := NewPubRec(5 /*id*/, MQTT50, ReasonCodeV5Success, props)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -200,11 +173,10 @@ func TestPubRecWriteV5InvalidProperty(t *testing.T) {
 }
 
 func TestPubRecWriteV5InvalidReasonCode(t *testing.T) {
-	validCodes := []ReasonCode{ReasonCodeV5Success,
-		ReasonCodeV5NoMatchingSubscribers, ReasonCodeV5UnspecifiedError,
-		ReasonCodeV5ImplementationError, ReasonCodeV5NotAuthorized,
-		ReasonCodeV5TopicNameInvalid, ReasonCodeV5PacketIDInUse,
-		ReasonCodeV5QuotaExceeded, ReasonCodeV5PayloadFormatInvalid}
+	validCodes := []ReasonCode{ReasonCodeV5Success, ReasonCodeV5NoMatchingSubscribers,
+		ReasonCodeV5UnspecifiedError, ReasonCodeV5ImplementationError, ReasonCodeV5NotAuthorized,
+		ReasonCodeV5TopicNameInvalid, ReasonCodeV5PacketIDInUse, ReasonCodeV5QuotaExceeded,
+		ReasonCodeV5PayloadFormatInvalid}
 
 	isValidReasonCode := func(code int) bool {
 		for _, c := range validCodes {
@@ -215,13 +187,12 @@ func TestPubRecWriteV5InvalidReasonCode(t *testing.T) {
 		return false
 	}
 
-	reasonCodeSize := int(math.Pow(2,
-		float64(unsafe.Sizeof(ReasonCodeV5Success))*8))
+	reasonCodeSize := int(math.Pow(2, float64(unsafe.Sizeof(ReasonCodeV5Success))*8))
 
 	for code := 0; code < reasonCodeSize; code++ {
 		if !isValidReasonCode(code) {
 			t.Run(strconv.Itoa(code), func(t *testing.T) {
-				pkt := NewPubRec(5, MQTT50, ReasonCode(code), nil)
+				pkt := NewPubRec(5 /*id*/, MQTT50, ReasonCode(code), nil /*props*/)
 				require.NotNil(t, pkt)
 
 				buf := &bytes.Buffer{}
@@ -245,34 +216,31 @@ func TestPubRecRead(t *testing.T) {
 	}{
 		{name: "V3.1", version: MQTT31, msg: []byte{0, 1}, id: 1},
 		{name: "V3.1.1", version: MQTT311, msg: []byte{1, 0}, id: 0x100},
-		{name: "V5.0-Success", version: MQTT50, msg: []byte{1, 0xFF, 0},
-			id: 0x1FF, code: ReasonCodeV5Success},
-		{name: "V5.0-NoMatchingSubscribers", version: MQTT50,
-			msg: []byte{1, 0xFF, 0x10, 0}, id: 0x1FF,
+		{name: "V5.0-Success", version: MQTT50, msg: []byte{1, 0xFF, 0}, id: 0x1FF,
+			code: ReasonCodeV5Success},
+		{name: "V5.0-NoMatchingSubscribers", version: MQTT50, msg: []byte{1, 0xFF, 0x10, 0}, id: 0x1FF,
 			code: ReasonCodeV5NoMatchingSubscribers},
 		{name: "V5.0-Properties", version: MQTT50,
 			msg: []byte{0xFF, 0xFE, 0, 8, 0x1F, 0, 5, 'H', 'e', 'l', 'l', 'o'},
-			id:  0xFFFE, code: ReasonCodeV5Success,
-			props: &Properties{ReasonString: []byte("Hello")}},
+			id:  0xFFFE, code: ReasonCodeV5Success, props: &Properties{ReasonString: []byte("Hello")}},
 	}
 
-	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
-			opts := options{packetType: PUBREC, version: test.version,
-				remainingLength: len(test.msg)}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			opts := options{packetType: PUBREC, version: tc.version, remainingLength: len(tc.msg)}
 			pkt, err := newPacketPubRec(opts)
 			require.Nil(t, err)
 			require.NotNil(t, pkt)
 			require.Equal(t, PUBREC, pkt.Type())
 
-			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(test.msg)))
+			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(tc.msg)))
 			require.Nil(t, err)
 
 			pubRec := pkt.(*PubRec)
-			assert.Equal(t, test.version, pubRec.Version)
-			assert.Equal(t, test.id, pubRec.PacketID)
-			assert.Equal(t, test.code, pubRec.ReasonCode)
-			assert.Equal(t, test.props, pubRec.Properties)
+			assert.Equal(t, tc.version, pubRec.Version)
+			assert.Equal(t, tc.id, pubRec.PacketID)
+			assert.Equal(t, tc.code, pubRec.ReasonCode)
+			assert.Equal(t, tc.props, pubRec.Properties)
 		})
 	}
 }
@@ -327,29 +295,27 @@ func TestPubRecReadMissingData(t *testing.T) {
 		length int
 		msg    []byte
 	}{
-		{name: "LengthGreaterThanMsg", length: 10},
-		{name: "MissingPropertiesLength", length: 3, msg: []byte{0, 1, 0x10}},
+		{"LengthGreaterThanMsg", 10, nil},
+		{"MissingPropertiesLength", 3, []byte{0, 1, 0x10}},
 	}
 
-	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
-			opts := options{packetType: PUBREC, version: MQTT50,
-				remainingLength: test.length}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			opts := options{packetType: PUBREC, version: MQTT50, remainingLength: tc.length}
 			pkt, err := newPacketPubRec(opts)
 			require.Nil(t, err)
 
-			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(test.msg)))
+			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(tc.msg)))
 			require.ErrorIs(t, err, ErrV5MalformedPacket)
 		})
 	}
 }
 
 func TestPubRecReadV5InvalidReasonCode(t *testing.T) {
-	validCodes := []ReasonCode{ReasonCodeV5Success,
-		ReasonCodeV5NoMatchingSubscribers, ReasonCodeV5UnspecifiedError,
-		ReasonCodeV5ImplementationError, ReasonCodeV5NotAuthorized,
-		ReasonCodeV5TopicNameInvalid, ReasonCodeV5PacketIDInUse,
-		ReasonCodeV5QuotaExceeded, ReasonCodeV5PayloadFormatInvalid}
+	validCodes := []ReasonCode{ReasonCodeV5Success, ReasonCodeV5NoMatchingSubscribers,
+		ReasonCodeV5UnspecifiedError, ReasonCodeV5ImplementationError, ReasonCodeV5NotAuthorized,
+		ReasonCodeV5TopicNameInvalid, ReasonCodeV5PacketIDInUse, ReasonCodeV5QuotaExceeded,
+		ReasonCodeV5PayloadFormatInvalid}
 
 	isValidReasonCode := func(code int) bool {
 		for _, c := range validCodes {
@@ -360,16 +326,14 @@ func TestPubRecReadV5InvalidReasonCode(t *testing.T) {
 		return false
 	}
 
-	reasonCodeSize := int(math.Pow(2,
-		float64(unsafe.Sizeof(ReasonCodeV5Success))*8))
+	reasonCodeSize := int(math.Pow(2, float64(unsafe.Sizeof(ReasonCodeV5Success))*8))
 
 	for code := 0; code < reasonCodeSize; code++ {
 		if !isValidReasonCode(code) {
 			t.Run(strconv.Itoa(code), func(t *testing.T) {
 				msg := []byte{1, 0xFF, byte(code), 0}
 
-				opts := options{packetType: PUBREC, version: MQTT50,
-					remainingLength: len(msg)}
+				opts := options{packetType: PUBREC, version: MQTT50, remainingLength: len(msg)}
 				pkt, err := newPacketPubRec(opts)
 				require.Nil(t, err)
 				require.NotNil(t, pkt)
@@ -391,18 +355,15 @@ func TestPubRecSize(t *testing.T) {
 	}{
 		{name: "V3.1", version: MQTT31, code: ReasonCodeV5Success, size: 4},
 		{name: "V3.1.1", version: MQTT311, code: ReasonCodeV5Success, size: 4},
-		{name: "V5.0-Success", version: MQTT50, code: ReasonCodeV5Success,
-			size: 4},
-		{name: "V5.0-NoSuccess", version: MQTT50,
-			code: ReasonCodeV5NoMatchingSubscribers, size: 6},
-		{name: "V5.0-Properties", version: MQTT50,
-			props: &Properties{ReasonString: []byte{'a'}},
-			code:  ReasonCodeV5NoMatchingSubscribers, size: 10},
+		{name: "V5.0-Success", version: MQTT50, code: ReasonCodeV5Success, size: 4},
+		{name: "V5.0-NoSuccess", version: MQTT50, code: ReasonCodeV5NoMatchingSubscribers, size: 6},
+		{name: "V5.0-Properties", version: MQTT50, props: &Properties{ReasonString: []byte{'a'}},
+			code: ReasonCodeV5NoMatchingSubscribers, size: 10},
 	}
 
-	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
-			pkt := NewPubRec(1, test.version, test.code, test.props)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			pkt := NewPubRec(1 /*id*/, tc.version, tc.code, tc.props)
 			require.NotNil(t, pkt)
 
 			buf := &bytes.Buffer{}
@@ -411,7 +372,7 @@ func TestPubRecSize(t *testing.T) {
 			err := pkt.Write(wr)
 			require.Nil(t, err)
 
-			assert.Equal(t, test.size, pkt.Size())
+			assert.Equal(t, tc.size, pkt.Size())
 		})
 	}
 }

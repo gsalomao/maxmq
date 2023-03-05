@@ -41,20 +41,18 @@ func TestPubRecHandlerHandlePacket(t *testing.T) {
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc}
-
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
 
-			pubPkt := packet.NewPublish(1, tc, "topic",
-				packet.QoS2, 0, 0, []byte("data"), nil)
+			pubPkt := packet.NewPublish(1 /*id*/, tc, "topic" /*topic*/, packet.QoS2,
+				0 /*dup*/, 0 /*retain*/, []byte("data") /*payload*/, nil /*props*/)
 
-			msg := &Message{PacketID: pubPkt.PacketID, Packet: &pubPkt,
-				Tries: 1, LastSent: time.Now().UnixMicro()}
+			msg := &Message{PacketID: pubPkt.PacketID, Packet: &pubPkt, Tries: 1,
+				LastSent: time.Now().UnixMicro()}
 			s.InflightMessages.PushBack(msg)
 
-			pubRecPkt := packet.NewPubRec(pubPkt.PacketID, pubPkt.Version,
-				packet.ReasonCodeV5Success, nil)
-
+			pubRecPkt := packet.NewPubRec(pubPkt.PacketID, pubPkt.Version, packet.ReasonCodeV5Success,
+				nil /*props*/)
 			replies, err := h.HandlePacket(id, &pubRecPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -94,16 +92,12 @@ func TestPubRecHandlerHandlePacketAlreadyConfirmed(t *testing.T) {
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc}
-
 			st.On("ReadSession", id).Return(s, nil)
 
-			msg := &Message{PacketID: 1, Tries: 1,
-				LastSent: time.Now().UnixMicro()}
+			msg := &Message{PacketID: 1, Tries: 1, LastSent: time.Now().UnixMicro()}
 			s.InflightMessages.PushBack(msg)
 
-			pubRecPkt := packet.NewPubRec(msg.PacketID, tc,
-				packet.ReasonCodeV5Success, nil)
-
+			pubRecPkt := packet.NewPubRec(msg.PacketID, tc, packet.ReasonCodeV5Success, nil /*props*/)
 			replies, err := h.HandlePacket(id, &pubRecPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -148,12 +142,9 @@ func TestPubRecHandlerHandlePacketV3PacketIDNotFound(t *testing.T) {
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc}
-
 			st.On("ReadSession", id).Return(s, nil)
 
-			pubRecPkt := packet.NewPubRec(2, tc, packet.ReasonCodeV5Success,
-				nil)
-
+			pubRecPkt := packet.NewPubRec(2 /*id*/, tc, packet.ReasonCodeV5Success, nil /*props*/)
 			replies, err := h.HandlePacket(id, &pubRecPkt)
 			assert.NotNil(t, err)
 			assert.Len(t, replies, 0)
@@ -169,12 +160,9 @@ func TestPubRecHandlerHandlePacketV5PacketIDNotFound(t *testing.T) {
 
 	id := packet.ClientID("a")
 	s := &Session{ClientID: id, Version: packet.MQTT50}
-
 	st.On("ReadSession", id).Return(s, nil)
 
-	pubRecPkt := packet.NewPubRec(2, packet.MQTT50, packet.ReasonCodeV5Success,
-		nil)
-
+	pubRecPkt := packet.NewPubRec(2 /*id*/, packet.MQTT50, packet.ReasonCodeV5Success, nil /*props*/)
 	replies, err := h.HandlePacket(id, &pubRecPkt)
 	require.Nil(t, err)
 	require.Len(t, replies, 1)
@@ -203,12 +191,9 @@ func TestPubRecHandlerHandlePacketReadSessionError(t *testing.T) {
 			h := NewPubRecHandler(st, &log)
 			id := packet.ClientID("a")
 
-			st.On("ReadSession", id).
-				Return(nil, ErrSessionNotFound)
+			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)
 
-			pubRecPkt := packet.NewPubRec(1, tc, packet.ReasonCodeV5Success,
-				nil)
-
+			pubRecPkt := packet.NewPubRec(1 /*id*/, tc, packet.ReasonCodeV5Success, nil /*props*/)
 			replies, err := h.HandlePacket(id, &pubRecPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)
@@ -236,16 +221,14 @@ func TestPubRecHandlerHandlePacketSaveSessionError(t *testing.T) {
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(errors.New("failed"))
 
-			pubPkt := packet.NewPublish(1, tc, "topic",
-				packet.QoS2, 0, 0, []byte("data"), nil)
+			pubPkt := packet.NewPublish(1 /*id*/, tc, "topic" /*topic*/, packet.QoS2,
+				0 /*dup*/, 0 /*retain*/, []byte("data") /*payload*/, nil /*props*/)
 
-			msg := &Message{PacketID: pubPkt.PacketID, Packet: &pubPkt,
-				Tries: 1, LastSent: time.Now().UnixMicro()}
+			msg := &Message{PacketID: pubPkt.PacketID, Packet: &pubPkt, Tries: 1,
+				LastSent: time.Now().UnixMicro()}
 			s.InflightMessages.PushBack(msg)
 
-			pubRecPkt := packet.NewPubRec(1, tc, packet.ReasonCodeV5Success,
-				nil)
-
+			pubRecPkt := packet.NewPubRec(1 /*id*/, tc, packet.ReasonCodeV5Success, nil /*props*/)
 			replies, err := h.HandlePacket(id, &pubRecPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)

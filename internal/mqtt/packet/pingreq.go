@@ -56,8 +56,7 @@ func (pkt *PingReq) Write(_ *bufio.Writer) error {
 	return errors.New("unsupported (PINGREQ)")
 }
 
-// Read reads the packet bytes from bufio.Reader and decodes them into the
-// packet.
+// Read reads the packet bytes from bufio.Reader and decodes them into the packet.
 func (pkt *PingReq) Read(_ *bufio.Reader) error {
 	return nil
 }
@@ -72,8 +71,7 @@ func (pkt *PingReq) Size() int {
 	return pkt.size
 }
 
-// Timestamp returns the timestamp of the moment which the packet has been
-// received.
+// Timestamp returns the timestamp of the moment which the packet has been received.
 func (pkt *PingReq) Timestamp() time.Time {
 	return pkt.timestamp
 }

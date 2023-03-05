@@ -31,9 +31,7 @@ type packetDelivererMock struct {
 	mock.Mock
 }
 
-func (p *packetDelivererMock) deliverPacket(id packet.ClientID,
-	pkt *packet.Publish) error {
-
+func (p *packetDelivererMock) deliverPacket(id packet.ClientID, pkt *packet.Publish) error {
 	args := p.Called(id, pkt)
 	return args.Error(0)
 }
@@ -42,10 +40,11 @@ type packetHandlerMock struct {
 	mock.Mock
 }
 
-func (h *packetHandlerMock) HandlePacket(id packet.ClientID,
-	pkt packet.Packet) ([]packet.Packet, error) {
+func (h *packetHandlerMock) HandlePacket(
+	id packet.ClientID, p packet.Packet,
+) ([]packet.Packet, error) {
 
-	args := h.Called(id, pkt)
+	args := h.Called(id, p)
 	var replies []packet.Packet
 	if args.Get(0) != nil {
 		replies = args.Get(0).([]packet.Packet)
@@ -57,9 +56,7 @@ type packetReaderMock struct {
 	mock.Mock
 }
 
-func (r *packetReaderMock) ReadPacket(rd io.Reader,
-	v packet.Version) (packet.Packet, error) {
-
+func (r *packetReaderMock) ReadPacket(rd io.Reader, v packet.Version) (packet.Packet, error) {
 	args := r.Called(rd, v)
 	var pkt packet.Packet
 	if args.Get(0) != nil {
@@ -72,8 +69,8 @@ type packetWriterMock struct {
 	mock.Mock
 }
 
-func (w *packetWriterMock) WritePacket(wr io.Writer, pkt packet.Packet) error {
-	args := w.Called(wr, pkt)
+func (w *packetWriterMock) WritePacket(wr io.Writer, p packet.Packet) error {
+	args := w.Called(wr, p)
 	return args.Error(0)
 }
 
@@ -143,23 +140,18 @@ func TestConnectionManagerHandleConnect(t *testing.T) {
 	wr := &packetWriterMock{}
 
 	cID := packet.ClientID("client-0")
-	pkt := &packet.Connect{ClientID: []byte(cID), Version: packet.MQTT311}
-	replies := []packet.Packet{
-		&packet.ConnAck{ClientID: cID, Version: packet.MQTT311}}
+	p := &packet.Connect{ClientID: []byte(cID), Version: packet.MQTT311}
+	replies := []packet.Packet{&packet.ConnAck{ClientID: cID, Version: packet.MQTT311}}
 
-	cm.handlers[pkt.Type()] = hd
+	cm.handlers[p.Type()] = hd
 	cm.reader = rd
 	cm.writer = wr
 
 	conn, sConn := net.Pipe()
-	rd.On("ReadPacket", sConn, packet.MQTT311).
-		Return(pkt, nil).Once()
-	rd.On("ReadPacket", sConn, packet.MQTT311).
-		Return(nil, io.EOF)
-	hd.On("HandlePacket", packet.ClientID(""), pkt).
-		Return(replies, nil)
-	wr.On("WritePacket", sConn, replies[0]).
-		Return(nil)
+	rd.On("ReadPacket", sConn, packet.MQTT311).Return(p, nil).Once()
+	rd.On("ReadPacket", sConn, packet.MQTT311).Return(nil, io.EOF)
+	hd.On("HandlePacket", packet.ClientID(""), p).Return(replies, nil)
+	wr.On("WritePacket", sConn, replies[0]).Return(nil)
 
 	sc := &handler.Session{ClientID: cID, Connected: true}
 	sd := &handler.Session{ClientID: cID, Connected: false}
@@ -190,24 +182,18 @@ func TestConnectionManagerHandleConnectCleanSession(t *testing.T) {
 	wr := &packetWriterMock{}
 
 	cID := packet.ClientID("client-0")
-	pkt := &packet.Connect{ClientID: []byte(cID), Version: packet.MQTT311,
-		CleanSession: true}
-	replies := []packet.Packet{
-		&packet.ConnAck{ClientID: cID, Version: packet.MQTT311}}
+	p := &packet.Connect{ClientID: []byte(cID), Version: packet.MQTT311, CleanSession: true}
+	replies := []packet.Packet{&packet.ConnAck{ClientID: cID, Version: packet.MQTT311}}
 
-	cm.handlers[pkt.Type()] = hd
+	cm.handlers[p.Type()] = hd
 	cm.reader = rd
 	cm.writer = wr
 
 	conn, sConn := net.Pipe()
-	rd.On("ReadPacket", sConn, packet.MQTT311).
-		Return(pkt, nil).Once()
-	rd.On("ReadPacket", sConn, packet.MQTT311).
-		Return(nil, io.EOF)
-	hd.On("HandlePacket", packet.ClientID(""), pkt).
-		Return(replies, nil)
-	wr.On("WritePacket", sConn, replies[0]).
-		Return(nil)
+	rd.On("ReadPacket", sConn, packet.MQTT311).Return(p, nil).Once()
+	rd.On("ReadPacket", sConn, packet.MQTT311).Return(nil, io.EOF)
+	hd.On("HandlePacket", packet.ClientID(""), p).Return(replies, nil)
+	wr.On("WritePacket", sConn, replies[0]).Return(nil)
 
 	s := &handler.Session{ClientID: cID, Connected: true, CleanSession: true}
 	st.On("ReadSession", cID).Return(s, nil)
@@ -244,13 +230,13 @@ func TestConnectionManagerHandleDisconnectReceived(t *testing.T) {
 	c.hasSession = true
 	cm.connections[cID] = &c
 
-	pkt := &packet.Disconnect{}
-	cm.handlers[pkt.Type()] = hd
+	p := &packet.Disconnect{}
+	cm.handlers[p.Type()] = hd
 	cm.reader = rd
 	cm.writer = wr
 
-	rd.On("ReadPacket", sConn, packet.MQTT311).Return(pkt, nil)
-	hd.On("HandlePacket", cID, pkt).Return(nil, nil)
+	rd.On("ReadPacket", sConn, packet.MQTT311).Return(p, nil)
+	hd.On("HandlePacket", cID, p).Return(nil, nil)
 
 	cm.handle(c)
 	_ = conn.Close()
@@ -281,14 +267,14 @@ func TestConnectionManagerHandleDisconnectReplied(t *testing.T) {
 	c.hasSession = true
 	cm.connections[cID] = &c
 
-	pkt := &packet.Subscribe{}
+	p := &packet.Subscribe{}
 	replies := []packet.Packet{&packet.Disconnect{}}
-	cm.handlers[pkt.Type()] = hd
+	cm.handlers[p.Type()] = hd
 	cm.reader = rd
 	cm.writer = wr
 
-	rd.On("ReadPacket", sConn, packet.MQTT311).Return(pkt, nil)
-	hd.On("HandlePacket", cID, pkt).Return(replies, nil)
+	rd.On("ReadPacket", sConn, packet.MQTT311).Return(p, nil)
+	hd.On("HandlePacket", cID, p).Return(replies, nil)
 	wr.On("WritePacket", sConn, replies[0]).Return(nil)
 
 	cm.handle(c)
@@ -303,19 +289,19 @@ func TestConnectionManagerHandleDisconnectReplied(t *testing.T) {
 
 func TestConnectionManagerHandle(t *testing.T) {
 	testCases := []struct {
-		pkt   packet.Packet
+		p     packet.Packet
 		reply packet.Packet
 	}{
-		{pkt: &packet.PingReq{}, reply: &packet.PingResp{}},
-		{pkt: &packet.Subscribe{}, reply: &packet.SubAck{}},
-		{pkt: &packet.Unsubscribe{}, reply: &packet.UnsubAck{}},
-		{pkt: &packet.Publish{}, reply: &packet.PubAck{}},
-		{pkt: &packet.Publish{}, reply: &packet.PubRec{}},
-		{pkt: &packet.PubRel{}, reply: &packet.PubComp{}},
+		{&packet.PingReq{}, &packet.PingResp{}},
+		{&packet.Subscribe{}, &packet.SubAck{}},
+		{&packet.Unsubscribe{}, &packet.UnsubAck{}},
+		{&packet.Publish{}, &packet.PubAck{}},
+		{&packet.Publish{}, &packet.PubRec{}},
+		{&packet.PubRel{}, &packet.PubComp{}},
 	}
 
 	for _, tc := range testCases {
-		name := fmt.Sprintf("%v-%v", tc.pkt.Type().String(),
+		name := fmt.Sprintf("%v-%v", tc.p.Type().String(),
 			tc.reply.Type().String())
 
 		t.Run(name, func(t *testing.T) {
@@ -339,15 +325,13 @@ func TestConnectionManagerHandle(t *testing.T) {
 			cm.connections[cID] = &c
 
 			replies := []packet.Packet{tc.reply}
-			cm.handlers[tc.pkt.Type()] = hd
+			cm.handlers[tc.p.Type()] = hd
 			cm.reader = rd
 			cm.writer = wr
 
-			rd.On("ReadPacket", sConn, packet.MQTT311).
-				Return(tc.pkt, nil).Once()
-			rd.On("ReadPacket", sConn, packet.MQTT311).
-				Return(nil, io.EOF)
-			hd.On("HandlePacket", cID, tc.pkt).Return(replies, nil)
+			rd.On("ReadPacket", sConn, packet.MQTT311).Return(tc.p, nil).Once()
+			rd.On("ReadPacket", sConn, packet.MQTT311).Return(nil, io.EOF)
+			hd.On("HandlePacket", cID, tc.p).Return(replies, nil)
 			wr.On("WritePacket", sConn, replies[0]).Return(nil)
 
 			s := &handler.Session{ClientID: cID, Connected: true}
@@ -395,8 +379,7 @@ func TestConnectionManagerHandleReadFailure(t *testing.T) {
 
 	rd := &packetReaderMock{}
 	cm.reader = rd
-	rd.On("ReadPacket", sConn, packet.MQTT311).
-		Return(nil, errors.New("failed"))
+	rd.On("ReadPacket", sConn, packet.MQTT311).Return(nil, errors.New("failed"))
 
 	cm.handle(c)
 	_ = conn.Close()
@@ -433,21 +416,17 @@ func TestConnectionManagerHandleWritePacketFailure(t *testing.T) {
 	wr := &packetWriterMock{}
 
 	cID := packet.ClientID("client-0")
-	pkt := &packet.Connect{ClientID: []byte(cID), Version: packet.MQTT311}
-	replies := []packet.Packet{
-		&packet.ConnAck{ClientID: cID, Version: packet.MQTT311}}
+	p := &packet.Connect{ClientID: []byte(cID), Version: packet.MQTT311}
+	replies := []packet.Packet{&packet.ConnAck{ClientID: cID, Version: packet.MQTT311}}
 
-	cm.handlers[pkt.Type()] = hd
+	cm.handlers[p.Type()] = hd
 	cm.reader = rd
 	cm.writer = wr
 
 	conn, sConn := net.Pipe()
-	rd.On("ReadPacket", sConn, packet.MQTT311).
-		Return(pkt, nil)
-	hd.On("HandlePacket", packet.ClientID(""), pkt).
-		Return(replies, nil)
-	wr.On("WritePacket", sConn, replies[0]).
-		Return(errors.New("failed"))
+	rd.On("ReadPacket", sConn, packet.MQTT311).Return(p, nil)
+	hd.On("HandlePacket", packet.ClientID(""), p).Return(replies, nil)
+	wr.On("WritePacket", sConn, replies[0]).Return(errors.New("failed"))
 
 	sc := &handler.Session{ClientID: cID, Connected: true}
 	sd := &handler.Session{ClientID: cID, Connected: false}
@@ -475,10 +454,9 @@ func TestConnectionManagerHandleInvalidPacket(t *testing.T) {
 	rd := &packetReaderMock{}
 	cm.reader = rd
 
-	pkt := &packet.PingResp{}
+	p := &packet.PingResp{}
 	conn, sConn := net.Pipe()
-	rd.On("ReadPacket", sConn, packet.MQTT311).
-		Return(pkt, nil)
+	rd.On("ReadPacket", sConn, packet.MQTT311).Return(p, nil)
 
 	c := cm.newConnection(sConn)
 	cm.handle(c)
@@ -505,11 +483,11 @@ func TestConnectionManagerDeliverMessageWriteFailure(t *testing.T) {
 	wr := &packetWriterMock{}
 	cm.writer = wr
 
-	pkt := packet.NewPublish(10, packet.MQTT311, "data",
-		packet.QoS0, 0, 0, nil, nil)
-	wr.On("WritePacket", sConn, &pkt).Return(errors.New("failed"))
+	p := packet.NewPublish(10 /*id*/, packet.MQTT311, "data", packet.QoS0,
+		0 /*dup*/, 0 /*retain*/, nil /*payload*/, nil /*props*/)
+	wr.On("WritePacket", sConn, &p).Return(errors.New("failed"))
 
-	err := cm.deliverPacket("client-a", &pkt)
+	err := cm.deliverPacket("client-a", &p)
 	assert.NotNil(t, err)
 	_ = conn.Close()
 	wr.AssertExpectations(t)
@@ -532,11 +510,11 @@ func TestConnectionManagerDeliverMessage(t *testing.T) {
 	wr := &packetWriterMock{}
 	cm.writer = wr
 
-	pkt := packet.NewPublish(10, packet.MQTT311, "data",
-		packet.QoS0, 0, 0, nil, nil)
-	wr.On("WritePacket", sConn, &pkt).Return(nil)
+	p := packet.NewPublish(10 /*id*/, packet.MQTT311, "data", packet.QoS0,
+		0 /*dup*/, 0 /*retain*/, nil /*payload*/, nil /*props*/)
+	wr.On("WritePacket", sConn, &p).Return(nil)
 
-	err := cm.deliverPacket("client-a", &pkt)
+	err := cm.deliverPacket("client-a", &p)
 	assert.Nil(t, err)
 	_ = conn.Close()
 	wr.AssertExpectations(t)
@@ -552,9 +530,9 @@ func TestConnectionManagerDeliverMessageConnectionNotFound(t *testing.T) {
 	mt := newMetrics(conf.MetricsEnabled, &log)
 	cm := newConnectionManager(&conf, st, mt, idGen, &log)
 
-	pkt := packet.NewPublish(10, packet.MQTT311, "data",
-		packet.QoS0, 0, 0, nil, nil)
+	p := packet.NewPublish(10 /*id*/, packet.MQTT311, "data", packet.QoS0,
+		0 /*dup*/, 0 /*retain*/, nil /*payload*/, nil /*props*/)
 
-	err := cm.deliverPacket("client-b", &pkt)
+	err := cm.deliverPacket("client-b", &p)
 	assert.NotNil(t, err)
 }

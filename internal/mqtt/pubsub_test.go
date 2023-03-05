@@ -144,8 +144,8 @@ func TestPubSubManagerUnsubscribeSubscriptionNotFound(t *testing.T) {
 		{Name: "sensor/temp/2"},
 	}
 
-	for _, test := range testCases {
-		t.Run(test.Name, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
 			pd := &packetDelivererMock{}
 			sm := &sessionStoreMock{}
 			log := newLogger()
@@ -153,7 +153,7 @@ func TestPubSubManagerUnsubscribeSubscriptionNotFound(t *testing.T) {
 			ps := newPubSubManager(pd, sm, mt, &log)
 			s := handler.Session{ClientID: "a"}
 
-			err := ps.Unsubscribe(s.ClientID, test.Name)
+			err := ps.Unsubscribe(s.ClientID, tc.Name)
 			assert.Equal(t, handler.ErrSubscriptionNotFound, err)
 		})
 	}
@@ -166,8 +166,8 @@ func TestPubSubManagerPublishMessage(t *testing.T) {
 	mt := newMetrics(true, &log)
 	ps := newPubSubManager(pd, sm, mt, &log)
 
-	pubPkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS1,
-		0, 0, nil, nil)
+	pubPkt := packet.NewPublish(1 /*id*/, packet.MQTT311, "test" /*topic*/, packet.QoS1,
+		0 /*dup*/, 0 /*retain*/, nil /*payload*/, nil /*props*/)
 	msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 
 	err := ps.Publish(msg)
@@ -187,8 +187,8 @@ func TestPubSubManagerHandleQueuedMessagesNoSubscription(t *testing.T) {
 	mt := newMetrics(true, &log)
 	ps := newPubSubManager(pd, sm, mt, &log)
 
-	pubPkt := packet.NewPublish(1, packet.MQTT311, "test", packet.QoS0,
-		0, 0, nil, nil)
+	pubPkt := packet.NewPublish(1 /*id*/, packet.MQTT311, "test" /*topic*/, packet.QoS0,
+		0 /*dup*/, 0 /*retain*/, nil /*payload*/, nil /*props*/)
 	msg := handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 	ps.queue.Enqueue(&msg)
 
@@ -202,9 +202,9 @@ func TestPubSubManagerHandleQueuedMessages(t *testing.T) {
 		topic string
 		qos   packet.QoS
 	}{
-		{id: 1, topic: "a/0", qos: packet.QoS0},
-		{id: 2, topic: "a/0", qos: packet.QoS1},
-		{id: 3, topic: "a/0", qos: packet.QoS2},
+		{1, "a/0", packet.QoS0},
+		{2, "a/0", packet.QoS1},
+		{3, "a/0", packet.QoS2},
 	}
 
 	for _, tc := range testCases {
@@ -216,22 +216,19 @@ func TestPubSubManagerHandleQueuedMessages(t *testing.T) {
 			ps := newPubSubManager(pd, sm, mt, &log)
 			id := packet.ClientID("client")
 
-			sub := handler.Subscription{ClientID: id, TopicFilter: tc.topic,
-				QoS: tc.qos}
-
+			sub := handler.Subscription{ClientID: id, TopicFilter: tc.topic, QoS: tc.qos}
 			_, err := ps.tree.Insert(sub)
 			require.Nil(t, err)
 
-			pubPkt := packet.NewPublish(tc.id, packet.MQTT311, tc.topic,
-				tc.qos, 0, 0, nil, nil)
+			pubPkt := packet.NewPublish(tc.id, packet.MQTT311, tc.topic, tc.qos,
+				0 /*dup*/, 0 /*retain*/, nil /*payload*/, nil /*props*/)
 			msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 			ps.queue.Enqueue(msg)
 
-			s := &handler.Session{ClientID: id, Version: packet.MQTT311,
-				Connected: true, LastPacketID: uint32(tc.id + 9)}
+			s := &handler.Session{ClientID: id, Version: packet.MQTT311, Connected: true,
+				LastPacketID: uint32(tc.id + 9)}
 			sm.On("ReadSession", id).Return(s, nil)
-			pd.On("deliverPacket", id, mock.Anything).
-				Return(nil)
+			pd.On("deliverPacket", id, mock.Anything).Return(nil)
 
 			if tc.qos > packet.QoS0 {
 				sm.On("SaveSession", s).Return(nil)
@@ -257,9 +254,9 @@ func TestPubSubManagerHandleQueuedMessagesMultipleSubscribers(t *testing.T) {
 		topic string
 		subs  []string
 	}{
-		{topic: "a/0", subs: []string{"a/0"}},
-		{topic: "b/1", subs: []string{"b/1", "b/+"}},
-		{topic: "c/2", subs: []string{"c/2", "c/#"}},
+		{"a/0", []string{"a/0"}},
+		{"b/1", []string{"b/1", "b/+"}},
+		{"c/2", []string{"c/2", "c/#"}},
 	}
 
 	for _, tc := range testCases {
@@ -277,16 +274,14 @@ func TestPubSubManagerHandleQueuedMessagesMultipleSubscribers(t *testing.T) {
 				require.Nil(t, err)
 			}
 
-			pubPkt := packet.NewPublish(1, packet.MQTT311, tc.topic,
-				packet.QoS0, 0, 0, nil, nil)
+			pubPkt := packet.NewPublish(1 /*id*/, packet.MQTT311, tc.topic, packet.QoS0,
+				0 /*dup*/, 0 /*retain*/, nil /*payload*/, nil /*props*/)
 			msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 			ps.queue.Enqueue(msg)
 
-			s := &handler.Session{ClientID: id, Version: packet.MQTT311,
-				Connected: true}
+			s := &handler.Session{ClientID: id, Version: packet.MQTT311, Connected: true}
 			sm.On("ReadSession", id).Return(s, nil)
-			pd.On("deliverPacket", id, mock.Anything).
-				Return(nil).Times(len(tc.subs))
+			pd.On("deliverPacket", id, mock.Anything).Return(nil).Times(len(tc.subs))
 
 			ps.handleQueuedMessages()
 			assert.Zero(t, ps.queue.Len())
@@ -314,14 +309,14 @@ func TestPubSubManagerHandleQueuedMessagesNewPacketID(t *testing.T) {
 			_, err := ps.tree.Insert(sub)
 			require.Nil(t, err)
 
-			pubPkt := packet.NewPublish(10, packet.MQTT311, "a", tc,
-				0, 0, nil, nil)
+			pubPkt := packet.NewPublish(10 /*id*/, packet.MQTT311, "a" /*topic*/, tc,
+				0 /*dup*/, 0 /*retain*/, nil /*payload*/, nil /*props*/)
 			msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 			ps.queue.Enqueue(msg)
 
 			lastPktID := uint32(1)
-			s := &handler.Session{ClientID: id, Version: packet.MQTT311,
-				Connected: true, LastPacketID: lastPktID}
+			s := &handler.Session{ClientID: id, Version: packet.MQTT311, Connected: true,
+				LastPacketID: lastPktID}
 			sm.On("ReadSession", id).Return(s, nil)
 			sm.On("SaveSession", s).Return(nil)
 			pd.On("deliverPacket", id, mock.Anything).Return(nil)
@@ -348,21 +343,18 @@ func TestPubSubManagerHandleQueuedMessagesDifferentVersion(t *testing.T) {
 	ps := newPubSubManager(pd, sm, mt, &log)
 
 	id := packet.ClientID("client")
-	sub := handler.Subscription{ClientID: id, TopicFilter: "a",
-		QoS: packet.QoS0}
+	sub := handler.Subscription{ClientID: id, TopicFilter: "a", QoS: packet.QoS0}
 	_, err := ps.tree.Insert(sub)
 	require.Nil(t, err)
 
-	pubPkt := packet.NewPublish(1, packet.MQTT311, "a", packet.QoS0,
-		0, 0, nil, nil)
+	pubPkt := packet.NewPublish(1 /*id*/, packet.MQTT311, "a" /*topic*/, packet.QoS0,
+		0 /*dup*/, 0 /*retain*/, nil /*payload*/, nil /*props*/)
 	msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 	ps.queue.Enqueue(msg)
 
-	s := &handler.Session{ClientID: id, Version: packet.MQTT50,
-		Connected: true}
+	s := &handler.Session{ClientID: id, Version: packet.MQTT50, Connected: true}
 	sm.On("ReadSession", id).Return(s, nil)
-	pd.On("deliverPacket", id, mock.Anything).
-		Return(nil)
+	pd.On("deliverPacket", id, mock.Anything).Return(nil)
 
 	ps.handleQueuedMessages()
 	assert.Zero(t, ps.queue.Len())
@@ -389,15 +381,13 @@ func TestPubSubManagerHandleQueuedMessagesDisconnected(t *testing.T) {
 			ps := newPubSubManager(pd, sm, mt, &log)
 
 			id := packet.ClientID("client")
-			sub := handler.Subscription{ClientID: id, TopicFilter: "a",
-				QoS: tc}
+			sub := handler.Subscription{ClientID: id, TopicFilter: "a", QoS: tc}
 			_, err := ps.tree.Insert(sub)
 			require.Nil(t, err)
 
-			pubPkt := packet.NewPublish(1, packet.MQTT311, "a", tc,
-				0, 0, nil, nil)
-			msg := &handler.Message{PacketID: pubPkt.PacketID,
-				Packet: &pubPkt}
+			pubPkt := packet.NewPublish(1 /*id*/, packet.MQTT311, "a" /*topic*/, tc,
+				0 /*dup*/, 0 /*retain*/, nil /*payload*/, nil /*props*/)
+			msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 			ps.queue.Enqueue(msg)
 
 			s := &handler.Session{ClientID: id, Version: packet.MQTT50}
@@ -435,16 +425,14 @@ func TestPubSubManagerHandleQueuedMessagesDeliverPacketError(t *testing.T) {
 			_, err := ps.tree.Insert(sub)
 			require.Nil(t, err)
 
-			pubPkt := packet.NewPublish(1, packet.MQTT311, "a", tc,
-				0, 0, nil, nil)
+			pubPkt := packet.NewPublish(1 /*id*/, packet.MQTT311, "a" /*topic*/, tc,
+				0 /*dup*/, 0 /*retain*/, nil /*payload*/, nil /*props*/)
 			msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 			ps.queue.Enqueue(msg)
 
-			s := &handler.Session{ClientID: id, Version: packet.MQTT311,
-				Connected: true}
+			s := &handler.Session{ClientID: id, Version: packet.MQTT311, Connected: true}
 			sm.On("ReadSession", id).Return(s, nil)
-			pd.On("deliverPacket", id, &pubPkt).
-				Return(errors.New("failed"))
+			pd.On("deliverPacket", id, &pubPkt).Return(errors.New("failed"))
 
 			if tc > packet.QoS0 {
 				sm.On("SaveSession", s).Return(nil)
@@ -466,18 +454,16 @@ func TestPubSubManagerHandleQueuedMessagesReadSessionError(t *testing.T) {
 	ps := newPubSubManager(pd, sm, mt, &log)
 
 	id := packet.ClientID("client")
-	sub := handler.Subscription{ClientID: id, TopicFilter: "a",
-		QoS: packet.QoS0}
+	sub := handler.Subscription{ClientID: id, TopicFilter: "a", QoS: packet.QoS0}
 	_, err := ps.tree.Insert(sub)
 	require.Nil(t, err)
 
-	pubPkt := packet.NewPublish(1, packet.MQTT311, "a", packet.QoS0,
-		0, 0, nil, nil)
+	pubPkt := packet.NewPublish(1 /*id*/, packet.MQTT311, "a" /*topic*/, packet.QoS0,
+		0 /*dup*/, 0 /*retain*/, nil /*payload*/, nil /*props*/)
 	msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 	ps.queue.Enqueue(msg)
 
-	sm.On("ReadSession", id).
-		Return(nil, handler.ErrSessionNotFound)
+	sm.On("ReadSession", id).Return(nil, handler.ErrSessionNotFound)
 
 	ps.handleQueuedMessages()
 	assert.Zero(t, ps.queue.Len())
@@ -493,13 +479,12 @@ func TestPubSubManagerHandleQueuedMessagesSaveSessionError(t *testing.T) {
 	ps := newPubSubManager(pd, sm, mt, &log)
 
 	id := packet.ClientID("client")
-	sub := handler.Subscription{ClientID: id, TopicFilter: "a",
-		QoS: packet.QoS1}
+	sub := handler.Subscription{ClientID: id, TopicFilter: "a", QoS: packet.QoS1}
 	_, err := ps.tree.Insert(sub)
 	require.Nil(t, err)
 
-	pubPkt := packet.NewPublish(1, packet.MQTT311, "a", packet.QoS1,
-		0, 0, nil, nil)
+	pubPkt := packet.NewPublish(1 /*id*/, packet.MQTT311, "a" /*topic*/, packet.QoS1,
+		0 /*dup*/, 0 /*retain*/, nil /*payload*/, nil /*props*/)
 	msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 	ps.queue.Enqueue(msg)
 

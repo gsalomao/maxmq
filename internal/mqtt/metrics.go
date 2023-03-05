@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -258,27 +258,22 @@ func (m *metrics) registerPacketsMetrics() error {
 
 func (m *metrics) registerConnectionsMetrics() error {
 	err := prometheus.Register(m.connections.connectTotal)
-	err = multierr.Combine(err,
-		prometheus.Register(m.connections.disconnectTotal))
+	err = multierr.Combine(err, prometheus.Register(m.connections.disconnectTotal))
 	return err
 }
 
 func (m *metrics) registerSubscriptionsMetrics() error {
 	err := prometheus.Register(m.subscriptions.subscribeTotal)
-	err = multierr.Combine(err,
-		prometheus.Register(m.subscriptions.unsubscribeTotal))
+	err = multierr.Combine(err, prometheus.Register(m.subscriptions.unsubscribeTotal))
 	return err
 }
 
 func (m *metrics) registerLatenciesMetrics() error {
 	err := prometheus.Register(m.latencies.connectSeconds)
 	err = multierr.Combine(err, prometheus.Register(m.latencies.pingSeconds))
-	err = multierr.Combine(err,
-		prometheus.Register(m.latencies.subscribeSeconds))
-	err = multierr.Combine(err,
-		prometheus.Register(m.latencies.unsubscribeSeconds))
-	err = multierr.Combine(err,
-		prometheus.Register(m.latencies.disconnectSeconds))
+	err = multierr.Combine(err, prometheus.Register(m.latencies.subscribeSeconds))
+	err = multierr.Combine(err, prometheus.Register(m.latencies.unsubscribeSeconds))
+	err = multierr.Combine(err, prometheus.Register(m.latencies.disconnectSeconds))
 	return err
 }
 

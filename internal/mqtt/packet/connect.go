@@ -45,42 +45,40 @@ type Connect struct {
 	// WillMessage represents the Will Message to be published.
 	WillMessage []byte
 
-	// UserName represents the UserName which the broker must use for
-	// authentication and authorization.
+	// UserName represents the UserName which the broker must use for authentication and
+	// authorization.
 	UserName []byte
 
-	// Password represents the Password which the broker must use for
-	// authentication and authorization.
+	// Password represents the Password which the broker must use for authentication and
+	// authorization.
 	Password []byte
 
 	// Properties represents the CONNECT properties (MQTT V5.0 only).
 	Properties *Properties
 
-	// WillProperties defines the Application Message properties to be sent with
-	// the Will Message when it is published.
+	// WillProperties defines the Application Message properties to be sent with the Will Message
+	// when it is published.
 	WillProperties *Properties
 
-	// KeepAlive is a time interval, measured in seconds, that is permitted to
-	// elapse between the point at which the Client finishes transmitting one
-	// Control Packet and the point it starts sending the next.
+	// KeepAlive is a time interval, measured in seconds, that is permitted to elapse between the
+	// point at which the Client finishes transmitting one Control Packet and the point it starts
+	// sending the next.
 	KeepAlive uint16
 
 	// Version represents the MQTT version.
 	Version Version
 
-	// WillQoS indicates the QoS level to be used when publishing the Will
-	// Message.
+	// WillQoS indicates the QoS level to be used when publishing the Will Message.
 	WillQoS WillQoS
 
 	// CleanSession indicates if the session is temporary or not.
 	CleanSession bool
 
-	// WillFlag indicates that, if the Connect request is accepted, and the Will
-	// Message MUST be stored on the broker and associated with the connection.
+	// WillFlag indicates that, if the Connect request is accepted, and the Will Message MUST be
+	// stored on the broker and associated with the connection.
 	WillFlag bool
 
-	// WillRetain indicates if the Will Message is to be Retained when it is
-	// published.
+	// WillRetain indicates if the Will Message is to be Retained when it is published.
 	WillRetain bool
 
 	// UserNameFlag indicates if the UserName is present on the message or not.
@@ -202,8 +200,7 @@ func (pkt *Connect) Size() int {
 	return pkt.size
 }
 
-// Timestamp returns the timestamp of the moment which the packet has been
-// received.
+// Timestamp returns the timestamp of the moment which the packet has been received.
 func (pkt *Connect) Timestamp() time.Time {
 	return pkt.timestamp
 }

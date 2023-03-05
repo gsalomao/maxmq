@@ -33,9 +33,7 @@ func (m *sessionStoreMock) NewSession(id packet.ClientID) *handler.Session {
 	return args.Get(0).(*handler.Session)
 }
 
-func (m *sessionStoreMock) ReadSession(id packet.ClientID) (*handler.Session,
-	error) {
-
+func (m *sessionStoreMock) ReadSession(id packet.ClientID) (*handler.Session, error) {
 	var s *handler.Session
 	args := m.Called(id)
 	if args.Get(0) != nil {

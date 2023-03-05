@@ -49,11 +49,9 @@ func newPacketPubRec(opts options) (Packet, error) {
 	if opts.packetType != PUBREC {
 		return nil, errors.New("packet type is not PUBREC")
 	}
-
 	if opts.version < MQTT31 || opts.version > MQTT50 {
 		return nil, errors.New("invalid version (PUBREC)")
 	}
-
 	if opts.controlFlags != 0 {
 		return nil, errors.New("invalid Control Flags (PUBREC)")
 	}
@@ -73,12 +71,12 @@ func newPacketPubRec(opts options) (Packet, error) {
 }
 
 // NewPubRec creates a PUBREC Packet.
-func NewPubRec(id ID, v Version, c ReasonCode, p *Properties) PubRec {
+func NewPubRec(id ID, v Version, c ReasonCode, props *Properties) PubRec {
 	return PubRec{
 		PacketID:   id,
 		Version:    v,
 		ReasonCode: c,
-		Properties: p,
+		Properties: props,
 	}
 }
 
@@ -93,8 +91,7 @@ func (pkt *PubRec) Write(w *bufio.Writer) error {
 
 		if pkt.ReasonCode != ReasonCodeV5Success || pkt.Properties != nil {
 			err := buf.WriteByte(byte(pkt.ReasonCode))
-			err = multierr.Combine(err,
-				writeProperties(buf, pkt.Properties, PUBREC))
+			err = multierr.Combine(err, writeProperties(buf, pkt.Properties, PUBREC))
 			if err != nil {
 				return fmt.Errorf("failed to write properties: %w", err)
 			}
@@ -121,8 +118,7 @@ func (pkt *PubRec) Write(w *bufio.Writer) error {
 	return nil
 }
 
-// Read reads the packet bytes from bufio.Reader and decodes them into the
-// packet.
+// Read reads the packet bytes from bufio.Reader and decodes them into the packet.
 func (pkt *PubRec) Read(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
@@ -140,8 +136,7 @@ func (pkt *PubRec) Read(r *bufio.Reader) error {
 		pkt.ReasonCode = ReasonCode(code)
 
 		if !pkt.isValidReasonCode() {
-			return newErrMalformedPacket(
-				fmt.Sprintf("invalid reason code: %v", pkt.ReasonCode))
+			return newErrMalformedPacket(fmt.Sprintf("invalid reason code: %v", pkt.ReasonCode))
 		}
 
 		if pkt.ReasonCode != ReasonCodeV5Success || buf.Len() > 0 {
@@ -172,11 +167,10 @@ func (pkt *PubRec) Timestamp() time.Time {
 }
 
 func (pkt *PubRec) isValidReasonCode() bool {
-	validPubRecReasonCodes := []ReasonCode{ReasonCodeV5Success,
-		ReasonCodeV5NoMatchingSubscribers, ReasonCodeV5UnspecifiedError,
-		ReasonCodeV5ImplementationError, ReasonCodeV5NotAuthorized,
-		ReasonCodeV5TopicNameInvalid, ReasonCodeV5PacketIDInUse,
-		ReasonCodeV5QuotaExceeded, ReasonCodeV5PayloadFormatInvalid}
+	validPubRecReasonCodes := []ReasonCode{ReasonCodeV5Success, ReasonCodeV5NoMatchingSubscribers,
+		ReasonCodeV5UnspecifiedError, ReasonCodeV5ImplementationError, ReasonCodeV5NotAuthorized,
+		ReasonCodeV5TopicNameInvalid, ReasonCodeV5PacketIDInUse, ReasonCodeV5QuotaExceeded,
+		ReasonCodeV5PayloadFormatInvalid}
 
 	for _, code := range validPubRecReasonCodes {
 		if pkt.ReasonCode == code {

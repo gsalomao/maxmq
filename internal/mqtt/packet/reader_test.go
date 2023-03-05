@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -162,30 +162,15 @@ func TestPacketReadPacketInvalid(t *testing.T) {
 		pkt []byte
 		msg string
 	}{
-		{
-			pkt: []byte{0xFF, 1},
-			msg: "invalid packet type",
-		},
-		{
-			pkt: []byte{0x10},
-			msg: "failed to read variable integer",
-		},
-		{
-			pkt: []byte{0x10, 0xFF, 0xFF, 0xFF, 0xFF},
-			msg: "invalid variable integer",
-		},
-		{
-			pkt: []byte{0x10, 3},
-			msg: "failed to read remaining bytes",
-		},
-		{
-			pkt: []byte{0x10, 0},
-			msg: "failed to read protocol name",
-		},
+		{[]byte{0xFF, 1}, "invalid packet type"},
+		{[]byte{0x10}, "failed to read variable integer"},
+		{[]byte{0x10, 0xFF, 0xFF, 0xFF, 0xFF}, "invalid variable integer"},
+		{[]byte{0x10, 3}, "failed to read remaining bytes"},
+		{[]byte{0x10, 0}, "failed to read protocol name"},
 	}
 
-	for _, test := range testCases {
-		t.Run(test.msg, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.msg, func(t *testing.T) {
 			conn, sConn := net.Pipe()
 
 			done := make(chan bool)
@@ -200,12 +185,12 @@ func TestPacketReadPacketInvalid(t *testing.T) {
 
 				_, err := rd.ReadPacket(sConn, MQTT311)
 				require.NotNil(t, err)
-				assert.Contains(t, err.Error(), test.msg)
+				assert.Contains(t, err.Error(), tc.msg)
 			}()
 
-			n, err := conn.Write(test.pkt)
+			n, err := conn.Write(tc.pkt)
 			assert.Nil(t, err)
-			assert.Equal(t, len(test.pkt), n)
+			assert.Equal(t, len(tc.pkt), n)
 			<-done
 		})
 	}

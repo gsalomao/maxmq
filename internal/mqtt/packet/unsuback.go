@@ -29,8 +29,8 @@ type UnsubAck struct {
 	// Properties represents the UNSUBACK properties (MQTT V5.0 only).
 	Properties *Properties
 
-	// ReasonCodes contains the list of Reason Codes for each topic filter in
-	// the UNSUBSCRIBE Packet (MQTT V5.0 only).
+	// ReasonCodes contains the list of Reason Codes for each topic filter in the UNSUBSCRIBE Packet
+	// (MQTT V5.0 only).
 	ReasonCodes []ReasonCode
 
 	// PacketID represents the packet identifier.
@@ -45,12 +45,12 @@ type UnsubAck struct {
 }
 
 // NewUnsubAck creates a UNSUBACK Packet.
-func NewUnsubAck(id ID, v Version, c []ReasonCode, p *Properties) UnsubAck {
+func NewUnsubAck(id ID, v Version, c []ReasonCode, props *Properties) UnsubAck {
 	return UnsubAck{
 		PacketID:    id,
 		Version:     v,
 		ReasonCodes: c,
-		Properties:  p,
+		Properties:  props,
 	}
 }
 
@@ -97,8 +97,7 @@ func (pkt *UnsubAck) Write(w *bufio.Writer) error {
 	return nil
 }
 
-// Read reads the packet bytes from bytes.Buffer and decodes them into the
-// packet.
+// Read reads the packet bytes from bytes.Buffer and decodes them into the packet.
 // It is not supported by the UNSUBACK Packet.
 func (pkt *UnsubAck) Read(_ *bufio.Reader) error {
 	return errors.New("unsupported (UNSUBACK)")

@@ -30,9 +30,9 @@ type PubRelHandler struct {
 }
 
 // NewPubRelHandler creates a new PubRelHandler.
-func NewPubRelHandler(st SessionStore, subMgr SubscriptionManager,
-	l *logger.Logger) *PubRelHandler {
-
+func NewPubRelHandler(
+	st SessionStore, subMgr SubscriptionManager, l *logger.Logger,
+) *PubRelHandler {
 	return &PubRelHandler{
 		log:             l,
 		sessionStore:    st,
@@ -41,21 +41,19 @@ func NewPubRelHandler(st SessionStore, subMgr SubscriptionManager,
 }
 
 // HandlePacket handles the given packet as a PUBREL packet.
-func (h *PubRelHandler) HandlePacket(id packet.ClientID,
-	pkt packet.Packet) ([]packet.Packet, error) {
-
-	pubRelPkt := pkt.(*packet.PubRel)
+func (h *PubRelHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]packet.Packet, error) {
+	pubRel := p.(*packet.PubRel)
 	h.log.Trace().
 		Str("ClientId", string(id)).
-		Uint16("PacketId", uint16(pubRelPkt.PacketID)).
-		Uint8("Version", uint8(pubRelPkt.Version)).
+		Uint16("PacketId", uint16(pubRel.PacketID)).
+		Uint8("Version", uint8(pubRel.Version)).
 		Msg("MQTT Received PUBREL packet")
 
 	s, err := h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
-			Uint8("Version", uint8(pubRelPkt.Version)).
+			Uint8("Version", uint8(pubRel.Version)).
 			Msg("MQTT Failed to read session (PUBREL): " + err.Error())
 		return nil, err
 	}
@@ -64,11 +62,11 @@ func (h *PubRelHandler) HandlePacket(id packet.ClientID,
 	defer s.Mutex.Unlock()
 
 	replies := make([]packet.Packet, 0, 1)
-	msg, ok := s.UnAckMessages[pubRelPkt.PacketID]
+	msg, ok := s.UnAckMessages[pubRel.PacketID]
 	if !ok {
 		h.log.Warn().
 			Str("ClientId", string(id)).
-			Uint16("PacketId", uint16(pubRelPkt.PacketID)).
+			Uint16("PacketId", uint16(pubRel.PacketID)).
 			Int("UnAckMessages", len(s.UnAckMessages)).
 			Uint8("Version", uint8(s.Version)).
 			Msg("MQTT Received PUBREL with unknown packet ID")
@@ -77,17 +75,14 @@ func (h *PubRelHandler) HandlePacket(id packet.ClientID,
 			return nil, ErrPacketNotFound
 		}
 
-		pubCompPkt := packet.NewPubComp(pubRelPkt.PacketID, pubRelPkt.Version,
-			packet.ReasonCodeV5PacketIDNotFound, nil)
-		replies = append(replies, &pubCompPkt)
-
+		pubComp := packet.NewPubComp(pubRel.PacketID, pubRel.Version,
+			packet.ReasonCodeV5PacketIDNotFound, nil /*props*/)
+		replies = append(replies, &pubComp)
 		return replies, nil
 	}
 
 	if msg.Packet != nil {
-		msgToPub := &Message{ID: msg.ID, PacketID: msg.PacketID,
-			Packet: msg.Packet}
-
+		msgToPub := &Message{ID: msg.ID, PacketID: msg.PacketID, Packet: msg.Packet}
 		err = h.subscriptionMgr.Publish(msgToPub)
 		if err != nil {
 			h.log.Error().
@@ -133,17 +128,15 @@ func (h *PubRelHandler) HandlePacket(id packet.ClientID,
 		}
 	}
 
-	pubCompPkt := packet.NewPubComp(pubRelPkt.PacketID, pubRelPkt.Version,
-		packet.ReasonCodeV5Success, nil)
-	replies = append(replies, &pubCompPkt)
-
+	pubComp := packet.NewPubComp(pubRel.PacketID, pubRel.Version, packet.ReasonCodeV5Success,
+		nil /*props*/)
+	replies = append(replies, &pubComp)
 	h.log.Trace().
 		Str("ClientId", string(s.ClientID)).
 		Uint64("MessageId", uint64(msg.ID)).
-		Uint16("PacketId", uint16(pubCompPkt.PacketID)).
+		Uint16("PacketId", uint16(pubComp.PacketID)).
 		Int("UnAckMessages", len(s.UnAckMessages)).
-		Uint8("Version", uint8(pubCompPkt.Version)).
+		Uint8("Version", uint8(pubComp.Version)).
 		Msg("MQTT Sending PUBCOMP packet")
-
 	return replies, nil
 }

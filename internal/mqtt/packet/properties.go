@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,15 +22,12 @@ import (
 	"go.uber.org/multierr"
 )
 
-// Properties contains all properties available in the MQTT specification
-// version 5.0.
+// Properties contains all properties available in the MQTT specification version 5.0.
 type Properties struct {
-	// PayloadFormatIndicator indicates whether the Will Message is a UTF-8
-	// string or not.
+	// PayloadFormatIndicator indicates whether the Will Message is a UTF-8 string or not.
 	PayloadFormatIndicator *byte
 
-	// MessageExpiryInterval represents the lifetime, in seconds, of the Will
-	// Message.
+	// MessageExpiryInterval represents the lifetime, in seconds, of the Will Message.
 	MessageExpiryInterval *uint32
 
 	// ContentType describes the content of the Will Message.
@@ -39,23 +36,22 @@ type Properties struct {
 	// ResponseTopic indicates the topic name for response message.
 	ResponseTopic *string
 
-	// CorrelationData is used to correlate a Response Message with a Request
-	// Message.
+	// CorrelationData is used to correlate a Response Message with a Request Message.
 	CorrelationData []byte
 
 	// SubscriptionIdentifier represents the identifier of the subscription.
 	SubscriptionIdentifier *int
 
-	// SessionExpiryInterval represents the time, in seconds, which the broker
-	// must store the Session State after the network connection is closed.
+	// SessionExpiryInterval represents the time, in seconds, which the broker must store the Session
+	// State after the network connection is closed.
 	SessionExpiryInterval *uint32
 
-	// AssignedClientID represents the client ID assigned by the broker in case
-	// of the client connected with the broker without specifying a client ID.
+	// AssignedClientID represents the client ID assigned by the broker in case of the client
+	// connected with the broker without specifying a client ID.
 	AssignedClientID []byte
 
-	// ServerKeepAlive represents the Keep Alive, in seconds, assigned by the
-	// broker, and to be used by the client.
+	// ServerKeepAlive represents the Keep Alive, in seconds, assigned by the broker, and to be used
+	// by the client.
 	ServerKeepAlive *uint16
 
 	// AuthMethod contains the name of the authentication method.
@@ -64,35 +60,32 @@ type Properties struct {
 	// AuthData contains the authentication data.
 	AuthData []byte
 
-	// RequestProblemInfo indicates whether the Reason String or User Properties
-	// can be sent to the client in case of failures on any packet.
+	// RequestProblemInfo indicates whether the Reason String or User Properties can be sent to the
+	// client in case of failures on any packet.
 	RequestProblemInfo *byte
 
-	// WillDelayInterval represents the time, in seconds, which the broker must
-	// delay publishing the Will Message.
+	// WillDelayInterval represents the time, in seconds, which the broker must delay publishing the
+	// Will Message.
 	WillDelayInterval *uint32
 
-	// RequestResponseInfo indicates if the broker can send Response Information
-	// with the CONNACK Packet.
+	// RequestResponseInfo indicates if the broker can send Response Information with the CONNACK
+	// Packet.
 	RequestResponseInfo *byte
 
-	// ResponseInfo contains a string that can be used to as the basis for
-	// creating a Response Topic.
+	// ResponseInfo contains a string that can be used to as the basis for creating a Response Topic.
 	ResponseInfo []byte
 
-	// ServerReference contains a string indicating another broker the client
-	// can use.
+	// ServerReference contains a string indicating another broker the client can use.
 	ServerReference []byte
 
 	// ReasonString represents the reason associated with the response.
 	ReasonString []byte
 
-	// ReceiveMaximum represents the maximum number of in-flight messages with
-	// QoS > 0.
+	// ReceiveMaximum represents the maximum number of in-flight messages with QoS > 0.
 	ReceiveMaximum *uint16
 
-	// TopicAliasMaximum represents the highest number of Topic Alias that the
-	// client or the broker accepts.
+	// TopicAliasMaximum represents the highest number of Topic Alias that the client or the broker
+	// accepts.
 	TopicAliasMaximum *uint16
 
 	// TopicAlias represents a value that is used to identify the Topic Name.
@@ -101,27 +94,24 @@ type Properties struct {
 	// MaximumQoS represents the maximum QoS supported by the broker.
 	MaximumQoS *byte
 
-	// RetainAvailable indicates whether the broker supports retained messages
-	// or not.
+	// RetainAvailable indicates whether the broker supports retained messages or not.
 	RetainAvailable *byte
 
 	// UserProperties is a map of user provided properties.
 	UserProperties []UserProperty
 
-	// MaximumPacketSize represents the maximum packet size, in bytes, the
-	// client or the broker is willing to accept.
+	// MaximumPacketSize represents the maximum packet size, in bytes, the client or the broker is
+	// willing to accept.
 	MaximumPacketSize *uint32
 
-	// WildcardSubscriptionAvailable indicates whether the broker supports
-	// Wildcard Subscriptions or not.
+	// WildcardSubscriptionAvailable indicates whether the broker supports Wildcard Subscriptions or
+	// not.
 	WildcardSubscriptionAvailable *byte
 
-	// SubscriptionIDAvailable indicates whether the broker supports
-	// Subscription Identifiers or not.
+	// SubscriptionIDAvailable indicates whether the broker supports Subscription Identifiers or not.
 	SubscriptionIDAvailable *byte
 
-	// SharedSubscriptionAvailable indicates whether the broker supports Shared
-	// Subscriptions or not.
+	// SharedSubscriptionAvailable indicates whether the broker supports Shared Subscriptions or not.
 	SharedSubscriptionAvailable *byte
 }
 
@@ -304,8 +294,7 @@ func readProperties(b *bytes.Buffer, t Type) (*Properties, error) {
 	var propsLen int
 	_, err := readVarInteger(b, &propsLen)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read properties length: %w",
-			ErrV5MalformedPacket)
+		return nil, fmt.Errorf("failed to read properties length: %w", ErrV5MalformedPacket)
 	}
 	if propsLen == 0 {
 		return nil, nil
@@ -458,11 +447,7 @@ func readPropAuthData(b *bytes.Buffer, p *Properties) error {
 }
 
 func readPropRequestProblemInfo(b *bytes.Buffer, p *Properties) error {
-	return readPropByte(
-		b,
-		&p.RequestProblemInfo,
-		func(b byte) bool { return b == 0 || b == 1 },
-	)
+	return readPropByte(b, &p.RequestProblemInfo, func(b byte) bool { return b == 0 || b == 1 })
 }
 
 func readPropWillDelayInterval(b *bytes.Buffer, p *Properties) error {
@@ -470,19 +455,11 @@ func readPropWillDelayInterval(b *bytes.Buffer, p *Properties) error {
 }
 
 func readPropRequestResponseInfo(b *bytes.Buffer, p *Properties) error {
-	return readPropByte(
-		b,
-		&p.RequestResponseInfo,
-		func(b byte) bool { return b == 0 || b == 1 },
-	)
+	return readPropByte(b, &p.RequestResponseInfo, func(b byte) bool { return b == 0 || b == 1 })
 }
 
 func readPropReceiveMaximum(b *bytes.Buffer, p *Properties) error {
-	return readPropUint16(
-		b,
-		&p.ReceiveMaximum,
-		func(u uint16) bool { return u != 0 },
-	)
+	return readPropUint16(b, &p.ReceiveMaximum, func(u uint16) bool { return u != 0 })
 }
 
 func readPropTopicAliasMaximum(b *bytes.Buffer, p *Properties) error {
@@ -490,10 +467,7 @@ func readPropTopicAliasMaximum(b *bytes.Buffer, p *Properties) error {
 }
 
 func readPropTopicAlias(b *bytes.Buffer, p *Properties) error {
-	return readPropUint16(
-		b,
-		&p.TopicAlias,
-		func(u uint16) bool { return u != 0 })
+	return readPropUint16(b, &p.TopicAlias, func(u uint16) bool { return u != 0 })
 }
 
 func readPropUser(b *bytes.Buffer, p *Properties) error {
@@ -508,18 +482,13 @@ func readPropUser(b *bytes.Buffer, p *Properties) error {
 		kv[i] = s
 	}
 
-	p.UserProperties = append(p.UserProperties,
-		UserProperty{Key: kv[0], Value: kv[1]})
+	p.UserProperties = append(p.UserProperties, UserProperty{Key: kv[0], Value: kv[1]})
 
 	return nil
 }
 
 func readPropMaxPacketSize(b *bytes.Buffer, p *Properties) error {
-	return readPropUint32(
-		b,
-		&p.MaximumPacketSize,
-		func(u uint32) bool { return u != 0 },
-	)
+	return readPropUint32(b, &p.MaximumPacketSize, func(u uint32) bool { return u != 0 })
 }
 
 func readPropReasonString(b *bytes.Buffer, p *Properties) error {
@@ -655,11 +624,9 @@ func (w *propertiesWriter) load(p *Properties, t Type) error {
 	w.writeByte(p.RetainAvailable, propRetainAvailable, t)
 	w.writeUserProperties(p.UserProperties, t)
 	w.writeUint32(p.MaximumPacketSize, propMaximumPacketSize, t)
-	w.writeByte(p.WildcardSubscriptionAvailable,
-		propWildcardSubscriptionAvailable, t)
+	w.writeByte(p.WildcardSubscriptionAvailable, propWildcardSubscriptionAvailable, t)
 	w.writeByte(p.SubscriptionIDAvailable, propSubscriptionIDAvailable, t)
-	w.writeByte(p.SharedSubscriptionAvailable, propSharedSubscriptionAvailable,
-		t)
+	w.writeByte(p.SharedSubscriptionAvailable, propSharedSubscriptionAvailable, t)
 
 	return w.err
 }

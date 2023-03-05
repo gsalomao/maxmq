@@ -29,9 +29,9 @@ type PublishHandler struct {
 }
 
 // NewPublishHandler creates a new PublishHandler.
-func NewPublishHandler(st SessionStore, subMgr SubscriptionManager,
-	gen MessageIDGenerator, l *logger.Logger) *PublishHandler {
-
+func NewPublishHandler(
+	st SessionStore, subMgr SubscriptionManager, gen MessageIDGenerator, l *logger.Logger,
+) *PublishHandler {
 	return &PublishHandler{
 		log:             l,
 		sessionStore:    st,
@@ -41,10 +41,10 @@ func NewPublishHandler(st SessionStore, subMgr SubscriptionManager,
 }
 
 // HandlePacket handles the given packet as a PUBLISH packet.
-func (h *PublishHandler) HandlePacket(id packet.ClientID,
-	pkt packet.Packet) ([]packet.Packet, error) {
-
-	pubPkt := pkt.(*packet.Publish)
+func (h *PublishHandler) HandlePacket(
+	id packet.ClientID, p packet.Packet,
+) ([]packet.Packet, error) {
+	pubPkt := p.(*packet.Publish)
 	h.log.Trace().
 		Str("ClientId", string(id)).
 		Uint16("PacketId", uint16(pubPkt.PacketID)).
@@ -63,8 +63,7 @@ func (h *PublishHandler) HandlePacket(id packet.ClientID,
 	}
 
 	msgID := h.idGen.NextID()
-	msg := &Message{ID: MessageID(msgID), PacketID: pubPkt.PacketID,
-		Packet: pubPkt}
+	msg := &Message{ID: MessageID(msgID), PacketID: pubPkt.PacketID, Packet: pubPkt}
 
 	s.Mutex.RLock()
 	defer s.Mutex.RUnlock()
@@ -105,15 +104,14 @@ func (h *PublishHandler) HandlePacket(id packet.ClientID,
 
 	replies := make([]packet.Packet, 0, 1)
 	if pubPkt.QoS == packet.QoS1 {
-		pubAckPkt := packet.NewPubAck(pubPkt.PacketID, pubPkt.Version,
-			packet.ReasonCodeV5Success, nil)
-
-		replies = append(replies, &pubAckPkt)
+		pubAck := packet.NewPubAck(pubPkt.PacketID, pubPkt.Version, packet.ReasonCodeV5Success,
+			nil /*props*/)
+		replies = append(replies, &pubAck)
 		h.log.Trace().
 			Str("ClientId", string(s.ClientID)).
 			Uint64("MessageId", uint64(msg.ID)).
-			Uint16("PacketId", uint16(pubAckPkt.PacketID)).
-			Uint8("Version", uint8(pubAckPkt.Version)).
+			Uint16("PacketId", uint16(pubAck.PacketID)).
+			Uint8("Version", uint8(pubAck.Version)).
 			Msg("MQTT Sending PUBACK packet")
 	} else {
 		h.log.Debug().
@@ -146,16 +144,15 @@ func (h *PublishHandler) HandlePacket(id packet.ClientID,
 			}
 		}
 
-		pubRecPkt := packet.NewPubRec(pubPkt.PacketID, pubPkt.Version,
-			packet.ReasonCodeV5Success, nil)
-
-		replies = append(replies, &pubRecPkt)
+		pubRec := packet.NewPubRec(pubPkt.PacketID, pubPkt.Version, packet.ReasonCodeV5Success,
+			nil /*props*/)
+		replies = append(replies, &pubRec)
 		h.log.Trace().
 			Str("ClientId", string(s.ClientID)).
 			Uint64("MessageId", uint64(msg.ID)).
-			Uint16("PacketId", uint16(pubRecPkt.PacketID)).
+			Uint16("PacketId", uint16(pubRec.PacketID)).
 			Int("UnAckMessages", len(s.UnAckMessages)).
-			Uint8("Version", uint8(pubRecPkt.Version)).
+			Uint8("Version", uint8(pubRec.Version)).
 			Msg("MQTT Sending PUBREC packet")
 	}
 

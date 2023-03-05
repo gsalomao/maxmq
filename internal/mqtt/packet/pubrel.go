@@ -51,11 +51,9 @@ func newPacketPubRel(opts options) (Packet, error) {
 	if opts.packetType != PUBREL {
 		return nil, errors.New("packet type is not PUBREL")
 	}
-
 	if opts.version < MQTT31 || opts.version > MQTT50 {
 		return nil, errors.New("invalid version (PUBREL)")
 	}
-
 	if opts.controlFlags != pubRelHeaderReservedValue {
 		return nil, errors.New("invalid Control Flags (PUBREL)")
 	}
@@ -75,12 +73,12 @@ func newPacketPubRel(opts options) (Packet, error) {
 }
 
 // NewPubRel creates a PUBREL Packet.
-func NewPubRel(id ID, v Version, c ReasonCode, p *Properties) PubRel {
+func NewPubRel(id ID, v Version, c ReasonCode, props *Properties) PubRel {
 	return PubRel{
 		PacketID:   id,
 		Version:    v,
 		ReasonCode: c,
-		Properties: p,
+		Properties: props,
 	}
 }
 
@@ -95,8 +93,7 @@ func (pkt *PubRel) Write(w *bufio.Writer) error {
 
 		if pkt.ReasonCode != ReasonCodeV5Success || pkt.Properties != nil {
 			err := buf.WriteByte(byte(pkt.ReasonCode))
-			err = multierr.Combine(err,
-				writeProperties(buf, pkt.Properties, PUBREL))
+			err = multierr.Combine(err, writeProperties(buf, pkt.Properties, PUBREL))
 			if err != nil {
 				return fmt.Errorf("failed to write properties: %w", err)
 			}
@@ -142,8 +139,7 @@ func (pkt *PubRel) Read(r *bufio.Reader) error {
 		pkt.ReasonCode = ReasonCode(code)
 
 		if !pkt.isValidReasonCode() {
-			return newErrMalformedPacket(
-				fmt.Sprintf("invalid reason code: %v", pkt.ReasonCode))
+			return newErrMalformedPacket(fmt.Sprintf("invalid reason code: %v", pkt.ReasonCode))
 		}
 
 		if pkt.ReasonCode != ReasonCodeV5Success || buf.Len() > 0 {
@@ -174,8 +170,7 @@ func (pkt *PubRel) Timestamp() time.Time {
 }
 
 func (pkt *PubRel) isValidReasonCode() bool {
-	validPubRecReasonCodes := []ReasonCode{ReasonCodeV5Success,
-		ReasonCodeV5PacketIDNotFound}
+	validPubRecReasonCodes := []ReasonCode{ReasonCodeV5Success, ReasonCodeV5PacketIDNotFound}
 
 	for _, code := range validPubRecReasonCodes {
 		if pkt.ReasonCode == code {

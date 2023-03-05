@@ -33,9 +33,7 @@ type ConnectHandler struct {
 }
 
 // NewConnectHandler creates a new ConnectHandler.
-func NewConnectHandler(c *Configuration, st SessionStore,
-	l *logger.Logger) *ConnectHandler {
-
+func NewConnectHandler(c *Configuration, st SessionStore, l *logger.Logger) *ConnectHandler {
 	props := make([]packet.UserProperty, 0, len(c.UserProperties))
 	for k, v := range c.UserProperties {
 		prop := packet.UserProperty{Key: []byte(k), Value: []byte(v)}
@@ -51,10 +49,10 @@ func NewConnectHandler(c *Configuration, st SessionStore,
 }
 
 // HandlePacket handles the given packet as a CONNECT packet.
-func (h *ConnectHandler) HandlePacket(_ packet.ClientID,
-	pkt packet.Packet) ([]packet.Packet, error) {
-
-	connPkt := pkt.(*packet.Connect)
+func (h *ConnectHandler) HandlePacket(
+	_ packet.ClientID, p packet.Packet,
+) ([]packet.Packet, error) {
+	connPkt := p.(*packet.Connect)
 	h.log.Trace().
 		Bool("CleanSession", connPkt.CleanSession).
 		Bytes("ClientId", connPkt.ClientID).
@@ -68,7 +66,7 @@ func (h *ConnectHandler) HandlePacket(_ packet.ClientID,
 			Int("ReasonCode", int(err.ReasonCode)).
 			Uint8("Version", uint8(connPkt.Version)).
 			Msg("MQTT Sending CONNACK packet (Error)")
-		connAck := h.newConnAck(connPkt, nil, err.ReasonCode, nil)
+		connAck := h.newConnAck(connPkt, nil /*session*/, err.ReasonCode, nil /*props*/)
 		return []packet.Packet{connAck}, err
 	}
 
@@ -131,7 +129,7 @@ func (h *ConnectHandler) HandlePacket(_ packet.ClientID,
 		Msg("MQTT Client connected")
 
 	code := packet.ReasonCodeV3ConnectionAccepted
-	connAckPkt := h.newConnAck(connPkt, s, code, nil)
+	connAckPkt := h.newConnAck(connPkt, s, code, nil /*props*/)
 
 	replies := make([]packet.Packet, 0, 1)
 	h.log.Trace().
@@ -243,8 +241,7 @@ func (h *ConnectHandler) sessionExpiryInterval(p *packet.Connect) uint32 {
 }
 
 func (h *ConnectHandler) sessionKeepAlive(keepAlive int) int {
-	if h.conf.MaxKeepAlive > 0 &&
-		(keepAlive == 0 || keepAlive > h.conf.MaxKeepAlive) {
+	if h.conf.MaxKeepAlive > 0 && (keepAlive == 0 || keepAlive > h.conf.MaxKeepAlive) {
 		return h.conf.MaxKeepAlive
 	}
 	return keepAlive
@@ -276,9 +273,7 @@ func (h *ConnectHandler) addInflightMessages(r *[]packet.Packet, s *Session) {
 	}
 }
 
-func (h *ConnectHandler) replyUnavailable(p *packet.Connect,
-	id packet.ClientID) []packet.Packet {
-
+func (h *ConnectHandler) replyUnavailable(p *packet.Connect, id packet.ClientID) []packet.Packet {
 	code := packet.ReasonCodeV5ServerUnavailable
 	if p.Version != packet.MQTT50 {
 		code = packet.ReasonCodeV3ServerUnavailable
@@ -289,16 +284,17 @@ func (h *ConnectHandler) replyUnavailable(p *packet.Connect,
 		Uint8("Version", uint8(p.Version)).
 		Msg("MQTT Sending CONNACK packet (Unavailable)")
 
-	connAck := h.newConnAck(p, nil, code, nil)
+	connAck := h.newConnAck(p, nil /*session*/, code, nil /*props*/)
 	return []packet.Packet{connAck}
 }
 
-func (h *ConnectHandler) newConnAck(p *packet.Connect, s *Session,
-	code packet.ReasonCode, props *packet.Properties) *packet.ConnAck {
-
+func (h *ConnectHandler) newConnAck(
+	p *packet.Connect, s *Session, code packet.ReasonCode, props *packet.Properties,
+) *packet.ConnAck {
 	var id packet.ClientID
 	var keepAlive int
 	var sessionPresent bool
+
 	if s != nil {
 		id = s.ClientID
 		keepAlive = s.KeepAlive
@@ -326,14 +322,11 @@ func (h *ConnectHandler) newConnAck(p *packet.Connect, s *Session,
 		}
 	}
 
-	connAckPkt := packet.NewConnAck(id, p.Version, code, sessionPresent,
-		keepAlive, props)
+	connAckPkt := packet.NewConnAck(id, p.Version, code, sessionPresent, keepAlive, props)
 	return &connAckPkt
 }
 
-func (h *ConnectHandler) addAssignedClientID(props **packet.Properties,
-	s *Session) {
-
+func (h *ConnectHandler) addAssignedClientID(props **packet.Properties, s *Session) {
 	if s.ClientIDGenerated {
 		if *props == nil {
 			*props = &packet.Properties{}
@@ -342,9 +335,7 @@ func (h *ConnectHandler) addAssignedClientID(props **packet.Properties,
 	}
 }
 
-func (h *ConnectHandler) addSessionExpiryInterval(props **packet.Properties,
-	interval *uint32) {
-
+func (h *ConnectHandler) addSessionExpiryInterval(props **packet.Properties, interval *uint32) {
 	if interval == nil {
 		return
 	}
@@ -359,9 +350,7 @@ func (h *ConnectHandler) addSessionExpiryInterval(props **packet.Properties,
 	}
 }
 
-func (h *ConnectHandler) addServerKeepAlive(props **packet.Properties,
-	s *Session, keepAlive int) {
-
+func (h *ConnectHandler) addServerKeepAlive(props **packet.Properties, s *Session, keepAlive int) {
 	if keepAlive != s.KeepAlive {
 		if *props == nil {
 			*props = &packet.Properties{}

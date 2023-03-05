@@ -56,8 +56,7 @@ type Session struct {
 	// ClientID is the MQTT client identifier.
 	ClientID packet.ClientID
 
-	// InflightMessages contains all the in-flight messages (messages being
-	// sent to the client).
+	// InflightMessages contains all the in-flight messages (messages being sent to the client).
 	InflightMessages list.List
 
 	// UnAckMessages contains all unacknowledged QoS2 messages.
@@ -66,20 +65,19 @@ type Session struct {
 	// Subscriptions contains all the client's subscriptions.
 	Subscriptions map[string]*Subscription
 
-	// Mutex is the mutual exclusion lock to control concurrent access in the
-	//session.
+	// Mutex is the mutual exclusion lock to control concurrent access in the session.
 	Mutex sync.RWMutex
 
-	// KeepAlive is a time interval, measured in seconds, that is permitted to
-	// elapse between the point at which the client finishes transmitting one
-	// Control Packet and the point it starts sending the next.
+	// KeepAlive is a time interval, measured in seconds, that is permitted to elapse between the
+	// point at which the client finishes transmitting one Control Packet and the point it starts
+	// sending the next.
 	KeepAlive int
 
 	// ConnectedAt is the timestamp which the last connection was established.
 	ConnectedAt int64
 
-	// ExpiryInterval is the time, in seconds, which the broker must store the
-	// session after the network connection is closed.
+	// ExpiryInterval is the time, in seconds, which the broker must store the session after the
+	// network connection is closed.
 	ExpiryInterval uint32
 
 	// LastPacketID is the last packet identified generated in the session.
@@ -97,8 +95,8 @@ type Session struct {
 	// Restored indicates whether the session was restored or not.
 	Restored bool
 
-	// ClientIDGenerated indicates whether the client identifier was generated
-	// or given by the CONNECT packet.
+	// ClientIDGenerated indicates whether the client identifier was generated or given by the
+	// CONNECT packet.
 	ClientIDGenerated bool
 }
 

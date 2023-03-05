@@ -17,6 +17,7 @@ package packet
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"net"
 	"testing"
 
@@ -54,7 +55,6 @@ func TestPublishInvalidVersion(t *testing.T) {
 
 func TestPublishWrite(t *testing.T) {
 	testCases := []struct {
-		name    string
 		id      ID
 		version Version
 		topic   string
@@ -63,40 +63,36 @@ func TestPublishWrite(t *testing.T) {
 		dup     byte
 		payload string
 	}{
-		{name: "V3.1", id: 1, version: MQTT31, topic: "a", qos: QoS0, retain: 0,
-			dup: 0, payload: "msg1"},
-		{name: "V3.1.1", id: 2, version: MQTT311, topic: "a/b", qos: QoS1,
-			retain: 1, dup: 1, payload: "msg2"},
-		{name: "V5.0", id: 3, version: MQTT50, topic: "a/b/c", qos: QoS2,
-			retain: 0, dup: 1, payload: "msg3"},
+		{id: 1, version: MQTT31, topic: "a", qos: QoS0, retain: 0, dup: 0, payload: "msg1"},
+		{id: 2, version: MQTT311, topic: "a/b", qos: QoS1, retain: 1, dup: 1, payload: "msg2"},
+		{id: 3, version: MQTT50, topic: "a/b/c", qos: QoS2, retain: 0, dup: 1, payload: "msg3"},
 	}
 
-	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
-			ctrl := 0x30 | (test.dup << 3) |
-				(byte(test.qos) << 1) | (test.retain)
+	for _, tc := range testCases {
+		t.Run(fmt.Sprint(tc.id), func(t *testing.T) {
+			ctrl := 0x30 | (tc.dup << 3) | (byte(tc.qos) << 1) | (tc.retain)
 
-			msg := []byte{ctrl, 0, 0, byte(len(test.topic))}
-			msg = append(msg, []byte(test.topic)...)
+			msg := []byte{ctrl, 0, 0, byte(len(tc.topic))}
+			msg = append(msg, []byte(tc.topic)...)
 
-			if test.qos > QoS0 {
-				msg = append(msg, 0, byte(test.id))
+			if tc.qos > QoS0 {
+				msg = append(msg, 0, byte(tc.id))
 			}
-			if test.version == MQTT50 {
+			if tc.version == MQTT50 {
 				msg = append(msg, 0)
 			}
 
-			msg = append(msg, []byte(test.payload)...)
+			msg = append(msg, []byte(tc.payload)...)
 			msg[1] = byte(len(msg) - 2)
 
 			pkt := Publish{}
-			pkt.PacketID = test.id
-			pkt.Version = test.version
-			pkt.TopicName = test.topic
-			pkt.QoS = test.qos
-			pkt.Retain = test.retain
-			pkt.Dup = test.dup
-			pkt.Payload = []byte(test.payload)
+			pkt.PacketID = tc.id
+			pkt.Version = tc.version
+			pkt.TopicName = tc.topic
+			pkt.QoS = tc.qos
+			pkt.Retain = tc.retain
+			pkt.Dup = tc.dup
+			pkt.Payload = []byte(tc.payload)
 
 			buf := &bytes.Buffer{}
 			wr := bufio.NewWriter(buf)
@@ -116,8 +112,8 @@ func TestPublishWriteV5Properties(t *testing.T) {
 	props := &Properties{PayloadFormatIndicator: new(byte)}
 	*props.PayloadFormatIndicator = 1
 
-	pkt := NewPublish(5, MQTT50, "a", QoS0, 0, 0,
-		[]byte{'b'}, props)
+	pkt := NewPublish(5 /*id*/, MQTT50, "a" /*topic*/, QoS0,
+		0 /*dup*/, 0 /*retain*/, []byte{'b'} /*payload*/, props)
 
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
@@ -133,8 +129,8 @@ func TestPublishWriteV5Properties(t *testing.T) {
 }
 
 func TestPublishWriteFailure(t *testing.T) {
-	pkt := NewPublish(5, MQTT50, "a", QoS0, 0, 0,
-		[]byte{'b'}, nil)
+	pkt := NewPublish(5 /*id*/, MQTT50, "a" /*topic*/, QoS0,
+		0 /*dup*/, 0 /*retain*/, []byte{'b'} /*payload*/, nil /*props*/)
 	require.NotNil(t, pkt)
 
 	conn, _ := net.Pipe()
@@ -149,8 +145,8 @@ func TestPublishWriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{MaximumQoS: new(byte)}
 	*props.MaximumQoS = 1
 
-	pkt := NewPublish(5, MQTT50, "a", QoS0, 0, 0,
-		[]byte{'b'}, props)
+	pkt := NewPublish(5 /*id*/, MQTT50, "a" /*topic*/, QoS0,
+		0 /*dup*/, 0 /*retain*/, []byte{'b'} /*payload*/, props /*props*/)
 
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
@@ -165,7 +161,6 @@ func TestPublishWriteV5InvalidProperty(t *testing.T) {
 
 func TestPublishRead(t *testing.T) {
 	testCases := []struct {
-		name    string
 		id      ID
 		version Version
 		topic   string
@@ -173,32 +168,28 @@ func TestPublishRead(t *testing.T) {
 		retain  byte
 		payload string
 	}{
-		{name: "3.1", id: 1, version: MQTT31, topic: "a", qos: QoS0, retain: 0,
-			payload: "msg1"},
-		{name: "3.1.1", id: 2, version: MQTT311, topic: "a/b", qos: QoS1,
-			retain: 1, payload: "msg2"},
-		{name: "5.0", id: 3, version: MQTT50, topic: "a/b/c", qos: QoS2,
-			retain: 0, payload: "msg3"},
+		{id: 1, version: MQTT31, topic: "a", qos: QoS0, retain: 0, payload: "msg1"},
+		{id: 2, version: MQTT311, topic: "a/b", qos: QoS1, retain: 1, payload: "msg2"},
+		{id: 3, version: MQTT50, topic: "a/b/c", qos: QoS2, retain: 0, payload: "msg3"},
 	}
 
-	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
-			msg := []byte{0, byte(len(test.topic))}
-			msg = append(msg, []byte(test.topic)...)
+	for _, tc := range testCases {
+		t.Run(fmt.Sprint(tc.id), func(t *testing.T) {
+			msg := []byte{0, byte(len(tc.topic))}
+			msg = append(msg, []byte(tc.topic)...)
 
-			if test.qos > QoS0 {
-				msg = append(msg, 0, byte(test.id))
+			if tc.qos > QoS0 {
+				msg = append(msg, 0, byte(tc.id))
 			}
-			if test.version == MQTT50 {
+			if tc.version == MQTT50 {
 				msg = append(msg, 0)
 			}
-
-			msg = append(msg, []byte(test.payload)...)
+			msg = append(msg, []byte(tc.payload)...)
 
 			opts := options{
 				packetType:      PUBLISH,
-				controlFlags:    byte(test.qos)<<1 | test.retain,
-				version:         test.version,
+				controlFlags:    byte(tc.qos)<<1 | tc.retain,
+				version:         tc.version,
 				remainingLength: len(msg),
 			}
 
@@ -211,14 +202,14 @@ func TestPublishRead(t *testing.T) {
 			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
 			require.Nil(t, err)
 
-			assert.Equal(t, test.version, pubPkt.Version)
-			if test.qos > QoS0 {
-				assert.Equal(t, test.id, pubPkt.PacketID)
+			assert.Equal(t, tc.version, pubPkt.Version)
+			if tc.qos > QoS0 {
+				assert.Equal(t, tc.id, pubPkt.PacketID)
 			}
-			assert.Equal(t, test.topic, pubPkt.TopicName)
-			assert.Equal(t, test.qos, pubPkt.QoS)
-			assert.Equal(t, test.retain, pubPkt.Retain)
-			assert.Equal(t, []byte(test.payload), pubPkt.Payload)
+			assert.Equal(t, tc.topic, pubPkt.TopicName)
+			assert.Equal(t, tc.qos, pubPkt.QoS)
+			assert.Equal(t, tc.retain, pubPkt.Retain)
+			assert.Equal(t, []byte(tc.payload), pubPkt.Payload)
 			assert.Nil(t, pubPkt.Properties)
 		})
 	}
@@ -296,10 +287,10 @@ func TestPublishReadNoPacketID(t *testing.T) {
 func TestPublishReadInvalidTopicName(t *testing.T) {
 	testCases := []string{"#", "+", "a/#", "a/+", "a/b/#", "a/b/+"}
 
-	for _, test := range testCases {
-		t.Run(test, func(t *testing.T) {
-			msg := []byte{0, byte(len(test))}
-			msg = append(msg, []byte(test)...)
+	for _, tc := range testCases {
+		t.Run(tc, func(t *testing.T) {
+			msg := []byte{0, byte(len(tc))}
+			msg = append(msg, []byte(tc)...)
 			msg = append(msg, 0, 30)
 
 			opts := options{
@@ -329,19 +320,19 @@ func TestPublishSize(t *testing.T) {
 		{name: "V5.0-Properties", version: MQTT50, remainLen: 13, size: 15},
 	}
 
-	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			opts := options{
 				packetType:        PUBLISH,
 				version:           MQTT311,
 				fixedHeaderLength: 2,
-				remainingLength:   test.remainLen,
+				remainingLength:   tc.remainLen,
 			}
 			pkt, err := newPacketPublish(opts)
 			require.Nil(t, err)
 			require.NotNil(t, pkt)
 
-			assert.Equal(t, test.size, pkt.Size())
+			assert.Equal(t, tc.size, pkt.Size())
 		})
 	}
 }
@@ -366,7 +357,6 @@ func TestPublishTimestamp(t *testing.T) {
 
 func TestPublishClone(t *testing.T) {
 	testCases := []struct {
-		name    string
 		id      ID
 		version Version
 		topic   string
@@ -375,18 +365,18 @@ func TestPublishClone(t *testing.T) {
 		retain  uint8
 		payload []byte
 	}{
-		{name: "V3.1", id: 1, version: MQTT31, topic: "temp/0", qos: QoS0,
-			dup: 0, retain: 0, payload: []byte("data-0")},
-		{name: "V3.1.1", id: 2, version: MQTT311, topic: "temp/1", qos: QoS1,
-			dup: 0, retain: 1, payload: []byte("data-1")},
-		{name: "V5.0", id: 3, version: MQTT50, topic: "temp/2", qos: QoS2,
-			dup: 1, retain: 0, payload: []byte("data-2")},
+		{id: 1, version: MQTT31, topic: "temp/0", qos: QoS0, dup: 0, retain: 0,
+			payload: []byte("data-0")},
+		{id: 2, version: MQTT311, topic: "temp/1", qos: QoS1, dup: 0, retain: 1,
+			payload: []byte("data-1")},
+		{id: 3, version: MQTT50, topic: "temp/2", qos: QoS2, dup: 1, retain: 0,
+			payload: []byte("data-2")},
 	}
 
-	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
-			pkt1 := NewPublish(test.id, test.version, test.topic, test.qos,
-				test.dup, test.retain, test.payload, nil)
+	for _, tc := range testCases {
+		t.Run(fmt.Sprint(tc.id), func(t *testing.T) {
+			pkt1 := NewPublish(tc.id, tc.version, tc.topic, tc.qos, tc.dup, tc.retain, tc.payload,
+				nil /*props*/)
 			pkt2 := pkt1.Clone()
 
 			assert.Equal(t, pkt1.PacketID, pkt2.PacketID)
@@ -404,12 +394,11 @@ func TestPublishCloneProperties(t *testing.T) {
 	props := Properties{PayloadFormatIndicator: new(byte)}
 	*props.PayloadFormatIndicator = 5
 
-	pkt1 := NewPublish(1, MQTT50, "data", QoS1,
-		1, 1, []byte("raw"), &props)
+	pkt1 := NewPublish(1 /*id*/, MQTT50, "data" /*topic*/, QoS1,
+		1 /*dup*/, 1 /*retain*/, []byte("raw") /*payload*/, &props)
 	pkt2 := pkt1.Clone()
 
 	require.NotNil(t, pkt2.Properties)
 	require.NotNil(t, pkt2.Properties.PayloadFormatIndicator)
-	assert.Equal(t, *props.PayloadFormatIndicator,
-		*pkt2.Properties.PayloadFormatIndicator)
+	assert.Equal(t, *props.PayloadFormatIndicator, *pkt2.Properties.PayloadFormatIndicator)
 }

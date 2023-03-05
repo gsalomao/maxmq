@@ -33,9 +33,9 @@ func TestPublishHandlerHandlePacketQoS0(t *testing.T) {
 		version packet.Version
 		payload string
 	}{
-		{topic: "data/temp/1", version: packet.MQTT31, payload: "1"},
-		{topic: "data/temp/2", version: packet.MQTT311, payload: "2"},
-		{topic: "data/temp/3", version: packet.MQTT50, payload: "3"},
+		{"data/temp/1", packet.MQTT31, "1"},
+		{"data/temp/2", packet.MQTT311, "2"},
+		{"data/temp/3", packet.MQTT50, "3"},
 	}
 
 	for _, tc := range testCases {
@@ -49,8 +49,8 @@ func TestPublishHandlerHandlePacketQoS0(t *testing.T) {
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc.version}
 
-			pubPkt := packet.NewPublish(1, tc.version, tc.topic, packet.QoS0,
-				0, 0, []byte(tc.payload), nil)
+			pubPkt := packet.NewPublish(1 /*id*/, tc.version, tc.topic, packet.QoS0,
+				0 /*dup*/, 0 /*retain*/, []byte(tc.payload), nil /*props*/)
 			msg := &Message{ID: 10, PacketID: pubPkt.PacketID, Packet: &pubPkt}
 
 			st.On("ReadSession", id).Return(s, nil)
@@ -73,9 +73,9 @@ func TestPublishHandlerHandlePacketQoS1(t *testing.T) {
 		version packet.Version
 		payload string
 	}{
-		{topic: "data/temp/1", version: packet.MQTT31, payload: "1"},
-		{topic: "data/temp/2", version: packet.MQTT311, payload: "2"},
-		{topic: "data/temp/3", version: packet.MQTT50, payload: "3"},
+		{"data/temp/1", packet.MQTT31, "1"},
+		{"data/temp/2", packet.MQTT311, "2"},
+		{"data/temp/3", packet.MQTT50, "3"},
 	}
 
 	for _, tc := range testCases {
@@ -89,8 +89,8 @@ func TestPublishHandlerHandlePacketQoS1(t *testing.T) {
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc.version}
 
-			pubPkt := packet.NewPublish(1, tc.version, tc.topic, packet.QoS1,
-				0, 0, []byte(tc.payload), nil)
+			pubPkt := packet.NewPublish(1 /*id*/, tc.version, tc.topic, packet.QoS1,
+				0 /*dup*/, 0 /*retain*/, []byte(tc.payload), nil /*props*/)
 			msg := &Message{ID: 10, PacketID: pubPkt.PacketID, Packet: &pubPkt}
 
 			st.On("ReadSession", id).Return(s, nil)
@@ -121,9 +121,9 @@ func TestPublishHandlerHandlePacketQoS2(t *testing.T) {
 		version packet.Version
 		payload string
 	}{
-		{topic: "data/temp/1", version: packet.MQTT31, payload: "1"},
-		{topic: "data/temp/2", version: packet.MQTT311, payload: "2"},
-		{topic: "data/temp/3", version: packet.MQTT50, payload: "3"},
+		{"data/temp/1", packet.MQTT31, "1"},
+		{"data/temp/2", packet.MQTT311, "2"},
+		{"data/temp/3", packet.MQTT50, "3"},
 	}
 
 	for _, tc := range testCases {
@@ -138,8 +138,8 @@ func TestPublishHandlerHandlePacketQoS2(t *testing.T) {
 			s := &Session{ClientID: id, Version: tc.version,
 				UnAckMessages: make(map[packet.ID]*Message)}
 
-			pubPkt := packet.NewPublish(1, tc.version, tc.topic, packet.QoS2,
-				0, 0, []byte(tc.payload), nil)
+			pubPkt := packet.NewPublish(1 /*id*/, tc.version, tc.topic, packet.QoS2,
+				0 /*dup*/, 0 /*retain*/, []byte(tc.payload), nil /*props*/)
 			msg := &Message{ID: 10, PacketID: pubPkt.PacketID, Packet: &pubPkt}
 
 			st.On("ReadSession", id).Return(s, nil)
@@ -175,9 +175,9 @@ func TestPublishHandlerHandlePacketQoS2NoDuplication(t *testing.T) {
 		version packet.Version
 		payload string
 	}{
-		{topic: "data/temp/1", version: packet.MQTT31, payload: "1"},
-		{topic: "data/temp/2", version: packet.MQTT311, payload: "2"},
-		{topic: "data/temp/3", version: packet.MQTT50, payload: "3"},
+		{"data/temp/1", packet.MQTT31, "1"},
+		{"data/temp/2", packet.MQTT311, "2"},
+		{"data/temp/3", packet.MQTT50, "3"},
 	}
 
 	for _, tc := range testCases {
@@ -189,18 +189,15 @@ func TestPublishHandlerHandlePacketQoS2NoDuplication(t *testing.T) {
 			h := NewPublishHandler(st, subMgr, idGen, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: tc.version,
-				UnAckMessages: make(map[packet.ID]*Message)}
+			s := &Session{ClientID: id, Version: tc.version, UnAckMessages: make(map[packet.ID]*Message)}
 
-			pubPkt1 := packet.NewPublish(1, tc.version, tc.topic,
-				packet.QoS2, 0, 0, []byte(tc.payload), nil)
-			msg1 := &Message{ID: 10, PacketID: pubPkt1.PacketID,
-				Packet: &pubPkt1}
+			pubPkt1 := packet.NewPublish(1 /*id*/, tc.version, tc.topic, packet.QoS2,
+				0 /*dup*/, 0 /*retain*/, []byte(tc.payload), nil /*props*/)
+			msg1 := &Message{ID: 10, PacketID: pubPkt1.PacketID, Packet: &pubPkt1}
 
-			pubPkt2 := packet.NewPublish(2, tc.version, tc.topic,
-				packet.QoS2, 0, 0, []byte(tc.payload), nil)
-			msg2 := &Message{ID: 11, PacketID: pubPkt2.PacketID,
-				Packet: &pubPkt2}
+			pubPkt2 := packet.NewPublish(2 /*id*/, tc.version, tc.topic, packet.QoS2,
+				0 /*dup*/, 0 /*retain*/, []byte(tc.payload), nil /*props*/)
+			msg2 := &Message{ID: 11, PacketID: pubPkt2.PacketID, Packet: &pubPkt2}
 
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
@@ -253,9 +250,9 @@ func TestPublishHandlerHandlePacketQoS2SamePacketIDNewMessage(t *testing.T) {
 		version packet.Version
 		payload string
 	}{
-		{topic: "data/temp/1", version: packet.MQTT31, payload: "1"},
-		{topic: "data/temp/2", version: packet.MQTT311, payload: "2"},
-		{topic: "data/temp/3", version: packet.MQTT50, payload: "3"},
+		{"data/temp/1", packet.MQTT31, "1"},
+		{"data/temp/2", packet.MQTT311, "2"},
+		{"data/temp/3", packet.MQTT50, "3"},
 	}
 
 	for _, tc := range testCases {
@@ -267,17 +264,14 @@ func TestPublishHandlerHandlePacketQoS2SamePacketIDNewMessage(t *testing.T) {
 			h := NewPublishHandler(st, subMgr, idGen, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: tc.version,
-				UnAckMessages: make(map[packet.ID]*Message)}
+			s := &Session{ClientID: id, Version: tc.version, UnAckMessages: make(map[packet.ID]*Message)}
 
-			msg1 := &Message{ID: 10, PacketID: 10, Tries: 1,
-				LastSent: time.Now().UnixMicro()}
+			msg1 := &Message{ID: 10, PacketID: 10, Tries: 1, LastSent: time.Now().UnixMicro()}
 			s.UnAckMessages[msg1.PacketID] = msg1
 
-			pubPkt := packet.NewPublish(msg1.PacketID, tc.version, tc.topic,
-				packet.QoS2, 0, 0, []byte(tc.payload), nil)
-			msg2 := &Message{ID: msg1.ID + 1, PacketID: pubPkt.PacketID,
-				Packet: &pubPkt}
+			pubPkt := packet.NewPublish(msg1.PacketID, tc.version, tc.topic, packet.QoS2,
+				0 /*dup*/, 0 /*retain*/, []byte(tc.payload), nil /*props*/)
+			msg2 := &Message{ID: msg1.ID + 1, PacketID: pubPkt.PacketID, Packet: &pubPkt}
 
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
@@ -318,11 +312,10 @@ func TestPublishHandlerHandlePacketReadSessionError(t *testing.T) {
 			h := NewPublishHandler(st, subMgr, idGen, &log)
 			id := packet.ClientID("a")
 
-			pubPkt := packet.NewPublish(1, tc, "data", packet.QoS0,
-				0, 0, []byte("data"), nil)
+			pubPkt := packet.NewPublish(1 /*id*/, tc, "data" /*topic*/, packet.QoS0,
+				0 /*dup*/, 0 /*retain*/, []byte("data") /*payload*/, nil /*props*/)
 
-			st.On("ReadSession", id).
-				Return(nil, ErrSessionNotFound)
+			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)
 
 			replies, err := h.HandlePacket(id, &pubPkt)
 			assert.NotNil(t, err)
@@ -339,12 +332,12 @@ func TestPublishHandlerHandlePacketPublishMessageError(t *testing.T) {
 		version packet.Version
 		qos     packet.QoS
 	}{
-		{version: packet.MQTT31, qos: packet.QoS0},
-		{version: packet.MQTT311, qos: packet.QoS0},
-		{version: packet.MQTT50, qos: packet.QoS0},
-		{version: packet.MQTT31, qos: packet.QoS1},
-		{version: packet.MQTT311, qos: packet.QoS1},
-		{version: packet.MQTT50, qos: packet.QoS1},
+		{packet.MQTT31, packet.QoS0},
+		{packet.MQTT311, packet.QoS0},
+		{packet.MQTT50, packet.QoS0},
+		{packet.MQTT31, packet.QoS1},
+		{packet.MQTT311, packet.QoS1},
+		{packet.MQTT50, packet.QoS1},
 	}
 
 	for _, tc := range testCases {
@@ -359,8 +352,8 @@ func TestPublishHandlerHandlePacketPublishMessageError(t *testing.T) {
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc.version}
 
-			pubPkt := packet.NewPublish(1, tc.version, "data", tc.qos,
-				0, 0, []byte("data"), nil)
+			pubPkt := packet.NewPublish(1 /*id*/, tc.version, "data" /*topic*/, tc.qos,
+				0 /*dup*/, 0 /*retain*/, []byte("data") /*payload*/, nil /*props*/)
 			msg := &Message{ID: 10, PacketID: pubPkt.PacketID, Packet: &pubPkt}
 
 			st.On("ReadSession", id).Return(s, nil)
@@ -393,11 +386,10 @@ func TestPublishHandlerHandlePacketSaveSessionError(t *testing.T) {
 			h := NewPublishHandler(st, subMgr, idGen, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: tc,
-				UnAckMessages: make(map[packet.ID]*Message)}
+			s := &Session{ClientID: id, Version: tc, UnAckMessages: make(map[packet.ID]*Message)}
 
-			pubPkt := packet.NewPublish(1, tc, "data", packet.QoS2,
-				0, 0, []byte("data"), nil)
+			pubPkt := packet.NewPublish(1 /*id*/, tc, "data" /*topic*/, packet.QoS2,
+				0 /*dup*/, 0 /*retain*/, []byte("data") /*payload*/, nil /*props*/)
 			msg := &Message{ID: 10, PacketID: pubPkt.PacketID, Packet: &pubPkt}
 
 			st.On("ReadSession", id).Return(s, nil)

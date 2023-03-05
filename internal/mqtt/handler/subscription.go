@@ -22,8 +22,8 @@ import (
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 )
 
-// ErrSubscriptionInvalidWildcard indicates that the Subscription has invalid
-// wildcard in its topic filter.
+// ErrSubscriptionInvalidWildcard indicates that the Subscription has invalid wildcard in its topic
+// filter.
 var ErrSubscriptionInvalidWildcard = errors.New("invalid wildcard")
 
 // ErrSubscriptionNotFound indicates that the Subscription has not been found.
@@ -37,8 +37,7 @@ type SubscriptionManager interface {
 	// Subscribe adds the given Subscription.
 	Subscribe(s *Subscription) error
 
-	// Unsubscribe removes the Subscription for the given client identifier and
-	// topic.
+	// Unsubscribe removes the Subscription for the given client identifier and topic.
 	Unsubscribe(id packet.ClientID, topic string) error
 
 	// Publish publishes the given message to all subscriptions.
@@ -59,17 +58,16 @@ type Subscription struct {
 	// QoS represents the quality-of-service level of the subscription.
 	QoS packet.QoS
 
-	// RetainHandling indicates whether the retained message are sent when the
-	// subscription is established or not.
+	// RetainHandling indicates whether the retained message are sent when the subscription is
+	// established or not.
 	RetainHandling byte
 
-	// RetainAsPublished indicates whether the RETAIN flag is kept when messages
-	// are forwarded using this subscription or not.
+	// RetainAsPublished indicates whether the RETAIN flag is kept when messages are forwarded using
+	// this subscription or not.
 	RetainAsPublished bool
 
-	// NoLocal indicates whether the messages must not be forwarded to a
-	// connection with a client ID equal to the client ID of the publishing
-	// connection or not.
+	// NoLocal indicates whether the messages must not be forwarded to a connection with a client ID
+	// equal to the client ID of the publishing connection or not.
 	NoLocal bool
 
 	// Unexported fields
@@ -267,8 +265,7 @@ func validateTopicWord(word string, isLastWord bool) error {
 }
 
 func sameSubscription(sub1 *Subscription, sub2 *Subscription) bool {
-	if sub1.ClientID == sub2.ClientID &&
-		sub1.TopicFilter == sub2.TopicFilter {
+	if sub1.ClientID == sub2.ClientID && sub1.TopicFilter == sub2.TopicFilter {
 		return true
 	}
 

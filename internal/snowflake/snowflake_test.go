@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,22 +24,22 @@ import (
 )
 
 func TestSnowflakeMachineIDValid(t *testing.T) {
-	tests := []int{0, 256, 512, 1023}
-	for _, test := range tests {
-		t.Run(fmt.Sprintf("%v", test), func(t *testing.T) {
-			sf, err := New(test)
+	testCases := []int{0, 256, 512, 1023}
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("%v", tc), func(t *testing.T) {
+			sf, err := New(tc)
 			assert.Nil(t, err)
 			require.NotNil(t, sf)
-			assert.Equal(t, test, sf.MachineID())
+			assert.Equal(t, tc, sf.MachineID())
 		})
 	}
 }
 
 func TestSnowflakeMachineIDInvalid(t *testing.T) {
-	tests := []int{-1, 1024}
-	for _, test := range tests {
-		t.Run(fmt.Sprintf("%v", test), func(t *testing.T) {
-			sf, err := New(test)
+	testCases := []int{-1, 1024}
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("%v", tc), func(t *testing.T) {
+			sf, err := New(tc)
 			require.NotNil(t, err)
 			assert.Nil(t, sf)
 		})

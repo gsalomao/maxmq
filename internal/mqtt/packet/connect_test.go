@@ -57,7 +57,7 @@ func TestConnectWriteUnsupported(t *testing.T) {
 }
 
 func TestConnectRead(t *testing.T) {
-	versions := []struct {
+	testCases := []struct {
 		test    string
 		version Version
 		name    string
@@ -67,31 +67,29 @@ func TestConnectRead(t *testing.T) {
 		{test: "V5.0", version: MQTT50, name: "MQTT"},
 	}
 
-	for _, v := range versions {
-		t.Run(
-			v.test, func(t *testing.T) {
-				msg := []byte{0, byte(len(v.name))}
-				msg = append(msg, []byte(v.name)...)
-				msg = append(msg, byte(v.version), 0, 0, 0)
-				if v.version == MQTT50 {
-					msg = append(msg, 0)
-				}
-				msg = append(msg, 0, 1, 'a')
+	for _, tc := range testCases {
+		t.Run(tc.test, func(t *testing.T) {
+			msg := []byte{0, byte(len(tc.name))}
+			msg = append(msg, []byte(tc.name)...)
+			msg = append(msg, byte(tc.version), 0, 0, 0)
+			if tc.version == MQTT50 {
+				msg = append(msg, 0)
+			}
+			msg = append(msg, 0, 1, 'a')
 
-				opts := options{packetType: CONNECT, remainingLength: len(msg)}
-				pkt, err := newPacketConnect(opts)
-				require.Nil(t, err)
-				require.NotNil(t, pkt)
+			opts := options{packetType: CONNECT, remainingLength: len(msg)}
+			pkt, err := newPacketConnect(opts)
+			require.Nil(t, err)
+			require.NotNil(t, pkt)
 
-				require.Equal(t, CONNECT, pkt.Type())
-				connPkt, _ := pkt.(*Connect)
+			require.Equal(t, CONNECT, pkt.Type())
+			connPkt, _ := pkt.(*Connect)
 
-				err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-				require.Nil(t, err)
-				assert.Equal(t, v.version, connPkt.Version)
-				assert.Equal(t, []byte{'a'}, connPkt.ClientID)
-			},
-		)
+			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
+			require.Nil(t, err)
+			assert.Equal(t, tc.version, connPkt.Version)
+			assert.Equal(t, []byte{'a'}, connPkt.ClientID)
+		})
 	}
 }
 
@@ -153,26 +151,25 @@ func TestConnectReadProtocolNameMissing(t *testing.T) {
 }
 
 func TestConnectReadProtocolNameInvalid(t *testing.T) {
-	names := []string{"MQT", "MQTT_", "MTT"}
+	testCases := []string{"MQT", "MQTT_", "MTT"}
 
-	for _, name := range names {
-		t.Run(
-			name, func(t *testing.T) {
-				nLen := byte(len(name))
-				buf := []byte(name)
-				msg := []byte{0, nLen}
-				msg = append(msg, buf...)
-				msg = append(msg, 4, 0, 0, 0)     // variable header
-				msg = append(msg, 0, 2, 'a', 'b') // client ID
+	for _, tc := range testCases {
+		t.Run(tc, func(t *testing.T) {
+			nLen := byte(len(tc))
+			buf := []byte(tc)
+			msg := []byte{0, nLen}
+			msg = append(msg, buf...)
+			msg = append(msg, 4, 0, 0, 0)     // variable header
+			msg = append(msg, 0, 2, 'a', 'b') // client ID
 
-				opts := options{packetType: CONNECT, remainingLength: len(msg)}
-				pkt, err := newPacketConnect(opts)
-				require.Nil(t, err)
+			opts := options{packetType: CONNECT, remainingLength: len(msg)}
+			pkt, err := newPacketConnect(opts)
+			require.Nil(t, err)
 
-				err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-				assert.NotNil(t, err)
-				assert.NotErrorIs(t, err, ErrV3UnacceptableProtocolVersion)
-			},
+			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
+			assert.NotNil(t, err)
+			assert.NotErrorIs(t, err, ErrV3UnacceptableProtocolVersion)
+		},
 		)
 	}
 }
@@ -397,9 +394,9 @@ func TestConnectReadFlagsUserNamePasswordInvalid(t *testing.T) {
 }
 
 func TestConnectReadKeepAliveValid(t *testing.T) {
-	testCases := []uint16{0, 60, 900, 65535}
+	keepAlive := []uint16{0, 60, 900, 65535}
 
-	for _, ka := range testCases {
+	for _, ka := range keepAlive {
 		msb := byte(ka >> 8)
 		lsb := byte(ka & 0xFF)
 		msg := []byte{
@@ -691,35 +688,33 @@ func TestConnectReadWillPropertiesMalformed(t *testing.T) {
 }
 
 func TestConnectReadWillTopicValid(t *testing.T) {
-	topics := []string{"topic", "dev/client-1/will"}
+	testCases := []string{"topic", "dev/client-1/will"}
 
-	for _, wt := range topics {
-		t.Run(
-			wt, func(t *testing.T) {
-				msg := []byte{
-					0, 4, 'M', 'Q', 'T', 'T', 4, 4, 0, 0, // variable header
-					0, 1, 'a', // client ID
-				}
+	for _, tc := range testCases {
+		t.Run(tc, func(t *testing.T) {
+			msg := []byte{
+				0, 4, 'M', 'Q', 'T', 'T', 4, 4, 0, 0, // variable header
+				0, 1, 'a', // client ID
+			}
 
-				buf := []byte(wt)
-				wtLenMSB := byte(len(wt) >> 8)
-				wtLenLSB := byte(len(wt) & 0xFF)
-				msg = append(msg, wtLenMSB, wtLenLSB)
-				msg = append(msg, buf...)
-				msg = append(msg, 0, 1, 'm') // will message
+			buf := []byte(tc)
+			wtLenMSB := byte(len(tc) >> 8)
+			wtLenLSB := byte(len(tc) & 0xFF)
+			msg = append(msg, wtLenMSB, wtLenLSB)
+			msg = append(msg, buf...)
+			msg = append(msg, 0, 1, 'm') // will message
 
-				opts := options{packetType: CONNECT, remainingLength: len(msg)}
-				pkt, err := newPacketConnect(opts)
-				require.Nil(t, err)
+			opts := options{packetType: CONNECT, remainingLength: len(msg)}
+			pkt, err := newPacketConnect(opts)
+			require.Nil(t, err)
 
-				require.Equal(t, CONNECT, pkt.Type())
-				connPkt, _ := pkt.(*Connect)
+			require.Equal(t, CONNECT, pkt.Type())
+			connPkt, _ := pkt.(*Connect)
 
-				err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-				require.Nil(t, err)
-				assert.Equal(t, buf, connPkt.WillTopic)
-			},
-		)
+			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
+			require.Nil(t, err)
+			assert.Equal(t, buf, connPkt.WillTopic)
+		})
 	}
 }
 
@@ -753,35 +748,33 @@ func TestConnectReadWillTopicMissing(t *testing.T) {
 }
 
 func TestConnectReadWillMessageValid(t *testing.T) {
-	messages := []string{"", "hello"}
+	testCases := []string{"", "hello"}
 
-	for _, m := range messages {
-		t.Run(
-			m, func(t *testing.T) {
-				msg := []byte{
-					0, 4, 'M', 'Q', 'T', 'T', 4, 4, 0, 0, // variable header
-					0, 1, 'a', // client ID
-					0, 1, 't', // will topic
-				}
+	for _, tc := range testCases {
+		t.Run(tc, func(t *testing.T) {
+			msg := []byte{
+				0, 4, 'M', 'Q', 'T', 'T', 4, 4, 0, 0, // variable header
+				0, 1, 'a', // client ID
+				0, 1, 't', // will topic
+			}
 
-				buf := []byte(m)
-				wmLenMSB := byte(len(m) >> 8)
-				wmLenLSB := byte(len(m) & 0xFF)
-				msg = append(msg, wmLenMSB, wmLenLSB)
-				msg = append(msg, buf...)
+			buf := []byte(tc)
+			wmLenMSB := byte(len(tc) >> 8)
+			wmLenLSB := byte(len(tc) & 0xFF)
+			msg = append(msg, wmLenMSB, wmLenLSB)
+			msg = append(msg, buf...)
 
-				opts := options{packetType: CONNECT, remainingLength: len(msg)}
-				pkt, err := newPacketConnect(opts)
-				require.Nil(t, err)
+			opts := options{packetType: CONNECT, remainingLength: len(msg)}
+			pkt, err := newPacketConnect(opts)
+			require.Nil(t, err)
 
-				require.Equal(t, CONNECT, pkt.Type())
-				connPkt, _ := pkt.(*Connect)
+			require.Equal(t, CONNECT, pkt.Type())
+			connPkt, _ := pkt.(*Connect)
 
-				err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-				require.Nil(t, err)
-				assert.Equal(t, buf, connPkt.WillMessage)
-			},
-		)
+			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
+			require.Nil(t, err)
+			assert.Equal(t, buf, connPkt.WillMessage)
+		})
 	}
 }
 
@@ -818,34 +811,32 @@ func TestConnectReadWillMessageMissing(t *testing.T) {
 }
 
 func TestConnectReadUserNameValid(t *testing.T) {
-	userNames := []string{"", "username"}
+	testCases := []string{"", "username"}
 
-	for _, n := range userNames {
-		t.Run(
-			n, func(t *testing.T) {
-				msg := []byte{
-					0, 4, 'M', 'Q', 'T', 'T', 4, 0x80, 0, 0, // variable header
-					0, 1, 'a', // client ID
-				}
+	for _, tc := range testCases {
+		t.Run(tc, func(t *testing.T) {
+			msg := []byte{
+				0, 4, 'M', 'Q', 'T', 'T', 4, 0x80, 0, 0, // variable header
+				0, 1, 'a', // client ID
+			}
 
-				buf := []byte(n)
-				nLenMSB := byte(len(n) >> 8)
-				nLenLSB := byte(len(n) & 0xFF)
-				msg = append(msg, nLenMSB, nLenLSB)
-				msg = append(msg, buf...)
+			buf := []byte(tc)
+			nLenMSB := byte(len(tc) >> 8)
+			nLenLSB := byte(len(tc) & 0xFF)
+			msg = append(msg, nLenMSB, nLenLSB)
+			msg = append(msg, buf...)
 
-				opts := options{packetType: CONNECT, remainingLength: len(msg)}
-				pkt, err := newPacketConnect(opts)
-				require.Nil(t, err)
+			opts := options{packetType: CONNECT, remainingLength: len(msg)}
+			pkt, err := newPacketConnect(opts)
+			require.Nil(t, err)
 
-				require.Equal(t, CONNECT, pkt.Type())
-				connPkt, _ := pkt.(*Connect)
+			require.Equal(t, CONNECT, pkt.Type())
+			connPkt, _ := pkt.(*Connect)
 
-				err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-				require.Nil(t, err)
-				assert.Equal(t, buf, connPkt.UserName)
-			},
-		)
+			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
+			require.Nil(t, err)
+			assert.Equal(t, buf, connPkt.UserName)
+		})
 	}
 }
 
@@ -880,35 +871,33 @@ func TestConnectReadUserNameMissing(t *testing.T) {
 }
 
 func TestConnectReadPasswordValid(t *testing.T) {
-	passwords := []string{"", "password"}
+	testCases := []string{"", "password"}
 
-	for _, p := range passwords {
-		t.Run(
-			p, func(t *testing.T) {
-				msg := []byte{
-					0, 4, 'M', 'Q', 'T', 'T', 4, 0xC0, 0, 0, // variable header
-					0, 1, 'a', // client ID
-					0, 1, 'u', // username
-				}
+	for _, tc := range testCases {
+		t.Run(tc, func(t *testing.T) {
+			msg := []byte{
+				0, 4, 'M', 'Q', 'T', 'T', 4, 0xC0, 0, 0, // variable header
+				0, 1, 'a', // client ID
+				0, 1, 'u', // username
+			}
 
-				buf := []byte(p)
-				pLenMSB := byte(len(p) >> 8)
-				pLenLSB := byte(len(p) & 0xFF)
-				msg = append(msg, pLenMSB, pLenLSB)
-				msg = append(msg, buf...)
+			buf := []byte(tc)
+			pLenMSB := byte(len(tc) >> 8)
+			pLenLSB := byte(len(tc) & 0xFF)
+			msg = append(msg, pLenMSB, pLenLSB)
+			msg = append(msg, buf...)
 
-				opts := options{packetType: CONNECT, remainingLength: len(msg)}
-				pkt, err := newPacketConnect(opts)
-				require.Nil(t, err)
+			opts := options{packetType: CONNECT, remainingLength: len(msg)}
+			pkt, err := newPacketConnect(opts)
+			require.Nil(t, err)
 
-				require.Equal(t, CONNECT, pkt.Type())
-				connPkt, _ := pkt.(*Connect)
+			require.Equal(t, CONNECT, pkt.Type())
+			connPkt, _ := pkt.(*Connect)
 
-				err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
-				require.Nil(t, err)
-				assert.Equal(t, buf, connPkt.Password)
-			},
-		)
+			err = pkt.Read(bufio.NewReader(bytes.NewBuffer(msg)))
+			require.Nil(t, err)
+			assert.Equal(t, buf, connPkt.Password)
+		})
 	}
 }
 

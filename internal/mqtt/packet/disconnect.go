@@ -65,11 +65,11 @@ func newPacketDisconnect(opts options) (Packet, error) {
 }
 
 // NewDisconnect creates a DISCONNECT Packet.
-func NewDisconnect(v Version, c ReasonCode, p *Properties) Disconnect {
+func NewDisconnect(v Version, c ReasonCode, props *Properties) Disconnect {
 	return Disconnect{
 		Version:    v,
 		ReasonCode: c,
-		Properties: p,
+		Properties: props,
 	}
 }
 
@@ -103,8 +103,7 @@ func (pkt *Disconnect) Write(w *bufio.Writer) error {
 	return nil
 }
 
-// Read reads the packet bytes from bufio.Reader and decodes them into the
-// packet.
+// Read reads the packet bytes from bufio.Reader and decodes them into the packet.
 func (pkt *Disconnect) Read(r *bufio.Reader) error {
 	if pkt.Version == MQTT50 {
 		rc, err := r.ReadByte()
@@ -142,8 +141,8 @@ func (pkt *Disconnect) Size() int {
 	return pkt.size
 }
 
-// Timestamp returns the timestamp of the moment which the packet has been
-// received or has been sent.
+// Timestamp returns the timestamp of the moment which the packet has been received or has been
+// sent.
 func (pkt *Disconnect) Timestamp() time.Time {
 	return pkt.timestamp
 }

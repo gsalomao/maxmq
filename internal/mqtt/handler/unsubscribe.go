@@ -27,9 +27,9 @@ type UnsubscribeHandler struct {
 }
 
 // NewUnsubscribeHandler creates a new UnsubscribeHandler.
-func NewUnsubscribeHandler(sm SessionStore, subMgr SubscriptionManager,
-	l *logger.Logger) *UnsubscribeHandler {
-
+func NewUnsubscribeHandler(
+	sm SessionStore, subMgr SubscriptionManager, l *logger.Logger,
+) *UnsubscribeHandler {
 	return &UnsubscribeHandler{
 		log:             l,
 		sessionStore:    sm,
@@ -38,22 +38,22 @@ func NewUnsubscribeHandler(sm SessionStore, subMgr SubscriptionManager,
 }
 
 // HandlePacket handles the given packet as a UNSUBSCRIBE packet.
-func (h *UnsubscribeHandler) HandlePacket(id packet.ClientID,
-	pkt packet.Packet) ([]packet.Packet, error) {
-
-	unsubPkt := pkt.(*packet.Unsubscribe)
+func (h *UnsubscribeHandler) HandlePacket(
+	id packet.ClientID, p packet.Packet,
+) ([]packet.Packet, error) {
+	unsub := p.(*packet.Unsubscribe)
 	h.log.Trace().
 		Str("ClientId", string(id)).
-		Uint16("PacketId", uint16(unsubPkt.PacketID)).
-		Int("Topics", len(unsubPkt.Topics)).
-		Uint8("Version", uint8(unsubPkt.Version)).
+		Uint16("PacketId", uint16(unsub.PacketID)).
+		Int("Topics", len(unsub.Topics)).
+		Uint8("Version", uint8(unsub.Version)).
 		Msg("MQTT Received UNSUBSCRIBE packet")
 
 	s, err := h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
-			Uint8("Version", uint8(unsubPkt.Version)).
+			Uint8("Version", uint8(unsub.Version)).
 			Msg("MQTT Failed to read session (UNSUBSCRIBE): " + err.Error())
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (h *UnsubscribeHandler) HandlePacket(id packet.ClientID,
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
 
-	codes, sessionChanged := h.unsubscribe(s, unsubPkt)
+	codes, sessionChanged := h.unsubscribe(s, unsub)
 	if sessionChanged {
 		err = h.sessionStore.SaveSession(s)
 		if err != nil {
@@ -78,27 +78,26 @@ func (h *UnsubscribeHandler) HandlePacket(id packet.ClientID,
 
 	replies := make([]packet.Packet, 0, 1)
 
-	unsubAckPkt := packet.NewUnsubAck(unsubPkt.PacketID, s.Version, codes, nil)
-	replies = append(replies, &unsubAckPkt)
+	unsubAck := packet.NewUnsubAck(unsub.PacketID, s.Version, codes, nil)
+	replies = append(replies, &unsubAck)
 	h.log.Trace().
 		Str("ClientId", string(s.ClientID)).
-		Uint16("PacketId", uint16(unsubAckPkt.PacketID)).
-		Int("ReasonCodes", len(unsubAckPkt.ReasonCodes)).
+		Uint16("PacketId", uint16(unsubAck.PacketID)).
+		Int("ReasonCodes", len(unsubAck.ReasonCodes)).
 		Uint64("SessionId", uint64(s.SessionID)).
 		Int("Subscriptions", len(s.Subscriptions)).
-		Uint8("Version", uint8(unsubAckPkt.Version)).
+		Uint8("Version", uint8(unsubAck.Version)).
 		Msg("MQTT Sending UNSUBACK packet")
-
 	return replies, nil
 }
 
-func (h *UnsubscribeHandler) unsubscribe(s *Session,
-	pkt *packet.Unsubscribe) ([]packet.ReasonCode, bool) {
-
-	codes := make([]packet.ReasonCode, 0, len(pkt.Topics))
+func (h *UnsubscribeHandler) unsubscribe(
+	s *Session, p *packet.Unsubscribe,
+) ([]packet.ReasonCode, bool) {
+	codes := make([]packet.ReasonCode, 0, len(p.Topics))
 	var sessionChanged bool
 
-	for _, topic := range pkt.Topics {
+	for _, topic := range p.Topics {
 		err := h.subscriptionMgr.Unsubscribe(s.ClientID, topic)
 		if err != nil {
 			var code packet.ReasonCode
@@ -128,11 +127,11 @@ func (h *UnsubscribeHandler) unsubscribe(s *Session,
 
 		h.log.Info().
 			Str("ClientId", string(s.ClientID)).
-			Uint16("PacketId", uint16(pkt.PacketID)).
+			Uint16("PacketId", uint16(p.PacketID)).
 			Uint64("SessionId", uint64(s.SessionID)).
 			Int("Subscriptions", len(s.Subscriptions)).
 			Str("TopicFilter", topic).
-			Int("Topics", len(pkt.Topics)).
+			Int("Topics", len(p.Topics)).
 			Uint8("Version", uint8(s.Version)).
 			Msg("MQTT Client unsubscribed to topic")
 		codes = append(codes, packet.ReasonCodeV5Success)

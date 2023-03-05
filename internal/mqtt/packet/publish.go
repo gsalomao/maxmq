@@ -34,8 +34,7 @@ const (
 
 // Publish represents the PUBLISH Packet from MQTT specifications.
 type Publish struct {
-	// TopicName identifies the information channel to which Payload data is
-	// published.
+	// TopicName identifies the information channel to which Payload data is published.
 	TopicName string
 
 	// Payload represents the message payload.
@@ -53,12 +52,12 @@ type Publish struct {
 	// Version represents the MQTT version.
 	Version Version
 
-	// Dup indicates that this is the first occasion that the client or broker
-	// has attempted to send this packet.
+	// Dup indicates that this is the first occasion that the client or broker has attempted to send
+	// this packet.
 	Dup uint8
 
-	// Retain indicates whether the broker must replace any existing retained
-	// message for this topic and store the message, or not.
+	// Retain indicates whether the broker must replace any existing retained message for this topic
+	// and store the message, or not.
 	Retain uint8
 
 	// Unexported fields
@@ -97,8 +96,16 @@ func newPacketPublish(opts options) (Packet, error) {
 	}, nil
 }
 
-func NewPublish(id ID, version Version, topic string, qos QoS, dup uint8,
-	retain uint8, payload []byte, props *Properties) Publish {
+func NewPublish(
+	id ID,
+	version Version,
+	topic string,
+	qos QoS,
+	dup uint8,
+	retain uint8,
+	payload []byte,
+	props *Properties,
+) Publish {
 	return Publish{
 		PacketID:   id,
 		Version:    version,
@@ -140,8 +147,7 @@ func (pkt *Publish) Write(w *bufio.Writer) error {
 	err = multierr.Combine(err, err2)
 
 	if pkt.QoS > QoS0 {
-		err = multierr.Combine(err,
-			binary.Write(w, binary.BigEndian, uint16(pkt.PacketID)))
+		err = multierr.Combine(err, binary.Write(w, binary.BigEndian, uint16(pkt.PacketID)))
 	}
 
 	_, err2 = buf.WriteTo(w)
@@ -154,8 +160,7 @@ func (pkt *Publish) Write(w *bufio.Writer) error {
 	return nil
 }
 
-// Read reads the packet bytes from bufio.Reader and decodes them into the
-// packet.
+// Read reads the packet bytes from bufio.Reader and decodes them into the packet.
 func (pkt *Publish) Read(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
@@ -205,8 +210,7 @@ func (pkt *Publish) Size() int {
 	return pkt.size
 }
 
-// Timestamp returns the timestamp of the moment which the packet has been
-// received.
+// Timestamp returns the timestamp of the moment which the packet has been received.
 func (pkt *Publish) Timestamp() time.Time {
 	return pkt.timestamp
 }

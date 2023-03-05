@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,10 +39,8 @@ type Broker struct {
 }
 
 // New creates a new broker.
-func New(log *logger.Logger) Broker {
-	return Broker{
-		log: log,
-	}
+func New(l *logger.Logger) Broker {
+	return Broker{log: l}
 }
 
 // AddListener adds a listener to the broker.

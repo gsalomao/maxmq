@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -53,23 +53,20 @@ type Config struct {
 	// The maximum allowed MQTT Keep Alive value, in seconds.
 	MQTTMaxKeepAlive int `mapstructure:"mqtt_max_keep_alive"`
 
-	// The maximum period, in seconds, a MQTT session is still valid after the
-	// network connection with the client has been closed.
+	// The maximum period, in seconds, a MQTT session is still valid after the network connection
+	// with the client has been closed.
 	MQTTSessionExpiration uint32 `mapstructure:"mqtt_session_expiration"`
 
-	// The maximum number of MQTT QoS 1 or 2 messages that can be processed
-	// simultaneously.
+	// The maximum number of MQTT QoS 1 or 2 messages that can be processed simultaneously.
 	MQTTMaxInflightMessages int `mapstructure:"mqtt_max_inflight_messages"`
 
-	// The maximum number of retries to send a MQTT inflight message to a
-	// client.
+	// The maximum number of retries to send a MQTT inflight message to a client.
 	MQTTMaxInflightRetries int `mapstructure:"mqtt_max_inflight_retries"`
 
 	// The maximum MQTT QoS for PUBLISH Packets accepted by the broker.
 	MQTTMaximumQoS int `mapstructure:"mqtt_max_qos"`
 
-	// The maximum number of topic aliases that an MQTT V5 client is allowed to
-	// create.
+	// The maximum number of topic aliases that an MQTT V5 client is allowed to create.
 	MQTTMaxTopicAlias int `mapstructure:"mqtt_max_topic_alias"`
 
 	// Indicate whether the broker allows retained MQTT messages or not.
@@ -87,15 +84,13 @@ type Config struct {
 	// The maximum length, in bytes, for MQTT client ID allowed by the broker.
 	MQTTMaxClientIDLen int `mapstructure:"mqtt_max_client_id_len"`
 
-	// Indicate whether the broker allows zero-length MQTT client identifier
-	// or not.
+	// Indicate whether the broker allows zero-length MQTT client identifier or not.
 	MQTTAllowEmptyClientID bool `mapstructure:"mqtt_allow_empty_client_id"`
 
 	// Prefix to be added to automatically generated MQTT client IDs.
 	MQTTClientIDPrefix string `mapstructure:"mqtt_client_id_prefix"`
 
-	// Provide additional information to MQTT clients including diagnostic
-	// information.
+	// Provide additional information to MQTT clients including diagnostic information.
 	MQTTUserProperties map[string]string `mapstructure:"mqtt_user_properties"`
 
 	// Set the default MQTT protocol version.

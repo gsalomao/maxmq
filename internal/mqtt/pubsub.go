@@ -101,8 +101,7 @@ func (m *pubSubManager) Subscribe(s *handler.Subscription) error {
 	return nil
 }
 
-// Unsubscribe removes the subscription for the given client identifier and
-// topic.
+// Unsubscribe removes the subscription for the given client identifier and topic.
 func (m *pubSubManager) Unsubscribe(id packet.ClientID, topic string) error {
 	m.log.Trace().
 		Str("ClientId", string(id)).
@@ -232,9 +231,7 @@ func (m *pubSubManager) handleQueuedMessages() {
 	}
 }
 
-func (m *pubSubManager) publishMsgToClient(id packet.ClientID,
-	msg *handler.Message) {
-
+func (m *pubSubManager) publishMsgToClient(id packet.ClientID, msg *handler.Message) {
 	s, err := m.sessionMgr.ReadSession(id)
 	if err != nil {
 		m.log.Error().

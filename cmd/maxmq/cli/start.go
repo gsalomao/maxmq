@@ -124,40 +124,38 @@ func runCommandStart(enableProfile bool) {
 	runBroker(b, log, enableProfile)
 }
 
-func newLogger(out io.Writer, machineID int) (*logger.Logger, error) {
+func newLogger(wr io.Writer, machineID int) (*logger.Logger, error) {
 	sf, err := snowflake.New(machineID)
 	if err != nil {
 		return nil, err
 	}
 
-	lg := logger.New(out, sf)
+	lg := logger.New(wr, sf)
 	return &lg, nil
 }
 
-func newBroker(conf config.Config, log *logger.Logger,
-	machineID int) (*broker.Broker, error) {
-
+func newBroker(c config.Config, l *logger.Logger, machineID int) (*broker.Broker, error) {
 	mqttConf := handler.Configuration{
-		TCPAddress:                    conf.MQTTTCPAddress,
-		ConnectTimeout:                conf.MQTTConnectTimeout,
-		BufferSize:                    conf.MQTTBufferSize,
-		DefaultVersion:                conf.MQTTDefaultVersion,
-		MaxPacketSize:                 conf.MQTTMaxPacketSize,
-		MaxKeepAlive:                  conf.MQTTMaxKeepAlive,
-		MaxSessionExpiryInterval:      conf.MQTTSessionExpiration,
-		MaxInflightMessages:           conf.MQTTMaxInflightMessages,
-		MaxInflightRetries:            conf.MQTTMaxInflightRetries,
-		MaximumQoS:                    conf.MQTTMaximumQoS,
-		MaxTopicAlias:                 conf.MQTTMaxTopicAlias,
-		RetainAvailable:               conf.MQTTRetainAvailable,
-		WildcardSubscriptionAvailable: conf.MQTTWildcardSubscription,
-		SubscriptionIDAvailable:       conf.MQTTSubscriptionID,
-		SharedSubscriptionAvailable:   conf.MQTTSharedSubscription,
-		MaxClientIDLen:                conf.MQTTMaxClientIDLen,
-		AllowEmptyClientID:            conf.MQTTAllowEmptyClientID,
-		ClientIDPrefix:                []byte(conf.MQTTClientIDPrefix),
-		UserProperties:                conf.MQTTUserProperties,
-		MetricsEnabled:                conf.MetricsEnabled,
+		TCPAddress:                    c.MQTTTCPAddress,
+		ConnectTimeout:                c.MQTTConnectTimeout,
+		BufferSize:                    c.MQTTBufferSize,
+		DefaultVersion:                c.MQTTDefaultVersion,
+		MaxPacketSize:                 c.MQTTMaxPacketSize,
+		MaxKeepAlive:                  c.MQTTMaxKeepAlive,
+		MaxSessionExpiryInterval:      c.MQTTSessionExpiration,
+		MaxInflightMessages:           c.MQTTMaxInflightMessages,
+		MaxInflightRetries:            c.MQTTMaxInflightRetries,
+		MaximumQoS:                    c.MQTTMaximumQoS,
+		MaxTopicAlias:                 c.MQTTMaxTopicAlias,
+		RetainAvailable:               c.MQTTRetainAvailable,
+		WildcardSubscriptionAvailable: c.MQTTWildcardSubscription,
+		SubscriptionIDAvailable:       c.MQTTSubscriptionID,
+		SharedSubscriptionAvailable:   c.MQTTSharedSubscription,
+		MaxClientIDLen:                c.MQTTMaxClientIDLen,
+		AllowEmptyClientID:            c.MQTTAllowEmptyClientID,
+		ClientIDPrefix:                []byte(c.MQTTClientIDPrefix),
+		UserProperties:                c.MQTTUserProperties,
+		MetricsEnabled:                c.MetricsEnabled,
 	}
 
 	sf, err := snowflake.New(machineID)
@@ -168,29 +166,29 @@ func newBroker(conf config.Config, log *logger.Logger,
 	var lsn broker.Listener
 	lsn, err = mqtt.NewListener(
 		mqtt.WithConfiguration(mqttConf),
-		mqtt.WithLogger(log),
+		mqtt.WithLogger(l),
 		mqtt.WithIDGenerator(sf),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	b := broker.New(log)
+	b := broker.New(l)
 	b.AddListener(lsn)
 
-	if conf.MetricsEnabled {
-		log.Debug().
-			Str("Address", conf.MetricsAddress).
-			Str("Path", conf.MetricsPath).
+	if c.MetricsEnabled {
+		l.Debug().
+			Str("Address", c.MetricsAddress).
+			Str("Path", c.MetricsPath).
 			Msg("Exporting metrics")
 
 		mtConf := metrics.Configuration{
-			Address:   conf.MetricsAddress,
-			Path:      conf.MetricsPath,
-			Profiling: conf.MetricsProfiling,
+			Address:   c.MetricsAddress,
+			Path:      c.MetricsPath,
+			Profiling: c.MetricsProfiling,
 		}
 
-		lsn, err = metrics.NewListener(mtConf, log)
+		lsn, err = metrics.NewListener(mtConf, l)
 		if err != nil {
 			return nil, err
 		}
@@ -201,15 +199,15 @@ func newBroker(conf config.Config, log *logger.Logger,
 	return &b, nil
 }
 
-func runBroker(b *broker.Broker, log *logger.Logger, enableProfile bool) {
+func runBroker(b *broker.Broker, l *logger.Logger, enableProfile bool) {
 	if enableProfile {
 		cpu, err := os.Create("cpu.prof")
 		if err != nil {
-			log.Fatal().Msg("Failed to create CPU profile file: " + err.Error())
+			l.Fatal().Msg("Failed to create CPU profile file: " + err.Error())
 		}
 
 		if err = pprof.StartCPUProfile(cpu); err != nil {
-			log.Fatal().Msg("Failed to start CPU profile: " + err.Error())
+			l.Fatal().Msg("Failed to start CPU profile: " + err.Error())
 		}
 
 		defer func() { _ = cpu.Close() }()
@@ -217,14 +215,14 @@ func runBroker(b *broker.Broker, log *logger.Logger, enableProfile bool) {
 
 	err := b.Start()
 	if err != nil {
-		log.Fatal().Msg("Failed to start broker: " + err.Error())
+		l.Fatal().Msg("Failed to start broker: " + err.Error())
 	}
 
 	go waitOSSignals(b)
 
 	err = b.Wait()
 	if err != nil {
-		log.Error().Msg("Broker stopped with error: " + err.Error())
+		l.Error().Msg("Broker stopped with error: " + err.Error())
 	}
 
 	if enableProfile {
@@ -232,14 +230,14 @@ func runBroker(b *broker.Broker, log *logger.Logger, enableProfile bool) {
 
 		heap, err = os.Create("heap.prof")
 		if err != nil {
-			log.Fatal().Msg("Failed to create Heap profile file: " +
+			l.Fatal().Msg("Failed to create Heap profile file: " +
 				err.Error())
 		}
 		defer func() { _ = heap.Close() }()
 
 		runtime.GC()
 		if err = pprof.WriteHeapProfile(heap); err != nil {
-			log.Fatal().Msg("Failed to save Heap profile: " + err.Error())
+			l.Fatal().Msg("Failed to save Heap profile: " + err.Error())
 		}
 
 		pprof.StopCPUProfile()

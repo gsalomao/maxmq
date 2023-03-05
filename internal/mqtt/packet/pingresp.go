@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,8 +42,7 @@ func (pkt *PingResp) Write(w *bufio.Writer) error {
 	return err
 }
 
-// Read reads the packet bytes from bufio.Reader and decodes them into the
-// packet.
+// Read reads the packet bytes from bufio.Reader and decodes them into the packet.
 // It is not supported by the PINGRESP Packet.
 func (pkt *PingResp) Read(_ *bufio.Reader) error {
 	return errors.New("unsupported (PINGRESP)")

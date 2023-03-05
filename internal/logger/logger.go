@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -119,7 +119,7 @@ func SetSeverityLevel(level string) error {
 }
 
 func formatTimestamp(i interface{}) string {
-	v, _ := strconv.ParseInt(fmt.Sprintf("%v", i), 10, 64)
+	v, _ := strconv.ParseInt(fmt.Sprintf("%v", i), 10 /*base*/, 64 /*bitSize*/)
 	t := time.UnixMicro(v)
 	return colorize(white, t.Format("2006-01-02 15:04:05.000000 -0700"))
 }

@@ -35,10 +35,10 @@ func NewPubCompHandler(st SessionStore, l *logger.Logger) *PubCompHandler {
 }
 
 // HandlePacket handles the given packet as a PUBCOMP packet.
-func (h *PubCompHandler) HandlePacket(id packet.ClientID,
-	pkt packet.Packet) ([]packet.Packet, error) {
-
-	pubCompPkt := pkt.(*packet.PubComp)
+func (h *PubCompHandler) HandlePacket(
+	id packet.ClientID, p packet.Packet,
+) ([]packet.Packet, error) {
+	pubCompPkt := p.(*packet.PubComp)
 	h.log.Trace().
 		Str("ClientId", string(id)).
 		Uint16("PacketId", uint16(pubCompPkt.PacketID)).
@@ -87,6 +87,5 @@ func (h *PubCompHandler) HandlePacket(id packet.ClientID,
 		Uint16("PacketId", uint16(msg.PacketID)).
 		Uint8("Version", uint8(s.Version)).
 		Msg("MQTT Message published to client (PUBCOMP)")
-
 	return nil, nil
 }

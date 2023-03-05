@@ -51,26 +51,19 @@ func (st *sessionStore) NewSession(id packet.ClientID) *handler.Session {
 		Str("ClientId", string(s.ClientID)).
 		Uint64("SessionId", uint64(s.SessionID)).
 		Msg("MQTT New session created")
-
 	return s
 }
 
 // ReadSession reads the session for the given client identifier.
-func (st *sessionStore) ReadSession(id packet.ClientID) (*handler.Session,
-	error) {
-
-	st.log.Trace().
-		Str("ClientId", string(id)).
-		Msg("MQTT Reading session")
+func (st *sessionStore) ReadSession(id packet.ClientID) (*handler.Session, error) {
+	st.log.Trace().Str("ClientId", string(id)).Msg("MQTT Reading session")
 
 	st.mutex.RLock()
 	s, ok := st.sessions[id]
 	st.mutex.RUnlock()
 
 	if !ok {
-		st.log.Debug().
-			Str("ClientId", string(id)).
-			Msg("MQTT Session not found")
+		st.log.Debug().Str("ClientId", string(id)).Msg("MQTT Session not found")
 		return nil, handler.ErrSessionNotFound
 	}
 
@@ -88,7 +81,6 @@ func (st *sessionStore) ReadSession(id packet.ClientID) (*handler.Session,
 		Int("UnAckMessages", len(s.UnAckMessages)).
 		Uint8("Version", uint8(s.Version)).
 		Msg("MQTT Session read with success")
-
 	return s, nil
 }
 
@@ -125,7 +117,6 @@ func (st *sessionStore) SaveSession(s *handler.Session) error {
 		Int("UnAckMessages", len(s.UnAckMessages)).
 		Uint8("Version", uint8(s.Version)).
 		Msg("MQTT Session saved with success")
-
 	return nil
 }
 
@@ -171,6 +162,5 @@ func (st *sessionStore) DeleteSession(s *handler.Session) error {
 		Int("UnAckMessages", len(s.UnAckMessages)).
 		Uint8("Version", uint8(s.Version)).
 		Msg("MQTT Session deleted with success")
-
 	return nil
 }

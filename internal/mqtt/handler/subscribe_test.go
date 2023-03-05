@@ -31,15 +31,15 @@ func TestSubscribeHandlerHandlePacket(t *testing.T) {
 		version packet.Version
 		qos     packet.QoS
 	}{
-		{version: packet.MQTT31, qos: packet.QoS0},
-		{version: packet.MQTT311, qos: packet.QoS0},
-		{version: packet.MQTT50, qos: packet.QoS0},
-		{version: packet.MQTT31, qos: packet.QoS1},
-		{version: packet.MQTT311, qos: packet.QoS1},
-		{version: packet.MQTT50, qos: packet.QoS1},
-		{version: packet.MQTT31, qos: packet.QoS2},
-		{version: packet.MQTT311, qos: packet.QoS2},
-		{version: packet.MQTT50, qos: packet.QoS2},
+		{packet.MQTT31, packet.QoS0},
+		{packet.MQTT311, packet.QoS0},
+		{packet.MQTT50, packet.QoS0},
+		{packet.MQTT31, packet.QoS1},
+		{packet.MQTT311, packet.QoS1},
+		{packet.MQTT50, packet.QoS1},
+		{packet.MQTT31, packet.QoS2},
+		{packet.MQTT311, packet.QoS2},
+		{packet.MQTT50, packet.QoS2},
 	}
 
 	for _, tc := range testCases {
@@ -54,8 +54,7 @@ func TestSubscribeHandlerHandlePacket(t *testing.T) {
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc.version,
 				Subscriptions: make(map[string]*Subscription)}
-			sub := &Subscription{ID: 0, ClientID: id, TopicFilter: "data",
-				QoS: tc.qos}
+			sub := &Subscription{ID: 0, ClientID: id, TopicFilter: "data", QoS: tc.qos}
 
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
@@ -63,7 +62,6 @@ func TestSubscribeHandlerHandlePacket(t *testing.T) {
 
 			subPkt := &packet.Subscribe{PacketID: 1, Version: tc.version,
 				Topics: []packet.Topic{{Name: sub.TopicFilter, QoS: tc.qos}}}
-
 			replies, err := h.HandlePacket(id, subPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -102,8 +100,7 @@ func TestSubscribeHandlerHandlePacketMultipleTopics(t *testing.T) {
 			h := NewSubscribeHandler(&conf, st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: tc,
-				Subscriptions: make(map[string]*Subscription)}
+			s := &Session{ClientID: id, Version: tc, Subscriptions: make(map[string]*Subscription)}
 
 			subs := []*Subscription{
 				{ClientID: id, TopicFilter: "data/temp/0", QoS: packet.QoS0},
@@ -114,14 +111,10 @@ func TestSubscribeHandlerHandlePacketMultipleTopics(t *testing.T) {
 
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
-			subMgr.On("Subscribe", subs[0]).
-				Return(nil).Once()
-			subMgr.On("Subscribe", subs[1]).
-				Return(nil).Once()
-			subMgr.On("Subscribe", subs[2]).
-				Return(nil).Once()
-			subMgr.On("Subscribe", subs[3]).
-				Return(errors.New("invalid")).Once()
+			subMgr.On("Subscribe", subs[0]).Return(nil).Once()
+			subMgr.On("Subscribe", subs[1]).Return(nil).Once()
+			subMgr.On("Subscribe", subs[2]).Return(nil).Once()
+			subMgr.On("Subscribe", subs[3]).Return(errors.New("invalid")).Once()
 
 			subPkt := &packet.Subscribe{PacketID: 5, Version: tc,
 				Topics: []packet.Topic{
@@ -144,14 +137,10 @@ func TestSubscribeHandlerHandlePacketMultipleTopics(t *testing.T) {
 			assert.Equal(t, subPkt.Version, subAckPkt.Version)
 
 			require.Len(t, subAckPkt.ReasonCodes, 4)
-			assert.Equal(t, packet.ReasonCode(packet.QoS0),
-				subAckPkt.ReasonCodes[0])
-			assert.Equal(t, packet.ReasonCode(packet.QoS1),
-				subAckPkt.ReasonCodes[1])
-			assert.Equal(t, packet.ReasonCode(packet.QoS2),
-				subAckPkt.ReasonCodes[2])
-			assert.Equal(t, packet.ReasonCodeV3Failure,
-				subAckPkt.ReasonCodes[3])
+			assert.Equal(t, packet.ReasonCode(packet.QoS0), subAckPkt.ReasonCodes[0])
+			assert.Equal(t, packet.ReasonCode(packet.QoS1), subAckPkt.ReasonCodes[1])
+			assert.Equal(t, packet.ReasonCode(packet.QoS2), subAckPkt.ReasonCodes[2])
+			assert.Equal(t, packet.ReasonCodeV3Failure, subAckPkt.ReasonCodes[3])
 
 			require.Len(t, s.Subscriptions, 3)
 			assert.Equal(t, subs[0], s.Subscriptions[subPkt.Topics[0].Name])
@@ -179,10 +168,8 @@ func TestSubscribeHandlerHandlePacketError(t *testing.T) {
 			h := NewSubscribeHandler(&conf, st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: tc,
-				Subscriptions: make(map[string]*Subscription)}
-			sub := &Subscription{ID: 0, ClientID: id, TopicFilter: "data",
-				QoS: packet.QoS1}
+			s := &Session{ClientID: id, Version: tc, Subscriptions: make(map[string]*Subscription)}
+			sub := &Subscription{ID: 0, ClientID: id, TopicFilter: "data", QoS: packet.QoS1}
 
 			st.On("ReadSession", id).Return(s, nil)
 			subMgr.On("Subscribe", sub).Return(errors.New("failed"))
@@ -202,8 +189,7 @@ func TestSubscribeHandlerHandlePacketError(t *testing.T) {
 			assert.Equal(t, tc, subAckPkt.Version)
 
 			require.Len(t, subAckPkt.ReasonCodes, 1)
-			assert.Equal(t, packet.ReasonCodeV3Failure,
-				subAckPkt.ReasonCodes[0])
+			assert.Equal(t, packet.ReasonCodeV3Failure, subAckPkt.ReasonCodes[0])
 
 			assert.Empty(t, s.Subscriptions)
 			st.AssertExpectations(t)
@@ -228,8 +214,7 @@ func TestSubscribeHandlerHandlePacketReadSessionError(t *testing.T) {
 			h := NewSubscribeHandler(&conf, st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			st.On("ReadSession", id).
-				Return(nil, ErrSessionNotFound)
+			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)
 
 			subPkt := &packet.Subscribe{PacketID: 1, Version: tc,
 				Topics: []packet.Topic{{Name: "data", QoS: packet.QoS1}}}
@@ -259,8 +244,7 @@ func TestSubscribeHandlerHandlePacketSaveSessionError(t *testing.T) {
 			h := NewSubscribeHandler(&conf, st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: tc,
-				Subscriptions: make(map[string]*Subscription)}
+			s := &Session{ClientID: id, Version: tc, Subscriptions: make(map[string]*Subscription)}
 
 			subs := []*Subscription{
 				{ClientID: id, TopicFilter: "data/temp/0", QoS: packet.QoS0},
@@ -270,16 +254,11 @@ func TestSubscribeHandlerHandlePacketSaveSessionError(t *testing.T) {
 
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(errors.New("failed"))
-			subMgr.On("Subscribe", subs[0]).
-				Return(nil).Once()
-			subMgr.On("Subscribe", subs[1]).
-				Return(errors.New("invalid")).Once()
-			subMgr.On("Subscribe", subs[2]).
-				Return(nil).Once()
-			subMgr.On("Unsubscribe", id, subs[0].TopicFilter).
-				Once().Return(nil)
-			subMgr.On("Unsubscribe", id, subs[2].TopicFilter).
-				Once().Return(errors.New("failed"))
+			subMgr.On("Subscribe", subs[0]).Return(nil).Once()
+			subMgr.On("Subscribe", subs[1]).Return(errors.New("invalid")).Once()
+			subMgr.On("Subscribe", subs[2]).Return(nil).Once()
+			subMgr.On("Unsubscribe", id, subs[0].TopicFilter).Once().Return(nil)
+			subMgr.On("Unsubscribe", id, subs[2].TopicFilter).Once().Return(errors.New("failed"))
 
 			subPkt := &packet.Subscribe{PacketID: 5, Version: tc,
 				Topics: []packet.Topic{
@@ -301,12 +280,9 @@ func TestSubscribeHandlerHandlePacketSaveSessionError(t *testing.T) {
 			assert.Equal(t, subPkt.Version, subAckPkt.Version)
 
 			require.Len(t, subAckPkt.ReasonCodes, 3)
-			assert.Equal(t, packet.ReasonCodeV3Failure,
-				subAckPkt.ReasonCodes[0])
-			assert.Equal(t, packet.ReasonCodeV3Failure,
-				subAckPkt.ReasonCodes[1])
-			assert.Equal(t, packet.ReasonCodeV3Failure,
-				subAckPkt.ReasonCodes[2])
+			assert.Equal(t, packet.ReasonCodeV3Failure, subAckPkt.ReasonCodes[0])
+			assert.Equal(t, packet.ReasonCodeV3Failure, subAckPkt.ReasonCodes[1])
+			assert.Equal(t, packet.ReasonCodeV3Failure, subAckPkt.ReasonCodes[2])
 
 			assert.Empty(t, s.Subscriptions)
 			st.AssertExpectations(t)
@@ -325,11 +301,8 @@ func TestSubscribeHandlerHandlePacketV5WithSubID(t *testing.T) {
 	h := NewSubscribeHandler(&conf, st, subMgr, &log)
 
 	id := packet.ClientID("a")
-	s := &Session{ClientID: id, Version: packet.MQTT50,
-		Subscriptions: make(map[string]*Subscription)}
-
-	sub := &Subscription{ID: 5, ClientID: id, TopicFilter: "data",
-		QoS: packet.QoS0}
+	s := &Session{ClientID: id, Version: packet.MQTT50, Subscriptions: make(map[string]*Subscription)}
+	sub := &Subscription{ID: 5, ClientID: id, TopicFilter: "data", QoS: packet.QoS0}
 
 	st.On("ReadSession", id).Return(s, nil)
 	st.On("SaveSession", s).Return(nil)
@@ -362,9 +335,7 @@ func TestSubscribeHandlerHandlePacketV5WithSubIDError(t *testing.T) {
 	h := NewSubscribeHandler(&conf, st, subMgr, &log)
 
 	id := packet.ClientID("a")
-	s := &Session{ClientID: id, Version: packet.MQTT50,
-		Subscriptions: make(map[string]*Subscription)}
-
+	s := &Session{ClientID: id, Version: packet.MQTT50, Subscriptions: make(map[string]*Subscription)}
 	st.On("ReadSession", id).Return(s, nil)
 
 	props := &packet.Properties{}
@@ -383,8 +354,7 @@ func TestSubscribeHandlerHandlePacketV5WithSubIDError(t *testing.T) {
 
 	discPkt := reply.(*packet.Disconnect)
 	assert.Equal(t, packet.MQTT50, discPkt.Version)
-	assert.Equal(t, packet.ReasonCodeV5SubscriptionIDNotSupported,
-		discPkt.ReasonCode)
+	assert.Equal(t, packet.ReasonCodeV5SubscriptionIDNotSupported, discPkt.ReasonCode)
 	st.AssertExpectations(t)
 	subMgr.AssertExpectations(t)
 }

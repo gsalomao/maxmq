@@ -42,7 +42,6 @@ func TestPingReqHandlerHandlePacket(t *testing.T) {
 			st.On("ReadSession", id).Return(s, nil)
 
 			pingReqPkt := &packet.PingReq{}
-
 			replies, err := h.HandlePacket(id, pingReqPkt)
 			require.Nil(t, err)
 
@@ -68,11 +67,9 @@ func TestPingReqHandlerHandlePacketReadSessionError(t *testing.T) {
 			h := NewPingReqHandler(st, &log)
 
 			id := packet.ClientID('a')
-			st.On("ReadSession", id).
-				Return(nil, ErrSessionNotFound)
+			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)
 
 			pingReqPkt := &packet.PingReq{}
-
 			replies, err := h.HandlePacket(id, pingReqPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)

@@ -73,12 +73,12 @@ func newPacketPubAck(opts options) (Packet, error) {
 }
 
 // NewPubAck creates a PUBACK Packet.
-func NewPubAck(id ID, v Version, c ReasonCode, p *Properties) PubAck {
+func NewPubAck(id ID, v Version, c ReasonCode, props *Properties) PubAck {
 	return PubAck{
 		PacketID:   id,
 		Version:    v,
 		ReasonCode: c,
-		Properties: p,
+		Properties: props,
 	}
 }
 
@@ -117,8 +117,7 @@ func (pkt *PubAck) Write(w *bufio.Writer) error {
 	return nil
 }
 
-// Read reads the packet bytes from bytes.Buffer and decodes them into the
-// packet.
+// Read reads the packet bytes from bytes.Buffer and decodes them into the packet.
 func (pkt *PubAck) Read(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {

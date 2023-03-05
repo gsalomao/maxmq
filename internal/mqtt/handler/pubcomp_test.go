@@ -42,16 +42,13 @@ func TestPubCompHandlerHandlePacket(t *testing.T) {
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc}
 
-			msg := &Message{PacketID: 1, Tries: 1,
-				LastSent: time.Now().UnixMicro()}
+			msg := &Message{PacketID: 1, Tries: 1, LastSent: time.Now().UnixMicro()}
 			s.InflightMessages.PushBack(msg)
 
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
 
-			pubCompPkt := packet.NewPubComp(msg.PacketID, tc,
-				packet.ReasonCodeV5Success, nil)
-
+			pubCompPkt := packet.NewPubComp(msg.PacketID, tc, packet.ReasonCodeV5Success, nil /*props*/)
 			replies, err := h.HandlePacket(id, &pubCompPkt)
 			require.Nil(t, err)
 			require.Empty(t, replies)
@@ -79,9 +76,7 @@ func TestPubCompHandlerHandlePacketPacketNotFound(t *testing.T) {
 
 			st.On("ReadSession", id).Return(s, nil)
 
-			pubCompPkt := packet.NewPubComp(2, tc,
-				packet.ReasonCodeV5Success, nil)
-
+			pubCompPkt := packet.NewPubComp(2 /*id*/, tc, packet.ReasonCodeV5Success, nil /*props*/)
 			replies, err := h.HandlePacket(id, &pubCompPkt)
 			require.NotNil(t, err)
 			require.Empty(t, replies)
@@ -105,12 +100,9 @@ func TestPubCompHandlerHandlePacketReadSessionError(t *testing.T) {
 
 			id := packet.ClientID("a")
 
-			st.On("ReadSession", id).
-				Return(nil, ErrSessionNotFound)
+			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)
 
-			pubCompPkt := packet.NewPubComp(1, tc, packet.ReasonCodeV5Success,
-				nil)
-
+			pubCompPkt := packet.NewPubComp(1 /*id*/, tc, packet.ReasonCodeV5Success, nil /*props*/)
 			replies, err := h.HandlePacket(id, &pubCompPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)
@@ -134,16 +126,13 @@ func TestPubCompHandlerHandlePacketSaveSessionError(t *testing.T) {
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc}
 
-			msg := &Message{PacketID: 1, Tries: 1,
-				LastSent: time.Now().UnixMicro()}
+			msg := &Message{PacketID: 1, Tries: 1, LastSent: time.Now().UnixMicro()}
 			s.InflightMessages.PushBack(msg)
 
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(errors.New("failed"))
 
-			pubCompPkt := packet.NewPubComp(1, tc, packet.ReasonCodeV5Success,
-				nil)
-
+			pubCompPkt := packet.NewPubComp(1 /*id*/, tc, packet.ReasonCodeV5Success, nil /*props*/)
 			replies, err := h.HandlePacket(id, &pubCompPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)

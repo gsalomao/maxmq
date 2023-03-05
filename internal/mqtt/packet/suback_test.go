@@ -17,6 +17,7 @@ package packet
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"net"
 	"testing"
 
@@ -26,27 +27,22 @@ import (
 
 func TestSubAckWrite(t *testing.T) {
 	testCases := []struct {
-		name    string
 		id      ID
 		version Version
 		codes   []ReasonCode
 		msg     []byte
 	}{
-		{name: "V3.1", id: 1, version: MQTT31,
-			codes: []ReasonCode{ReasonCodeV3GrantedQoS0},
-			msg:   []byte{0x90, 3, 0, 1, 0}},
-		{name: "V3.1.1", id: 2, version: MQTT311,
-			codes: []ReasonCode{ReasonCodeV3GrantedQoS0,
-				ReasonCodeV3GrantedQoS2},
+		{id: 1, version: MQTT31, codes: []ReasonCode{ReasonCodeV3GrantedQoS0},
+			msg: []byte{0x90, 3, 0, 1, 0}},
+		{id: 2, version: MQTT311, codes: []ReasonCode{ReasonCodeV3GrantedQoS0, ReasonCodeV3GrantedQoS2},
 			msg: []byte{0x90, 4, 0, 2, 0, 2}},
-		{name: "V5.0", id: 3, version: MQTT50,
-			codes: []ReasonCode{ReasonCodeV5GrantedQoS1},
-			msg:   []byte{0x90, 4, 0, 3, 0, 1}},
+		{id: 3, version: MQTT50, codes: []ReasonCode{ReasonCodeV5GrantedQoS1},
+			msg: []byte{0x90, 4, 0, 3, 0, 1}},
 	}
 
-	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
-			pkt := NewSubAck(test.id, test.version, test.codes, nil)
+	for _, tc := range testCases {
+		t.Run(fmt.Sprint(tc.id), func(t *testing.T) {
+			pkt := NewSubAck(tc.id, tc.version, tc.codes, nil /*props*/)
 			assert.Equal(t, SUBACK, pkt.Type())
 
 			buf := &bytes.Buffer{}
@@ -58,7 +54,7 @@ func TestSubAckWrite(t *testing.T) {
 			err = wr.Flush()
 			assert.Nil(t, err)
 
-			assert.Equal(t, test.msg, buf.Bytes())
+			assert.Equal(t, tc.msg, buf.Bytes())
 		})
 	}
 }
@@ -66,7 +62,7 @@ func TestSubAckWrite(t *testing.T) {
 func BenchmarkSubAckWriteV3(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
-	pkt := NewSubAck(4, MQTT311, []ReasonCode{0, 1, 2}, nil)
+	pkt := NewSubAck(4 /*id*/, MQTT311, []ReasonCode{0, 1, 2}, nil /*props*/)
 
 	b.ReportAllocs()
 
@@ -83,7 +79,7 @@ func BenchmarkSubAckWriteV3(b *testing.B) {
 func BenchmarkSubAckWriteV5(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
-	pkt := NewSubAck(4, MQTT50, []ReasonCode{0, 1, 2}, nil)
+	pkt := NewSubAck(4 /*id*/, MQTT50, []ReasonCode{0, 1, 2}, nil /*props*/)
 
 	b.ReportAllocs()
 
@@ -101,7 +97,7 @@ func TestSubAckWriteV5Properties(t *testing.T) {
 	props := &Properties{}
 	props.ReasonString = []byte("abc")
 
-	pkt := NewSubAck(5, MQTT50, []ReasonCode{1, 0, 2}, props)
+	pkt := NewSubAck(5 /*id*/, MQTT50, []ReasonCode{1, 0, 2}, props)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -121,7 +117,7 @@ func TestSubAckWriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{TopicAlias: new(uint16)}
 	*props.TopicAlias = 10
 
-	pkt := NewSubAck(5, MQTT50, []ReasonCode{1, 0, 2}, props)
+	pkt := NewSubAck(5 /*id*/, MQTT50, []ReasonCode{1, 0, 2}, props)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -136,7 +132,7 @@ func TestSubAckWriteV5InvalidProperty(t *testing.T) {
 }
 
 func TestSubAckWriteFailure(t *testing.T) {
-	pkt := NewSubAck(5, MQTT50, []ReasonCode{1, 0, 2}, nil)
+	pkt := NewSubAck(5 /*id*/, MQTT50, []ReasonCode{1, 0, 2}, nil /*props*/)
 	require.NotNil(t, pkt)
 
 	conn, _ := net.Pipe()
@@ -148,7 +144,7 @@ func TestSubAckWriteFailure(t *testing.T) {
 }
 
 func TestSubAckReadUnsupported(t *testing.T) {
-	pkt := NewSubAck(4, MQTT311, []ReasonCode{0, 1, 2}, nil)
+	pkt := NewSubAck(4 /*id*/, MQTT311, []ReasonCode{0, 1, 2}, nil /*props*/)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -166,16 +162,14 @@ func TestSubAckSize(t *testing.T) {
 	}{
 		{name: "V3.1", version: MQTT31, size: 7},
 		{name: "V3.1.1", version: MQTT311, size: 7},
-		{name: "V5.0-Success", version: MQTT50, codes: []ReasonCode{0, 1, 2},
-			size: 8},
+		{name: "V5.0-Success", version: MQTT50, codes: []ReasonCode{0, 1, 2}, size: 8},
 		{name: "V5.0-Properties", version: MQTT50, codes: []ReasonCode{0, 1, 2},
 			props: &Properties{ReasonString: []byte{'a'}}, size: 12},
 	}
 
-	for _, test := range testCases {
-		t.Run(test.name, func(t *testing.T) {
-			pkt := NewSubAck(1, test.version, []ReasonCode{0, 1, 2},
-				test.props)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			pkt := NewSubAck(1 /*id*/, tc.version, []ReasonCode{0, 1, 2}, tc.props)
 			require.NotNil(t, pkt)
 
 			buf := &bytes.Buffer{}
@@ -184,13 +178,13 @@ func TestSubAckSize(t *testing.T) {
 			err := pkt.Write(wr)
 			require.Nil(t, err)
 
-			assert.Equal(t, test.size, pkt.Size())
+			assert.Equal(t, tc.size, pkt.Size())
 		})
 	}
 }
 
 func TestSubAckTimestamp(t *testing.T) {
-	pkt := NewSubAck(4, MQTT50, []ReasonCode{0}, nil)
+	pkt := NewSubAck(4 /*id*/, MQTT50, []ReasonCode{0}, nil /*props*/)
 	require.NotNil(t, pkt)
 	assert.NotNil(t, pkt.Timestamp())
 }

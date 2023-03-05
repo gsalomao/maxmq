@@ -47,9 +47,7 @@ type reader struct {
 func NewReader(o ReaderOptions) Reader {
 	return &reader{
 		readerPool: sync.Pool{
-			New: func() interface{} {
-				return bufio.NewReaderSize(nil, o.BufferSize)
-			},
+			New: func() interface{} { return bufio.NewReaderSize(nil, o.BufferSize) },
 		},
 		maxPacketSize: o.MaxPacketSize,
 	}

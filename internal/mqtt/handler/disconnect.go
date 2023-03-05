@@ -28,8 +28,9 @@ type DisconnectHandler struct {
 }
 
 // NewDisconnectHandler creates a new DisconnectHandler.
-func NewDisconnectHandler(st SessionStore, subMgr SubscriptionManager,
-	l *logger.Logger) *DisconnectHandler {
+func NewDisconnectHandler(
+	st SessionStore, subMgr SubscriptionManager, l *logger.Logger,
+) *DisconnectHandler {
 
 	return &DisconnectHandler{
 		log:             l,
@@ -39,10 +40,10 @@ func NewDisconnectHandler(st SessionStore, subMgr SubscriptionManager,
 }
 
 // HandlePacket handles the given packet as a DISCONNECT packet.
-func (h *DisconnectHandler) HandlePacket(id packet.ClientID,
-	pkt packet.Packet) ([]packet.Packet, error) {
-
-	discPkt := pkt.(*packet.Disconnect)
+func (h *DisconnectHandler) HandlePacket(
+	id packet.ClientID, p packet.Packet,
+) ([]packet.Packet, error) {
+	discPkt := p.(*packet.Disconnect)
 	h.log.Trace().
 		Str("ClientId", string(id)).
 		Uint8("Version", uint8(discPkt.Version)).
@@ -121,9 +122,9 @@ func (h *DisconnectHandler) unsubscribeAllTopics(s *Session) {
 	}
 }
 
-func (h *DisconnectHandler) handleProperties(s *Session,
-	props *packet.Properties) ([]packet.Packet, error) {
-
+func (h *DisconnectHandler) handleProperties(
+	s *Session, props *packet.Properties,
+) ([]packet.Packet, error) {
 	interval := props.SessionExpiryInterval
 	if interval != nil && *interval > 0 && s.ExpiryInterval == 0 {
 		h.log.Debug().
@@ -134,9 +135,8 @@ func (h *DisconnectHandler) handleProperties(s *Session,
 			Msg("MQTT DISCONNECT with invalid Session Expiry Interval")
 
 		replies := make([]packet.Packet, 0)
-		discReplyPkt := packet.NewDisconnect(s.Version,
-			packet.ReasonCodeV5ProtocolError, nil)
-		replies = append(replies, &discReplyPkt)
+		discReply := packet.NewDisconnect(s.Version, packet.ReasonCodeV5ProtocolError, nil /*props*/)
+		replies = append(replies, &discReply)
 		return replies, packet.ErrV5ProtocolError
 	}
 	if interval != nil && *interval != s.ExpiryInterval {

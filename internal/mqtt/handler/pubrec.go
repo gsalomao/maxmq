@@ -35,21 +35,19 @@ func NewPubRecHandler(st SessionStore, l *logger.Logger) *PubRecHandler {
 }
 
 // HandlePacket handles the given packet as a PUBREC packet.
-func (h *PubRecHandler) HandlePacket(id packet.ClientID,
-	pkt packet.Packet) ([]packet.Packet, error) {
-
-	pubRecPkt := pkt.(*packet.PubRec)
+func (h *PubRecHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]packet.Packet, error) {
+	pubRec := p.(*packet.PubRec)
 	h.log.Trace().
 		Str("ClientId", string(id)).
-		Uint16("PacketId", uint16(pubRecPkt.PacketID)).
-		Uint8("Version", uint8(pubRecPkt.Version)).
+		Uint16("PacketId", uint16(pubRec.PacketID)).
+		Uint8("Version", uint8(pubRec.Version)).
 		Msg("MQTT Received PUBREC packet")
 
 	s, err := h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
-			Uint8("Version", uint8(pubRecPkt.Version)).
+			Uint8("Version", uint8(pubRec.Version)).
 			Msg("MQTT Failed to read session (PUBREC): " + err.Error())
 		return nil, err
 	}
@@ -58,12 +56,12 @@ func (h *PubRecHandler) HandlePacket(id packet.ClientID,
 	defer s.Mutex.Unlock()
 
 	replies := make([]packet.Packet, 0, 1)
-	inflightMsg := s.findInflightMessage(pubRecPkt.PacketID)
+	inflightMsg := s.findInflightMessage(pubRec.PacketID)
 	if inflightMsg == nil {
 		h.log.Warn().
 			Str("ClientId", string(id)).
 			Int("InflightMessages", s.InflightMessages.Len()).
-			Uint16("PacketId", uint16(pubRecPkt.PacketID)).
+			Uint16("PacketId", uint16(pubRec.PacketID)).
 			Uint8("Version", uint8(s.Version)).
 			Msg("MQTT Received PUBREC with unknown packet ID")
 
@@ -71,10 +69,9 @@ func (h *PubRecHandler) HandlePacket(id packet.ClientID,
 			return nil, ErrPacketNotFound
 		}
 
-		pubRelPkt := packet.NewPubRel(pubRecPkt.PacketID, s.Version,
-			packet.ReasonCodeV5PacketIDNotFound, nil)
-		replies = append(replies, &pubRelPkt)
-
+		pubRel := packet.NewPubRel(pubRec.PacketID, s.Version, packet.ReasonCodeV5PacketIDNotFound,
+			nil /*props*/)
+		replies = append(replies, &pubRel)
 		return replies, nil
 	}
 
@@ -100,17 +97,15 @@ func (h *PubRecHandler) HandlePacket(id packet.ClientID,
 		}
 	}
 
-	pubRelPkt := packet.NewPubRel(pubRecPkt.PacketID, s.Version,
-		packet.ReasonCodeV5Success, nil)
-	replies = append(replies, &pubRelPkt)
+	pubRel := packet.NewPubRel(pubRec.PacketID, s.Version, packet.ReasonCodeV5Success, nil /*props*/)
+	replies = append(replies, &pubRel)
 
 	h.log.Trace().
 		Str("ClientId", string(s.ClientID)).
 		Uint64("MessageId", uint64(msg.ID)).
-		Uint16("PacketId", uint16(pubRelPkt.PacketID)).
+		Uint16("PacketId", uint16(pubRel.PacketID)).
 		Int("UnAckMessages", len(s.UnAckMessages)).
-		Uint8("Version", uint8(pubRelPkt.Version)).
+		Uint8("Version", uint8(pubRel.Version)).
 		Msg("MQTT Sending PUBREL packet")
-
 	return replies, nil
 }

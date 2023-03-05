@@ -37,8 +37,7 @@ type Configuration struct {
 	// The maximum session Expire Interval, in seconds, allowed by the broker.
 	MaxSessionExpiryInterval uint32
 
-	// The maximum number of QoS 1 or 2 messages that can be processed
-	// simultaneously.
+	// The maximum number of QoS 1 or 2 messages that can be processed simultaneously.
 	MaxInflightMessages int
 
 	// The maximum number of retries to send an inflight message to a client.
@@ -47,8 +46,7 @@ type Configuration struct {
 	// The maximum QoS for PUBLISH Packets accepted by the broker.
 	MaximumQoS int
 
-	// The maximum number of topic aliases that an MQTT V5 client is allowed to
-	// create.
+	// The maximum number of topic aliases that an MQTT V5 client is allowed to create.
 	MaxTopicAlias int
 
 	// Indicate whether the broker allows retained messages or not.
@@ -72,8 +70,8 @@ type Configuration struct {
 	// Prefix to be added to automatically generated client IDs.
 	ClientIDPrefix []byte
 
-	// This property can be used to provide additional information to the Client
-	// including diagnostic information.
+	// This property can be used to provide additional information to the Client including diagnostic
+	// information.
 	UserProperties map[string]string
 
 	// Indicate whether the broker exports metrics or not.

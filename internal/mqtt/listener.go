@@ -37,43 +37,42 @@ type Listener struct {
 
 // NewListener creates a new MQTT Listener with the given options.
 func NewListener(opts ...OptionsFn) (*Listener, error) {
-	lsn := &Listener{}
+	l := &Listener{}
 
 	for _, fn := range opts {
-		fn(lsn)
+		fn(l)
 	}
 
-	if lsn.log == nil {
+	if l.log == nil {
 		return nil, errors.New("missing logger")
 	}
-	if lsn.conf == nil {
+	if l.conf == nil {
 		return nil, errors.New("missing configuration")
 	}
-	if lsn.idGen == nil {
+	if l.idGen == nil {
 		return nil, errors.New("missing ID generator")
 	}
 
-	mt := newMetrics(lsn.conf.MetricsEnabled, lsn.log)
-	st := newSessionStore(lsn.idGen, lsn.log)
-	cm := newConnectionManager(lsn.conf, st, mt, lsn.idGen, lsn.log)
+	mt := newMetrics(l.conf.MetricsEnabled, l.log)
+	st := newSessionStore(l.idGen, l.log)
+	cm := newConnectionManager(l.conf, st, mt, l.idGen, l.log)
 
-	lsn.connectionMgr = cm
-	return lsn, nil
+	l.connectionMgr = cm
+	return l, nil
 }
 
 // Listen starts the execution of the MQTT Listener.
-// Once called, it blocks waiting for connections until it's stopped by the
-// Stop function.
+// Once called, it blocks waiting for connections until it's stopped by the Stop function.
 func (l *Listener) Listen() error {
-	tcpLsn, err := net.Listen("tcp", l.conf.TCPAddress)
+	lsn, err := net.Listen("tcp", l.conf.TCPAddress)
 	if err != nil {
 		return err
 	}
 
 	l.connectionMgr.start()
 
-	l.log.Info().Msg("MQTT Listening on " + tcpLsn.Addr().String())
-	l.tcpLsn = tcpLsn
+	l.log.Info().Msg("MQTT Listening on " + lsn.Addr().String())
+	l.tcpLsn = lsn
 	l.setRunningState(true)
 
 	for {
@@ -86,8 +85,7 @@ func (l *Listener) Listen() error {
 				break
 			}
 
-			l.log.Warn().
-				Msg("MQTT Failed to accept TCP connection: " + err.Error())
+			l.log.Warn().Msg("MQTT Failed to accept TCP connection: " + err.Error())
 			continue
 		}
 

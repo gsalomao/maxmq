@@ -35,21 +35,19 @@ func NewPubAckHandler(st SessionStore, l *logger.Logger) *PubAckHandler {
 }
 
 // HandlePacket handles the given packet as a PUBACK packet.
-func (h *PubAckHandler) HandlePacket(id packet.ClientID,
-	pkt packet.Packet) ([]packet.Packet, error) {
-
-	pubAckPkt := pkt.(*packet.PubAck)
+func (h *PubAckHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]packet.Packet, error) {
+	pubAck := p.(*packet.PubAck)
 	h.log.Trace().
 		Str("ClientId", string(id)).
-		Uint16("PacketId", uint16(pubAckPkt.PacketID)).
-		Uint8("Version", uint8(pubAckPkt.Version)).
+		Uint16("PacketId", uint16(pubAck.PacketID)).
+		Uint8("Version", uint8(pubAck.Version)).
 		Msg("MQTT Received PUBACK packet")
 
 	s, err := h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
-			Uint8("Version", uint8(pubAckPkt.Version)).
+			Uint8("Version", uint8(pubAck.Version)).
 			Msg("MQTT Failed to read session (PUBACK): " + err.Error())
 		return nil, err
 	}
@@ -57,12 +55,12 @@ func (h *PubAckHandler) HandlePacket(id packet.ClientID,
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
 
-	inflightMsg := s.findInflightMessage(pubAckPkt.PacketID)
+	inflightMsg := s.findInflightMessage(pubAck.PacketID)
 	if inflightMsg == nil {
 		h.log.Warn().
 			Str("ClientId", string(id)).
 			Int("InflightMessages", s.InflightMessages.Len()).
-			Uint16("PacketId", uint16(pubAckPkt.PacketID)).
+			Uint16("PacketId", uint16(pubAck.PacketID)).
 			Uint8("Version", uint8(s.Version)).
 			Msg("MQTT Received PUBACK with unknown packet ID")
 

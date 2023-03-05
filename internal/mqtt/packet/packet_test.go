@@ -27,14 +27,14 @@ func TestPacketNewPacket(t *testing.T) {
 		flags        byte
 		remainingLen int
 	}{
-		{pktType: CONNECT, flags: 0},
-		{pktType: PINGREQ, flags: 0},
-		{pktType: SUBSCRIBE, flags: 2},
-		{pktType: PUBLISH, flags: 0},
-		{pktType: PUBACK, flags: 0, remainingLen: 2},
-		{pktType: PUBREC, flags: 0, remainingLen: 2},
-		{pktType: PUBREL, flags: 2, remainingLen: 2},
-		{pktType: PUBCOMP, flags: 0, remainingLen: 2},
+		{CONNECT, 0, 0},
+		{PINGREQ, 0, 0},
+		{SUBSCRIBE, 2, 0},
+		{PUBLISH, 0, 0},
+		{PUBACK, 0, 2},
+		{PUBREC, 0, 2},
+		{PUBREL, 2, 2},
+		{PUBCOMP, 0, 2},
 	}
 
 	for _, tc := range testCases {
@@ -66,20 +66,20 @@ func TestPacketPacketTypeToString(t *testing.T) {
 		name    string
 		pktType Type
 	}{
-		{name: "CONNECT", pktType: CONNECT},
-		{name: "CONNACK", pktType: CONNACK},
-		{name: "PUBLISH", pktType: PUBLISH},
-		{name: "PUBACK", pktType: PUBACK},
-		{name: "PUBREC", pktType: PUBREC},
-		{name: "PUBREL", pktType: PUBREL},
-		{name: "PUBCOMP", pktType: PUBCOMP},
-		{name: "SUBSCRIBE", pktType: SUBSCRIBE},
-		{name: "SUBACK", pktType: SUBACK},
-		{name: "UNSUBSCRIBE", pktType: UNSUBSCRIBE},
-		{name: "UNSUBACK", pktType: UNSUBACK},
-		{name: "PINGREQ", pktType: PINGREQ},
-		{name: "PINGRESP", pktType: PINGRESP},
-		{name: "DISCONNECT", pktType: DISCONNECT},
+		{"CONNECT", CONNECT},
+		{"CONNACK", CONNACK},
+		{"PUBLISH", PUBLISH},
+		{"PUBACK", PUBACK},
+		{"PUBREC", PUBREC},
+		{"PUBREL", PUBREL},
+		{"PUBCOMP", PUBCOMP},
+		{"SUBSCRIBE", SUBSCRIBE},
+		{"SUBACK", SUBACK},
+		{"UNSUBSCRIBE", UNSUBSCRIBE},
+		{"UNSUBACK", UNSUBACK},
+		{"PINGREQ", PINGREQ},
+		{"PINGRESP", PINGRESP},
+		{"DISCONNECT", DISCONNECT},
 	}
 
 	for _, tc := range testCases {
@@ -99,9 +99,9 @@ func TestPacketMQTTVersionToString(t *testing.T) {
 		name    string
 		version Version
 	}{
-		{name: "3.1", version: MQTT31},
-		{name: "3.1.1", version: MQTT311},
-		{name: "5.0", version: MQTT50},
+		{"3.1", MQTT31},
+		{"3.1.1", MQTT311},
+		{"5.0", MQTT50},
 	}
 
 	for _, tc := range testCases {

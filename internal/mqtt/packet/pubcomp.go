@@ -73,12 +73,12 @@ func newPacketPubComp(opts options) (Packet, error) {
 }
 
 // NewPubComp creates a PUBCOMP Packet.
-func NewPubComp(id ID, v Version, c ReasonCode, p *Properties) PubComp {
+func NewPubComp(id ID, v Version, c ReasonCode, props *Properties) PubComp {
 	return PubComp{
 		PacketID:   id,
 		Version:    v,
 		ReasonCode: c,
-		Properties: p,
+		Properties: props,
 	}
 }
 
@@ -126,8 +126,7 @@ func (pkt *PubComp) Write(w *bufio.Writer) error {
 func (pkt *PubComp) Read(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {
-		return fmt.Errorf("failed to read remaining bytes: %w",
-			ErrV5MalformedPacket)
+		return fmt.Errorf("failed to read remaining bytes: %w", ErrV5MalformedPacket)
 	}
 	buf := bytes.NewBuffer(msg)
 
@@ -140,8 +139,7 @@ func (pkt *PubComp) Read(r *bufio.Reader) error {
 		pkt.ReasonCode = ReasonCode(code)
 
 		if !pkt.isValidReasonCode() {
-			return newErrMalformedPacket(
-				fmt.Sprintf("invalid reason code: %v", pkt.ReasonCode))
+			return newErrMalformedPacket(fmt.Sprintf("invalid reason code: %v", pkt.ReasonCode))
 		}
 
 		if pkt.ReasonCode != ReasonCodeV5Success || buf.Len() > 0 {
@@ -172,8 +170,7 @@ func (pkt *PubComp) Timestamp() time.Time {
 }
 
 func (pkt *PubComp) isValidReasonCode() bool {
-	validPubRecReasonCodes := []ReasonCode{ReasonCodeV5Success,
-		ReasonCodeV5PacketIDNotFound}
+	validPubRecReasonCodes := []ReasonCode{ReasonCodeV5Success, ReasonCodeV5PacketIDNotFound}
 
 	for _, code := range validPubRecReasonCodes {
 		if pkt.ReasonCode == code {
