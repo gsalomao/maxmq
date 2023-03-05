@@ -15,9 +15,9 @@
 package cli
 
 import (
-	"fmt"
 	"io"
 
+	"github.com/gsalomao/maxmq/internal/build"
 	"github.com/spf13/cobra"
 )
 
@@ -26,23 +26,20 @@ type CLI struct {
 	rootCmd *cobra.Command
 }
 
-// version represents the application version, and it's updated at build time.
-var version = "0.0.0"
-
 // New creates an instance of the command line interface.
 func New(out io.Writer, args []string) CLI {
 	description := "MaxMQ is a Cloud-Native and High-Performance MQTT Broker for IoT."
 	cli := CLI{
 		rootCmd: &cobra.Command{
 			Use:     "maxmq",
-			Version: version,
+			Version: build.GetInfo().ShortVersion(),
 			Short:   "MaxMQ is a message broker for IoT",
 			Long:    description,
 		},
 	}
 
 	cli.rootCmd.CompletionOptions.DisableDefaultCmd = true
-	cli.rootCmd.SetVersionTemplate(fmt.Sprintf("MaxMQ version %v\n", version))
+	cli.rootCmd.SetVersionTemplate("{{printf .Version}}")
 	cli.rootCmd.SetArgs(args)
 	cli.rootCmd.SetOut(out)
 	cli.registerSubCommands()
@@ -57,4 +54,5 @@ func (c *CLI) Run() error {
 
 func (c *CLI) registerSubCommands() {
 	c.rootCmd.AddCommand(newCommandStart())
+	c.rootCmd.AddCommand(newCommandVersion())
 }

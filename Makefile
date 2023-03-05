@@ -26,13 +26,23 @@ CYAN        := $(shell tput -Txterm setaf 6)
 RESET       := \033[0m
 BOLD        := \033[0;1m
 
-# Build parameters
-VERSION = $(shell git describe --tags --always --dirty | sed -e 's/^v//')
+# Build information
+VERSION 			= $(shell git describe --tags --always --dirty | sed -e 's/^v//')
+REVISION    	= $(shell git describe --always)
+BUILD_TIME		= $(shell date -u '+%Y-%m-%d %H:%M:%S')
+BUILD_TYPE  	= "development"
+DISTRIBUTION	= "OSS"
 
 .PHONY: all
 all: help
 
-LDFLAGS ="-X 'github.com/gsalomao/maxmq/cmd/maxmq/cli.version=${VERSION}'"
+LDFLAGS ="\
+	-X 'github.com/gsalomao/maxmq/internal/build.version=${VERSION}' \
+	-X 'github.com/gsalomao/maxmq/internal/build.revision=${REVISION}' \
+	-X 'github.com/gsalomao/maxmq/internal/build.buildTime=${BUILD_TIME}' \
+	-X 'github.com/gsalomao/maxmq/internal/build.buildType=${BUILD_TYPE}' \
+	-X 'github.com/gsalomao/maxmq/internal/build.distribution=${DISTRIBUTION}' \
+	"
 
 ## Setup
 .PHONY: init
