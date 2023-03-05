@@ -14,4 +14,29 @@
 # limitations under the License.
 
 set -e
+
+# Colors
+CYAN="$(tput -Txterm setaf 6)"
+WHITE="$(tput -Txterm setaf 7)"
+RESET='\033[0m'
+BOLD='\033[0;1m'
+
+function print_task_info() {
+	printf "${CYAN}==>${BOLD} %s...${RESET}\n" "$1"
+}
+function print_task_info_result() {
+	printf "${CYAN}==> %s... %s${RESET}\n" "$1" "$2"
+}
+
+# Update copyright year
+print_task_info "Updating copyright year"
+CURRENT_YEAR=$(date +%Y)
+for i in $(git diff --name-only --cached); do
+	printf "${WHITE}    Updating '%s'${RESET}\n" "$i"
+	perl -pi -e "s/(?<=Copyright\ \d{4})(?<!$CURRENT_YEAR)(-\d{4})?/-$CURRENT_YEAR/g" "$i";
+	git add "$i"
+done
+print_task_info_result "Updating copyright year" "done"
+
+# Check source code
 make check
