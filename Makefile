@@ -28,9 +28,8 @@ BOLD        := \033[0;1m
 
 # Build information
 VERSION 			= $(shell git describe --tags --always --dirty | sed -e 's/^v//')
-REVISION    	= $(shell git describe --always)
+REVISION    	= $(shell git rev-parse HEAD)
 BUILD_TIME		= $(shell date -u '+%Y-%m-%d %H:%M:%S')
-BUILD_TYPE  	= "development"
 DISTRIBUTION	= "OSS"
 
 .PHONY: all
@@ -40,7 +39,6 @@ LDFLAGS ="\
 	-X 'github.com/gsalomao/maxmq/internal/build.version=${VERSION}' \
 	-X 'github.com/gsalomao/maxmq/internal/build.revision=${REVISION}' \
 	-X 'github.com/gsalomao/maxmq/internal/build.buildTime=${BUILD_TIME}' \
-	-X 'github.com/gsalomao/maxmq/internal/build.buildType=${BUILD_TYPE}' \
 	-X 'github.com/gsalomao/maxmq/internal/build.distribution=${DISTRIBUTION}' \
 	"
 

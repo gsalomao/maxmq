@@ -26,7 +26,6 @@ var (
 	version      string // The application version
 	revision     string // The commit ID of the build
 	buildTime    string // The build time in UTC (year-month-day hour:min:sec)
-	buildType    string // Type of the build: "development" or "release"
 	distribution string // The application distribution
 )
 
@@ -40,9 +39,6 @@ type Info struct {
 
 	// The build time in UTC (year-month-day hour:min:sec).
 	BuildTime string
-
-	// Type of the build: "development" or "release"
-	BuildType string
 
 	// The runtime platform (architecture and operating system).
 	Platform string
@@ -60,9 +56,8 @@ func GetInfo() Info {
 		Version:      version,
 		Revision:     revision,
 		BuildTime:    buildTime,
-		BuildType:    buildType,
 		Distribution: distribution,
-		Platform:     fmt.Sprintf("%s-%s", runtime.GOARCH, runtime.GOOS),
+		Platform:     fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
 		GoVersion:    runtime.Version(),
 	}
 }
@@ -79,13 +74,12 @@ func (i Info) LongVersion() string {
 
 	_, _ = fmt.Fprintf(tw, "Version:         %s\n", i.Version)
 	_, _ = fmt.Fprintf(tw, "Revision:        %s\n", i.Revision)
-	_, _ = fmt.Fprintf(tw, "Build Time:      %s\n", i.BuildTime)
-	_, _ = fmt.Fprintf(tw, "Build Type:      %s\n", i.BuildType)
+	_, _ = fmt.Fprintf(tw, "Built:           %s\n", i.BuildTime)
 	_, _ = fmt.Fprintf(tw, "Distribution:    %s\n", i.Distribution)
 	_, _ = fmt.Fprintf(tw, "Platform:        %s\n", i.Platform)
 
 	// The last line does not need newline as it's already printed by cobra
-	_, _ = fmt.Fprintf(tw, "Go Version:      %s", i.GoVersion)
+	_, _ = fmt.Fprintf(tw, "Go version:      %s", i.GoVersion)
 
 	_ = tw.Flush()
 	return buf.String()
