@@ -82,18 +82,18 @@ clean: ## Clean build folder
 
 ## Run
 .PHONY: start
-start: build ## Start broker
-	$(call print_task,"Starting broker")
+start: build ## Start server
+	$(call print_task,"Starting server")
 	@$(BUILD_DIR)/$(NAME) start
 
 .PHONY: start-dev
-start-dev: ## Start broker in development mode
-	$(call print_task,"Starting broker in development mode")
+start-dev: ## Start server in development mode
+	$(call print_task,"Starting server in development mode")
 	@reflex -s -d none -r "\.go" -- sh -c "go run $(MAIN_FILE) start"
 
 .PHONY: profile
-profile: ## Start broker with CPU/Memory profiler
-	$(call print_task,"Starting broker in profiling mode")
+profile: ## Start server with CPU/Memory profiler
+	$(call print_task,"Starting server in profiling mode")
 	@go build -o ${BUILD_DIR}/$(NAME) -ldflags \
 		"-X 'github.com/gsalomao/maxmq/cmd/maxmq/cli.profile=true'" $(MAIN_FILE)
 	@$(BUILD_DIR)/$(NAME) start

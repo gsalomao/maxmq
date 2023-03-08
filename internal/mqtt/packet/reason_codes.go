@@ -42,7 +42,7 @@ const (
 	// be sent.
 	ReasonCodeV3GrantedQoS2 ReasonCode = 0x02
 
-	// ReasonCodeV3UnacceptableProtocolVersion indicates that the broker does not support the level
+	// ReasonCodeV3UnacceptableProtocolVersion indicates that the server does not support the level
 	// of the MQTT protocol.
 	ReasonCodeV3UnacceptableProtocolVersion ReasonCode = 0x01
 
@@ -84,7 +84,7 @@ const (
 	// be sent.
 	ReasonCodeV5GrantedQoS2 ReasonCode = 0x02
 
-	// ReasonCodeV5DisconnectWithWillMessage indicates to close the connection, but the broker shall
+	// ReasonCodeV5DisconnectWithWillMessage indicates to close the connection, but the server shall
 	// send the Will Message.
 	ReasonCodeV5DisconnectWithWillMessage ReasonCode = 0x04
 
@@ -101,7 +101,7 @@ const (
 	// ReasonCodeV5ReAuthenticate indicates to initiate a re-authentication.
 	ReasonCodeV5ReAuthenticate ReasonCode = 0x19
 
-	// ReasonCodeV5UnspecifiedError indicates that the broker does not wish to reveal the reason for
+	// ReasonCodeV5UnspecifiedError indicates that the server does not wish to reveal the reason for
 	// the failure, or none of the other codes apply.
 	ReasonCodeV5UnspecifiedError ReasonCode = 0x80
 
@@ -114,34 +114,34 @@ const (
 	ReasonCodeV5ProtocolError ReasonCode = 0x82
 
 	// ReasonCodeV5ImplementationError indicates that the packet is valid but is not accepted by the
-	// broker.
+	// server.
 	ReasonCodeV5ImplementationError ReasonCode = 0x83
 
-	// ReasonCodeV5UnsupportedProtocolVersion indicates that the broker does not support the version
+	// ReasonCodeV5UnsupportedProtocolVersion indicates that the server does not support the version
 	// of the MQTT protocol requested by the client.
 	ReasonCodeV5UnsupportedProtocolVersion ReasonCode = 0x84
 
 	// ReasonCodeV5InvalidClientID indicates that the Client ID is a valid string but is not allowed
-	// by the broker.
+	// by the server.
 	ReasonCodeV5InvalidClientID ReasonCode = 0x85
 
-	// ReasonCodeV5BadUserNameOrPassword indicates that the broker does not accept the UserName or
+	// ReasonCodeV5BadUserNameOrPassword indicates that the server does not accept the UserName or
 	// Password specified by the client.
 	ReasonCodeV5BadUserNameOrPassword ReasonCode = 0x86
 
 	// ReasonCodeV5NotAuthorized indicates the client is not authorized to perform the action.
 	ReasonCodeV5NotAuthorized ReasonCode = 0x87
 
-	// ReasonCodeV5ServerUnavailable indicates that the MQTT broker is not available.
+	// ReasonCodeV5ServerUnavailable indicates that the MQTT server is not available.
 	ReasonCodeV5ServerUnavailable ReasonCode = 0x88
 
-	// ReasonCodeV5ServerBusy indicates that the broker is busy. Try again later.
+	// ReasonCodeV5ServerBusy indicates that the server is busy. Try again later.
 	ReasonCodeV5ServerBusy ReasonCode = 0x89
 
 	// ReasonCodeV5Banned indicates that the client has been banned by administrative action.
 	ReasonCodeV5Banned ReasonCode = 0x8A
 
-	// ReasonCodeV5ServerShuttingDown indicates that the broker is shutting down.
+	// ReasonCodeV5ServerShuttingDown indicates that the server is shutting down.
 	ReasonCodeV5ServerShuttingDown ReasonCode = 0x8B
 
 	// ReasonCodeV5BadAuthMethod indicates that the authentication method is not supported or does
@@ -196,7 +196,7 @@ const (
 	// payload format indicator.
 	ReasonCodeV5PayloadFormatInvalid ReasonCode = 0x99
 
-	// ReasonCodeV5RetainNotSupported indicates that the broker does not support retained messages.
+	// ReasonCodeV5RetainNotSupported indicates that the server does not support retained messages.
 	ReasonCodeV5RetainNotSupported ReasonCode = 0x9A
 
 	// ReasonCodeV5QoSNotSupported indicates that the client specified a QoS greater than the QoS
@@ -209,7 +209,7 @@ const (
 	// ReasonCodeV5ServerMoved indicates that the client should permanently use another server.
 	ReasonCodeV5ServerMoved ReasonCode = 0x9D
 
-	// ReasonCodeV5SharedSubscriptionsNotSupported indicates that the broker does not support Shared
+	// ReasonCodeV5SharedSubscriptionsNotSupported indicates that the server does not support Shared
 	// Subscriptions.
 	ReasonCodeV5SharedSubscriptionsNotSupported ReasonCode = 0x9E
 
@@ -220,11 +220,11 @@ const (
 	// connection has been exceeded.
 	ReasonCodeV5MaximumConnectTime ReasonCode = 0xA0
 
-	// ReasonCodeV5SubscriptionIDNotSupported indicates that the broker does not support Subscription
+	// ReasonCodeV5SubscriptionIDNotSupported indicates that the server does not support Subscription
 	// Identifiers.
 	ReasonCodeV5SubscriptionIDNotSupported ReasonCode = 0xA1
 
-	// ReasonCodeV5WildcardSubscriptionsNotSupported indicates that the broker does not support
+	// ReasonCodeV5WildcardSubscriptionsNotSupported indicates that the server does not support
 	// Wildcard Subscriptions.
 	ReasonCodeV5WildcardSubscriptionsNotSupported ReasonCode = 0xA2
 )

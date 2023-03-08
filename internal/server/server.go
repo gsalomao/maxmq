@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package broker
+package server
 
 import (
 	"errors"
@@ -30,63 +30,63 @@ type Listener interface {
 	Stop()
 }
 
-// Broker represents the message broker.
-type Broker struct {
+// Server represents the MaxMQ server.
+type Server struct {
 	log       *logger.Logger
 	wg        sync.WaitGroup
 	listeners []Listener
 	err       error
 }
 
-// New creates a new broker.
-func New(l *logger.Logger) Broker {
-	return Broker{log: l}
+// New creates a new server.
+func New(l *logger.Logger) Server {
+	return Server{log: l}
 }
 
-// AddListener adds a listener to the broker.
-func (b *Broker) AddListener(l Listener) {
-	b.listeners = append(b.listeners, l)
+// AddListener adds a listener to the server.
+func (s *Server) AddListener(l Listener) {
+	s.listeners = append(s.listeners, l)
 }
 
-// Start starts the broker running all listeners.
-func (b *Broker) Start() error {
-	b.log.Info().Msg("Starting broker")
+// Start starts the server running all listeners.
+func (s *Server) Start() error {
+	s.log.Info().Msg("Starting server")
 
-	if len(b.listeners) == 0 {
+	if len(s.listeners) == 0 {
 		return errors.New("no available listener")
 	}
 
-	for _, lsn := range b.listeners {
-		b.wg.Add(1)
+	for _, lsn := range s.listeners {
+		s.wg.Add(1)
 		go func(l Listener) {
-			defer b.wg.Done()
+			defer s.wg.Done()
 
 			err := l.Listen()
 			if err != nil {
-				b.err = err
+				s.err = err
 			}
 		}(lsn)
 	}
 
-	b.log.Info().Msg("Broker started with success")
+	s.log.Info().Msg("Server started with success")
 	return nil
 }
 
-// Stop stops the broker stopping all listeners.
-func (b *Broker) Stop() {
-	b.log.Info().Msg("Stopping broker")
-	b.wg.Add(1)
+// Stop stops the server by stopping all listeners.
+func (s *Server) Stop() {
+	s.log.Info().Msg("Stopping server")
+	s.wg.Add(1)
 
-	for _, l := range b.listeners {
+	for _, l := range s.listeners {
 		l.Stop()
 	}
 
-	b.log.Info().Msg("Broker stopped with success")
-	b.wg.Done()
+	s.log.Info().Msg("Server stopped with success")
+	s.wg.Done()
 }
 
-// Wait blocks while the broker is running.
-func (b *Broker) Wait() error {
-	b.wg.Wait()
-	return b.err
+// Wait blocks while the server is running.
+func (s *Server) Wait() error {
+	s.wg.Wait()
+	return s.err
 }

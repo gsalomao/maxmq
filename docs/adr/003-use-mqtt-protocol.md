@@ -33,11 +33,11 @@ MQTT protocol.
 Choosing the MQTT as the main protocol means that the MaxMQ must be compliant
 with the MQTT standards 3.1, 3.1.1 and 5.0.
 
-It must allow clients connect with the broker using standard TCP connections or
+It must allow clients connect with the server using standard TCP connections or
 through WebSocket. The MaxMQ must also allow clients connect using encrypted
 connection (SSL/TLS), and must allow clients to authenticate using, at least, a
 simple username/password.
 
 The MaxMQ must allow the administrator to set MQTT parameters, to change the
-broker's behavior, when starting the broker and, if possible, to change them at
+server's behavior, when starting the server and, if possible, to change them at
 runtime.

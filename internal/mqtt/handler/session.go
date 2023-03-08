@@ -76,7 +76,7 @@ type Session struct {
 	// ConnectedAt is the timestamp which the last connection was established.
 	ConnectedAt int64
 
-	// ExpiryInterval is the time, in seconds, which the broker must store the session after the
+	// ExpiryInterval is the time, in seconds, which the server must store the session after the
 	// network connection is closed.
 	ExpiryInterval uint32
 

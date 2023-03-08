@@ -24,12 +24,12 @@ import (
 	"syscall"
 
 	"github.com/dimiro1/banner"
-	"github.com/gsalomao/maxmq/internal/broker"
 	"github.com/gsalomao/maxmq/internal/config"
 	"github.com/gsalomao/maxmq/internal/logger"
 	"github.com/gsalomao/maxmq/internal/metrics"
 	"github.com/gsalomao/maxmq/internal/mqtt"
 	"github.com/gsalomao/maxmq/internal/mqtt/handler"
+	"github.com/gsalomao/maxmq/internal/server"
 	"github.com/gsalomao/maxmq/internal/snowflake"
 	"github.com/mattn/go-colorable"
 	"github.com/spf13/cobra"
@@ -45,8 +45,8 @@ var profile = ""
 func newCommandStart() *cobra.Command {
 	return &cobra.Command{
 		Use:   "start",
-		Short: "Start broker",
-		Long:  "Start the execution of the MaxMQ broker",
+		Short: "Start server",
+		Long:  "Start the execution of the MaxMQ server",
 		Run: func(_ *cobra.Command, _ []string) {
 			enableProfile := profile != ""
 			runCommandStart(enableProfile)
@@ -116,12 +116,12 @@ func runCommandStart(enableProfile bool) {
 		Int("MQTTDefaultVersion", conf.MQTTDefaultVersion).
 		Msg("Using configuration")
 
-	b, err := newBroker(conf, log, machineID)
+	s, err := newServer(conf, log, machineID)
 	if err != nil {
-		log.Fatal().Msg("Failed to create broker: " + err.Error())
+		log.Fatal().Msg("Failed to create server: " + err.Error())
 	}
 
-	runBroker(b, log, enableProfile)
+	startServer(s, log, enableProfile)
 }
 
 func newLogger(wr io.Writer, machineID int) (*logger.Logger, error) {
@@ -134,7 +134,7 @@ func newLogger(wr io.Writer, machineID int) (*logger.Logger, error) {
 	return &lg, nil
 }
 
-func newBroker(c config.Config, l *logger.Logger, machineID int) (*broker.Broker, error) {
+func newServer(c config.Config, l *logger.Logger, machineID int) (*server.Server, error) {
 	mqttConf := handler.Configuration{
 		TCPAddress:                    c.MQTTTCPAddress,
 		ConnectTimeout:                c.MQTTConnectTimeout,
@@ -163,7 +163,7 @@ func newBroker(c config.Config, l *logger.Logger, machineID int) (*broker.Broker
 		return nil, err
 	}
 
-	var lsn broker.Listener
+	var lsn server.Listener
 	lsn, err = mqtt.NewListener(
 		mqtt.WithConfiguration(mqttConf),
 		mqtt.WithLogger(l),
@@ -173,8 +173,8 @@ func newBroker(c config.Config, l *logger.Logger, machineID int) (*broker.Broker
 		return nil, err
 	}
 
-	b := broker.New(l)
-	b.AddListener(lsn)
+	s := server.New(l)
+	s.AddListener(lsn)
 
 	if c.MetricsEnabled {
 		l.Debug().
@@ -193,13 +193,13 @@ func newBroker(c config.Config, l *logger.Logger, machineID int) (*broker.Broker
 			return nil, err
 		}
 
-		b.AddListener(lsn)
+		s.AddListener(lsn)
 	}
 
-	return &b, nil
+	return &s, nil
 }
 
-func runBroker(b *broker.Broker, l *logger.Logger, enableProfile bool) {
+func startServer(s *server.Server, l *logger.Logger, enableProfile bool) {
 	if enableProfile {
 		cpu, err := os.Create("cpu.prof")
 		if err != nil {
@@ -213,16 +213,16 @@ func runBroker(b *broker.Broker, l *logger.Logger, enableProfile bool) {
 		defer func() { _ = cpu.Close() }()
 	}
 
-	err := b.Start()
+	err := s.Start()
 	if err != nil {
-		l.Fatal().Msg("Failed to start broker: " + err.Error())
+		l.Fatal().Msg("Failed to start server: " + err.Error())
 	}
 
-	go waitOSSignals(b)
+	go waitOSSignals(s)
 
-	err = b.Wait()
+	err = s.Wait()
 	if err != nil {
-		l.Error().Msg("Broker stopped with error: " + err.Error())
+		l.Error().Msg("Server stopped with error: " + err.Error())
 	}
 
 	if enableProfile {
@@ -244,7 +244,7 @@ func runBroker(b *broker.Broker, l *logger.Logger, enableProfile bool) {
 	}
 }
 
-func waitOSSignals(brk *broker.Broker) {
+func waitOSSignals(s *server.Server) {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
@@ -253,6 +253,6 @@ func waitOSSignals(brk *broker.Broker) {
 
 		// Generates a new line to split the logs
 		fmt.Println("")
-		brk.Stop()
+		s.Stop()
 	}
 }

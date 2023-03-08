@@ -42,15 +42,15 @@ type Properties struct {
 	// SubscriptionIdentifier represents the identifier of the subscription.
 	SubscriptionIdentifier *int
 
-	// SessionExpiryInterval represents the time, in seconds, which the broker must store the Session
+	// SessionExpiryInterval represents the time, in seconds, which the server must store the Session
 	// State after the network connection is closed.
 	SessionExpiryInterval *uint32
 
-	// AssignedClientID represents the client ID assigned by the broker in case of the client
-	// connected with the broker without specifying a client ID.
+	// AssignedClientID represents the client ID assigned by the server in case of the client
+	// connected with the server without specifying a client ID.
 	AssignedClientID []byte
 
-	// ServerKeepAlive represents the Keep Alive, in seconds, assigned by the broker, and to be used
+	// ServerKeepAlive represents the Keep Alive, in seconds, assigned by the server, and to be used
 	// by the client.
 	ServerKeepAlive *uint16
 
@@ -64,18 +64,18 @@ type Properties struct {
 	// client in case of failures on any packet.
 	RequestProblemInfo *byte
 
-	// WillDelayInterval represents the time, in seconds, which the broker must delay publishing the
+	// WillDelayInterval represents the time, in seconds, which the server must delay publishing the
 	// Will Message.
 	WillDelayInterval *uint32
 
-	// RequestResponseInfo indicates if the broker can send Response Information with the CONNACK
+	// RequestResponseInfo indicates if the server can send Response Information with the CONNACK
 	// Packet.
 	RequestResponseInfo *byte
 
 	// ResponseInfo contains a string that can be used to as the basis for creating a Response Topic.
 	ResponseInfo []byte
 
-	// ServerReference contains a string indicating another broker the client can use.
+	// ServerReference contains a string indicating another server the client can use.
 	ServerReference []byte
 
 	// ReasonString represents the reason associated with the response.
@@ -84,34 +84,34 @@ type Properties struct {
 	// ReceiveMaximum represents the maximum number of in-flight messages with QoS > 0.
 	ReceiveMaximum *uint16
 
-	// TopicAliasMaximum represents the highest number of Topic Alias that the client or the broker
+	// TopicAliasMaximum represents the highest number of Topic Alias that the client or the server
 	// accepts.
 	TopicAliasMaximum *uint16
 
 	// TopicAlias represents a value that is used to identify the Topic Name.
 	TopicAlias *uint16
 
-	// MaximumQoS represents the maximum QoS supported by the broker.
+	// MaximumQoS represents the maximum QoS supported by the server.
 	MaximumQoS *byte
 
-	// RetainAvailable indicates whether the broker supports retained messages or not.
+	// RetainAvailable indicates whether the server supports retained messages or not.
 	RetainAvailable *byte
 
 	// UserProperties is a map of user provided properties.
 	UserProperties []UserProperty
 
-	// MaximumPacketSize represents the maximum packet size, in bytes, the client or the broker is
+	// MaximumPacketSize represents the maximum packet size, in bytes, the client or the server is
 	// willing to accept.
 	MaximumPacketSize *uint32
 
-	// WildcardSubscriptionAvailable indicates whether the broker supports Wildcard Subscriptions or
+	// WildcardSubscriptionAvailable indicates whether the server supports Wildcard Subscriptions or
 	// not.
 	WildcardSubscriptionAvailable *byte
 
-	// SubscriptionIDAvailable indicates whether the broker supports Subscription Identifiers or not.
+	// SubscriptionIDAvailable indicates whether the server supports Subscription Identifiers or not.
 	SubscriptionIDAvailable *byte
 
-	// SharedSubscriptionAvailable indicates whether the broker supports Shared Subscriptions or not.
+	// SharedSubscriptionAvailable indicates whether the server supports Shared Subscriptions or not.
 	SharedSubscriptionAvailable *byte
 }
 

@@ -36,7 +36,7 @@ const (
 
 // Connect represents the CONNECT Packet from MQTT specifications.
 type Connect struct {
-	// ClientID identifies the client to the broker.
+	// ClientID represents the client identifier for the session.
 	ClientID []byte
 
 	// WillTopic represents the topic which the Will Message will be published.
@@ -45,11 +45,11 @@ type Connect struct {
 	// WillMessage represents the Will Message to be published.
 	WillMessage []byte
 
-	// UserName represents the UserName which the broker must use for authentication and
+	// UserName represents the UserName which the server must use for authentication and
 	// authorization.
 	UserName []byte
 
-	// Password represents the Password which the broker must use for authentication and
+	// Password represents the Password which the server must use for authentication and
 	// authorization.
 	Password []byte
 
@@ -75,7 +75,7 @@ type Connect struct {
 	CleanSession bool
 
 	// WillFlag indicates that, if the Connect request is accepted, and the Will Message MUST be
-	// stored on the broker and associated with the connection.
+	// stored on the server and associated with the connection.
 	WillFlag bool
 
 	// WillRetain indicates if the Will Message is to be Retained when it is published.

@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package broker_test
+package server_test
 
 import (
 	"bytes"
 	"errors"
 	"testing"
 
-	"github.com/gsalomao/maxmq/internal/broker"
 	"github.com/gsalomao/maxmq/internal/logger"
+	"github.com/gsalomao/maxmq/internal/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -28,28 +28,28 @@ import (
 
 type listenerMock struct {
 	mock.Mock
-	RunningCh chan bool
-	StopCh    chan bool
-	Err       error
+	runningCh chan bool
+	stopCh    chan bool
+	err       error
 }
 
 func newListenerMock() *listenerMock {
 	return &listenerMock{
-		RunningCh: make(chan bool),
-		StopCh:    make(chan bool),
+		runningCh: make(chan bool),
+		stopCh:    make(chan bool),
 	}
 }
 
 func (l *listenerMock) Listen() error {
 	l.Called()
-	l.RunningCh <- true
-	<-l.StopCh
-	return l.Err
+	l.runningCh <- true
+	<-l.stopCh
+	return l.err
 }
 
 func (l *listenerMock) Stop() {
 	l.Called()
-	l.StopCh <- true
+	l.stopCh <- true
 }
 
 type logIDGenStub struct {
@@ -64,73 +64,79 @@ func newLogger() logger.Logger {
 	return logger.New(out, &logIDGenStub{})
 }
 
-func TestBrokerStart(t *testing.T) {
+func TestServerStart(t *testing.T) {
 	log := newLogger()
-	b := broker.New(&log)
+	s := server.New(&log)
 
-	mockLsn := newListenerMock()
-	mockLsn.On("Listen")
-	b.AddListener(mockLsn)
+	lsn := newListenerMock()
+	lsn.On("Listen")
+	s.AddListener(lsn)
 
-	err := b.Start()
-	assert.Nil(t, err)
+	done := make(chan bool)
+	go func() {
+		defer close(done)
+		err := s.Start()
+		assert.Nil(t, err)
+	}()
+
+	<-lsn.runningCh
+	lsn.stopCh <- true
+	<-done
 }
 
-func TestBrokerStartWithoutListener(t *testing.T) {
+func TestServerStartWithoutListener(t *testing.T) {
 	log := newLogger()
-	b := broker.New(&log)
+	s := server.New(&log)
 
-	err := b.Start()
+	err := s.Start()
 	assert.ErrorContains(t, err, "no available listener")
 }
 
-func TestBrokerStop(t *testing.T) {
+func TestServerStop(t *testing.T) {
 	log := newLogger()
-	b := broker.New(&log)
+	s := server.New(&log)
 
-	mockLsn := newListenerMock()
-	mockLsn.On("Listen")
-	mockLsn.On("Stop")
-	b.AddListener(mockLsn)
+	lsn := newListenerMock()
+	lsn.On("Listen")
+	lsn.On("Stop")
+	s.AddListener(lsn)
 
-	err := b.Start()
+	err := s.Start()
 	require.Nil(t, err)
 
 	done := make(chan bool)
 	go func() {
-		err = b.Wait()
-		done <- true
+		defer close(done)
+		err = s.Wait()
+		assert.Nil(t, err)
 	}()
 
-	<-mockLsn.RunningCh
-	b.Stop()
-
+	<-lsn.runningCh
+	s.Stop()
 	<-done
-	assert.Nil(t, err)
 }
 
-func TestBrokerListenerError(t *testing.T) {
+func TestServerListenerError(t *testing.T) {
 	log := newLogger()
-	b := broker.New(&log)
+	s := server.New(&log)
 
-	mockLsn := newListenerMock()
-	mockLsn.On("Listen")
-	mockLsn.On("Stop")
-	b.AddListener(mockLsn)
+	lsn := newListenerMock()
+	lsn.On("Listen")
+	lsn.On("Stop")
+	s.AddListener(lsn)
 
-	err := b.Start()
+	err := s.Start()
 	require.Nil(t, err)
 
 	done := make(chan bool)
 	go func() {
-		err = b.Wait()
-		done <- true
+		defer close(done)
+		err = s.Wait()
+		assert.NotNil(t, err)
 	}()
 
-	<-mockLsn.RunningCh
-	mockLsn.Err = errors.New("any failure")
-	b.Stop()
-
+	<-lsn.runningCh
+	lsn.err = errors.New("any failure")
+	s.Stop()
 	<-done
-	assert.NotNil(t, err)
 }

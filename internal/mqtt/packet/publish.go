@@ -52,11 +52,11 @@ type Publish struct {
 	// Version represents the MQTT version.
 	Version Version
 
-	// Dup indicates that this is the first occasion that the client or broker has attempted to send
+	// Dup indicates that this is the first occasion that the client or server has attempted to send
 	// this packet.
 	Dup uint8
 
-	// Retain indicates whether the broker must replace any existing retained message for this topic
+	// Retain indicates whether the server must replace any existing retained message for this topic
 	// and store the message, or not.
 	Retain uint8
 

@@ -29,7 +29,7 @@ type ConnAck struct {
 	// Properties represents the CONNACK properties (MQTT V5.0 only).
 	Properties *Properties
 
-	// ClientID identifies the client to the broker.
+	// ClientID represents the client identifier associated with the session.
 	ClientID ClientID
 
 	// KeepAlive is a time interval, measured in seconds, that is permitted to elapse between the

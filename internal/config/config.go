@@ -26,7 +26,7 @@ type Config struct {
 	// Minimal severity level of the logs.
 	LogLevel string `mapstructure:"log_level"`
 
-	// Indicate whether the broker exports metrics or not.
+	// Indicate whether the server exports metrics or not.
 	MetricsEnabled bool `mapstructure:"metrics_enabled"`
 
 	// TCP address (<IP>:<port>) where the Prometheus metrics are exported.
@@ -63,28 +63,28 @@ type Config struct {
 	// The maximum number of retries to send a MQTT inflight message to a client.
 	MQTTMaxInflightRetries int `mapstructure:"mqtt_max_inflight_retries"`
 
-	// The maximum MQTT QoS for PUBLISH Packets accepted by the broker.
+	// The maximum MQTT QoS for PUBLISH Packets accepted by the server.
 	MQTTMaximumQoS int `mapstructure:"mqtt_max_qos"`
 
 	// The maximum number of topic aliases that an MQTT V5 client is allowed to create.
 	MQTTMaxTopicAlias int `mapstructure:"mqtt_max_topic_alias"`
 
-	// Indicate whether the broker allows retained MQTT messages or not.
+	// Indicate whether the server allows retained MQTT messages or not.
 	MQTTRetainAvailable bool `mapstructure:"mqtt_retain_available"`
 
-	// Indicate whether the broker allows MQTT wildcard subscription or not.
+	// Indicate whether the server allows MQTT wildcard subscription or not.
 	MQTTWildcardSubscription bool `mapstructure:"mqtt_wildcard_subscription"`
 
-	// Indicate whether the broker allows MQTT subscription identifier or not.
+	// Indicate whether the server allows MQTT subscription identifier or not.
 	MQTTSubscriptionID bool `mapstructure:"mqtt_subscription_identifier"`
 
-	// Indicate whether the broker allows MQTT shared subscription or not.
+	// Indicate whether the server allows MQTT shared subscription or not.
 	MQTTSharedSubscription bool `mapstructure:"mqtt_shared_subscription"`
 
-	// The maximum length, in bytes, for MQTT client ID allowed by the broker.
+	// The maximum length, in bytes, for MQTT client ID allowed by the server.
 	MQTTMaxClientIDLen int `mapstructure:"mqtt_max_client_id_len"`
 
-	// Indicate whether the broker allows zero-length MQTT client identifier or not.
+	// Indicate whether the server allows zero-length MQTT client identifier or not.
 	MQTTAllowEmptyClientID bool `mapstructure:"mqtt_allow_empty_client_id"`
 
 	// Prefix to be added to automatically generated MQTT client IDs.

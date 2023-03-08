@@ -31,10 +31,10 @@ type Configuration struct {
 	// The maximum packet size, in bytes, allowed.
 	MaxPacketSize int
 
-	// The maximum Keep Alive value, in seconds, allowed by the broker.
+	// The maximum Keep Alive value, in seconds, allowed by the server.
 	MaxKeepAlive int
 
-	// The maximum session Expire Interval, in seconds, allowed by the broker.
+	// The maximum session Expire Interval, in seconds, allowed by the server.
 	MaxSessionExpiryInterval uint32
 
 	// The maximum number of QoS 1 or 2 messages that can be processed simultaneously.
@@ -43,28 +43,28 @@ type Configuration struct {
 	// The maximum number of retries to send an inflight message to a client.
 	MaxInflightRetries int
 
-	// The maximum QoS for PUBLISH Packets accepted by the broker.
+	// The maximum QoS for PUBLISH Packets accepted by the server.
 	MaximumQoS int
 
 	// The maximum number of topic aliases that an MQTT V5 client is allowed to create.
 	MaxTopicAlias int
 
-	// Indicate whether the broker allows retained messages or not.
+	// Indicate whether the server allows retained messages or not.
 	RetainAvailable bool
 
-	// Indicate whether the broker allows wildcard subscription or not.
+	// Indicate whether the server allows wildcard subscription or not.
 	WildcardSubscriptionAvailable bool
 
-	// Indicate whether the broker allows subscription identifier or not.
+	// Indicate whether the server allows subscription identifier or not.
 	SubscriptionIDAvailable bool
 
-	// Indicate whether the broker allows shared subscription or not.
+	// Indicate whether the server allows shared subscription or not.
 	SharedSubscriptionAvailable bool
 
-	// The maximum length, in bytes, for client ID allowed by the broker.
+	// The maximum length, in bytes, for client ID allowed by the server.
 	MaxClientIDLen int
 
-	// Indicate whether the broker allows zero-length client identifier or not.
+	// Indicate whether the server allows zero-length client identifier or not.
 	AllowEmptyClientID bool
 
 	// Prefix to be added to automatically generated client IDs.
@@ -74,7 +74,7 @@ type Configuration struct {
 	// information.
 	UserProperties map[string]string
 
-	// Indicate whether the broker exports metrics or not.
+	// Indicate whether the server exports metrics or not.
 	MetricsEnabled bool
 }
 
