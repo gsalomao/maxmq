@@ -66,11 +66,7 @@ func newPacketDisconnect(opts options) (Packet, error) {
 
 // NewDisconnect creates a DISCONNECT Packet.
 func NewDisconnect(v Version, c ReasonCode, props *Properties) Disconnect {
-	return Disconnect{
-		Version:    v,
-		ReasonCode: c,
-		Properties: props,
-	}
+	return Disconnect{Version: v, ReasonCode: c, Properties: props}
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.

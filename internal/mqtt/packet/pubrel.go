@@ -74,12 +74,7 @@ func newPacketPubRel(opts options) (Packet, error) {
 
 // NewPubRel creates a PUBREL Packet.
 func NewPubRel(id ID, v Version, c ReasonCode, props *Properties) PubRel {
-	return PubRel{
-		PacketID:   id,
-		Version:    v,
-		ReasonCode: c,
-		Properties: props,
-	}
+	return PubRel{PacketID: id, Version: v, ReasonCode: c, Properties: props}
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.

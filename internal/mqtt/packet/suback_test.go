@@ -34,8 +34,9 @@ func TestSubAckWrite(t *testing.T) {
 	}{
 		{id: 1, version: MQTT31, codes: []ReasonCode{ReasonCodeV3GrantedQoS0},
 			msg: []byte{0x90, 3, 0, 1, 0}},
-		{id: 2, version: MQTT311, codes: []ReasonCode{ReasonCodeV3GrantedQoS0, ReasonCodeV3GrantedQoS2},
-			msg: []byte{0x90, 4, 0, 2, 0, 2}},
+		{id: 2, version: MQTT311,
+			codes: []ReasonCode{ReasonCodeV3GrantedQoS0, ReasonCodeV3GrantedQoS2},
+			msg:   []byte{0x90, 4, 0, 2, 0, 2}},
 		{id: 3, version: MQTT50, codes: []ReasonCode{ReasonCodeV5GrantedQoS1},
 			msg: []byte{0x90, 4, 0, 3, 0, 1}},
 	}

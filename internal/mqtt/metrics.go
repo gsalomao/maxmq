@@ -103,7 +103,8 @@ func newPacketsMetrics() *packetsMetrics {
 			Subsystem: "mqtt",
 			Name:      "packets_received_total",
 			Help:      "Number of packets received",
-		}, []string{"type"},
+		},
+		[]string{"type"},
 	)
 
 	p.receivedBytes = prometheus.NewCounterVec(
@@ -112,7 +113,8 @@ func newPacketsMetrics() *packetsMetrics {
 			Subsystem: "mqtt",
 			Name:      "packets_received_bytes",
 			Help:      "Number of bytes received",
-		}, []string{"type"},
+		},
+		[]string{"type"},
 	)
 
 	p.sentTotal = prometheus.NewCounterVec(
@@ -121,7 +123,8 @@ func newPacketsMetrics() *packetsMetrics {
 			Subsystem: "mqtt",
 			Name:      "packets_sent_total",
 			Help:      "Number of packets sent",
-		}, []string{"type"},
+		},
+		[]string{"type"},
 	)
 
 	p.sentBytes = prometheus.NewCounterVec(
@@ -130,7 +133,8 @@ func newPacketsMetrics() *packetsMetrics {
 			Subsystem: "mqtt",
 			Name:      "packets_sent_bytes",
 			Help:      "Number of bytes sent",
-		}, []string{"type"},
+		},
+		[]string{"type"},
 	)
 
 	return p
@@ -186,19 +190,18 @@ func newSubscriptionsMetrics() *subscriptionsMetrics {
 
 func newLatenciesMetrics() *latenciesMetrics {
 	latencies := &latenciesMetrics{}
-	buckets := []float64{
-		0.00010, 0.00025, 0.0005, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1,
-	}
+	buckets := []float64{0.00010, 0.00025, 0.0005, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1}
 
 	latencies.connectSeconds = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "maxmq",
 			Subsystem: "mqtt",
 			Name:      "connect_latency_seconds",
-			Help: "Duration in seconds from the time the CONNECT packet is " +
-				"received until the time the CONNACK packet is sent",
+			Help: "Duration in seconds from the time the CONNECT packet is received until the " +
+				"time the CONNACK packet is sent",
 			Buckets: buckets,
-		}, []string{"code"},
+		},
+		[]string{"code"},
 	)
 
 	latencies.pingSeconds = prometheus.NewHistogram(
@@ -206,8 +209,8 @@ func newLatenciesMetrics() *latenciesMetrics {
 			Namespace: "maxmq",
 			Subsystem: "mqtt",
 			Name:      "ping_latency_seconds",
-			Help: "Duration in seconds from the time the PINGREQ packet is " +
-				"received until the time the PINGRESP packet is sent",
+			Help: "Duration in seconds from the time the PINGREQ packet is received until the " +
+				"time the PINGRESP packet is sent",
 			Buckets: buckets,
 		},
 	)
@@ -217,8 +220,8 @@ func newLatenciesMetrics() *latenciesMetrics {
 			Namespace: "maxmq",
 			Subsystem: "mqtt",
 			Name:      "subscribe_latency_seconds",
-			Help: "Duration in seconds from the time the SUBSCRIBE packet " +
-				"is received until the time the SUBACK packet is sent",
+			Help: "Duration in seconds from the time the SUBSCRIBE packet is received until the " +
+				"time the SUBACK packet is sent",
 			Buckets: buckets,
 		},
 	)
@@ -228,8 +231,8 @@ func newLatenciesMetrics() *latenciesMetrics {
 			Namespace: "maxmq",
 			Subsystem: "mqtt",
 			Name:      "unsubscribe_latency_seconds",
-			Help: "Duration in seconds from the time the UNSUBSCRIBE packet " +
-				"is received until the time the UNSUBACK packet is sent",
+			Help: "Duration in seconds from the time the UNSUBSCRIBE packet is received until " +
+				"the time the UNSUBACK packet is sent",
 			Buckets: buckets,
 		},
 	)
@@ -239,8 +242,8 @@ func newLatenciesMetrics() *latenciesMetrics {
 			Namespace: "maxmq",
 			Subsystem: "mqtt",
 			Name:      "disconnect_latency_seconds",
-			Help: "Duration in seconds from the time the DISCONNECT packet " +
-				"is received until the time the connection is closed",
+			Help: "Duration in seconds from the time the DISCONNECT packet is received until " +
+				"the time the connection is closed",
 			Buckets: buckets,
 		},
 	)

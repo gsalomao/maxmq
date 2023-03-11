@@ -28,18 +28,17 @@ type UnsubscribeHandler struct {
 
 // NewUnsubscribeHandler creates a new UnsubscribeHandler.
 func NewUnsubscribeHandler(
-	sm SessionStore, subMgr SubscriptionManager, l *logger.Logger,
+	sm SessionStore,
+	subMgr SubscriptionManager,
+	l *logger.Logger,
 ) *UnsubscribeHandler {
-	return &UnsubscribeHandler{
-		log:             l,
-		sessionStore:    sm,
-		subscriptionMgr: subMgr,
-	}
+	return &UnsubscribeHandler{log: l, sessionStore: sm, subscriptionMgr: subMgr}
 }
 
-// HandlePacket handles the given packet as a UNSUBSCRIBE packet.
+// HandlePacket handles the given packet as UNSUBSCRIBE packet.
 func (h *UnsubscribeHandler) HandlePacket(
-	id packet.ClientID, p packet.Packet,
+	id packet.ClientID,
+	p packet.Packet,
 ) ([]packet.Packet, error) {
 	unsub := p.(*packet.Unsubscribe)
 	h.log.Trace().
@@ -92,7 +91,8 @@ func (h *UnsubscribeHandler) HandlePacket(
 }
 
 func (h *UnsubscribeHandler) unsubscribe(
-	s *Session, p *packet.Unsubscribe,
+	s *Session,
+	p *packet.Unsubscribe,
 ) ([]packet.ReasonCode, bool) {
 	codes := make([]packet.ReasonCode, 0, len(p.Topics))
 	var sessionChanged bool

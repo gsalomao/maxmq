@@ -45,8 +45,16 @@ func TestPubAckHandlerHandlePacket(t *testing.T) {
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
 
-			pubPkt := packet.NewPublish(2 /*id*/, tc, "data" /*topic*/, packet.QoS1,
-				0 /*dup*/, 0 /*retain*/, nil /*payload*/, nil /*props*/)
+			pubPkt := packet.NewPublish(
+				2,      /*id*/
+				tc,     /*version*/
+				"data", /*topic*/
+				packet.QoS1,
+				0,   /*dup*/
+				0,   /*retain*/
+				nil, /*payload*/
+				nil, /*props*/
+			)
 
 			msg := &Message{ID: 1, PacketID: pubPkt.PacketID, Packet: &pubPkt, Tries: 1,
 				LastSent: time.Now().UnixMicro()}
@@ -54,8 +62,12 @@ func TestPubAckHandlerHandlePacket(t *testing.T) {
 			s.InflightMessages.PushBack(&Message{ID: 1, PacketID: 1})
 			s.InflightMessages.PushBack(msg)
 
-			pubAckPkt := packet.NewPubAck(pubPkt.PacketID, pubPkt.Version, packet.ReasonCodeV5Success,
-				nil /*props*/)
+			pubAckPkt := packet.NewPubAck(
+				pubPkt.PacketID,
+				pubPkt.Version,
+				packet.ReasonCodeV5Success,
+				nil, /*props*/
+			)
 			replies, err := h.HandlePacket(id, &pubAckPkt)
 			require.Nil(t, err)
 			assert.Empty(t, replies)
@@ -83,7 +95,12 @@ func TestPubAckHandlerHandlePacketUnknownMessage(t *testing.T) {
 
 			st.On("ReadSession", id).Return(s, nil)
 
-			pubAckPkt := packet.NewPubAck(10 /*id*/, tc, packet.ReasonCodeV5Success, nil /*props*/)
+			pubAckPkt := packet.NewPubAck(
+				1,  /*id*/
+				tc, /*version*/
+				packet.ReasonCodeV5Success,
+				nil, /*props*/
+			)
 			replies, err := h.HandlePacket(id, &pubAckPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)
@@ -108,7 +125,12 @@ func TestPubAckHandlerHandlePacketReadSessionError(t *testing.T) {
 
 			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)
 
-			pubAckPkt := packet.NewPubAck(1 /*id*/, tc, packet.ReasonCodeV5Success, nil /*props*/)
+			pubAckPkt := packet.NewPubAck(
+				1,  /*id*/
+				tc, /*version*/
+				packet.ReasonCodeV5Success,
+				nil, /*props*/
+			)
 			replies, err := h.HandlePacket(id, &pubAckPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)
@@ -136,14 +158,32 @@ func TestPubAckHandlerHandlePacketSaveSessionError(t *testing.T) {
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(errors.New("failed"))
 
-			pubPkt := packet.NewPublish(1 /*id*/, tc, "data" /*topic*/, packet.QoS1,
-				0 /*dup*/, 0 /*retain*/, nil /*payload*/, nil /*props*/)
+			pubPkt := packet.NewPublish(
+				1,      /*id*/
+				tc,     /*version*/
+				"data", /*topic*/
+				packet.QoS1,
+				0,   /*dup*/
+				0,   /*retain*/
+				nil, /*payload*/
+				nil, /*props*/
+			)
 
-			msg := &Message{ID: 1, PacketID: pubPkt.PacketID, Packet: &pubPkt, Tries: 1,
-				LastSent: time.Now().UnixMicro()}
+			msg := &Message{
+				ID:       1,
+				PacketID: pubPkt.PacketID,
+				Packet:   &pubPkt,
+				Tries:    1,
+				LastSent: time.Now().UnixMicro(),
+			}
 			s.InflightMessages.PushBack(msg)
 
-			pubAckPkt := packet.NewPubAck(1 /*id*/, tc, packet.ReasonCodeV5Success, nil /*props*/)
+			pubAckPkt := packet.NewPubAck(
+				1,  /*id*/
+				tc, /*version*/
+				packet.ReasonCodeV5Success,
+				nil, /*props*/
+			)
 			replies, err := h.HandlePacket(id, &pubAckPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)

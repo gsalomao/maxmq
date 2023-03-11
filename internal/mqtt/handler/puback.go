@@ -28,13 +28,10 @@ type PubAckHandler struct {
 
 // NewPubAckHandler creates a new NewPubAckHandler.
 func NewPubAckHandler(st SessionStore, l *logger.Logger) *PubAckHandler {
-	return &PubAckHandler{
-		log:          l,
-		sessionStore: st,
-	}
+	return &PubAckHandler{log: l, sessionStore: st}
 }
 
-// HandlePacket handles the given packet as a PUBACK packet.
+// HandlePacket handles the given packet as PUBACK packet.
 func (h *PubAckHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]packet.Packet, error) {
 	pubAck := p.(*packet.PubAck)
 	h.log.Trace().

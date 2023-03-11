@@ -53,7 +53,12 @@ type ConnAck struct {
 
 // NewConnAck creates a CONNACK Packet.
 func NewConnAck(
-	id ClientID, v Version, c ReasonCode, sessionPresent bool, keepAlive int, props *Properties,
+	id ClientID,
+	v Version,
+	c ReasonCode,
+	sessionPresent bool,
+	keepAlive int,
+	props *Properties,
 ) ConnAck {
 	return ConnAck{
 		ClientID:       id,

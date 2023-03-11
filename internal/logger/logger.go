@@ -82,11 +82,7 @@ func init() {
 
 // New creates a new logger object.
 func New(out io.Writer, gen LogIDGenerator) Logger {
-	output := &zerolog.ConsoleWriter{
-		Out:        out,
-		TimeFormat: time.RFC3339Nano,
-	}
-
+	output := &zerolog.ConsoleWriter{Out: out, TimeFormat: time.RFC3339Nano}
 	output.FormatTimestamp = formatTimestamp
 	output.FormatLevel = formatLevel
 	output.FormatMessage = formatMessage

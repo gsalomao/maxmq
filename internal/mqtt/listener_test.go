@@ -150,7 +150,7 @@ func TestListenerHandleConnection(t *testing.T) {
 	}()
 
 	<-time.After(time.Millisecond)
-	conn, err := net.Dial("tcp", ":1883")
+	conn, err := net.Dial("tcp" /*network*/, ":1883" /*address*/)
 	require.Nil(t, err)
 	defer func() { _ = conn.Close() }()
 
@@ -178,7 +178,7 @@ func TestListenerHandleConnectionFailure(t *testing.T) {
 	}()
 
 	<-time.After(time.Millisecond)
-	conn, err := net.Dial("tcp", ":1883")
+	conn, err := net.Dial("tcp" /*network*/, ":1883" /*address*/)
 	require.Nil(t, err)
 	defer func() { _ = conn.Close() }()
 

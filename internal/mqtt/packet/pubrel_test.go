@@ -62,8 +62,12 @@ func TestPulRecInvalidLength(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			opts := options{packetType: PUBREL, controlFlags: 2, version: tc.version,
-				remainingLength: tc.length}
+			opts := options{
+				packetType:      PUBREL,
+				controlFlags:    2,
+				version:         tc.version,
+				remainingLength: tc.length,
+			}
 
 			pkt, err := newPacketPubRel(opts)
 			require.NotNil(t, err)
@@ -84,8 +88,9 @@ func TestPubRelWrite(t *testing.T) {
 		{name: "V3.1", id: 0x01, version: MQTT31, msg: []byte{0x62, 2, 0, 1}},
 		{name: "V3.1.1", id: 0xFF, version: MQTT311, msg: []byte{0x62, 2, 0, 0xFF}},
 		{name: "V5.0-Success", id: 0x100, version: MQTT50, msg: []byte{0x62, 2, 1, 0}},
-		{name: "V5.0-PacketIDNotFound", id: 0x01FF, version: MQTT50, code: ReasonCodeV5PacketIDNotFound,
-			msg: []byte{0x62, 4, 1, 0xFF, 0x92, 0}},
+		{name: "V5.0-PacketIDNotFound", id: 0x01FF, version: MQTT50,
+			code: ReasonCodeV5PacketIDNotFound,
+			msg:  []byte{0x62, 4, 1, 0xFF, 0x92, 0}},
 		{name: "V5.0-Properties", id: 0xFFFE, version: MQTT50, code: ReasonCodeV5Success,
 			props: &Properties{ReasonString: []byte{'a'}},
 			msg:   []byte{0x62, 8, 0xFF, 0xFE, 0, 4, 0x1F, 0, 1, 'a'}},
@@ -219,13 +224,18 @@ func TestPubRelRead(t *testing.T) {
 			code: ReasonCodeV5PacketIDNotFound},
 		{name: "V5.0-Properties", version: MQTT50,
 			msg: []byte{0xFF, 0xFE, 0, 8, 0x1F, 0, 5, 'H', 'e', 'l', 'l', 'o'},
-			id:  0xFFFE, code: ReasonCodeV5Success, props: &Properties{ReasonString: []byte("Hello")}},
+			id:  0xFFFE, code: ReasonCodeV5Success,
+			props: &Properties{ReasonString: []byte("Hello")}},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			opts := options{packetType: PUBREL, version: tc.version, controlFlags: 2,
-				remainingLength: len(tc.msg)}
+			opts := options{
+				packetType:      PUBREL,
+				version:         tc.version,
+				controlFlags:    2,
+				remainingLength: len(tc.msg),
+			}
 			pkt, err := newPacketPubRel(opts)
 			require.Nil(t, err)
 			require.NotNil(t, pkt)
@@ -246,7 +256,12 @@ func TestPubRelRead(t *testing.T) {
 func BenchmarkPubRelReadV3(b *testing.B) {
 	b.ReportAllocs()
 	msg := []byte{0, 1}
-	opts := options{packetType: PUBREL, version: MQTT311, controlFlags: 2, remainingLength: len(msg)}
+	opts := options{
+		packetType:      PUBREL,
+		version:         MQTT311,
+		controlFlags:    2,
+		remainingLength: len(msg),
+	}
 	pkt, _ := newPacketPubRel(opts)
 	rd := bufio.NewReaderSize(nil, len(msg))
 
@@ -291,8 +306,12 @@ func TestPubRelReadMissingData(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			opts := options{packetType: PUBREL, version: MQTT50, controlFlags: 2,
-				remainingLength: tc.length}
+			opts := options{
+				packetType:      PUBREL,
+				version:         MQTT50,
+				controlFlags:    2,
+				remainingLength: tc.length,
+			}
 			pkt, err := newPacketPubRel(opts)
 			require.Nil(t, err)
 
@@ -321,8 +340,12 @@ func TestPubRelReadV5InvalidReasonCode(t *testing.T) {
 			t.Run(strconv.Itoa(code), func(t *testing.T) {
 				msg := []byte{1, 0xFF, byte(code), 0}
 
-				opts := options{packetType: PUBREL, version: MQTT50, controlFlags: 2,
-					remainingLength: len(msg)}
+				opts := options{
+					packetType:      PUBREL,
+					version:         MQTT50,
+					controlFlags:    2,
+					remainingLength: len(msg),
+				}
 				pkt, err := newPacketPubRel(opts)
 				require.Nil(t, err)
 				require.NotNil(t, pkt)

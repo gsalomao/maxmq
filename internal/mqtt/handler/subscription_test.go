@@ -63,8 +63,7 @@ func assertSubscription(t *testing.T, tree *SubscriptionTree, s Subscription, id
 					assert.Equal(t, s.QoS, sub2.QoS)
 					assert.Equal(t, s.RetainHandling, sub2.RetainHandling)
 					assert.Equal(t, s.NoLocal, sub2.NoLocal)
-					assert.Equal(t, s.RetainAsPublished,
-						sub2.RetainAsPublished)
+					assert.Equal(t, s.RetainAsPublished, sub2.RetainAsPublished)
 					break
 				} else {
 					assert.NotNil(t, sub2.next)
@@ -309,18 +308,17 @@ func TestSubscriptionTreeRemoveUnknownSubscription(t *testing.T) {
 	id := packet.ClientID("client-1")
 
 	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("%s-%s", tc.topics[0], tc.topics[1]),
-			func(t *testing.T) {
-				tree := NewSubscriptionTree()
+		t.Run(fmt.Sprintf("%s-%s", tc.topics[0], tc.topics[1]), func(t *testing.T) {
+			tree := NewSubscriptionTree()
 
-				sub := Subscription{ClientID: id, TopicFilter: tc.topics[0], QoS: packet.QoS0}
-				_, err := tree.Insert(sub)
-				require.Nil(t, err)
+			sub := Subscription{ClientID: id, TopicFilter: tc.topics[0], QoS: packet.QoS0}
+			_, err := tree.Insert(sub)
+			require.Nil(t, err)
 
-				err = tree.Remove(id, tc.topics[1])
-				assert.Equal(t, ErrSubscriptionNotFound, err)
-				assertSubscription(t, &tree, sub, id)
-			})
+			err = tree.Remove(id, tc.topics[1])
+			assert.Equal(t, ErrSubscriptionNotFound, err)
+			assertSubscription(t, &tree, sub, id)
+		})
 	}
 }
 

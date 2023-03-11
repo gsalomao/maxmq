@@ -40,17 +40,13 @@ func NewConnectHandler(c *Configuration, st SessionStore, l *logger.Logger) *Con
 		props = append(props, prop)
 	}
 
-	return &ConnectHandler{
-		conf:         c,
-		log:          l,
-		props:        props,
-		sessionStore: st,
-	}
+	return &ConnectHandler{conf: c, log: l, props: props, sessionStore: st}
 }
 
-// HandlePacket handles the given packet as a CONNECT packet.
+// HandlePacket handles the given packet as CONNECT packet.
 func (h *ConnectHandler) HandlePacket(
-	_ packet.ClientID, p packet.Packet,
+	_ packet.ClientID,
+	p packet.Packet,
 ) ([]packet.Packet, error) {
 	connPkt := p.(*packet.Connect)
 	h.log.Trace().

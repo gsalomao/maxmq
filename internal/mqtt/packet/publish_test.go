@@ -112,8 +112,16 @@ func TestPublishWriteV5Properties(t *testing.T) {
 	props := &Properties{PayloadFormatIndicator: new(byte)}
 	*props.PayloadFormatIndicator = 1
 
-	pkt := NewPublish(5 /*id*/, MQTT50, "a" /*topic*/, QoS0,
-		0 /*dup*/, 0 /*retain*/, []byte{'b'} /*payload*/, props)
+	pkt := NewPublish(
+		5, /*id*/
+		MQTT50,
+		"a", /*topic*/
+		QoS0,
+		0,           /*dup*/
+		0,           /*retain*/
+		[]byte{'b'}, /*payload*/
+		props,
+	)
 
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
@@ -129,8 +137,16 @@ func TestPublishWriteV5Properties(t *testing.T) {
 }
 
 func TestPublishWriteFailure(t *testing.T) {
-	pkt := NewPublish(5 /*id*/, MQTT50, "a" /*topic*/, QoS0,
-		0 /*dup*/, 0 /*retain*/, []byte{'b'} /*payload*/, nil /*props*/)
+	pkt := NewPublish(
+		5, /*id*/
+		MQTT50,
+		"a", /*topic*/
+		QoS0,
+		0,           /*dup*/
+		0,           /*retain*/
+		[]byte{'b'}, /*payload*/
+		nil,         /*props*/
+	)
 	require.NotNil(t, pkt)
 
 	conn, _ := net.Pipe()
@@ -145,8 +161,16 @@ func TestPublishWriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{MaximumQoS: new(byte)}
 	*props.MaximumQoS = 1
 
-	pkt := NewPublish(5 /*id*/, MQTT50, "a" /*topic*/, QoS0,
-		0 /*dup*/, 0 /*retain*/, []byte{'b'} /*payload*/, props /*props*/)
+	pkt := NewPublish(
+		5, /*id*/
+		MQTT50,
+		"a", /*topic*/
+		QoS0,
+		0,           /*dup*/
+		0,           /*retain*/
+		[]byte{'b'}, /*payload*/
+		props,       /*props*/
+	)
 
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
@@ -375,8 +399,16 @@ func TestPublishClone(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprint(tc.id), func(t *testing.T) {
-			pkt1 := NewPublish(tc.id, tc.version, tc.topic, tc.qos, tc.dup, tc.retain, tc.payload,
-				nil /*props*/)
+			pkt1 := NewPublish(
+				tc.id,
+				tc.version,
+				tc.topic,
+				tc.qos,
+				tc.dup,
+				tc.retain,
+				tc.payload,
+				nil, /*props*/
+			)
 			pkt2 := pkt1.Clone()
 
 			assert.Equal(t, pkt1.PacketID, pkt2.PacketID)
@@ -394,8 +426,16 @@ func TestPublishCloneProperties(t *testing.T) {
 	props := Properties{PayloadFormatIndicator: new(byte)}
 	*props.PayloadFormatIndicator = 5
 
-	pkt1 := NewPublish(1 /*id*/, MQTT50, "data" /*topic*/, QoS1,
-		1 /*dup*/, 1 /*retain*/, []byte("raw") /*payload*/, &props)
+	pkt1 := NewPublish(
+		1, /*id*/
+		MQTT50,
+		"data", /*topic*/
+		QoS1,
+		1,             /*dup*/
+		1,             /*retain*/
+		[]byte("raw"), /*payload*/
+		&props,
+	)
 	pkt2 := pkt1.Clone()
 
 	require.NotNil(t, pkt2.Properties)

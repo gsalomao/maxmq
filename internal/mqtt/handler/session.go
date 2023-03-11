@@ -26,8 +26,7 @@ import (
 // ErrSessionNotFound indicates that the session was not found.
 var ErrSessionNotFound = errors.New("session not found")
 
-// ErrPacketNotFound indicates that the packet with a given packet ID was not
-// found.
+// ErrPacketNotFound indicates that the packet with a given packet ID was not found.
 var ErrPacketNotFound = errors.New("packet not found")
 
 // SessionID represents the Session identifier.
@@ -104,11 +103,11 @@ type Session struct {
 func (s *Session) NextPacketID() packet.ID {
 	id := atomic.LoadUint32(&s.LastPacketID)
 	if id == uint32(65535) || id == uint32(0) {
-		atomic.StoreUint32(&s.LastPacketID, 1)
+		atomic.StoreUint32(&s.LastPacketID, 1 /*val*/)
 		return 1
 	}
 
-	return packet.ID(atomic.AddUint32(&s.LastPacketID, 1))
+	return packet.ID(atomic.AddUint32(&s.LastPacketID, 1 /*delta*/))
 }
 
 func (s *Session) findInflightMessage(id packet.ID) *list.Element {

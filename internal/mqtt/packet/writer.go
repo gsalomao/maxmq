@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,9 +35,7 @@ type writer struct {
 func NewWriter(bufSize int) Writer {
 	return &writer{
 		writerPool: sync.Pool{
-			New: func() interface{} {
-				return bufio.NewWriterSize(nil, bufSize)
-			},
+			New: func() interface{} { return bufio.NewWriterSize(nil, bufSize) },
 		},
 	}
 }

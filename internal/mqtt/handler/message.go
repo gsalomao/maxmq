@@ -50,8 +50,13 @@ type Message struct {
 
 // Clone clones the message.
 func (m *Message) Clone() *Message {
-	return &Message{ID: m.ID, PacketID: m.PacketID, Packet: m.Packet.Clone(),
-		LastSent: m.LastSent, Tries: m.Tries}
+	return &Message{
+		ID:       m.ID,
+		PacketID: m.PacketID,
+		Packet:   m.Packet.Clone(),
+		LastSent: m.LastSent,
+		Tries:    m.Tries,
+	}
 }
 
 // MessageQueue is a queue for Message.

@@ -74,12 +74,7 @@ func newPacketPubComp(opts options) (Packet, error) {
 
 // NewPubComp creates a PUBCOMP Packet.
 func NewPubComp(id ID, v Version, c ReasonCode, props *Properties) PubComp {
-	return PubComp{
-		PacketID:   id,
-		Version:    v,
-		ReasonCode: c,
-		Properties: props,
-	}
+	return PubComp{PacketID: id, Version: v, ReasonCode: c, Properties: props}
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.

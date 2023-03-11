@@ -143,14 +143,20 @@ func TestUnsubscribeHandlerHandlePacketUnsubscribeError(t *testing.T) {
 			h := NewUnsubscribeHandler(st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: packet.MQTT311,
-				Subscriptions: make(map[string]*Subscription)}
+			s := &Session{
+				ClientID:      id,
+				Version:       packet.MQTT311,
+				Subscriptions: make(map[string]*Subscription),
+			}
 
 			st.On("ReadSession", id).Return(s, nil)
 			subMgr.On("Unsubscribe", id, "data").Return(tc.err)
 
-			unsubPkt := &packet.Unsubscribe{PacketID: 1, Version: packet.MQTT311,
-				Topics: []string{"data"}}
+			unsubPkt := &packet.Unsubscribe{
+				PacketID: 1,
+				Version:  packet.MQTT311,
+				Topics:   []string{"data"},
+			}
 			replies, err := h.HandlePacket(id, unsubPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -240,8 +246,10 @@ func TestUnsubscribeHandlerHandlePacketSaveSessionError(t *testing.T) {
 			assert.Equal(t, unsubPkt.PacketID, unsubAckPkt.PacketID)
 			assert.Equal(t, unsubPkt.Version, unsubAckPkt.Version)
 
-			codes := []packet.ReasonCode{packet.ReasonCodeV5UnspecifiedError,
-				packet.ReasonCodeV5UnspecifiedError}
+			codes := []packet.ReasonCode{
+				packet.ReasonCodeV5UnspecifiedError,
+				packet.ReasonCodeV5UnspecifiedError,
+			}
 			assert.Equal(t, codes, unsubAckPkt.ReasonCodes)
 
 			st.AssertExpectations(t)

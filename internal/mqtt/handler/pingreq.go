@@ -28,15 +28,13 @@ type PingReqHandler struct {
 
 // NewPingReqHandler creates a new NewPingReqHandler.
 func NewPingReqHandler(st SessionStore, l *logger.Logger) *PingReqHandler {
-	return &PingReqHandler{
-		log:          l,
-		sessionStore: st,
-	}
+	return &PingReqHandler{log: l, sessionStore: st}
 }
 
-// HandlePacket handles the given packet as a PINGREQ packet.
+// HandlePacket handles the given packet as PINGREQ packet.
 func (h *PingReqHandler) HandlePacket(
-	id packet.ClientID, p packet.Packet,
+	id packet.ClientID,
+	p packet.Packet,
 ) ([]packet.Packet, error) {
 	pingReq := p.(*packet.PingReq)
 	h.log.Trace().

@@ -230,8 +230,7 @@ func startServer(s *server.Server, l *logger.Logger, enableProfile bool) {
 
 		heap, err = os.Create("heap.prof")
 		if err != nil {
-			l.Fatal().Msg("Failed to create Heap profile file: " +
-				err.Error())
+			l.Fatal().Msg("Failed to create Heap profile file: " + err.Error())
 		}
 		defer func() { _ = heap.Close() }()
 

@@ -70,8 +70,8 @@ type Configuration struct {
 	// Prefix to be added to automatically generated client IDs.
 	ClientIDPrefix []byte
 
-	// This property can be used to provide additional information to the Client including diagnostic
-	// information.
+	// This property can be used to provide additional information to the Client including
+	// diagnostic information.
 	UserProperties map[string]string
 
 	// Indicate whether the server exports metrics or not.

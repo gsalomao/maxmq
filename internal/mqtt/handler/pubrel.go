@@ -31,16 +31,14 @@ type PubRelHandler struct {
 
 // NewPubRelHandler creates a new PubRelHandler.
 func NewPubRelHandler(
-	st SessionStore, subMgr SubscriptionManager, l *logger.Logger,
+	st SessionStore,
+	subMgr SubscriptionManager,
+	l *logger.Logger,
 ) *PubRelHandler {
-	return &PubRelHandler{
-		log:             l,
-		sessionStore:    st,
-		subscriptionMgr: subMgr,
-	}
+	return &PubRelHandler{log: l, sessionStore: st, subscriptionMgr: subMgr}
 }
 
-// HandlePacket handles the given packet as a PUBREL packet.
+// HandlePacket handles the given packet as PUBREL packet.
 func (h *PubRelHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]packet.Packet, error) {
 	pubRel := p.(*packet.PubRel)
 	h.log.Trace().
@@ -75,8 +73,12 @@ func (h *PubRelHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 			return nil, ErrPacketNotFound
 		}
 
-		pubComp := packet.NewPubComp(pubRel.PacketID, pubRel.Version,
-			packet.ReasonCodeV5PacketIDNotFound, nil /*props*/)
+		pubComp := packet.NewPubComp(
+			pubRel.PacketID,
+			pubRel.Version,
+			packet.ReasonCodeV5PacketIDNotFound,
+			nil, /*props*/
+		)
 		replies = append(replies, &pubComp)
 		return replies, nil
 	}
@@ -128,8 +130,12 @@ func (h *PubRelHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 		}
 	}
 
-	pubComp := packet.NewPubComp(pubRel.PacketID, pubRel.Version, packet.ReasonCodeV5Success,
-		nil /*props*/)
+	pubComp := packet.NewPubComp(
+		pubRel.PacketID,
+		pubRel.Version,
+		packet.ReasonCodeV5Success,
+		nil, /*props*/
+	)
 	replies = append(replies, &pubComp)
 	h.log.Trace().
 		Str("ClientId", string(s.ClientID)).

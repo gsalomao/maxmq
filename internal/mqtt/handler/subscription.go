@@ -82,7 +82,9 @@ type SubscriptionTree struct {
 
 // NewSubscriptionTree creates a new SubscriptionTree.
 func NewSubscriptionTree() SubscriptionTree {
-	return SubscriptionTree{root: newSubscriptionNode()}
+	return SubscriptionTree{
+		root: newSubscriptionNode(),
+	}
 }
 
 // Insert inserts the given subscription into the SubscriptionTree.
@@ -177,7 +179,9 @@ type subscriptionNode struct {
 }
 
 func newSubscriptionNode() *subscriptionNode {
-	return &subscriptionNode{children: make(map[string]*subscriptionNode)}
+	return &subscriptionNode{
+		children: make(map[string]*subscriptionNode),
+	}
 }
 
 func (n *subscriptionNode) insert(sub *Subscription) bool {

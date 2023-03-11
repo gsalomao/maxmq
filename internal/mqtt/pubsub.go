@@ -35,9 +35,12 @@ type packetDeliverer interface {
 	deliverPacket(id packet.ClientID, pkt *packet.Publish) error
 }
 
-func newPubSubManager(pd packetDeliverer, sm handler.SessionStore,
-	mt *metrics, l *logger.Logger) *pubSubManager {
-
+func newPubSubManager(
+	pd packetDeliverer,
+	sm handler.SessionStore,
+	mt *metrics,
+	l *logger.Logger,
+) *pubSubManager {
 	return &pubSubManager{
 		deliverer:  pd,
 		sessionMgr: sm,

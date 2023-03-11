@@ -33,7 +33,8 @@ func TestUnsubAckWrite(t *testing.T) {
 		msg     []byte
 	}{
 		{id: 1, version: MQTT31, codes: nil, msg: []byte{0xB0, 2, 0, 1}},
-		{id: 2, version: MQTT311, codes: []ReasonCode{ReasonCodeV5Success}, msg: []byte{0xB0, 2, 0, 2}},
+		{id: 2, version: MQTT311, codes: []ReasonCode{ReasonCodeV5Success},
+			msg: []byte{0xB0, 2, 0, 2}},
 		{id: 3, version: MQTT50, codes: []ReasonCode{ReasonCodeV5Success},
 			msg: []byte{0xB0, 4, 0, 3, 0, 0}},
 	}

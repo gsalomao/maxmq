@@ -46,12 +46,7 @@ type UnsubAck struct {
 
 // NewUnsubAck creates a UNSUBACK Packet.
 func NewUnsubAck(id ID, v Version, c []ReasonCode, props *Properties) UnsubAck {
-	return UnsubAck{
-		PacketID:    id,
-		Version:     v,
-		ReasonCodes: c,
-		Properties:  props,
-	}
+	return UnsubAck{PacketID: id, Version: v, ReasonCodes: c, Properties: props}
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.

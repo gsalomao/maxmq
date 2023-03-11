@@ -74,12 +74,7 @@ func newPacketPubAck(opts options) (Packet, error) {
 
 // NewPubAck creates a PUBACK Packet.
 func NewPubAck(id ID, v Version, c ReasonCode, props *Properties) PubAck {
-	return PubAck{
-		PacketID:   id,
-		Version:    v,
-		ReasonCode: c,
-		Properties: props,
-	}
+	return PubAck{PacketID: id, Version: v, ReasonCode: c, Properties: props}
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.
@@ -90,8 +85,7 @@ func (pkt *PubAck) Write(w *bufio.Writer) error {
 		(pkt.ReasonCode != ReasonCodeV5Success || pkt.Properties != nil) {
 
 		err := buf.WriteByte(byte(pkt.ReasonCode))
-		err = multierr.Combine(err,
-			writeProperties(buf, pkt.Properties, PUBACK))
+		err = multierr.Combine(err, writeProperties(buf, pkt.Properties, PUBACK))
 		if err != nil {
 			return fmt.Errorf("failed to write properties: %w", err)
 		}

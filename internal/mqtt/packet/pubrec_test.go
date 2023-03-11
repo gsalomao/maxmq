@@ -173,10 +173,17 @@ func TestPubRecWriteV5InvalidProperty(t *testing.T) {
 }
 
 func TestPubRecWriteV5InvalidReasonCode(t *testing.T) {
-	validCodes := []ReasonCode{ReasonCodeV5Success, ReasonCodeV5NoMatchingSubscribers,
-		ReasonCodeV5UnspecifiedError, ReasonCodeV5ImplementationError, ReasonCodeV5NotAuthorized,
-		ReasonCodeV5TopicNameInvalid, ReasonCodeV5PacketIDInUse, ReasonCodeV5QuotaExceeded,
-		ReasonCodeV5PayloadFormatInvalid}
+	validCodes := []ReasonCode{
+		ReasonCodeV5Success,
+		ReasonCodeV5NoMatchingSubscribers,
+		ReasonCodeV5UnspecifiedError,
+		ReasonCodeV5ImplementationError,
+		ReasonCodeV5NotAuthorized,
+		ReasonCodeV5TopicNameInvalid,
+		ReasonCodeV5PacketIDInUse,
+		ReasonCodeV5QuotaExceeded,
+		ReasonCodeV5PayloadFormatInvalid,
+	}
 
 	isValidReasonCode := func(code int) bool {
 		for _, c := range validCodes {
@@ -218,11 +225,12 @@ func TestPubRecRead(t *testing.T) {
 		{name: "V3.1.1", version: MQTT311, msg: []byte{1, 0}, id: 0x100},
 		{name: "V5.0-Success", version: MQTT50, msg: []byte{1, 0xFF, 0}, id: 0x1FF,
 			code: ReasonCodeV5Success},
-		{name: "V5.0-NoMatchingSubscribers", version: MQTT50, msg: []byte{1, 0xFF, 0x10, 0}, id: 0x1FF,
-			code: ReasonCodeV5NoMatchingSubscribers},
+		{name: "V5.0-NoMatchingSubscribers", version: MQTT50, msg: []byte{1, 0xFF, 0x10, 0},
+			id: 0x1FF, code: ReasonCodeV5NoMatchingSubscribers},
 		{name: "V5.0-Properties", version: MQTT50,
 			msg: []byte{0xFF, 0xFE, 0, 8, 0x1F, 0, 5, 'H', 'e', 'l', 'l', 'o'},
-			id:  0xFFFE, code: ReasonCodeV5Success, props: &Properties{ReasonString: []byte("Hello")}},
+			id:  0xFFFE, code: ReasonCodeV5Success,
+			props: &Properties{ReasonString: []byte("Hello")}},
 	}
 
 	for _, tc := range testCases {
@@ -312,10 +320,17 @@ func TestPubRecReadMissingData(t *testing.T) {
 }
 
 func TestPubRecReadV5InvalidReasonCode(t *testing.T) {
-	validCodes := []ReasonCode{ReasonCodeV5Success, ReasonCodeV5NoMatchingSubscribers,
-		ReasonCodeV5UnspecifiedError, ReasonCodeV5ImplementationError, ReasonCodeV5NotAuthorized,
-		ReasonCodeV5TopicNameInvalid, ReasonCodeV5PacketIDInUse, ReasonCodeV5QuotaExceeded,
-		ReasonCodeV5PayloadFormatInvalid}
+	validCodes := []ReasonCode{
+		ReasonCodeV5Success,
+		ReasonCodeV5NoMatchingSubscribers,
+		ReasonCodeV5UnspecifiedError,
+		ReasonCodeV5ImplementationError,
+		ReasonCodeV5NotAuthorized,
+		ReasonCodeV5TopicNameInvalid,
+		ReasonCodeV5PacketIDInUse,
+		ReasonCodeV5QuotaExceeded,
+		ReasonCodeV5PayloadFormatInvalid,
+	}
 
 	isValidReasonCode := func(code int) bool {
 		for _, c := range validCodes {

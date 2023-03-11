@@ -111,7 +111,7 @@ func BenchmarkPubAckWriteV3(b *testing.B) {
 	b.ReportAllocs()
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
-	pkt := NewPubAck(4, MQTT311, ReasonCodeV5Success, nil)
+	pkt := NewPubAck(4 /*id*/, MQTT311, ReasonCodeV5Success, nil /*props*/)
 
 	for n := 0; n < b.N; n++ {
 		buf.Reset()
@@ -126,7 +126,7 @@ func BenchmarkPubAckWriteV3(b *testing.B) {
 func BenchmarkPubAckWriteV5(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
-	pkt := NewPubAck(4, MQTT50, ReasonCodeV5Success, nil)
+	pkt := NewPubAck(4 /*id*/, MQTT50, ReasonCodeV5Success, nil /*props*/)
 
 	b.ReportAllocs()
 
@@ -141,7 +141,7 @@ func BenchmarkPubAckWriteV5(b *testing.B) {
 }
 
 func TestPubAckWriteFailure(t *testing.T) {
-	pkt := NewPubAck(5, MQTT50, ReasonCodeV5Success, nil)
+	pkt := NewPubAck(5 /*id*/, MQTT50, ReasonCodeV5Success, nil /*props*/)
 	require.NotNil(t, pkt)
 
 	conn, _ := net.Pipe()
@@ -156,7 +156,7 @@ func TestPubAckWriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{TopicAlias: new(uint16)}
 	*props.TopicAlias = 10
 
-	pkt := NewPubAck(5, MQTT50, ReasonCodeV5Success, props)
+	pkt := NewPubAck(5 /*id*/, MQTT50, ReasonCodeV5Success, props)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -183,11 +183,12 @@ func TestPubAckRead(t *testing.T) {
 		{name: "V3.1.1", version: MQTT311, msg: []byte{1, 0}, id: 0x100},
 		{name: "V5.0-Success", version: MQTT50, msg: []byte{1, 0xFF, 0}, id: 0x1FF,
 			code: ReasonCodeV5Success},
-		{name: "V5.0-NoMatchingSubscribers", version: MQTT50, msg: []byte{1, 0xFF, 0x10, 0}, id: 0x1FF,
-			code: ReasonCodeV5NoMatchingSubscribers},
+		{name: "V5.0-NoMatchingSubscribers", version: MQTT50, msg: []byte{1, 0xFF, 0x10, 0},
+			id: 0x1FF, code: ReasonCodeV5NoMatchingSubscribers},
 		{name: "V5.0-Properties", version: MQTT50,
 			msg: []byte{0xFF, 0xFE, 0, 8, 0x1F, 0, 5, 'H', 'e', 'l', 'l', 'o'},
-			id:  0xFFFE, code: ReasonCodeV5Success, props: &Properties{ReasonString: []byte("Hello")}},
+			id:  0xFFFE, code: ReasonCodeV5Success,
+			props: &Properties{ReasonString: []byte("Hello")}},
 	}
 
 	for _, tc := range testCases {
@@ -294,7 +295,7 @@ func TestPubAckSize(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			pkt := NewPubAck(1, tc.version, tc.code, tc.props)
+			pkt := NewPubAck(1 /*id*/, tc.version, tc.code, tc.props)
 			require.NotNil(t, pkt)
 
 			buf := &bytes.Buffer{}
@@ -309,7 +310,7 @@ func TestPubAckSize(t *testing.T) {
 }
 
 func TestPubAckTimestamp(t *testing.T) {
-	pkt := NewPubAck(4, MQTT50, ReasonCodeV5Success, nil)
+	pkt := NewPubAck(4 /*id*/, MQTT50, ReasonCodeV5Success, nil /*props*/)
 	require.NotNil(t, pkt)
 	assert.NotNil(t, pkt.Timestamp())
 }

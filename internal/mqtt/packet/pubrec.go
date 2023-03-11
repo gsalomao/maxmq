@@ -72,12 +72,7 @@ func newPacketPubRec(opts options) (Packet, error) {
 
 // NewPubRec creates a PUBREC Packet.
 func NewPubRec(id ID, v Version, c ReasonCode, props *Properties) PubRec {
-	return PubRec{
-		PacketID:   id,
-		Version:    v,
-		ReasonCode: c,
-		Properties: props,
-	}
+	return PubRec{PacketID: id, Version: v, ReasonCode: c, Properties: props}
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.
@@ -167,10 +162,17 @@ func (pkt *PubRec) Timestamp() time.Time {
 }
 
 func (pkt *PubRec) isValidReasonCode() bool {
-	validPubRecReasonCodes := []ReasonCode{ReasonCodeV5Success, ReasonCodeV5NoMatchingSubscribers,
-		ReasonCodeV5UnspecifiedError, ReasonCodeV5ImplementationError, ReasonCodeV5NotAuthorized,
-		ReasonCodeV5TopicNameInvalid, ReasonCodeV5PacketIDInUse, ReasonCodeV5QuotaExceeded,
-		ReasonCodeV5PayloadFormatInvalid}
+	validPubRecReasonCodes := []ReasonCode{
+		ReasonCodeV5Success,
+		ReasonCodeV5NoMatchingSubscribers,
+		ReasonCodeV5UnspecifiedError,
+		ReasonCodeV5ImplementationError,
+		ReasonCodeV5NotAuthorized,
+		ReasonCodeV5TopicNameInvalid,
+		ReasonCodeV5PacketIDInUse,
+		ReasonCodeV5QuotaExceeded,
+		ReasonCodeV5PayloadFormatInvalid,
+	}
 
 	for _, code := range validPubRecReasonCodes {
 		if pkt.ReasonCode == code {

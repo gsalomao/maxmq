@@ -138,8 +138,7 @@ var packetTypeToFactory = map[Type]func(options) (Packet, error){
 func newPacket(opts options) (Packet, error) {
 	fn, ok := packetTypeToFactory[opts.packetType]
 	if !ok {
-		return nil, errors.New("invalid packet type: " +
-			opts.packetType.String())
+		return nil, errors.New("invalid packet type: " + opts.packetType.String())
 	}
 
 	return fn(opts)

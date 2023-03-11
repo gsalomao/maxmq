@@ -556,54 +556,30 @@ func TestPropertiesReadPropertiesProtocolError(t *testing.T) {
 		pktType Type
 		props   []byte
 	}{
-		{pktType: CONNECT, props: []byte{
-			17, 0, 0, 0, 5, 17, 0, 0, 0, 9}}, // SessionExpiryInterval
-		{pktType: CONNECT, props: []byte{33, 0,
-			0}}, // ReceiveMaximum
-		{pktType: CONNECT, props: []byte{33, 0, 52, 33, 0,
-			49}}, // ReceiveMaximum
-		{pktType: CONNECT, props: []byte{
-			39, 0, 0, 0, 0}}, // MaximumPacketSize
-		{pktType: CONNECT, props: []byte{
-			39, 0, 0, 0, 9, 39, 0, 0, 0, 7}}, // MaximumPacketSize
-		{pktType: CONNECT, props: []byte{
-			34, 0, 3, 34, 0, 4}}, // TopicAliasMaximum
-		{pktType: CONNECT, props: []byte{
-			25, 2}}, // RequestResponseInfo
-		{pktType: CONNECT, props: []byte{
-			25, 0, 25, 1}}, // RequestResponseInfo
-		{pktType: CONNECT, props: []byte{
-			23, 2}}, // RequestProblemInfo
-		{pktType: CONNECT, props: []byte{
-			23, 0, 23, 1}}, // RequestProblemInfo
-		{pktType: CONNECT, props: []byte{
-			21, 0, 1, 'e', 21, 0, 1, 'f'}}, // AuthMethod
-		{pktType: CONNECT, props: []byte{
-			22, 0, 1, 1}}, // AuthData
-		{pktType: CONNECT, props: []byte{
-			21, 0, 1, 'e', 22, 0, 1, 1, 22, 0, 1, 2}}, // AuthData
-		{pktType: CONNECT, props: []byte{
-			24, 0, 0, 0, 1, 24, 0, 0, 0, 2}}, // WillDelayInterval
-		{pktType: CONNECT, props: []byte{
-			1, 0, 1, 1}}, // PayloadFormatIndicator
-		{pktType: CONNECT, props: []byte{
-			1, 2}}, // PayloadFormatIndicator
-		{pktType: CONNECT, props: []byte{
-			2, 0, 0, 0, 1, 2, 0, 0, 0, 2}}, // MessageExpiryInterval
-		{pktType: CONNECT, props: []byte{
-			3, 0, 1, 'a', 3, 0, 1, 'b'}}, // ContentType
-		{pktType: CONNECT, props: []byte{
-			9, 0, 1, 1, 9, 0, 1, 2}}, // CorrelationData
-		{pktType: PUBLISH, props: []byte{
-			8, 0, 1, 'a', 8, 0, 1, 'b'}}, // ResponseTopic
-		{pktType: PUBLISH, props: []byte{
-			8, 0, 3, 'a', '/', '#'}}, // ResponseTopic
-		{pktType: PUBLISH, props: []byte{
-			8, 0, 0}}, // ResponseTopic
-		{pktType: PUBLISH, props: []byte{
-			35, 0, 0}}, // TopicAlias
-		{pktType: PUBLISH, props: []byte{
-			35, 0, 15, 35, 0, 16}}, // TopicAlias
+		{CONNECT, []byte{17, 0, 0, 0, 5, 17, 0, 0, 0, 9}},          // SessionExpiryInterval
+		{CONNECT, []byte{33, 0, 0}},                                // ReceiveMaximum
+		{CONNECT, []byte{33, 0, 52, 33, 0, 49}},                    // ReceiveMaximum
+		{CONNECT, []byte{39, 0, 0, 0, 0}},                          // MaximumPacketSize
+		{CONNECT, []byte{39, 0, 0, 0, 9, 39, 0, 0, 0, 7}},          // MaximumPacketSize
+		{CONNECT, []byte{34, 0, 3, 34, 0, 4}},                      // TopicAliasMaximum
+		{CONNECT, []byte{25, 2}},                                   // RequestResponseInfo
+		{CONNECT, []byte{25, 0, 25, 1}},                            // RequestResponseInfo
+		{CONNECT, []byte{23, 2}},                                   // RequestProblemInfo
+		{CONNECT, []byte{23, 0, 23, 1}},                            // RequestProblemInfo
+		{CONNECT, []byte{21, 0, 1, 'e', 21, 0, 1, 'f'}},            // AuthMethod
+		{CONNECT, []byte{22, 0, 1, 1}},                             // AuthData
+		{CONNECT, []byte{21, 0, 1, 'e', 22, 0, 1, 1, 22, 0, 1, 2}}, // AuthData
+		{CONNECT, []byte{24, 0, 0, 0, 1, 24, 0, 0, 0, 2}},          // WillDelayInterval
+		{CONNECT, []byte{1, 0, 1, 1}},                              // PayloadFormatIndicator
+		{CONNECT, []byte{1, 2}},                                    // PayloadFormatIndicator
+		{CONNECT, []byte{2, 0, 0, 0, 1, 2, 0, 0, 0, 2}},            // MessageExpiryInterval
+		{CONNECT, []byte{3, 0, 1, 'a', 3, 0, 1, 'b'}},              // ContentType
+		{CONNECT, []byte{9, 0, 1, 1, 9, 0, 1, 2}},                  // CorrelationData
+		{PUBLISH, []byte{8, 0, 1, 'a', 8, 0, 1, 'b'}},              // ResponseTopic
+		{PUBLISH, []byte{8, 0, 3, 'a', '/', '#'}},                  // ResponseTopic
+		{PUBLISH, []byte{8, 0, 0}},                                 // ResponseTopic
+		{PUBLISH, []byte{35, 0, 0}},                                // TopicAlias
+		{PUBLISH, []byte{35, 0, 15, 35, 0, 16}},                    // TopicAlias
 	}
 
 	for _, tc := range testCases {

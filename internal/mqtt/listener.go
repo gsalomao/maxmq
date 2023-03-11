@@ -23,8 +23,8 @@ import (
 	"github.com/gsalomao/maxmq/internal/mqtt/handler"
 )
 
-// Listener is responsible to implement the MQTT protocol conform the v3.1,
-// v3.1.1, and v5.0 specifications.
+// Listener is responsible to implement the MQTT protocol conform the v3.1, v3.1.1, and v5.0
+// specifications.
 type Listener struct {
 	tcpLsn        net.Listener
 	idGen         IDGenerator
@@ -64,7 +64,7 @@ func NewListener(opts ...OptionsFn) (*Listener, error) {
 // Listen starts the execution of the MQTT Listener.
 // Once called, it blocks waiting for connections until it's stopped by the Stop function.
 func (l *Listener) Listen() error {
-	lsn, err := net.Listen("tcp", l.conf.TCPAddress)
+	lsn, err := net.Listen("tcp" /*network*/, l.conf.TCPAddress)
 	if err != nil {
 		return err
 	}
@@ -91,9 +91,8 @@ func (l *Listener) Listen() error {
 
 		conn := l.connectionMgr.newConnection(tcpConn)
 		l.log.Trace().Msg("MQTT New TCP connection")
-		go func() {
-			l.connectionMgr.handle(conn)
-		}()
+
+		go func() { l.connectionMgr.handle(conn) }()
 	}
 
 	l.log.Debug().Msg("MQTT Listener stopped with success")

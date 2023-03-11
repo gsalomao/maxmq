@@ -40,8 +40,12 @@ func TestDisconnectHandlerHandlePacket(t *testing.T) {
 			h := NewDisconnectHandler(st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: tc, Connected: true,
-				Subscriptions: make(map[string]*Subscription)}
+			s := &Session{
+				ClientID:      id,
+				Version:       tc,
+				Connected:     true,
+				Subscriptions: make(map[string]*Subscription),
+			}
 
 			sub := &Subscription{ID: 1, TopicFilter: "test", ClientID: id}
 			s.Subscriptions["test"] = sub
@@ -76,8 +80,13 @@ func TestDisconnectHandlerHandlePacketCleanSession(t *testing.T) {
 			h := NewDisconnectHandler(st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: tc, Connected: true, CleanSession: true,
-				Subscriptions: make(map[string]*Subscription)}
+			s := &Session{
+				ClientID:      id,
+				Version:       tc,
+				Connected:     true,
+				CleanSession:  true,
+				Subscriptions: make(map[string]*Subscription),
+			}
 
 			sub := &Subscription{ID: 1, TopicFilter: "test", ClientID: id}
 			s.Subscriptions["test"] = sub
@@ -130,8 +139,13 @@ func TestDisconnectHandlerHandlePacketV5CleanSessionExpInterval(t *testing.T) {
 	h := NewDisconnectHandler(st, subMgr, &log)
 
 	id := packet.ClientID("a")
-	s := &Session{ClientID: id, Version: packet.MQTT50, Connected: true, CleanSession: true,
-		ExpiryInterval: 600}
+	s := &Session{
+		ClientID:       id,
+		Version:        packet.MQTT50,
+		Connected:      true,
+		CleanSession:   true,
+		ExpiryInterval: 600,
+	}
 
 	st.On("ReadSession", id).Return(s, nil)
 	st.On("SaveSession", s).Return(nil)
@@ -222,7 +236,11 @@ func TestDisconnectHandlerHandlePacketSaveSessionError(t *testing.T) {
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(errors.New("failed"))
 
-			discPkt := packet.NewDisconnect(packet.MQTT50, packet.ReasonCodeV5Success, nil /*props*/)
+			discPkt := packet.NewDisconnect(
+				packet.MQTT50,
+				packet.ReasonCodeV5Success,
+				nil, /*props*/
+			)
 			replies, err := h.HandlePacket(id, &discPkt)
 			assert.Nil(t, err)
 			assert.Empty(t, replies)
@@ -247,13 +265,21 @@ func TestDisconnectHandlerHandlePacketDeleteSessionError(t *testing.T) {
 			h := NewDisconnectHandler(st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: tc, Connected: true,
-				CleanSession: true}
+			s := &Session{
+				ClientID:     id,
+				Version:      tc,
+				Connected:    true,
+				CleanSession: true,
+			}
 
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("DeleteSession", s).Return(errors.New("failed"))
 
-			discPkt := packet.NewDisconnect(packet.MQTT311, packet.ReasonCodeV5Success, nil /*props*/)
+			discPkt := packet.NewDisconnect(
+				packet.MQTT311,
+				packet.ReasonCodeV5Success,
+				nil, /*props*/
+			)
 			replies, err := h.HandlePacket(id, &discPkt)
 			assert.Nil(t, err)
 			assert.Empty(t, replies)

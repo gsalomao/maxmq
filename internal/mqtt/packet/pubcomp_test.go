@@ -84,8 +84,8 @@ func TestPubCompWrite(t *testing.T) {
 		{name: "V3.1", id: 0x01, version: MQTT31, msg: []byte{0x70, 2, 0, 1}},
 		{name: "V3.1.1", id: 0xFF, version: MQTT311, msg: []byte{0x70, 2, 0, 0xFF}},
 		{name: "V5.0-Success", id: 0x100, version: MQTT50, msg: []byte{0x70, 2, 1, 0}},
-		{name: "V5.0-PacketIDNotFound", id: 0x01FF, version: MQTT50, code: ReasonCodeV5PacketIDNotFound,
-			msg: []byte{0x70, 4, 1, 0xFF, 0x92, 0}},
+		{name: "V5.0-PacketIDNotFound", id: 0x01FF, version: MQTT50,
+			code: ReasonCodeV5PacketIDNotFound, msg: []byte{0x70, 4, 1, 0xFF, 0x92, 0}},
 		{name: "V5.0-Properties", id: 0xFFFE, version: MQTT50, code: ReasonCodeV5Success,
 			props: &Properties{ReasonString: []byte{'a'}},
 			msg:   []byte{0x70, 8, 0xFF, 0xFE, 0, 4, 0x1F, 0, 1, 'a'}},
@@ -113,7 +113,7 @@ func BenchmarkPubCompWriteV3(b *testing.B) {
 	b.ReportAllocs()
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
-	pkt := NewPubComp(4, MQTT311, ReasonCodeV5Success, nil)
+	pkt := NewPubComp(4 /*id*/, MQTT311, ReasonCodeV5Success, nil /*props*/)
 
 	for n := 0; n < b.N; n++ {
 		buf.Reset()
@@ -128,7 +128,7 @@ func BenchmarkPubCompWriteV3(b *testing.B) {
 func BenchmarkPubCompWriteV5(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
-	pkt := NewPubComp(4, MQTT50, ReasonCodeV5Success, nil)
+	pkt := NewPubComp(4 /*id*/, MQTT50, ReasonCodeV5Success, nil /*props*/)
 
 	b.ReportAllocs()
 
@@ -143,7 +143,7 @@ func BenchmarkPubCompWriteV5(b *testing.B) {
 }
 
 func TestPubCompWriteFailure(t *testing.T) {
-	pkt := NewPubComp(5, MQTT50, ReasonCodeV5Success, nil)
+	pkt := NewPubComp(5 /*id*/, MQTT50, ReasonCodeV5Success, nil /*props*/)
 	require.NotNil(t, pkt)
 
 	conn, _ := net.Pipe()
@@ -158,7 +158,7 @@ func TestPubCompWriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{TopicAlias: new(uint16)}
 	*props.TopicAlias = 10
 
-	pkt := NewPubComp(5, MQTT50, ReasonCodeV5Success, props)
+	pkt := NewPubComp(5 /*id*/, MQTT50, ReasonCodeV5Success, props)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -189,7 +189,7 @@ func TestPubCompWriteV5InvalidReasonCode(t *testing.T) {
 	for code := 0; code < reasonCodeSize; code++ {
 		if !isValidReasonCode(code) {
 			t.Run(strconv.Itoa(code), func(t *testing.T) {
-				pkt := NewPubComp(5, MQTT50, ReasonCode(code), nil)
+				pkt := NewPubComp(5 /*id*/, MQTT50, ReasonCode(code), nil /*props*/)
 				require.NotNil(t, pkt)
 
 				buf := &bytes.Buffer{}
@@ -219,7 +219,8 @@ func TestPubCompRead(t *testing.T) {
 			code: ReasonCodeV5PacketIDNotFound},
 		{name: "V5.0-Properties", version: MQTT50,
 			msg: []byte{0xFF, 0xFE, 0, 8, 0x1F, 0, 5, 'H', 'e', 'l', 'l', 'o'},
-			id:  0xFFFE, code: ReasonCodeV5Success, props: &Properties{ReasonString: []byte("Hello")}},
+			id:  0xFFFE, code: ReasonCodeV5Success,
+			props: &Properties{ReasonString: []byte("Hello")}},
 	}
 
 	for _, tc := range testCases {
@@ -349,7 +350,7 @@ func TestPubCompSize(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			pkt := NewPubComp(1, tc.version, tc.code, tc.props)
+			pkt := NewPubComp(1 /*id*/, tc.version, tc.code, tc.props)
 			require.NotNil(t, pkt)
 
 			buf := &bytes.Buffer{}

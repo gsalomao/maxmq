@@ -28,15 +28,13 @@ type PubCompHandler struct {
 
 // NewPubCompHandler creates a new NewPubCompHandler.
 func NewPubCompHandler(st SessionStore, l *logger.Logger) *PubCompHandler {
-	return &PubCompHandler{
-		log:          l,
-		sessionStore: st,
-	}
+	return &PubCompHandler{log: l, sessionStore: st}
 }
 
-// HandlePacket handles the given packet as a PUBCOMP packet.
+// HandlePacket handles the given packet as PUBCOMP packet.
 func (h *PubCompHandler) HandlePacket(
-	id packet.ClientID, p packet.Packet,
+	id packet.ClientID,
+	p packet.Packet,
 ) ([]packet.Packet, error) {
 	pubCompPkt := p.(*packet.PubComp)
 	h.log.Trace().

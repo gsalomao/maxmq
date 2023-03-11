@@ -64,11 +64,10 @@ func NewListener(c Configuration, log *logger.Logger) (*Listener, error) {
 	return &Listener{conf: c, srv: s, mux: m, log: log}, nil
 }
 
-// Listen starts the execution of the Metrics Listener.
-// Once called, it blocks waiting for connections until it's stopped by the
-// Stop function.
+// Listen starts the execution of the Metrics Listener. Once called, it blocks waiting for
+// connections until it's stopped by the Stop function.
 func (l *Listener) Listen() error {
-	lsn, err := net.Listen("tcp", l.srv.Addr)
+	lsn, err := net.Listen("tcp" /*network*/, l.srv.Addr)
 	if err != nil {
 		return err
 	}
@@ -82,8 +81,7 @@ func (l *Listener) Listen() error {
 	return nil
 }
 
-// Stop stops the Metrics Listener.
-// Once called, it unblocks the Listen function.
+// Stop stops the Metrics Listener. Once called, it unblocks the Listen function.
 func (l *Listener) Stop() {
 	l.log.Debug().Msg("Metrics Stopping listener")
 

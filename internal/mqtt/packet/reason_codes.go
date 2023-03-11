@@ -38,8 +38,8 @@ const (
 	// will be QoS 1.
 	ReasonCodeV3GrantedQoS1 ReasonCode = 0x01
 
-	// ReasonCodeV3GrantedQoS2 indicates that the subscription was accepted and any received QoS will
-	// be sent.
+	// ReasonCodeV3GrantedQoS2 indicates that the subscription was accepted and any received QoS
+	// will be sent.
 	ReasonCodeV3GrantedQoS2 ReasonCode = 0x02
 
 	// ReasonCodeV3UnacceptableProtocolVersion indicates that the server does not support the level
@@ -68,8 +68,8 @@ const (
 	// ReasonCodeV5Success indicates success.
 	ReasonCodeV5Success ReasonCode = 0x00
 
-	// ReasonCodeV5NormalDisconnection indicates to close the connection normally and do not send the
-	// Will Message.
+	// ReasonCodeV5NormalDisconnection indicates to close the connection normally and do not send
+	// the Will Message.
 	ReasonCodeV5NormalDisconnection ReasonCode = 0x00
 
 	// ReasonCodeV5GrantedQoS0 indicates that the subscription was accepted and the maximum QoS sent
@@ -80,8 +80,8 @@ const (
 	// will be QoS 1.
 	ReasonCodeV5GrantedQoS1 ReasonCode = 0x01
 
-	// ReasonCodeV5GrantedQoS2 indicates that the subscription was accepted and any received QoS will
-	// be sent.
+	// ReasonCodeV5GrantedQoS2 indicates that the subscription was accepted and any received QoS
+	// will be sent.
 	ReasonCodeV5GrantedQoS2 ReasonCode = 0x02
 
 	// ReasonCodeV5DisconnectWithWillMessage indicates to close the connection, but the server shall
@@ -95,7 +95,8 @@ const (
 	// ReasonCodeV5NoSubscriptionExisted indicates that no matching Topic Filter is being used.
 	ReasonCodeV5NoSubscriptionExisted ReasonCode = 0x11
 
-	// ReasonCodeV5ContinueAuthentication indicates to continue the authentication with another step.
+	// ReasonCodeV5ContinueAuthentication indicates to continue the authentication with another
+	// step.
 	ReasonCodeV5ContinueAuthentication ReasonCode = 0x18
 
 	// ReasonCodeV5ReAuthenticate indicates to initiate a re-authentication.
@@ -152,8 +153,8 @@ const (
 	// received for 1.5 times the Keepalive time.
 	ReasonCodeV5KeepAliveTimeout ReasonCode = 0x8D
 
-	// ReasonCodeV5SessionTakeOver indicates that another connection using the same client identified
-	// has connected.
+	// ReasonCodeV5SessionTakeOver indicates that another connection using the same client
+	// identified has connected.
 	ReasonCodeV5SessionTakeOver ReasonCode = 0x8E
 
 	// ReasonCodeV5TopicFilterInvalid indicates that the topic filter is correctly formed but is not
@@ -178,22 +179,23 @@ const (
 	// alias which is greater than the maximum topic alias sent in the CONNECT or CONNACK packet.
 	ReasonCodeV5TopicAliasInvalid ReasonCode = 0x94
 
-	// ReasonCodeV5PacketTooLarge indicates that the packet size is greater than maximum packet size.
+	// ReasonCodeV5PacketTooLarge indicates that the packet size is greater than maximum packet
+	// size.
 	ReasonCodeV5PacketTooLarge ReasonCode = 0x95
 
 	// ReasonCodeV5MessageRateTooHigh indicates that the received data rate is too high.
 	ReasonCodeV5MessageRateTooHigh ReasonCode = 0x96
 
-	// ReasonCodeV5QuotaExceeded indicates that an implementation or administrative imposed limit has
-	// been exceeded.
+	// ReasonCodeV5QuotaExceeded indicates that an implementation or administrative imposed limit
+	// has been exceeded.
 	ReasonCodeV5QuotaExceeded ReasonCode = 0x97
 
 	// ReasonCodeV5AdministrativeAction indicates that the connection is closed by administrative
 	// action.
 	ReasonCodeV5AdministrativeAction ReasonCode = 0x98
 
-	// ReasonCodeV5PayloadFormatInvalid indicates that the payload format does not match the specified
-	// payload format indicator.
+	// ReasonCodeV5PayloadFormatInvalid indicates that the payload format does not match the
+	// specified payload format indicator.
 	ReasonCodeV5PayloadFormatInvalid ReasonCode = 0x99
 
 	// ReasonCodeV5RetainNotSupported indicates that the server does not support retained messages.
@@ -213,15 +215,16 @@ const (
 	// Subscriptions.
 	ReasonCodeV5SharedSubscriptionsNotSupported ReasonCode = 0x9E
 
-	// ReasonCodeV5ConnectionRateExceeded indicates that the connection rate limit has been exceeded.
+	// ReasonCodeV5ConnectionRateExceeded indicates that the connection rate limit has been
+	// exceeded.
 	ReasonCodeV5ConnectionRateExceeded ReasonCode = 0x9F
 
 	// ReasonCodeV5MaximumConnectTime indicates that the maximum connection time authorized for this
 	// connection has been exceeded.
 	ReasonCodeV5MaximumConnectTime ReasonCode = 0xA0
 
-	// ReasonCodeV5SubscriptionIDNotSupported indicates that the server does not support Subscription
-	// Identifiers.
+	// ReasonCodeV5SubscriptionIDNotSupported indicates that the server does not support
+	// Subscription Identifiers.
 	ReasonCodeV5SubscriptionIDNotSupported ReasonCode = 0xA1
 
 	// ReasonCodeV5WildcardSubscriptionsNotSupported indicates that the server does not support

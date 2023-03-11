@@ -66,11 +66,7 @@ func newConnectionManager(
 	c.MaxInflightRetries = maxInflightRetriesOrDefault(c.MaxInflightRetries)
 	c.MaxClientIDLen = maxClientIDLenOrDefault(c.MaxClientIDLen)
 
-	rdOpts := packet.ReaderOptions{
-		BufferSize:    c.BufferSize,
-		MaxPacketSize: c.MaxPacketSize,
-	}
-
+	rdOpts := packet.ReaderOptions{BufferSize: c.BufferSize, MaxPacketSize: c.MaxPacketSize}
 	cm := &connectionManager{
 		conf:         c,
 		sessionStore: st,
@@ -215,7 +211,9 @@ func (cm *connectionManager) handlePacket(c *connection, p packet.Packet) error 
 			Bool("HasSession", c.hasSession).
 			Int("Timeout", c.timeout).
 			Int("Version", int(c.version)).
-			Msg(fmt.Sprintf("MQTT Failed to handle packet %v: %v", p.Type().String(), err.Error()))
+			Msg(fmt.Sprintf("MQTT Failed to handle packet %v: %v",
+				p.Type().String(),
+				err.Error()))
 	}
 
 	for _, reply := range replies {

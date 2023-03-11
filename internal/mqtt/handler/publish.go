@@ -30,19 +30,17 @@ type PublishHandler struct {
 
 // NewPublishHandler creates a new PublishHandler.
 func NewPublishHandler(
-	st SessionStore, subMgr SubscriptionManager, gen MessageIDGenerator, l *logger.Logger,
+	st SessionStore,
+	subMgr SubscriptionManager,
+	gen MessageIDGenerator, l *logger.Logger,
 ) *PublishHandler {
-	return &PublishHandler{
-		log:             l,
-		sessionStore:    st,
-		subscriptionMgr: subMgr,
-		idGen:           gen,
-	}
+	return &PublishHandler{log: l, sessionStore: st, subscriptionMgr: subMgr, idGen: gen}
 }
 
-// HandlePacket handles the given packet as a PUBLISH packet.
+// HandlePacket handles the given packet as PUBLISH packet.
 func (h *PublishHandler) HandlePacket(
-	id packet.ClientID, p packet.Packet,
+	id packet.ClientID,
+	p packet.Packet,
 ) ([]packet.Packet, error) {
 	pubPkt := p.(*packet.Publish)
 	h.log.Trace().
@@ -104,8 +102,12 @@ func (h *PublishHandler) HandlePacket(
 
 	replies := make([]packet.Packet, 0, 1)
 	if pubPkt.QoS == packet.QoS1 {
-		pubAck := packet.NewPubAck(pubPkt.PacketID, pubPkt.Version, packet.ReasonCodeV5Success,
-			nil /*props*/)
+		pubAck := packet.NewPubAck(
+			pubPkt.PacketID,
+			pubPkt.Version,
+			packet.ReasonCodeV5Success,
+			nil, /*props*/
+		)
 		replies = append(replies, &pubAck)
 		h.log.Trace().
 			Str("ClientId", string(s.ClientID)).
@@ -144,8 +146,12 @@ func (h *PublishHandler) HandlePacket(
 			}
 		}
 
-		pubRec := packet.NewPubRec(pubPkt.PacketID, pubPkt.Version, packet.ReasonCodeV5Success,
-			nil /*props*/)
+		pubRec := packet.NewPubRec(
+			pubPkt.PacketID,
+			pubPkt.Version,
+			packet.ReasonCodeV5Success,
+			nil, /*props*/
+		)
 		replies = append(replies, &pubRec)
 		h.log.Trace().
 			Str("ClientId", string(s.ClientID)).

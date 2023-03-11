@@ -39,7 +39,14 @@ func TestConnAckNew(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(string(tc.id), func(t *testing.T) {
-			pkt := NewConnAck(tc.id, tc.version, tc.code, tc.sessionPresent, tc.keepAlive, nil /*props*/)
+			pkt := NewConnAck(
+				tc.id,
+				tc.version,
+				tc.code,
+				tc.sessionPresent,
+				tc.keepAlive,
+				nil, /*props*/
+			)
 
 			assert.Equal(t, CONNACK, pkt.Type())
 			assert.Equal(t, tc.id, pkt.ClientID)
@@ -69,8 +76,14 @@ func TestConnAckWrite(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			pkt := NewConnAck("a" /*id*/, tc.version, tc.code,
-				false /*sessionPresent*/, 10 /*keepAlive*/, nil /*props*/)
+			pkt := NewConnAck(
+				"a", /*id*/
+				tc.version,
+				tc.code,
+				false, /*sessionPresent*/
+				10,    /*keepAlive*/
+				nil,   /*props*/
+			)
 
 			buf := &bytes.Buffer{}
 			wr := bufio.NewWriter(buf)
@@ -89,8 +102,14 @@ func TestConnAckWrite(t *testing.T) {
 func BenchmarkConnAckWriteV3(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
-	pkt := NewConnAck("a" /*id*/, MQTT311, ReasonCodeV3ConnectionAccepted,
-		false /*sessionPresent*/, 10 /*keepAlive*/, nil /*props*/)
+	pkt := NewConnAck(
+		"a", /*id*/
+		MQTT311,
+		ReasonCodeV3ConnectionAccepted,
+		false, /*sessionPresent*/
+		10,    /*keepAlive*/
+		nil,   /*props*/
+	)
 
 	b.ReportAllocs()
 
@@ -107,8 +126,14 @@ func BenchmarkConnAckWriteV3(b *testing.B) {
 func BenchmarkConnAckWriteV5(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
-	pkt := NewConnAck("a" /*id*/, MQTT50, ReasonCodeV5Success,
-		false /*sessionPresent*/, 10 /*keepAlive*/, nil /*props*/)
+	pkt := NewConnAck(
+		"a", /*id*/
+		MQTT50,
+		ReasonCodeV5Success,
+		false, /*sessionPresent*/
+		10,    /*keepAlive*/
+		nil,   /*props*/
+	)
 
 	b.ReportAllocs()
 
@@ -124,9 +149,9 @@ func BenchmarkConnAckWriteV5(b *testing.B) {
 
 func TestConnAckWriteSessionPresent(t *testing.T) {
 	testCases := []struct {
-		version Version
-		value   bool
-		msg     []byte
+		version        Version
+		sessionPresent bool
+		msg            []byte
 	}{
 		{MQTT31, false, []byte{0x20, 2, 0, 0}},
 		{MQTT31, true, []byte{0x20, 2, 0, 0}},
@@ -138,8 +163,14 @@ func TestConnAckWriteSessionPresent(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.version.String(), func(t *testing.T) {
-			pkt := NewConnAck("a" /*id*/, tc.version, ReasonCodeSuccess, tc.value,
-				10 /*keepAlive*/, nil /*props*/)
+			pkt := NewConnAck(
+				"a", /*id*/
+				tc.version,
+				ReasonCodeSuccess,
+				tc.sessionPresent,
+				10,  /*keepAlive*/
+				nil, /*props*/
+			)
 			buf := &bytes.Buffer{}
 			wr := bufio.NewWriter(buf)
 
@@ -158,8 +189,14 @@ func TestConnAckWriteV5Properties(t *testing.T) {
 	props := &Properties{SessionExpiryInterval: new(uint32)}
 	*props.SessionExpiryInterval = 30
 
-	pkt := NewConnAck("a" /*id*/, MQTT50, ReasonCodeV5Success,
-		false /*sessionPresent*/, 10 /*keepAlive*/, props)
+	pkt := NewConnAck(
+		"a", /*id*/
+		MQTT50,
+		ReasonCodeV5Success,
+		false, /*sessionPresent*/
+		10,    /*keepAlive*/
+		props,
+	)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -184,8 +221,14 @@ func TestConnAckWriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{TopicAlias: new(uint16)}
 	*props.TopicAlias = 10
 
-	pkt := NewConnAck("a" /*id*/, MQTT50, ReasonCodeV5Success,
-		false /*sessionPresent*/, 10 /*keepAlive*/, props)
+	pkt := NewConnAck(
+		"a", /*id*/
+		MQTT50,
+		ReasonCodeV5Success,
+		false, /*sessionPresent*/
+		10,    /*keepAlive*/
+		props,
+	)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -203,8 +246,14 @@ func TestConnAckWriteV3PropertiesIgnored(t *testing.T) {
 	props := &Properties{SessionExpiryInterval: new(uint32)}
 	*props.SessionExpiryInterval = 30
 
-	pkt := NewConnAck("a" /*id*/, MQTT311, ReasonCodeV3ConnectionAccepted,
-		false /*sessionPresent*/, 10 /*keepAlive*/, props)
+	pkt := NewConnAck(
+		"a", /*id*/
+		MQTT311,
+		ReasonCodeV3ConnectionAccepted,
+		false, /*sessionPresent*/
+		10,    /*keepAlive*/
+		props,
+	)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -224,8 +273,14 @@ func TestConnAckWriteV3PropertiesIgnored(t *testing.T) {
 }
 
 func TestConnAckWriteFailure(t *testing.T) {
-	pkt := NewConnAck("a" /*id*/, MQTT311, ReasonCodeSuccess,
-		false /*sessionPresent*/, 10 /*keepAlive*/, nil /*props*/)
+	pkt := NewConnAck(
+		"a", /*id*/
+		MQTT311,
+		ReasonCodeSuccess,
+		false, /*sessionPresent*/
+		10,    /*keepAlive*/
+		nil,   /*props*/
+	)
 	require.NotNil(t, pkt)
 
 	conn, _ := net.Pipe()
@@ -237,8 +292,14 @@ func TestConnAckWriteFailure(t *testing.T) {
 }
 
 func TestConnAckReadUnsupported(t *testing.T) {
-	pkt := NewConnAck("a" /*id*/, MQTT311, ReasonCodeSuccess,
-		false /*sessionPresent*/, 10 /*keepAlive*/, nil /*props*/)
+	pkt := NewConnAck(
+		"a", /*id*/
+		MQTT311,
+		ReasonCodeSuccess,
+		false, /*sessionPresent*/
+		10,    /*keepAlive*/
+		nil,   /*props*/
+	)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -263,8 +324,14 @@ func TestConnAckSize(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			pkt := NewConnAck("a" /*id*/, tc.version, tc.code,
-				false /*sessionPresent*/, 10 /*keepAlive*/, tc.props)
+			pkt := NewConnAck(
+				"a", /*id*/
+				tc.version,
+				tc.code,
+				false, /*sessionPresent*/
+				10,    /*keepAlive*/
+				tc.props,
+			)
 			require.NotNil(t, pkt)
 
 			buf := &bytes.Buffer{}
@@ -279,8 +346,14 @@ func TestConnAckSize(t *testing.T) {
 }
 
 func TestConnAckTimestamp(t *testing.T) {
-	pkt := NewConnAck("a" /*id*/, MQTT311, ReasonCodeSuccess,
-		false /*sessionPresent*/, 10 /*keepAlive*/, nil /*props*/)
+	pkt := NewConnAck(
+		"a", /*id*/
+		MQTT311,
+		ReasonCodeSuccess,
+		false, /*sessionPresent*/
+		10,    /*keepAlive*/
+		nil,   /*props*/
+	)
 	require.NotNil(t, pkt)
 	assert.NotNil(t, pkt.Timestamp())
 }

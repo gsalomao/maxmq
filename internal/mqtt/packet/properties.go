@@ -42,8 +42,8 @@ type Properties struct {
 	// SubscriptionIdentifier represents the identifier of the subscription.
 	SubscriptionIdentifier *int
 
-	// SessionExpiryInterval represents the time, in seconds, which the server must store the Session
-	// State after the network connection is closed.
+	// SessionExpiryInterval represents the time, in seconds, which the server must store the
+	// Session State after the network connection is closed.
 	SessionExpiryInterval *uint32
 
 	// AssignedClientID represents the client ID assigned by the server in case of the client
@@ -72,7 +72,8 @@ type Properties struct {
 	// Packet.
 	RequestResponseInfo *byte
 
-	// ResponseInfo contains a string that can be used to as the basis for creating a Response Topic.
+	// ResponseInfo contains a string that can be used to as the basis for creating a Response
+	// Topic.
 	ResponseInfo []byte
 
 	// ServerReference contains a string indicating another server the client can use.
@@ -108,10 +109,12 @@ type Properties struct {
 	// not.
 	WildcardSubscriptionAvailable *byte
 
-	// SubscriptionIDAvailable indicates whether the server supports Subscription Identifiers or not.
+	// SubscriptionIDAvailable indicates whether the server supports Subscription Identifiers or
+	// not.
 	SubscriptionIDAvailable *byte
 
-	// SharedSubscriptionAvailable indicates whether the server supports Shared Subscriptions or not.
+	// SharedSubscriptionAvailable indicates whether the server supports Shared Subscriptions or
+	// not.
 	SharedSubscriptionAvailable *byte
 }
 
@@ -224,8 +227,16 @@ var propertyHandlers = map[propType]propertyHandler{
 		read:  readServerReference,
 	},
 	propReasonString: {
-		types: map[Type]struct{}{CONNACK: {}, DISCONNECT: {}, SUBACK: {},
-			UNSUBACK: {}, PUBACK: {}, PUBREC: {}, PUBREL: {}, PUBCOMP: {}},
+		types: map[Type]struct{}{
+			CONNACK:    {},
+			DISCONNECT: {},
+			SUBACK:     {},
+			UNSUBACK:   {},
+			PUBACK:     {},
+			PUBREC:     {},
+			PUBREL:     {},
+			PUBCOMP:    {},
+		},
 		read: readPropReasonString,
 	},
 	propReceiveMaximum: {
@@ -247,9 +258,20 @@ var propertyHandlers = map[propType]propertyHandler{
 		types: map[Type]struct{}{CONNACK: {}},
 	},
 	propUser: {
-		types: map[Type]struct{}{CONNECT: {}, CONNACK: {}, DISCONNECT: {},
-			SUBSCRIBE: {}, SUBACK: {}, UNSUBSCRIBE: {}, UNSUBACK: {},
-			PUBLISH: {}, PUBACK: {}, PUBREC: {}, PUBREL: {}, PUBCOMP: {}},
+		types: map[Type]struct{}{
+			CONNECT:     {},
+			CONNACK:     {},
+			DISCONNECT:  {},
+			SUBSCRIBE:   {},
+			SUBACK:      {},
+			UNSUBSCRIBE: {},
+			UNSUBACK:    {},
+			PUBLISH:     {},
+			PUBACK:      {},
+			PUBREC:      {},
+			PUBREL:      {},
+			PUBCOMP:     {},
+		},
 		read: readPropUser,
 	},
 	propMaximumPacketSize: {
@@ -395,11 +417,7 @@ func isValidProperty(h propertyHandler, t Type) bool {
 }
 
 func readPropPayloadFormat(b *bytes.Buffer, p *Properties) error {
-	return readPropByte(
-		b,
-		&p.PayloadFormatIndicator,
-		func(b byte) bool { return b == 0 || b == 1 },
-	)
+	return readPropByte(b, &p.PayloadFormatIndicator, func(b byte) bool { return b == 0 || b == 1 })
 }
 
 func readPropMessageExpInterval(b *bytes.Buffer, p *Properties) error {

@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,8 +21,7 @@ import (
 )
 
 const (
-	// Epoch indicates the unix epoch time for the current implementation in
-	// milliseconds.
+	// Epoch indicates the unix epoch time for the current implementation in milliseconds.
 	Epoch = 1577836800000 // 2020-01-01 00:00:00.000
 
 	// InvalidID indicates the invalid ID.
@@ -41,14 +40,13 @@ const (
 	maxNextIDTries = 3
 )
 
-// Timestamp returns the timestamp field (Unix timestamp) in milliseconds of the
-// given ID relative to Epoch.
+// Timestamp returns the timestamp field (Unix timestamp) in milliseconds of the given ID relative
+// to Epoch.
 func Timestamp(id uint64) uint64 {
 	return id >> timestampShift & timestampMask
 }
 
-// TimestampABS returns the absolute timestamp field (Unix timestamp) in
-// milliseconds.
+// TimestampABS returns the absolute timestamp field (Unix timestamp) in milliseconds.
 func TimestampABS(id uint64) uint64 {
 	return Epoch + Timestamp(id)
 }

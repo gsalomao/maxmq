@@ -89,10 +89,14 @@ func TestConnectHandlerHandlePacketExistingSession(t *testing.T) {
 
 			id := packet.ClientID("a")
 			connectedAt := time.Now().Add(-1 * time.Minute).Unix()
-			s := &Session{ClientID: id, SessionID: 1, Version: tc,
+			s := &Session{
+				ClientID:       id,
+				SessionID:      1,
+				Version:        tc,
 				ConnectedAt:    connectedAt,
 				ExpiryInterval: conf.MaxSessionExpiryInterval,
-				Subscriptions:  make(map[string]*Subscription)}
+				Subscriptions:  make(map[string]*Subscription),
+			}
 
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
@@ -133,10 +137,14 @@ func TestConnectHandlerHandlePacketExistingWithCleanSession(t *testing.T) {
 			h := NewConnectHandler(&conf, st, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, SessionID: 1, Version: tc,
+			s := &Session{
+				ClientID:       id,
+				SessionID:      1,
+				Version:        tc,
 				ConnectedAt:    time.Now().Add(-1 * time.Minute).Unix(),
 				ExpiryInterval: conf.MaxSessionExpiryInterval,
-				Subscriptions:  make(map[string]*Subscription)}
+				Subscriptions:  make(map[string]*Subscription),
+			}
 
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("DeleteSession", s).Return(nil)
@@ -189,9 +197,21 @@ func TestConnectHandlerHandlePacketWithInflightMessages(t *testing.T) {
 				qos := packet.QoS(i%2 + 1)
 
 				topic := fmt.Sprintf("data/%v", i)
-				newPub := packet.NewPublish(packet.ID(i+1), tc, topic, qos,
-					0 /*dup*/, 0 /*retain*/, nil /*payload*/, nil /*props*/)
-				msg := Message{ID: MessageID(newPub.PacketID), PacketID: newPub.PacketID, Packet: &newPub}
+				newPub := packet.NewPublish(
+					packet.ID(i+1),
+					tc,
+					topic,
+					qos,
+					0,   /*dup*/
+					0,   /*retain*/
+					nil, /*payload*/
+					nil, /*props*/
+				)
+				msg := Message{
+					ID:       MessageID(newPub.PacketID),
+					PacketID: newPub.PacketID,
+					Packet:   &newPub,
+				}
 
 				s.InflightMessages.PushBack(&msg)
 				inflightMsgList = append(inflightMsgList, &msg)
@@ -455,7 +475,11 @@ func TestConnectHandlerHandlePacketV5MaxSessionExpiryInterval(t *testing.T) {
 			st.On("SaveSession", s).Return(nil)
 
 			props := &packet.Properties{SessionExpiryInterval: &tc.interval}
-			connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT50, Properties: props}
+			connPkt := &packet.Connect{
+				ClientID:   []byte("a"),
+				Version:    packet.MQTT50,
+				Properties: props,
+			}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -500,7 +524,11 @@ func TestConnectHandlerHandlePacketV5AboveMaxSessionExpInterval(t *testing.T) {
 			st.On("SaveSession", s).Return(nil)
 
 			props := &packet.Properties{SessionExpiryInterval: &tc.interval}
-			connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT50, Properties: props}
+			connPkt := &packet.Connect{
+				ClientID:   []byte("a"),
+				Version:    packet.MQTT50,
+				Properties: props,
+			}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -544,8 +572,11 @@ func TestConnectHandlerHandlePacketV3MaxKeepAliveRejected(t *testing.T) {
 			log := logger.New(&bytes.Buffer{}, nil)
 			h := NewConnectHandler(&conf, st, &log)
 
-			connPkt := &packet.Connect{ClientID: []byte("a"), Version: packet.MQTT311,
-				KeepAlive: tc.keepAlive}
+			connPkt := &packet.Connect{
+				ClientID:  []byte("a"),
+				Version:   packet.MQTT311,
+				KeepAlive: tc.keepAlive,
+			}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.NotNil(t, err)
 			require.Len(t, replies, 1)
@@ -1066,7 +1097,11 @@ func TestConnectHandlerHandlePacketDeleteSessionError(t *testing.T) {
 			st.On("ReadSession", mock.Anything).Return(s, nil)
 			st.On("DeleteSession", s).Return(errors.New("failed"))
 
-			connPkt := &packet.Connect{ClientID: []byte("a"), Version: tc.version, CleanSession: true}
+			connPkt := &packet.Connect{
+				ClientID:     []byte("a"),
+				Version:      tc.version,
+				CleanSession: true,
+			}
 			replies, err := h.HandlePacket("", connPkt)
 			assert.NotNil(t, err)
 			require.Len(t, replies, 1)

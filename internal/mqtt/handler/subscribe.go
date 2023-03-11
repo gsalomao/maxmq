@@ -29,19 +29,18 @@ type SubscribeHandler struct {
 
 // NewSubscribeHandler creates a new SubscribeHandler.
 func NewSubscribeHandler(
-	c *Configuration, st SessionStore, subMgr SubscriptionManager, l *logger.Logger,
+	c *Configuration,
+	st SessionStore,
+	subMgr SubscriptionManager,
+	l *logger.Logger,
 ) *SubscribeHandler {
-	return &SubscribeHandler{
-		conf:            c,
-		log:             l,
-		sessionStore:    st,
-		subscriptionMgr: subMgr,
-	}
+	return &SubscribeHandler{conf: c, log: l, sessionStore: st, subscriptionMgr: subMgr}
 }
 
-// HandlePacket handles the given packet as a SUBSCRIBE packet.
+// HandlePacket handles the given packet as SUBSCRIBE packet.
 func (h *SubscribeHandler) HandlePacket(
-	id packet.ClientID, p packet.Packet,
+	id packet.ClientID,
+	p packet.Packet,
 ) ([]packet.Packet, error) {
 	sub := p.(*packet.Subscribe)
 	h.log.Trace().
@@ -89,7 +88,7 @@ func (h *SubscribeHandler) HandlePacket(
 		}
 	}
 
-	subAck := packet.NewSubAck(sub.PacketID, s.Version, codes, nil)
+	subAck := packet.NewSubAck(sub.PacketID, s.Version, codes, nil /*props*/)
 	replies := make([]packet.Packet, 0, 1)
 	replies = append(replies, &subAck)
 	h.log.Trace().
@@ -103,7 +102,9 @@ func (h *SubscribeHandler) HandlePacket(
 }
 
 func (h *SubscribeHandler) subscribe(
-	s *Session, p *packet.Subscribe, subsID int,
+	s *Session,
+	p *packet.Subscribe,
+	subsID int,
 ) ([]packet.ReasonCode, bool) {
 	var sessionChanged bool
 	codes := make([]packet.ReasonCode, 0, len(p.Topics))
@@ -161,7 +162,9 @@ func (h *SubscribeHandler) subscribe(
 }
 
 func (h *SubscribeHandler) unsubscribe(
-	codes []packet.ReasonCode, s *Session, topics []packet.Topic,
+	codes []packet.ReasonCode,
+	s *Session,
+	topics []packet.Topic,
 ) {
 	for idx, code := range codes {
 		if code == packet.ReasonCodeV3Failure {

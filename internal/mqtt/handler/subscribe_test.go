@@ -52,16 +52,22 @@ func TestSubscribeHandlerHandlePacket(t *testing.T) {
 			h := NewSubscribeHandler(&conf, st, subMgr, &log)
 
 			id := packet.ClientID("a")
-			s := &Session{ClientID: id, Version: tc.version,
-				Subscriptions: make(map[string]*Subscription)}
+			s := &Session{
+				ClientID:      id,
+				Version:       tc.version,
+				Subscriptions: make(map[string]*Subscription),
+			}
 			sub := &Subscription{ID: 0, ClientID: id, TopicFilter: "data", QoS: tc.qos}
 
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
 			subMgr.On("Subscribe", sub).Return(nil)
 
-			subPkt := &packet.Subscribe{PacketID: 1, Version: tc.version,
-				Topics: []packet.Topic{{Name: sub.TopicFilter, QoS: tc.qos}}}
+			subPkt := &packet.Subscribe{
+				PacketID: 1,
+				Version:  tc.version,
+				Topics:   []packet.Topic{{Name: sub.TopicFilter, QoS: tc.qos}},
+			}
 			replies, err := h.HandlePacket(id, subPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -116,7 +122,9 @@ func TestSubscribeHandlerHandlePacketMultipleTopics(t *testing.T) {
 			subMgr.On("Subscribe", subs[2]).Return(nil).Once()
 			subMgr.On("Subscribe", subs[3]).Return(errors.New("invalid")).Once()
 
-			subPkt := &packet.Subscribe{PacketID: 5, Version: tc,
+			subPkt := &packet.Subscribe{
+				PacketID: 5,
+				Version:  tc,
 				Topics: []packet.Topic{
 					{Name: subs[0].TopicFilter, QoS: subs[0].QoS},
 					{Name: subs[1].TopicFilter, QoS: subs[1].QoS},
@@ -174,8 +182,11 @@ func TestSubscribeHandlerHandlePacketError(t *testing.T) {
 			st.On("ReadSession", id).Return(s, nil)
 			subMgr.On("Subscribe", sub).Return(errors.New("failed"))
 
-			subPkt := &packet.Subscribe{PacketID: 1, Version: tc,
-				Topics: []packet.Topic{{Name: "data", QoS: packet.QoS1}}}
+			subPkt := &packet.Subscribe{
+				PacketID: 1,
+				Version:  tc,
+				Topics:   []packet.Topic{{Name: "data", QoS: packet.QoS1}},
+			}
 
 			replies, err := h.HandlePacket(id, subPkt)
 			require.Nil(t, err)
@@ -216,8 +227,11 @@ func TestSubscribeHandlerHandlePacketReadSessionError(t *testing.T) {
 			id := packet.ClientID("a")
 			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)
 
-			subPkt := &packet.Subscribe{PacketID: 1, Version: tc,
-				Topics: []packet.Topic{{Name: "data", QoS: packet.QoS1}}}
+			subPkt := &packet.Subscribe{
+				PacketID: 1,
+				Version:  tc,
+				Topics:   []packet.Topic{{Name: "data", QoS: packet.QoS1}},
+			}
 
 			replies, err := h.HandlePacket(id, subPkt)
 			assert.NotNil(t, err)
@@ -260,7 +274,9 @@ func TestSubscribeHandlerHandlePacketSaveSessionError(t *testing.T) {
 			subMgr.On("Unsubscribe", id, subs[0].TopicFilter).Once().Return(nil)
 			subMgr.On("Unsubscribe", id, subs[2].TopicFilter).Once().Return(errors.New("failed"))
 
-			subPkt := &packet.Subscribe{PacketID: 5, Version: tc,
+			subPkt := &packet.Subscribe{
+				PacketID: 5,
+				Version:  tc,
 				Topics: []packet.Topic{
 					{Name: subs[0].TopicFilter, QoS: subs[0].QoS},
 					{Name: subs[1].TopicFilter, QoS: subs[1].QoS},
@@ -301,7 +317,11 @@ func TestSubscribeHandlerHandlePacketV5WithSubID(t *testing.T) {
 	h := NewSubscribeHandler(&conf, st, subMgr, &log)
 
 	id := packet.ClientID("a")
-	s := &Session{ClientID: id, Version: packet.MQTT50, Subscriptions: make(map[string]*Subscription)}
+	s := &Session{
+		ClientID:      id,
+		Version:       packet.MQTT50,
+		Subscriptions: make(map[string]*Subscription),
+	}
 	sub := &Subscription{ID: 5, ClientID: id, TopicFilter: "data", QoS: packet.QoS0}
 
 	st.On("ReadSession", id).Return(s, nil)
@@ -312,8 +332,11 @@ func TestSubscribeHandlerHandlePacketV5WithSubID(t *testing.T) {
 	props.SubscriptionIdentifier = new(int)
 	*props.SubscriptionIdentifier = sub.ID
 
-	subPkt := &packet.Subscribe{PacketID: 2, Version: packet.MQTT50,
-		Properties: props, Topics: []packet.Topic{{Name: "data"}}}
+	subPkt := &packet.Subscribe{
+		PacketID:   2,
+		Version:    packet.MQTT50,
+		Properties: props, Topics: []packet.Topic{{Name: "data"}},
+	}
 
 	replies, err := h.HandlePacket(id, subPkt)
 	assert.Nil(t, err)
@@ -335,15 +358,22 @@ func TestSubscribeHandlerHandlePacketV5WithSubIDError(t *testing.T) {
 	h := NewSubscribeHandler(&conf, st, subMgr, &log)
 
 	id := packet.ClientID("a")
-	s := &Session{ClientID: id, Version: packet.MQTT50, Subscriptions: make(map[string]*Subscription)}
+	s := &Session{
+		ClientID:      id,
+		Version:       packet.MQTT50,
+		Subscriptions: make(map[string]*Subscription),
+	}
 	st.On("ReadSession", id).Return(s, nil)
 
 	props := &packet.Properties{}
 	props.SubscriptionIdentifier = new(int)
 	*props.SubscriptionIdentifier = 5
 
-	subPkt := &packet.Subscribe{PacketID: 2, Version: packet.MQTT50,
-		Properties: props, Topics: []packet.Topic{{Name: "topic"}}}
+	subPkt := &packet.Subscribe{
+		PacketID:   2,
+		Version:    packet.MQTT50,
+		Properties: props, Topics: []packet.Topic{{Name: "topic"}},
+	}
 
 	replies, err := h.HandlePacket(id, subPkt)
 	require.NotNil(t, err)
