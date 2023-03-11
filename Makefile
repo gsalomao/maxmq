@@ -170,8 +170,8 @@ complexity: ## Calculates cyclomatic complexity
 	@gocyclo -over 12 -avg .
 	$(call print_task_result,"Calculating cyclomatic complexity","done")
 
-.PHONY: check
-check: vet lint complexity ## Check source code
+.PHONY: inspect
+inspect: vet lint complexity ## Inspect source code
 
 ## Help
 .PHONY: help

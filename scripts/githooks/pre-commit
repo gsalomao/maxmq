@@ -38,5 +38,5 @@ for i in $(git diff --name-only --cached); do
 done
 print_task_info_result "Updating copyright year" "done"
 
-# Check source code
-make check
+# Inspect source code
+make inspect
