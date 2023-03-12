@@ -71,12 +71,12 @@ func (l *Listener) Listen() error {
 
 	l.connectionMgr.start()
 
-	l.log.Info().Msg("MQTT Listening on " + lsn.Addr().String())
+	l.log.Info().Msg("listening on " + lsn.Addr().String())
 	l.tcpLsn = lsn
 	l.setRunningState(true)
 
 	for {
-		l.log.Trace().Msg("MQTT Waiting for TCP connection")
+		l.log.Trace().Msg("waiting for TCP connection")
 
 		var tcpConn net.Conn
 		tcpConn, err = l.tcpLsn.Accept()
@@ -85,24 +85,24 @@ func (l *Listener) Listen() error {
 				break
 			}
 
-			l.log.Warn().Msg("MQTT Failed to accept TCP connection: " + err.Error())
+			l.log.Warn().Msg("failed to accept TCP connection: " + err.Error())
 			continue
 		}
 
 		conn := l.connectionMgr.newConnection(tcpConn)
-		l.log.Trace().Msg("MQTT New TCP connection")
+		l.log.Trace().Msg("new TCP connection")
 
 		go func() { l.connectionMgr.handle(conn) }()
 	}
 
-	l.log.Debug().Msg("MQTT Listener stopped with success")
+	l.log.Debug().Msg("listener stopped with success")
 	return nil
 }
 
 // Stop stops the MQTT Listener.
 // Once called, it unblocks the Run function.
 func (l *Listener) Stop() {
-	l.log.Debug().Msg("MQTT Stopping listener")
+	l.log.Debug().Msg("stopping listener")
 
 	l.connectionMgr.stop()
 	l.setRunningState(false)

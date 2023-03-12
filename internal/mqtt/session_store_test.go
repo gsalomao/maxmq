@@ -55,7 +55,7 @@ func (m *sessionStoreMock) DeleteSession(s *handler.Session) error {
 func TestSessionStoreNewSession(t *testing.T) {
 	idGen := &idGeneratorMock{}
 	log := newLogger()
-	sm := newSessionStore(idGen, &log)
+	sm := newSessionStore(idGen, log)
 
 	cID := packet.ClientID("a")
 	sID := 10
@@ -71,7 +71,7 @@ func TestSessionStoreNewSession(t *testing.T) {
 func TestSessionStoreReadSession(t *testing.T) {
 	idGen := &idGeneratorMock{}
 	log := newLogger()
-	sm := newSessionStore(idGen, &log)
+	sm := newSessionStore(idGen, log)
 
 	cID := packet.ClientID("a")
 	s := &handler.Session{ClientID: cID, SessionID: 10}
@@ -86,7 +86,7 @@ func TestSessionStoreReadSession(t *testing.T) {
 func TestSessionStoreReadSessionNotFound(t *testing.T) {
 	idGen := &idGeneratorMock{}
 	log := newLogger()
-	sm := newSessionStore(idGen, &log)
+	sm := newSessionStore(idGen, log)
 	cID := packet.ClientID("a")
 
 	ss, err := sm.ReadSession(cID)
@@ -97,7 +97,7 @@ func TestSessionStoreReadSessionNotFound(t *testing.T) {
 func TestSessionStoreSaveSession(t *testing.T) {
 	idGen := &idGeneratorMock{}
 	log := newLogger()
-	sm := newSessionStore(idGen, &log)
+	sm := newSessionStore(idGen, log)
 
 	cID := packet.ClientID("a")
 	s := &handler.Session{ClientID: cID, SessionID: 10}
@@ -109,7 +109,7 @@ func TestSessionStoreSaveSession(t *testing.T) {
 func TestSessionStoreDeleteSession(t *testing.T) {
 	idGen := &idGeneratorMock{}
 	log := newLogger()
-	sm := newSessionStore(idGen, &log)
+	sm := newSessionStore(idGen, log)
 
 	cID := packet.ClientID("a")
 	s := &handler.Session{ClientID: cID, SessionID: 10}
@@ -122,7 +122,7 @@ func TestSessionStoreDeleteSession(t *testing.T) {
 func TestSessionStoreDeleteSessionError(t *testing.T) {
 	idGen := &idGeneratorMock{}
 	log := newLogger()
-	sm := newSessionStore(idGen, &log)
+	sm := newSessionStore(idGen, log)
 
 	cID := packet.ClientID("a")
 	s := &handler.Session{ClientID: cID, SessionID: 10}

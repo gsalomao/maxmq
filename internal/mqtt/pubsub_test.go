@@ -32,8 +32,8 @@ func TestPubSubManagerStartStop(t *testing.T) {
 	pd := &packetDelivererMock{}
 	sm := &sessionStoreMock{}
 	log := newLogger()
-	mt := newMetrics(true, &log)
-	ps := newPubSubManager(pd, sm, mt, &log)
+	mt := newMetrics(true, log)
+	ps := newPubSubManager(pd, sm, mt, log)
 
 	ps.start()
 	<-time.After(10 * time.Millisecond)
@@ -44,8 +44,8 @@ func TestPubSubManagerRun(t *testing.T) {
 	pd := &packetDelivererMock{}
 	sm := &sessionStoreMock{}
 	log := newLogger()
-	mt := newMetrics(true, &log)
-	ps := newPubSubManager(pd, sm, mt, &log)
+	mt := newMetrics(true, log)
+	ps := newPubSubManager(pd, sm, mt, log)
 
 	go ps.run()
 	<-ps.action
@@ -69,8 +69,8 @@ func TestPubSubManagerSubscribe(t *testing.T) {
 			pd := &packetDelivererMock{}
 			sm := &sessionStoreMock{}
 			log := newLogger()
-			mt := newMetrics(true, &log)
-			ps := newPubSubManager(pd, sm, mt, &log)
+			mt := newMetrics(true, log)
+			ps := newPubSubManager(pd, sm, mt, log)
 
 			sub := &handler.Subscription{
 				ClientID:          "a",
@@ -100,8 +100,8 @@ func TestPubSubManagerSubscribeError(t *testing.T) {
 			pd := &packetDelivererMock{}
 			sm := &sessionStoreMock{}
 			log := newLogger()
-			mt := newMetrics(true, &log)
-			ps := newPubSubManager(pd, sm, mt, &log)
+			mt := newMetrics(true, log)
+			ps := newPubSubManager(pd, sm, mt, log)
 
 			sub := &handler.Subscription{ClientID: "a", TopicFilter: tc.Name, QoS: tc.QoS}
 			err := ps.Subscribe(sub)
@@ -122,8 +122,8 @@ func TestPubSubManagerUnsubscribeTopic(t *testing.T) {
 			pd := &packetDelivererMock{}
 			sm := &sessionStoreMock{}
 			log := newLogger()
-			mt := newMetrics(true, &log)
-			ps := newPubSubManager(pd, sm, mt, &log)
+			mt := newMetrics(true, log)
+			ps := newPubSubManager(pd, sm, mt, log)
 
 			sub := &handler.Subscription{ClientID: "a", TopicFilter: tc.Name}
 			err := ps.Subscribe(sub)
@@ -147,8 +147,8 @@ func TestPubSubManagerUnsubscribeSubscriptionNotFound(t *testing.T) {
 			pd := &packetDelivererMock{}
 			sm := &sessionStoreMock{}
 			log := newLogger()
-			mt := newMetrics(true, &log)
-			ps := newPubSubManager(pd, sm, mt, &log)
+			mt := newMetrics(true, log)
+			ps := newPubSubManager(pd, sm, mt, log)
 			s := handler.Session{ClientID: "a"}
 
 			err := ps.Unsubscribe(s.ClientID, tc.Name)
@@ -161,8 +161,8 @@ func TestPubSubManagerPublishMessage(t *testing.T) {
 	pd := &packetDelivererMock{}
 	sm := &sessionStoreMock{}
 	log := newLogger()
-	mt := newMetrics(true, &log)
-	ps := newPubSubManager(pd, sm, mt, &log)
+	mt := newMetrics(true, log)
+	ps := newPubSubManager(pd, sm, mt, log)
 
 	pubPkt := packet.NewPublish(
 		1, /*id*/
@@ -191,8 +191,8 @@ func TestPubSubManagerHandleQueuedMessagesNoSubscription(t *testing.T) {
 	pd := &packetDelivererMock{}
 	sm := &sessionStoreMock{}
 	log := newLogger()
-	mt := newMetrics(true, &log)
-	ps := newPubSubManager(pd, sm, mt, &log)
+	mt := newMetrics(true, log)
+	ps := newPubSubManager(pd, sm, mt, log)
 
 	pubPkt := packet.NewPublish(
 		1, /*id*/
@@ -228,8 +228,8 @@ func TestPubSubManagerHandleQueuedMessages(t *testing.T) {
 			pd := &packetDelivererMock{}
 			sm := &sessionStoreMock{}
 			log := newLogger()
-			mt := newMetrics(true, &log)
-			ps := newPubSubManager(pd, sm, mt, &log)
+			mt := newMetrics(true, log)
+			ps := newPubSubManager(pd, sm, mt, log)
 			id := packet.ClientID("client")
 
 			sub := handler.Subscription{ClientID: id, TopicFilter: tc.topic, QoS: tc.qos}
@@ -293,8 +293,8 @@ func TestPubSubManagerHandleQueuedMessagesMultipleSubscribers(t *testing.T) {
 			pd := &packetDelivererMock{}
 			sm := &sessionStoreMock{}
 			log := newLogger()
-			mt := newMetrics(true, &log)
-			ps := newPubSubManager(pd, sm, mt, &log)
+			mt := newMetrics(true, log)
+			ps := newPubSubManager(pd, sm, mt, log)
 			id := packet.ClientID("client")
 
 			for _, topic := range tc.subs {
@@ -339,8 +339,8 @@ func TestPubSubManagerHandleQueuedMessagesNewPacketID(t *testing.T) {
 			pd := &packetDelivererMock{}
 			sm := &sessionStoreMock{}
 			log := newLogger()
-			mt := newMetrics(true, &log)
-			ps := newPubSubManager(pd, sm, mt, &log)
+			mt := newMetrics(true, log)
+			ps := newPubSubManager(pd, sm, mt, log)
 
 			id := packet.ClientID("client")
 			sub := handler.Subscription{ClientID: id, TopicFilter: "a", QoS: tc}
@@ -389,8 +389,8 @@ func TestPubSubManagerHandleQueuedMessagesDifferentVersion(t *testing.T) {
 	pd := &packetDelivererMock{}
 	sm := &sessionStoreMock{}
 	log := newLogger()
-	mt := newMetrics(true, &log)
-	ps := newPubSubManager(pd, sm, mt, &log)
+	mt := newMetrics(true, log)
+	ps := newPubSubManager(pd, sm, mt, log)
 
 	id := packet.ClientID("client")
 	sub := handler.Subscription{ClientID: id, TopicFilter: "a", QoS: packet.QoS0}
@@ -435,8 +435,8 @@ func TestPubSubManagerHandleQueuedMessagesDisconnected(t *testing.T) {
 			pd := &packetDelivererMock{}
 			sm := &sessionStoreMock{}
 			log := newLogger()
-			mt := newMetrics(true, &log)
-			ps := newPubSubManager(pd, sm, mt, &log)
+			mt := newMetrics(true, log)
+			ps := newPubSubManager(pd, sm, mt, log)
 
 			id := packet.ClientID("client")
 			sub := handler.Subscription{ClientID: id, TopicFilter: "a", QoS: tc}
@@ -483,8 +483,8 @@ func TestPubSubManagerHandleQueuedMessagesDeliverPacketError(t *testing.T) {
 			pd := &packetDelivererMock{}
 			sm := &sessionStoreMock{}
 			log := newLogger()
-			mt := newMetrics(true, &log)
-			ps := newPubSubManager(pd, sm, mt, &log)
+			mt := newMetrics(true, log)
+			ps := newPubSubManager(pd, sm, mt, log)
 
 			id := packet.ClientID("client")
 			sub := handler.Subscription{ClientID: id, TopicFilter: "a", QoS: tc}
@@ -524,8 +524,8 @@ func TestPubSubManagerHandleQueuedMessagesReadSessionError(t *testing.T) {
 	pd := &packetDelivererMock{}
 	sm := &sessionStoreMock{}
 	log := newLogger()
-	mt := newMetrics(true, &log)
-	ps := newPubSubManager(pd, sm, mt, &log)
+	mt := newMetrics(true, log)
+	ps := newPubSubManager(pd, sm, mt, log)
 
 	id := packet.ClientID("client")
 	sub := handler.Subscription{ClientID: id, TopicFilter: "a", QoS: packet.QoS0}
@@ -557,8 +557,8 @@ func TestPubSubManagerHandleQueuedMessagesSaveSessionError(t *testing.T) {
 	pd := &packetDelivererMock{}
 	sm := &sessionStoreMock{}
 	log := newLogger()
-	mt := newMetrics(true, &log)
-	ps := newPubSubManager(pd, sm, mt, &log)
+	mt := newMetrics(true, log)
+	ps := newPubSubManager(pd, sm, mt, log)
 
 	id := packet.ClientID("client")
 	sub := handler.Subscription{ClientID: id, TopicFilter: "a", QoS: packet.QoS1}

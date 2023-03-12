@@ -25,19 +25,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// LogIDGenerator is responsible for generate log IDs.
-type LogIDGenerator interface {
-	// NextID generates a new log ID.
-	NextID() uint64
-}
-
-// Logger represents a logging object responsible to generate outputs to
-// an io.Writer.
-type Logger struct {
-	zerolog.Logger
-	generator LogIDGenerator
-}
-
 const (
 	reset  = "\x1b[0m"
 	red    = "\x1b[31m"
@@ -80,30 +67,7 @@ func init() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMicro
 }
 
-// New creates a new logger object.
-func New(out io.Writer, gen LogIDGenerator) Logger {
-	output := &zerolog.ConsoleWriter{Out: out, TimeFormat: time.RFC3339Nano}
-	output.FormatTimestamp = formatTimestamp
-	output.FormatLevel = formatLevel
-	output.FormatMessage = formatMessage
-	output.FormatFieldName = formatFieldName
-	output.FormatFieldValue = formatFieldValue
-	output.FormatErrFieldName = formatFieldName
-	output.FormatErrFieldValue = formatFieldValue
-
-	logger := Logger{generator: gen}
-	zl := zerolog.New(output).
-		Hook(logger).
-		With().
-		Timestamp().
-		Logger()
-
-	logger.Logger = zl
-	return logger
-}
-
-// SetSeverityLevel sets the minimal severity level which the logs will be
-// produced.
+// SetSeverityLevel sets the minimal severity level which the logs will be produced.
 func SetSeverityLevel(level string) error {
 	l, ok := levelCode[level]
 	if !ok {
@@ -114,37 +78,94 @@ func SetSeverityLevel(level string) error {
 	return nil
 }
 
-func formatTimestamp(i interface{}) string {
+func colorize(color, msg string) string {
+	return color + msg + reset
+}
+
+// LogIDGenerator is responsible for generate log IDs.
+type LogIDGenerator interface {
+	// NextID generates a new log ID.
+	NextID() uint64
+}
+
+// Logger represents a logging object responsible to generate outputs to
+// an io.Writer.
+type Logger struct {
+	// Unexported fields.
+	zerolog.Logger
+	generator LogIDGenerator
+	writer    io.Writer
+	prefix    string
+}
+
+// New creates a new logger.
+func New(wr io.Writer, gen LogIDGenerator) *Logger {
+	l := &Logger{generator: gen, writer: wr}
+
+	output := &zerolog.ConsoleWriter{Out: wr, TimeFormat: time.RFC3339Nano}
+	output.FormatTimestamp = l.formatTimestamp
+	output.FormatLevel = l.formatLevel
+	output.FormatMessage = l.formatMessage
+	output.FormatFieldName = l.formatFieldName
+	output.FormatFieldValue = l.formatFieldValue
+	output.FormatErrFieldName = l.formatFieldName
+	output.FormatErrFieldValue = l.formatFieldValue
+
+	ctx := zerolog.New(output).Hook(l).With().Timestamp()
+	l.Logger = ctx.Logger()
+	return l
+}
+
+// NewWithPrefix creates a new logger with a prefix.
+func NewWithPrefix(wr io.Writer, gen LogIDGenerator, prefix string) *Logger {
+	l := New(wr, gen)
+	l.prefix = prefix
+	return l
+}
+
+// WithPrefix creates a new logger from the existing one with a prefix.
+func (l *Logger) WithPrefix(prefix string) *Logger {
+	if prefix != "" {
+		if l.prefix != "" {
+			prefix = fmt.Sprintf("%s.%s", l.prefix, prefix)
+		}
+	}
+
+	logger := NewWithPrefix(l.writer, l.generator, prefix)
+	return logger
+}
+
+// Run implements the zerolog.Hook interface to add log ID into the log event.
+func (l *Logger) Run(e *zerolog.Event, _ zerolog.Level, _ string) {
+	if l.generator != nil {
+		e.Uint64("LogId", l.generator.NextID())
+	}
+}
+
+func (l *Logger) formatTimestamp(i interface{}) string {
 	v, _ := strconv.ParseInt(fmt.Sprintf("%v", i), 10 /*base*/, 64 /*bitSize*/)
 	t := time.UnixMicro(v)
 	return colorize(white, t.Format("2006-01-02 15:04:05.000000 -0700"))
 }
 
-func formatLevel(i interface{}) string {
+func (l *Logger) formatLevel(i interface{}) string {
 	level := strings.ToUpper(fmt.Sprintf("%s", i))
 	color := levelColor[level]
-	return fmt.Sprintf("| %-14s |", colorize(color, level))
+	return fmt.Sprintf(" %-14s ", colorize(color, level))
 }
 
-func formatMessage(i interface{}) string {
-	return colorize(cyan, fmt.Sprintf("%s", i))
+func (l *Logger) formatMessage(i interface{}) string {
+	var prefix string
+	if l.prefix != "" {
+		prefix = fmt.Sprintf("%s: ", l.prefix)
+	}
+	return colorize(cyan, fmt.Sprintf("%s%s", prefix, i))
 }
 
-func formatFieldName(i interface{}) string {
+func (l *Logger) formatFieldName(i interface{}) string {
 	return colorize(gray, fmt.Sprintf("%s=", i))
 }
 
-func formatFieldValue(i interface{}) string {
+func (l *Logger) formatFieldValue(i interface{}) string {
 	return colorize(gray, fmt.Sprintf("%s", i))
-}
-
-func colorize(color, msg string) string {
-	return color + msg + reset
-}
-
-// Run implements the zerolog.Hook interface to add log ID into the log event.
-func (l Logger) Run(e *zerolog.Event, _ zerolog.Level, _ string) {
-	if l.generator != nil {
-		e.Uint64("LogId", l.generator.NextID())
-	}
 }

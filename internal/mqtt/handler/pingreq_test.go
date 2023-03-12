@@ -35,7 +35,7 @@ func TestPingReqHandlerHandlePacket(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			log := logger.New(&bytes.Buffer{}, nil)
 			st := &sessionStoreMock{}
-			h := NewPingReqHandler(st, &log)
+			h := NewPingReqHandler(st, log)
 
 			id := packet.ClientID('a')
 			s := &Session{ClientID: id}
@@ -64,7 +64,7 @@ func TestPingReqHandlerHandlePacketReadSessionError(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			log := logger.New(&bytes.Buffer{}, nil)
 			st := &sessionStoreMock{}
-			h := NewPingReqHandler(st, &log)
+			h := NewPingReqHandler(st, log)
 
 			id := packet.ClientID('a')
 			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)

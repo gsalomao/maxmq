@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ func (b *logBuffer) Write(p []byte) (n int, err error) {
 	return b.b.Write(p)
 }
 
-func newLogger() logger.Logger {
+func newLogger() *logger.Logger {
 	out := &logBuffer{}
 	return logger.New(out, &logIDGenStub{})
 }
@@ -54,7 +54,7 @@ func TestMetricsNewServer(t *testing.T) {
 	t.Run("Valid", func(t *testing.T) {
 		conf := Configuration{Address: ":8888", Path: "/metrics"}
 
-		lsn, err := NewListener(conf, &log)
+		lsn, err := NewListener(conf, log)
 		assert.Nil(t, err)
 		assert.NotNil(t, lsn)
 	})
@@ -62,7 +62,7 @@ func TestMetricsNewServer(t *testing.T) {
 	t.Run("MissingAddress", func(t *testing.T) {
 		conf := Configuration{Address: "", Path: "/metrics"}
 
-		lsn, err := NewListener(conf, &log)
+		lsn, err := NewListener(conf, log)
 		assert.Nil(t, lsn)
 		assert.ErrorContains(t, err, "missing address")
 	})
@@ -70,7 +70,7 @@ func TestMetricsNewServer(t *testing.T) {
 	t.Run("MissingPath", func(t *testing.T) {
 		conf := Configuration{Address: ":8888", Path: ""}
 
-		lsn, err := NewListener(conf, &log)
+		lsn, err := NewListener(conf, log)
 		assert.Nil(t, lsn)
 		assert.ErrorContains(t, err, "missing path")
 	})
@@ -80,7 +80,7 @@ func TestMetricsRunInvalidAddress(t *testing.T) {
 	log := newLogger()
 	conf := Configuration{Address: ".", Path: "/metrics"}
 
-	lsn, err := NewListener(conf, &log)
+	lsn, err := NewListener(conf, log)
 	require.Nil(t, err)
 	require.NotNil(t, lsn)
 
@@ -92,7 +92,7 @@ func TestMetricsRunAndStop(t *testing.T) {
 	log := newLogger()
 	conf := Configuration{Address: ":8888", Path: "/metrics"}
 
-	lsn, err := NewListener(conf, &log)
+	lsn, err := NewListener(conf, log)
 	require.Nil(t, err)
 	require.NotNil(t, lsn)
 

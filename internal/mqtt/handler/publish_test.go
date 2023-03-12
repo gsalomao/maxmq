@@ -44,7 +44,7 @@ func TestPublishHandlerHandlePacketQoS0(t *testing.T) {
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPublishHandler(st, subMgr, idGen, &log)
+			h := NewPublishHandler(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc.version}
@@ -92,7 +92,7 @@ func TestPublishHandlerHandlePacketQoS1(t *testing.T) {
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPublishHandler(st, subMgr, idGen, &log)
+			h := NewPublishHandler(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc.version}
@@ -148,7 +148,7 @@ func TestPublishHandlerHandlePacketQoS2(t *testing.T) {
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPublishHandler(st, subMgr, idGen, &log)
+			h := NewPublishHandler(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
 			s := &Session{
@@ -213,7 +213,7 @@ func TestPublishHandlerHandlePacketQoS2NoDuplication(t *testing.T) {
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPublishHandler(st, subMgr, idGen, &log)
+			h := NewPublishHandler(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
 			s := &Session{
@@ -308,7 +308,7 @@ func TestPublishHandlerHandlePacketQoS2SamePacketIDNewMessage(t *testing.T) {
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPublishHandler(st, subMgr, idGen, &log)
+			h := NewPublishHandler(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
 			s := &Session{
@@ -368,7 +368,7 @@ func TestPublishHandlerHandlePacketReadSessionError(t *testing.T) {
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPublishHandler(st, subMgr, idGen, &log)
+			h := NewPublishHandler(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
 			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)
@@ -414,7 +414,7 @@ func TestPublishHandlerHandlePacketPublishMessageError(t *testing.T) {
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPublishHandler(st, subMgr, idGen, &log)
+			h := NewPublishHandler(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc.version}
@@ -458,7 +458,7 @@ func TestPublishHandlerHandlePacketSaveSessionError(t *testing.T) {
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPublishHandler(st, subMgr, idGen, &log)
+			h := NewPublishHandler(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, UnAckMessages: make(map[packet.ID]*Message)}

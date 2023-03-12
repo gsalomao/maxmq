@@ -49,14 +49,14 @@ func (h *PublishHandler) HandlePacket(
 		Uint8("QoS", uint8(pubPkt.QoS)).
 		Str("TopicName", pubPkt.TopicName).
 		Uint8("Version", uint8(pubPkt.Version)).
-		Msg("MQTT Received PUBLISH packet")
+		Msg("received PUBLISH packet")
 
 	s, err := h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
 			Uint8("Version", uint8(pubPkt.Version)).
-			Msg("MQTT Failed to read session (PUBLISH): " + err.Error())
+			Msg("failed to read session (PUBLISH): " + err.Error())
 		return nil, err
 	}
 
@@ -79,7 +79,7 @@ func (h *PublishHandler) HandlePacket(
 				Uint64("SessionId", uint64(s.SessionID)).
 				Str("TopicName", pubPkt.TopicName).
 				Uint8("Version", uint8(pubPkt.Version)).
-				Msg("MQTT Failed to publish message (PUBLISH): " + err.Error())
+				Msg("failed to publish message (PUBLISH): " + err.Error())
 			return nil, err
 		}
 
@@ -93,7 +93,7 @@ func (h *PublishHandler) HandlePacket(
 			Uint64("SessionId", uint64(s.SessionID)).
 			Str("TopicName", msg.Packet.TopicName).
 			Uint8("Version", uint8(s.Version)).
-			Msg("MQTT Client published a packet (PUBLISH)")
+			Msg("client published a packet (PUBLISH)")
 
 		if pubPkt.QoS == packet.QoS0 {
 			return nil, nil
@@ -114,7 +114,7 @@ func (h *PublishHandler) HandlePacket(
 			Uint64("MessageId", uint64(msg.ID)).
 			Uint16("PacketId", uint16(pubAck.PacketID)).
 			Uint8("Version", uint8(pubAck.Version)).
-			Msg("MQTT Sending PUBACK packet")
+			Msg("sending PUBACK packet")
 	} else {
 		h.log.Debug().
 			Str("ClientId", string(s.ClientID)).
@@ -122,7 +122,7 @@ func (h *PublishHandler) HandlePacket(
 			Uint16("PacketId", uint16(pubPkt.PacketID)).
 			Int("UnAckMessages", len(s.UnAckMessages)).
 			Uint8("Version", uint8(pubPkt.Version)).
-			Msg("MQTT Received packet from client (PUBLISH)")
+			Msg("received packet from client (PUBLISH)")
 
 		unAckMsg, ok := s.UnAckMessages[pubPkt.PacketID]
 		if !ok || unAckMsg.Packet == nil {
@@ -132,7 +132,7 @@ func (h *PublishHandler) HandlePacket(
 				Uint16("PacketId", uint16(pubPkt.PacketID)).
 				Int("UnAckMessages", len(s.UnAckMessages)).
 				Uint8("Version", uint8(s.Version)).
-				Msg("MQTT Adding message to UnAck messages (PUBLISH)")
+				Msg("adding message to UnAck messages (PUBLISH)")
 
 			s.UnAckMessages[pubPkt.PacketID] = msg
 			err = h.sessionStore.SaveSession(s)
@@ -141,7 +141,7 @@ func (h *PublishHandler) HandlePacket(
 					Str("ClientId", string(s.ClientID)).
 					Uint64("SessionId", uint64(s.SessionID)).
 					Uint8("Version", uint8(s.Version)).
-					Msg("MQTT Failed to save session (PUBLISH): " + err.Error())
+					Msg("failed to save session (PUBLISH): " + err.Error())
 				return nil, err
 			}
 		}
@@ -159,7 +159,7 @@ func (h *PublishHandler) HandlePacket(
 			Uint16("PacketId", uint16(pubRec.PacketID)).
 			Int("UnAckMessages", len(s.UnAckMessages)).
 			Uint8("Version", uint8(pubRec.Version)).
-			Msg("MQTT Sending PUBREC packet")
+			Msg("sending PUBREC packet")
 	}
 
 	return replies, nil

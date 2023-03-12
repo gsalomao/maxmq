@@ -56,10 +56,12 @@ func newCommandStart() *cobra.Command {
 
 func runCommandStart(enableProfile bool) {
 	machineID := 0
-	log, err := newLogger(os.Stdout, machineID)
+	baseLogger, err := newLogger(os.Stdout, machineID)
 	if err != nil {
 		os.Exit(1)
 	}
+
+	log := baseLogger.WithPrefix("server")
 
 	var missingConfigFile bool
 	err = config.ReadConfigFile()
@@ -67,27 +69,27 @@ func runCommandStart(enableProfile bool) {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			missingConfigFile = true
 		} else {
-			log.Fatal().Msg("Failed to read config file: " + err.Error())
+			log.Fatal().Msg("failed to read config file: " + err.Error())
 		}
 	}
 
 	conf, err := config.LoadConfig()
 	if err != nil {
-		log.Fatal().Msg("Failed to load configuration: " + err.Error())
+		log.Fatal().Msg("failed to load configuration: " + err.Error())
 	}
 
 	err = logger.SetSeverityLevel(conf.LogLevel)
 	if err != nil {
-		log.Fatal().Msg("Failed to set log severity: " + err.Error())
+		log.Fatal().Msg("failed to set log severity: " + err.Error())
 	}
 
 	bannerWriter := colorable.NewColorableStdout()
 	banner.InitString(bannerWriter, true, true, bannerTemplate)
 
 	if !missingConfigFile {
-		log.Info().Msg("Config file loaded with success")
+		log.Info().Msg("config file loaded with success")
 	} else {
-		log.Info().Msg("No config file found")
+		log.Info().Msg("no config file found")
 	}
 
 	log.Debug().
@@ -114,11 +116,11 @@ func runCommandStart(enableProfile bool) {
 		Bool("MQTTAllowEmptyClientID", conf.MQTTAllowEmptyClientID).
 		Str("MQTTClientIDPrefix", conf.MQTTClientIDPrefix).
 		Int("MQTTDefaultVersion", conf.MQTTDefaultVersion).
-		Msg("Using configuration")
+		Msg("using configuration")
 
-	s, err := newServer(conf, log, machineID)
+	s, err := newServer(conf, log, baseLogger, machineID)
 	if err != nil {
-		log.Fatal().Msg("Failed to create server: " + err.Error())
+		log.Fatal().Msg("failed to create server: " + err.Error())
 	}
 
 	startServer(s, log, enableProfile)
@@ -131,10 +133,15 @@ func newLogger(wr io.Writer, machineID int) (*logger.Logger, error) {
 	}
 
 	lg := logger.New(wr, sf)
-	return &lg, nil
+	return lg, nil
 }
 
-func newServer(c config.Config, l *logger.Logger, machineID int) (*server.Server, error) {
+func newServer(
+	c config.Config,
+	l *logger.Logger,
+	bl *logger.Logger,
+	machineID int,
+) (*server.Server, error) {
 	mqttConf := handler.Configuration{
 		TCPAddress:                    c.MQTTTCPAddress,
 		ConnectTimeout:                c.MQTTConnectTimeout,
@@ -166,7 +173,7 @@ func newServer(c config.Config, l *logger.Logger, machineID int) (*server.Server
 	var lsn server.Listener
 	lsn, err = mqtt.NewListener(
 		mqtt.WithConfiguration(mqttConf),
-		mqtt.WithLogger(l),
+		mqtt.WithLogger(bl),
 		mqtt.WithIDGenerator(sf),
 	)
 	if err != nil {
@@ -180,7 +187,7 @@ func newServer(c config.Config, l *logger.Logger, machineID int) (*server.Server
 		l.Debug().
 			Str("Address", c.MetricsAddress).
 			Str("Path", c.MetricsPath).
-			Msg("Exporting metrics")
+			Msg("exporting metrics")
 
 		mtConf := metrics.Configuration{
 			Address:   c.MetricsAddress,
@@ -188,7 +195,7 @@ func newServer(c config.Config, l *logger.Logger, machineID int) (*server.Server
 			Profiling: c.MetricsProfiling,
 		}
 
-		lsn, err = metrics.NewListener(mtConf, l)
+		lsn, err = metrics.NewListener(mtConf, bl)
 		if err != nil {
 			return nil, err
 		}
@@ -203,11 +210,11 @@ func startServer(s *server.Server, l *logger.Logger, enableProfile bool) {
 	if enableProfile {
 		cpu, err := os.Create("cpu.prof")
 		if err != nil {
-			l.Fatal().Msg("Failed to create CPU profile file: " + err.Error())
+			l.Fatal().Msg("failed to create CPU profile file: " + err.Error())
 		}
 
 		if err = pprof.StartCPUProfile(cpu); err != nil {
-			l.Fatal().Msg("Failed to start CPU profile: " + err.Error())
+			l.Fatal().Msg("failed to start CPU profile: " + err.Error())
 		}
 
 		defer func() { _ = cpu.Close() }()
@@ -215,14 +222,14 @@ func startServer(s *server.Server, l *logger.Logger, enableProfile bool) {
 
 	err := s.Start()
 	if err != nil {
-		l.Fatal().Msg("Failed to start server: " + err.Error())
+		l.Fatal().Msg("failed to start server: " + err.Error())
 	}
 
 	go waitOSSignals(s)
 
 	err = s.Wait()
 	if err != nil {
-		l.Error().Msg("Server stopped with error: " + err.Error())
+		l.Error().Msg("server stopped with error: " + err.Error())
 	}
 
 	if enableProfile {
@@ -230,13 +237,13 @@ func startServer(s *server.Server, l *logger.Logger, enableProfile bool) {
 
 		heap, err = os.Create("heap.prof")
 		if err != nil {
-			l.Fatal().Msg("Failed to create Heap profile file: " + err.Error())
+			l.Fatal().Msg("failed to create Heap profile file: " + err.Error())
 		}
 		defer func() { _ = heap.Close() }()
 
 		runtime.GC()
 		if err = pprof.WriteHeapProfile(heap); err != nil {
-			l.Fatal().Msg("Failed to save Heap profile: " + err.Error())
+			l.Fatal().Msg("failed to save Heap profile: " + err.Error())
 		}
 
 		pprof.StopCPUProfile()

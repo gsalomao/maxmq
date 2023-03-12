@@ -45,14 +45,14 @@ func (h *PubRelHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 		Str("ClientId", string(id)).
 		Uint16("PacketId", uint16(pubRel.PacketID)).
 		Uint8("Version", uint8(pubRel.Version)).
-		Msg("MQTT Received PUBREL packet")
+		Msg("received PUBREL packet")
 
 	s, err := h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
 			Uint8("Version", uint8(pubRel.Version)).
-			Msg("MQTT Failed to read session (PUBREL): " + err.Error())
+			Msg("failed to read session (PUBREL): " + err.Error())
 		return nil, err
 	}
 
@@ -67,7 +67,7 @@ func (h *PubRelHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 			Uint16("PacketId", uint16(pubRel.PacketID)).
 			Int("UnAckMessages", len(s.UnAckMessages)).
 			Uint8("Version", uint8(s.Version)).
-			Msg("MQTT Received PUBREL with unknown packet ID")
+			Msg("received PUBREL with unknown packet ID")
 
 		if s.Version != packet.MQTT50 {
 			return nil, ErrPacketNotFound
@@ -98,7 +98,7 @@ func (h *PubRelHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 				Str("TopicName", msg.Packet.TopicName).
 				Int("UnAckMessages", len(s.UnAckMessages)).
 				Uint8("Version", uint8(msg.Packet.Version)).
-				Msg("MQTT Failed to publish message (PUBREL): " + err.Error())
+				Msg("failed to publish message (PUBREL): " + err.Error())
 			return nil, err
 		}
 
@@ -113,7 +113,7 @@ func (h *PubRelHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 			Str("TopicName", msgToPub.Packet.TopicName).
 			Int("UnAckMessages", len(s.UnAckMessages)).
 			Uint8("Version", uint8(msgToPub.Packet.Version)).
-			Msg("MQTT Client published a packet (PUBREL)")
+			Msg("client published a packet (PUBREL)")
 
 		msg.LastSent = time.Now().UnixMicro()
 		msg.Tries = 1
@@ -125,7 +125,7 @@ func (h *PubRelHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 				Str("ClientId", string(s.ClientID)).
 				Uint64("SessionId", uint64(s.SessionID)).
 				Uint8("Version", uint8(s.Version)).
-				Msg("MQTT Failed to save session (PUBREL): " + err.Error())
+				Msg("failed to save session (PUBREL): " + err.Error())
 			return nil, err
 		}
 	}
@@ -143,6 +143,6 @@ func (h *PubRelHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 		Uint16("PacketId", uint16(pubComp.PacketID)).
 		Int("UnAckMessages", len(s.UnAckMessages)).
 		Uint8("Version", uint8(pubComp.Version)).
-		Msg("MQTT Sending PUBCOMP packet")
+		Msg("sending PUBCOMP packet")
 	return replies, nil
 }

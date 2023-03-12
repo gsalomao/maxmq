@@ -113,9 +113,9 @@ func TestConnectionManagerNewDefaultValues(t *testing.T) {
 	st := &sessionStoreMock{}
 	log := newLogger()
 	idGen := &idGeneratorMock{}
-	mt := newMetrics(conf.MetricsEnabled, &log)
+	mt := newMetrics(conf.MetricsEnabled, log)
 
-	cm := newConnectionManager(&conf, st, mt, idGen, &log)
+	cm := newConnectionManager(&conf, st, mt, idGen, log)
 	assert.Equal(t, 1024, cm.conf.BufferSize)
 	assert.Equal(t, 268435456, cm.conf.MaxPacketSize)
 	assert.Equal(t, 5, cm.conf.ConnectTimeout)
@@ -132,8 +132,8 @@ func TestConnectionManagerHandleConnect(t *testing.T) {
 	st := &sessionStoreMock{}
 	log := newLogger()
 	idGen := &idGeneratorMock{}
-	mt := newMetrics(conf.MetricsEnabled, &log)
-	cm := newConnectionManager(&conf, st, mt, idGen, &log)
+	mt := newMetrics(conf.MetricsEnabled, log)
+	cm := newConnectionManager(&conf, st, mt, idGen, log)
 
 	hd := &packetHandlerMock{}
 	rd := &packetReaderMock{}
@@ -174,8 +174,8 @@ func TestConnectionManagerHandleConnectCleanSession(t *testing.T) {
 	st := &sessionStoreMock{}
 	log := newLogger()
 	idGen := &idGeneratorMock{}
-	mt := newMetrics(conf.MetricsEnabled, &log)
-	cm := newConnectionManager(&conf, st, mt, idGen, &log)
+	mt := newMetrics(conf.MetricsEnabled, log)
+	cm := newConnectionManager(&conf, st, mt, idGen, log)
 
 	hd := &packetHandlerMock{}
 	rd := &packetReaderMock{}
@@ -215,8 +215,8 @@ func TestConnectionManagerHandleDisconnectReceived(t *testing.T) {
 	st := &sessionStoreMock{}
 	log := newLogger()
 	idGen := &idGeneratorMock{}
-	mt := newMetrics(conf.MetricsEnabled, &log)
-	cm := newConnectionManager(&conf, st, mt, idGen, &log)
+	mt := newMetrics(conf.MetricsEnabled, log)
+	cm := newConnectionManager(&conf, st, mt, idGen, log)
 
 	hd := &packetHandlerMock{}
 	rd := &packetReaderMock{}
@@ -252,8 +252,8 @@ func TestConnectionManagerHandleDisconnectReplied(t *testing.T) {
 	st := &sessionStoreMock{}
 	log := newLogger()
 	idGen := &idGeneratorMock{}
-	mt := newMetrics(conf.MetricsEnabled, &log)
-	cm := newConnectionManager(&conf, st, mt, idGen, &log)
+	mt := newMetrics(conf.MetricsEnabled, log)
+	cm := newConnectionManager(&conf, st, mt, idGen, log)
 
 	hd := &packetHandlerMock{}
 	rd := &packetReaderMock{}
@@ -309,8 +309,8 @@ func TestConnectionManagerHandle(t *testing.T) {
 			st := &sessionStoreMock{}
 			log := newLogger()
 			idGen := &idGeneratorMock{}
-			mt := newMetrics(conf.MetricsEnabled, &log)
-			cm := newConnectionManager(&conf, st, mt, idGen, &log)
+			mt := newMetrics(conf.MetricsEnabled, log)
+			cm := newConnectionManager(&conf, st, mt, idGen, log)
 
 			hd := &packetHandlerMock{}
 			rd := &packetReaderMock{}
@@ -356,8 +356,8 @@ func TestConnectionManagerHandleSetDeadlineFailure(t *testing.T) {
 	st := &sessionStoreMock{}
 	log := newLogger()
 	idGen := &idGeneratorMock{}
-	mt := newMetrics(conf.MetricsEnabled, &log)
-	cm := newConnectionManager(&conf, st, mt, idGen, &log)
+	mt := newMetrics(conf.MetricsEnabled, log)
+	cm := newConnectionManager(&conf, st, mt, idGen, log)
 
 	conn, sConn := net.Pipe()
 	_ = conn.Close()
@@ -371,8 +371,8 @@ func TestConnectionManagerHandleReadFailure(t *testing.T) {
 	st := &sessionStoreMock{}
 	log := newLogger()
 	idGen := &idGeneratorMock{}
-	mt := newMetrics(conf.MetricsEnabled, &log)
-	cm := newConnectionManager(&conf, st, mt, idGen, &log)
+	mt := newMetrics(conf.MetricsEnabled, log)
+	cm := newConnectionManager(&conf, st, mt, idGen, log)
 
 	conn, sConn := net.Pipe()
 	c := cm.newConnection(sConn)
@@ -393,8 +393,8 @@ func TestConnectionManagerHandleReadTimeout(t *testing.T) {
 	st := &sessionStoreMock{}
 	log := newLogger()
 	idGen := &idGeneratorMock{}
-	mt := newMetrics(conf.MetricsEnabled, &log)
-	cm := newConnectionManager(&conf, st, mt, idGen, &log)
+	mt := newMetrics(conf.MetricsEnabled, log)
+	cm := newConnectionManager(&conf, st, mt, idGen, log)
 
 	conn, sConn := net.Pipe()
 	c := cm.newConnection(sConn)
@@ -408,8 +408,8 @@ func TestConnectionManagerHandleWritePacketFailure(t *testing.T) {
 	st := &sessionStoreMock{}
 	log := newLogger()
 	idGen := &idGeneratorMock{}
-	mt := newMetrics(conf.MetricsEnabled, &log)
-	cm := newConnectionManager(&conf, st, mt, idGen, &log)
+	mt := newMetrics(conf.MetricsEnabled, log)
+	cm := newConnectionManager(&conf, st, mt, idGen, log)
 
 	hd := &packetHandlerMock{}
 	rd := &packetReaderMock{}
@@ -448,8 +448,8 @@ func TestConnectionManagerHandleInvalidPacket(t *testing.T) {
 	st := &sessionStoreMock{}
 	log := newLogger()
 	idGen := &idGeneratorMock{}
-	mt := newMetrics(conf.MetricsEnabled, &log)
-	cm := newConnectionManager(&conf, st, mt, idGen, &log)
+	mt := newMetrics(conf.MetricsEnabled, log)
+	cm := newConnectionManager(&conf, st, mt, idGen, log)
 
 	rd := &packetReaderMock{}
 	cm.reader = rd
@@ -473,8 +473,8 @@ func TestConnectionManagerDeliverMessageWriteFailure(t *testing.T) {
 	st := &sessionStoreMock{}
 	log := newLogger()
 	idGen := &idGeneratorMock{}
-	mt := newMetrics(conf.MetricsEnabled, &log)
-	cm := newConnectionManager(&conf, st, mt, idGen, &log)
+	mt := newMetrics(conf.MetricsEnabled, log)
+	cm := newConnectionManager(&conf, st, mt, idGen, log)
 
 	conn, sConn := net.Pipe()
 	c := cm.newConnection(sConn)
@@ -509,8 +509,8 @@ func TestConnectionManagerDeliverMessage(t *testing.T) {
 	st := &sessionStoreMock{}
 	log := newLogger()
 	idGen := &idGeneratorMock{}
-	mt := newMetrics(conf.MetricsEnabled, &log)
-	cm := newConnectionManager(&conf, st, mt, idGen, &log)
+	mt := newMetrics(conf.MetricsEnabled, log)
+	cm := newConnectionManager(&conf, st, mt, idGen, log)
 
 	conn, sConn := net.Pipe()
 	c := cm.newConnection(sConn)
@@ -545,8 +545,8 @@ func TestConnectionManagerDeliverMessageConnectionNotFound(t *testing.T) {
 	st := &sessionStoreMock{}
 	log := newLogger()
 	idGen := &idGeneratorMock{}
-	mt := newMetrics(conf.MetricsEnabled, &log)
-	cm := newConnectionManager(&conf, st, mt, idGen, &log)
+	mt := newMetrics(conf.MetricsEnabled, log)
+	cm := newConnectionManager(&conf, st, mt, idGen, log)
 
 	p := packet.NewPublish(
 		10, /*id*/

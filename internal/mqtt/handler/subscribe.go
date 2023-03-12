@@ -48,14 +48,14 @@ func (h *SubscribeHandler) HandlePacket(
 		Uint16("PacketId", uint16(sub.PacketID)).
 		Int("Topics", len(sub.Topics)).
 		Uint8("Version", uint8(sub.Version)).
-		Msg("MQTT Received SUBSCRIBE packet")
+		Msg("received SUBSCRIBE packet")
 
 	s, err := h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
 			Uint8("Version", uint8(sub.Version)).
-			Msg("MQTT Failed to read session (SUBSCRIBE): " + err.Error())
+			Msg("failed to read session (SUBSCRIBE): " + err.Error())
 		return nil, err
 	}
 
@@ -69,7 +69,7 @@ func (h *SubscribeHandler) HandlePacket(
 			Uint16("PacketId", uint16(sub.PacketID)).
 			Uint64("SessionId", uint64(s.SessionID)).
 			Uint8("Version", uint8(s.Version)).
-			Msg("MQTT Received SUBSCRIBE with subscription ID (not available)")
+			Msg("received SUBSCRIBE with subscription ID (not available)")
 		code := packet.ReasonCodeV5SubscriptionIDNotSupported
 		discPkt := packet.NewDisconnect(s.Version, code, nil)
 		return []packet.Packet{&discPkt}, packet.ErrV5SubscriptionIDNotSupported
@@ -83,7 +83,7 @@ func (h *SubscribeHandler) HandlePacket(
 				Str("ClientId", string(s.ClientID)).
 				Uint64("SessionId", uint64(s.SessionID)).
 				Uint8("Version", uint8(s.Version)).
-				Msg("MQTT Failed to save session (SUBSCRIBE): " + err.Error())
+				Msg("failed to save session (SUBSCRIBE): " + err.Error())
 			h.unsubscribe(codes, s, sub.Topics)
 		}
 	}
@@ -97,7 +97,7 @@ func (h *SubscribeHandler) HandlePacket(
 		Uint64("SessionId", uint64(s.SessionID)).
 		Int("Subscriptions", len(s.Subscriptions)).
 		Uint8("Version", uint8(subAck.Version)).
-		Msg("MQTT Sending SUBACK packet")
+		Msg("sending SUBACK packet")
 	return replies, nil
 }
 
@@ -134,7 +134,7 @@ func (h *SubscribeHandler) subscribe(
 				Int("Subscriptions", len(s.Subscriptions)).
 				Str("TopicFilter", sub.TopicFilter).
 				Uint8("Version", uint8(s.Version)).
-				Msg("MQTT Failed to subscribe (SUBSCRIBE): " + err.Error())
+				Msg("failed to subscribe (SUBSCRIBE): " + err.Error())
 			codes = append(codes, packet.ReasonCodeV3Failure)
 			continue
 		}
@@ -155,7 +155,7 @@ func (h *SubscribeHandler) subscribe(
 			Int("Subscriptions", len(s.Subscriptions)).
 			Str("TopicFilter", sub.TopicFilter).
 			Uint8("Version", uint8(s.Version)).
-			Msg("MQTT Client subscribed to topic")
+			Msg("client subscribed to topic")
 	}
 
 	return codes, sessionChanged
@@ -178,7 +178,7 @@ func (h *SubscribeHandler) unsubscribe(
 			Uint64("SessionId", uint64(s.SessionID)).
 			Str("TopicFilter", topic).
 			Uint8("Version", uint8(s.Version)).
-			Msg("MQTT Unsubscribing due to error (SUBSCRIBE)")
+			Msg("unsubscribing due to error (SUBSCRIBE)")
 
 		err := h.subscriptionMgr.Unsubscribe(s.ClientID, topic)
 		if err != nil {
@@ -189,7 +189,7 @@ func (h *SubscribeHandler) unsubscribe(
 				Uint64("SessionId", uint64(s.SessionID)).
 				Str("TopicFilter", topic).
 				Uint8("Version", uint8(s.Version)).
-				Msg("MQTT Failed to unsubscribe (SUBSCRIBE): " + msg)
+				Msg("failed to unsubscribe (SUBSCRIBE): " + msg)
 		}
 
 		delete(s.Subscriptions, topic)

@@ -59,14 +59,14 @@ func (m *logIDGenStub) NextID() uint64 {
 	return 0
 }
 
-func newLogger() logger.Logger {
+func newLogger() *logger.Logger {
 	out := bytes.NewBufferString("")
 	return logger.New(out, &logIDGenStub{})
 }
 
 func TestServerStart(t *testing.T) {
 	log := newLogger()
-	s := server.New(&log)
+	s := server.New(log)
 
 	lsn := newListenerMock()
 	lsn.On("Listen")
@@ -86,7 +86,7 @@ func TestServerStart(t *testing.T) {
 
 func TestServerStartWithoutListener(t *testing.T) {
 	log := newLogger()
-	s := server.New(&log)
+	s := server.New(log)
 
 	err := s.Start()
 	assert.ErrorContains(t, err, "no available listener")
@@ -94,7 +94,7 @@ func TestServerStartWithoutListener(t *testing.T) {
 
 func TestServerStop(t *testing.T) {
 	log := newLogger()
-	s := server.New(&log)
+	s := server.New(log)
 
 	lsn := newListenerMock()
 	lsn.On("Listen")
@@ -118,7 +118,7 @@ func TestServerStop(t *testing.T) {
 
 func TestServerListenerError(t *testing.T) {
 	log := newLogger()
-	s := server.New(&log)
+	s := server.New(log)
 
 	lsn := newListenerMock()
 	lsn.On("Listen")

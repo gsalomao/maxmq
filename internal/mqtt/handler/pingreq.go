@@ -40,14 +40,14 @@ func (h *PingReqHandler) HandlePacket(
 	h.log.Trace().
 		Str("ClientId", string(id)).
 		Uint8("Version", uint8(pingReq.Version)).
-		Msg("MQTT Received PINGREQ packet")
+		Msg("received PINGREQ packet")
 
 	s, err := h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
 			Uint8("Version", uint8(pingReq.Version)).
-			Msg("MQTT Failed to read session (PINGREQ): " + err.Error())
+			Msg("failed to read session (PINGREQ): " + err.Error())
 		return nil, err
 	}
 
@@ -61,7 +61,7 @@ func (h *PingReqHandler) HandlePacket(
 		Uint64("SessionId", uint64(s.SessionID)).
 		Int("Subscriptions", len(s.Subscriptions)).
 		Uint8("Version", uint8(s.Version)).
-		Msg("MQTT Sending PINGRESP packet")
+		Msg("sending PINGRESP packet")
 
 	return []packet.Packet{&pingResp}, nil
 }

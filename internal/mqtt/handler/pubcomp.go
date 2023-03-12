@@ -41,14 +41,14 @@ func (h *PubCompHandler) HandlePacket(
 		Str("ClientId", string(id)).
 		Uint16("PacketId", uint16(pubCompPkt.PacketID)).
 		Uint8("Version", uint8(pubCompPkt.Version)).
-		Msg("MQTT Received PUBCOMP packet")
+		Msg("received PUBCOMP packet")
 
 	s, err := h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
 			Uint8("Version", uint8(pubCompPkt.Version)).
-			Msg("MQTT Failed to read session (PUBCOMP): " + err.Error())
+			Msg("failed to read session (PUBCOMP): " + err.Error())
 		return nil, err
 	}
 
@@ -62,7 +62,7 @@ func (h *PubCompHandler) HandlePacket(
 			Int("InflightMessages", s.InflightMessages.Len()).
 			Uint16("PacketId", uint16(pubCompPkt.PacketID)).
 			Uint8("Version", uint8(s.Version)).
-			Msg("MQTT Received PUBCOMP with unknown packet ID")
+			Msg("received PUBCOMP with unknown packet ID")
 		return nil, ErrPacketNotFound
 	}
 
@@ -73,7 +73,7 @@ func (h *PubCompHandler) HandlePacket(
 			Str("ClientId", string(s.ClientID)).
 			Uint64("SessionId", uint64(s.SessionID)).
 			Uint8("Version", uint8(s.Version)).
-			Msg("MQTT Failed to save session (PUBCOMP): " + err.Error())
+			Msg("failed to save session (PUBCOMP): " + err.Error())
 		return nil, err
 	}
 
@@ -84,6 +84,6 @@ func (h *PubCompHandler) HandlePacket(
 		Uint64("MessageId", uint64(msg.ID)).
 		Uint16("PacketId", uint16(msg.PacketID)).
 		Uint8("Version", uint8(s.Version)).
-		Msg("MQTT Message published to client (PUBCOMP)")
+		Msg("message published to client (PUBCOMP)")
 	return nil, nil
 }

@@ -46,14 +46,14 @@ func (h *UnsubscribeHandler) HandlePacket(
 		Uint16("PacketId", uint16(unsub.PacketID)).
 		Int("Topics", len(unsub.Topics)).
 		Uint8("Version", uint8(unsub.Version)).
-		Msg("MQTT Received UNSUBSCRIBE packet")
+		Msg("received UNSUBSCRIBE packet")
 
 	s, err := h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
 			Uint8("Version", uint8(unsub.Version)).
-			Msg("MQTT Failed to read session (UNSUBSCRIBE): " + err.Error())
+			Msg("failed to read session (UNSUBSCRIBE): " + err.Error())
 		return nil, err
 	}
 
@@ -68,7 +68,7 @@ func (h *UnsubscribeHandler) HandlePacket(
 				Str("ClientId", string(id)).
 				Uint64("SessionId", uint64(s.SessionID)).
 				Uint8("Version", uint8(s.Version)).
-				Msg("MQTT Failed to save session (UNSUBSCRIBE): " + err.Error())
+				Msg("failed to save session (UNSUBSCRIBE): " + err.Error())
 			for i := 0; i < len(codes); i++ {
 				codes[i] = packet.ReasonCodeV5UnspecifiedError
 			}
@@ -86,7 +86,7 @@ func (h *UnsubscribeHandler) HandlePacket(
 		Uint64("SessionId", uint64(s.SessionID)).
 		Int("Subscriptions", len(s.Subscriptions)).
 		Uint8("Version", uint8(unsubAck.Version)).
-		Msg("MQTT Sending UNSUBACK packet")
+		Msg("sending UNSUBACK packet")
 	return replies, nil
 }
 
@@ -108,7 +108,7 @@ func (h *UnsubscribeHandler) unsubscribe(
 					Str("ClientId", string(s.ClientID)).
 					Uint64("SessionId", uint64(s.SessionID)).
 					Uint8("Version", uint8(s.Version)).
-					Msg("MQTT Failed to unsubscribe (UNSUBSCRIBE): " + msg)
+					Msg("failed to unsubscribe (UNSUBSCRIBE): " + msg)
 			} else {
 				code = packet.ReasonCodeV5NoSubscriptionExisted
 				h.log.Warn().
@@ -116,7 +116,7 @@ func (h *UnsubscribeHandler) unsubscribe(
 					Uint64("SessionId", uint64(s.SessionID)).
 					Str("TopicFilter", topic).
 					Uint8("Version", uint8(s.Version)).
-					Msg("MQTT Subscription not found (UNSUBSCRIBE)")
+					Msg("subscription not found (UNSUBSCRIBE)")
 			}
 			codes = append(codes, code)
 			continue
@@ -133,7 +133,7 @@ func (h *UnsubscribeHandler) unsubscribe(
 			Str("TopicFilter", topic).
 			Int("Topics", len(p.Topics)).
 			Uint8("Version", uint8(s.Version)).
-			Msg("MQTT Client unsubscribed to topic")
+			Msg("client unsubscribed to topic")
 		codes = append(codes, packet.ReasonCodeV5Success)
 	}
 

@@ -54,14 +54,14 @@ func (h *ConnectHandler) HandlePacket(
 		Bytes("ClientId", connPkt.ClientID).
 		Uint16("KeepAlive", connPkt.KeepAlive).
 		Uint8("Version", uint8(connPkt.Version)).
-		Msg("MQTT Received CONNECT packet")
+		Msg("received CONNECT packet")
 
 	if err := h.checkPacket(connPkt); err != nil {
 		h.log.Trace().
 			Str("ClientId", string(connPkt.ClientID)).
 			Int("ReasonCode", int(err.ReasonCode)).
 			Uint8("Version", uint8(connPkt.Version)).
-			Msg("MQTT Sending CONNACK packet (Error)")
+			Msg("sending CONNACK packet (Error)")
 		connAck := h.newConnAck(connPkt, nil /*session*/, err.ReasonCode, nil /*props*/)
 		return []packet.Packet{connAck}, err
 	}
@@ -81,7 +81,7 @@ func (h *ConnectHandler) HandlePacket(
 			h.log.Error().
 				Str("ClientId", string(id)).
 				Uint8("Version", uint8(connPkt.Version)).
-				Msg("MQTT Failed to read session (CONNECT): " + err.Error())
+				Msg("failed to read session (CONNECT): " + err.Error())
 			return h.replyUnavailable(connPkt, id), err
 		}
 	}
@@ -92,7 +92,7 @@ func (h *ConnectHandler) HandlePacket(
 			h.log.Error().
 				Str("ClientId", string(id)).
 				Uint8("Version", uint8(s.Version)).
-				Msg("MQTT Failed to delete session (CONNECT): " + err.Error())
+				Msg("failed to delete session (CONNECT): " + err.Error())
 			return h.replyUnavailable(connPkt, id), err
 		}
 		s = nil
@@ -122,7 +122,7 @@ func (h *ConnectHandler) HandlePacket(
 		Int("Subscriptions", len(s.Subscriptions)).
 		Int("UnAckMessages", len(s.UnAckMessages)).
 		Uint8("Version", uint8(s.Version)).
-		Msg("MQTT Client connected")
+		Msg("client connected")
 
 	code := packet.ReasonCodeV3ConnectionAccepted
 	connAckPkt := h.newConnAck(connPkt, s, code, nil /*props*/)
@@ -135,7 +135,7 @@ func (h *ConnectHandler) HandlePacket(
 		Uint64("SessionId", uint64(s.SessionID)).
 		Bool("SessionPresent", connAckPkt.SessionPresent).
 		Uint8("Version", uint8(connAckPkt.Version)).
-		Msg("MQTT Sending CONNACK packet")
+		Msg("sending CONNACK packet")
 
 	replies = append(replies, connAckPkt)
 	h.addInflightMessages(&replies, s)
@@ -146,7 +146,7 @@ func (h *ConnectHandler) HandlePacket(
 			Bytes("ClientId", connPkt.ClientID).
 			Uint64("SessionId", uint64(s.SessionID)).
 			Uint8("Version", uint8(s.Version)).
-			Msg("MQTT Failed to save session (CONNECT): " + err.Error())
+			Msg("failed to save session (CONNECT): " + err.Error())
 		return h.replyUnavailable(connPkt, s.ClientID), err
 	}
 
@@ -263,7 +263,7 @@ func (h *ConnectHandler) addInflightMessages(r *[]packet.Packet, s *Session) {
 				Str("TopicName", msg.Packet.TopicName).
 				Int("UnAckMessages", len(s.UnAckMessages)).
 				Uint8("Version", uint8(msg.Packet.Version)).
-				Msg("MQTT Adding PUBLISH packet")
+				Msg("adding PUBLISH packet")
 		}
 		inflightMsg = inflightMsg.Next()
 	}
@@ -278,7 +278,7 @@ func (h *ConnectHandler) replyUnavailable(p *packet.Connect, id packet.ClientID)
 		Str("ClientId", string(id)).
 		Int("ReasonCode", int(code)).
 		Uint8("Version", uint8(p.Version)).
-		Msg("MQTT Sending CONNACK packet (Unavailable)")
+		Msg("sending CONNACK packet (Unavailable)")
 
 	connAck := h.newConnAck(p, nil /*session*/, code, nil /*props*/)
 	return []packet.Packet{connAck}

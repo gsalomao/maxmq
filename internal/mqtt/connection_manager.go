@@ -71,7 +71,7 @@ func newConnectionManager(
 		conf:         c,
 		sessionStore: st,
 		metrics:      mt,
-		log:          l,
+		log:          l.WithPrefix("connmgr"),
 		connections:  make(map[packet.ClientID]*connection),
 		reader:       packet.NewReader(rdOpts),
 		writer:       packet.NewWriter(c.BufferSize),
@@ -79,38 +79,39 @@ func newConnectionManager(
 
 	ps := newPubSubManager(cm, st, mt, l)
 	cm.pubSub = ps
+	hl := l.WithPrefix("handler")
 	cm.handlers = map[packet.Type]packetHandler{
-		packet.CONNECT:     handler.NewConnectHandler(c, st, l),
-		packet.DISCONNECT:  handler.NewDisconnectHandler(st, ps, l),
-		packet.PINGREQ:     handler.NewPingReqHandler(st, l),
-		packet.SUBSCRIBE:   handler.NewSubscribeHandler(c, st, ps, l),
-		packet.UNSUBSCRIBE: handler.NewUnsubscribeHandler(st, ps, l),
-		packet.PUBLISH:     handler.NewPublishHandler(st, ps, idGen, l),
-		packet.PUBACK:      handler.NewPubAckHandler(st, l),
-		packet.PUBREC:      handler.NewPubRecHandler(st, l),
-		packet.PUBREL:      handler.NewPubRelHandler(st, ps, l),
-		packet.PUBCOMP:     handler.NewPubCompHandler(st, l),
+		packet.CONNECT:     handler.NewConnectHandler(c, st, hl),
+		packet.DISCONNECT:  handler.NewDisconnectHandler(st, ps, hl),
+		packet.PINGREQ:     handler.NewPingReqHandler(st, hl),
+		packet.SUBSCRIBE:   handler.NewSubscribeHandler(c, st, ps, hl),
+		packet.UNSUBSCRIBE: handler.NewUnsubscribeHandler(st, ps, hl),
+		packet.PUBLISH:     handler.NewPublishHandler(st, ps, idGen, hl),
+		packet.PUBACK:      handler.NewPubAckHandler(st, hl),
+		packet.PUBREC:      handler.NewPubRecHandler(st, hl),
+		packet.PUBREL:      handler.NewPubRelHandler(st, ps, hl),
+		packet.PUBCOMP:     handler.NewPubCompHandler(st, hl),
 	}
 
 	return cm
 }
 
 func (cm *connectionManager) start() {
-	cm.log.Trace().Msg("MQTT Starting connection manager")
+	cm.log.Trace().Msg("starting connection manager")
 	cm.pubSub.start()
 }
 
 func (cm *connectionManager) stop() {
-	cm.log.Trace().Msg("MQTT Stopping connection manager")
+	cm.log.Trace().Msg("stopping connection manager")
 	cm.pubSub.stop()
-	cm.log.Debug().Msg("MQTT Connection manager stopped with success")
+	cm.log.Debug().Msg("connection manager stopped with success")
 }
 
 func (cm *connectionManager) handle(c connection) {
 	defer cm.closeConnection(&c, true /*force*/)
 
 	cm.metrics.recordConnection()
-	cm.log.Debug().Int("Timeout", c.timeout).Msg("MQTT Handling connection")
+	cm.log.Debug().Int("Timeout", c.timeout).Msg("handling connection")
 
 	for {
 		deadline := c.nextConnectionDeadline()
@@ -122,7 +123,7 @@ func (cm *connectionManager) handle(c connection) {
 				Float64("DeadlineIn", time.Until(deadline).Seconds()).
 				Int("Timeout", c.timeout).
 				Int("Version", int(c.version)).
-				Msg("MQTT Failed to set read deadline: " + err.Error())
+				Msg("failed to set read deadline: " + err.Error())
 			break
 		}
 
@@ -132,7 +133,7 @@ func (cm *connectionManager) handle(c connection) {
 			Float64("DeadlineIn", time.Until(deadline).Seconds()).
 			Int("Timeout", c.timeout).
 			Int("Version", int(c.version)).
-			Msg("MQTT Waiting packet")
+			Msg("waiting packet")
 
 		pkt, err := cm.readPacket(&c)
 		if err != nil {
@@ -159,7 +160,7 @@ func (cm *connectionManager) readPacket(c *connection) (packet.Packet, error) {
 				Bool("Connected", c.connected).
 				Int("Timeout", c.timeout).
 				Int("Version", int(c.version)).
-				Msg("MQTT Network connection was closed: " + err.Error())
+				Msg("network connection was closed: " + err.Error())
 			return nil, io.EOF
 		}
 
@@ -170,7 +171,7 @@ func (cm *connectionManager) readPacket(c *connection) (packet.Packet, error) {
 				Bool("Connected", c.connected).
 				Int("Timeout", c.timeout).
 				Int("Version", int(c.version)).
-				Msg("MQTT Timeout - No packet received")
+				Msg("timeout - No packet received")
 			return nil, errConnectionTimeout
 		}
 
@@ -179,7 +180,7 @@ func (cm *connectionManager) readPacket(c *connection) (packet.Packet, error) {
 			Bool("Connected", c.connected).
 			Int("Timeout", c.timeout).
 			Int("Version", int(c.version)).
-			Msg("MQTT Failed to read packet: " + err.Error())
+			Msg("failed to read packet: " + err.Error())
 		return nil, errProtocolError
 	}
 
@@ -190,7 +191,7 @@ func (cm *connectionManager) readPacket(c *connection) (packet.Packet, error) {
 		Uint8("PacketTypeId", uint8(p.Type())).
 		Int("Size", p.Size()).
 		Int("Version", int(c.version)).
-		Msg("MQTT Received packet")
+		Msg("received packet")
 	return p, nil
 }
 
@@ -211,7 +212,7 @@ func (cm *connectionManager) handlePacket(c *connection, p packet.Packet) error 
 			Bool("HasSession", c.hasSession).
 			Int("Timeout", c.timeout).
 			Int("Version", int(c.version)).
-			Msg(fmt.Sprintf("MQTT Failed to handle packet %v: %v",
+			Msg(fmt.Sprintf("failed to handle packet %v: %v",
 				p.Type().String(),
 				err.Error()))
 	}
@@ -231,7 +232,7 @@ func (cm *connectionManager) handlePacket(c *connection, p packet.Packet) error 
 					Bool("HasSession", c.hasSession).
 					Int("Timeout", c.timeout).
 					Int("Version", int(c.version)).
-					Msg("MQTT New connection")
+					Msg("new connection")
 
 				cm.mutex.Lock()
 				cm.connections[c.clientID] = c
@@ -251,7 +252,7 @@ func (cm *connectionManager) handlePacket(c *connection, p packet.Packet) error 
 			Uint8("PacketTypeId", uint8(reply.Type())).
 			Int("Size", reply.Size()).
 			Uint8("Version", uint8(c.version)).
-			Msg("MQTT Packet sent with success")
+			Msg("packet sent with success")
 
 		if reply.Type() == packet.DISCONNECT {
 			c.hasSession = false
@@ -291,7 +292,7 @@ func (cm *connectionManager) disconnectSession(c *connection) {
 			Bool("HasSession", c.hasSession).
 			Int("Timeout", c.timeout).
 			Int("Version", int(c.version)).
-			Msg("MQTT Failed to read session (CONNMGR): " + err.Error())
+			Msg("failed to read session (CONNMGR): " + err.Error())
 		return
 	}
 
@@ -302,7 +303,7 @@ func (cm *connectionManager) disconnectSession(c *connection) {
 				Str("ClientId", string(s.ClientID)).
 				Uint64("SessionId", uint64(s.SessionID)).
 				Uint8("Version", uint8(s.Version)).
-				Msg("MQTT Failed to delete session (CONNMGR): " + err.Error())
+				Msg("failed to delete session (CONNMGR): " + err.Error())
 			return
 		}
 	} else {
@@ -313,7 +314,7 @@ func (cm *connectionManager) disconnectSession(c *connection) {
 				Str("ClientId", string(s.ClientID)).
 				Uint64("SessionId", uint64(s.SessionID)).
 				Uint8("Version", uint8(s.Version)).
-				Msg("MQTT Failed to save session (CONNMGR): " + err.Error())
+				Msg("failed to save session (CONNMGR): " + err.Error())
 			return
 		}
 	}
@@ -328,7 +329,7 @@ func (cm *connectionManager) closeConnection(c *connection, force bool) {
 	cm.log.Trace().
 		Str("ClientId", string(c.clientID)).
 		Bool("Force", force).
-		Msg("MQTT Closing connection")
+		Msg("closing connection")
 
 	if tcp, ok := c.netConn.(*net.TCPConn); ok && force {
 		_ = tcp.SetLinger(0 /*sec*/)
@@ -351,7 +352,7 @@ func (cm *connectionManager) closeConnection(c *connection, force bool) {
 	cm.log.Debug().
 		Str("ClientId", string(c.clientID)).
 		Bool("Force", force).
-		Msg("MQTT Connection closed")
+		Msg("connection closed")
 }
 
 func (cm *connectionManager) replyPacket(rpl packet.Packet, c *connection) error {
@@ -360,7 +361,7 @@ func (cm *connectionManager) replyPacket(rpl packet.Packet, c *connection) error
 		Uint8("PacketTypeId", uint8(rpl.Type())).
 		Int("Size", rpl.Size()).
 		Uint8("Version", uint8(c.version)).
-		Msg("MQTT Sending packet")
+		Msg("sending packet")
 
 	err := cm.writer.WritePacket(c.netConn, rpl)
 	if err != nil {
@@ -368,7 +369,7 @@ func (cm *connectionManager) replyPacket(rpl packet.Packet, c *connection) error
 			Str("ClientId", string(c.clientID)).
 			Stringer("PacketType", rpl.Type()).
 			Uint8("Version", uint8(c.version)).
-			Msg("MQTT Failed to send packet: " + err.Error())
+			Msg("failed to send packet: " + err.Error())
 		return fmt.Errorf("failed to send packet: %w", err)
 	}
 	return nil
@@ -390,7 +391,7 @@ func (cm *connectionManager) deliverPacket(id packet.ClientID, p *packet.Publish
 		Int("Size", p.Size()).
 		Str("TopicName", p.TopicName).
 		Uint8("Version", uint8(p.Version)).
-		Msg("MQTT Delivering packet to client")
+		Msg("delivering packet to client")
 
 	err := cm.writer.WritePacket(conn.netConn, p)
 	if err != nil {
@@ -405,7 +406,7 @@ func (cm *connectionManager) deliverPacket(id packet.ClientID, p *packet.Publish
 		Int("Size", p.Size()).
 		Str("TopicName", p.TopicName).
 		Uint8("Version", uint8(p.Version)).
-		Msg("MQTT Packet delivered to client with success")
+		Msg("packet delivered to client with success")
 	return nil
 }
 

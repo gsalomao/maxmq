@@ -40,7 +40,7 @@ func TestConnectHandlerHandlePacketNewSession(t *testing.T) {
 			conf := newDefaultConfiguration()
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id}
@@ -85,7 +85,7 @@ func TestConnectHandlerHandlePacketExistingSession(t *testing.T) {
 			conf := newDefaultConfiguration()
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			id := packet.ClientID("a")
 			connectedAt := time.Now().Add(-1 * time.Minute).Unix()
@@ -134,7 +134,7 @@ func TestConnectHandlerHandlePacketExistingWithCleanSession(t *testing.T) {
 			conf := newDefaultConfiguration()
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			id := packet.ClientID("a")
 			s := &Session{
@@ -186,7 +186,7 @@ func TestConnectHandlerHandlePacketWithInflightMessages(t *testing.T) {
 
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			s := &Session{}
 			st.On("ReadSession", mock.Anything).Return(s, nil)
@@ -254,7 +254,7 @@ func TestConnectHandlerHandlePacketWithInflightMessagesNoPacket(t *testing.T) {
 
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			s := &Session{}
 			st.On("ReadSession", mock.Anything).Return(s, nil)
@@ -298,7 +298,7 @@ func TestConnectHandlerHandlePacketClientIDTooBig(t *testing.T) {
 
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			connPkt := &packet.Connect{ClientID: tc.id, Version: tc.version}
 			replies, err := h.HandlePacket("", connPkt)
@@ -329,7 +329,7 @@ func TestConnectHandlerHandlePacketAllowEmptyClientID(t *testing.T) {
 
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			s := &Session{}
 			st.On("NewSession", mock.Anything).Return(s)
@@ -370,7 +370,7 @@ func TestConnectHandlerHandlePacketDenyEmptyClientID(t *testing.T) {
 
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			connPkt := &packet.Connect{Version: tc.version}
 			replies, err := h.HandlePacket("", connPkt)
@@ -392,7 +392,7 @@ func TestConnectHandlerHandlePacketV5AssignClientID(t *testing.T) {
 
 	st := &sessionStoreMock{}
 	log := logger.New(&bytes.Buffer{}, nil)
-	h := NewConnectHandler(&conf, st, &log)
+	h := NewConnectHandler(&conf, st, log)
 
 	s := &Session{}
 	st.On("NewSession", mock.Anything).Return(s)
@@ -425,7 +425,7 @@ func TestConnectHandlerHandlePacketV5AssignClientIDWithPrefix(t *testing.T) {
 
 	st := &sessionStoreMock{}
 	log := logger.New(&bytes.Buffer{}, nil)
-	h := NewConnectHandler(&conf, st, &log)
+	h := NewConnectHandler(&conf, st, log)
 
 	s := &Session{}
 	st.On("NewSession", mock.Anything).Return(s)
@@ -468,7 +468,7 @@ func TestConnectHandlerHandlePacketV5MaxSessionExpiryInterval(t *testing.T) {
 
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			s := &Session{}
 			st.On("ReadSession", mock.Anything).Return(s, nil)
@@ -517,7 +517,7 @@ func TestConnectHandlerHandlePacketV5AboveMaxSessionExpInterval(t *testing.T) {
 
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			s := &Session{}
 			st.On("ReadSession", mock.Anything).Return(s, nil)
@@ -570,7 +570,7 @@ func TestConnectHandlerHandlePacketV3MaxKeepAliveRejected(t *testing.T) {
 
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			connPkt := &packet.Connect{
 				ClientID:  []byte("a"),
@@ -596,7 +596,7 @@ func TestConnectHandlerHandlePacketV3MaxKeepAliveAccepted(t *testing.T) {
 
 	st := &sessionStoreMock{}
 	log := logger.New(&bytes.Buffer{}, nil)
-	h := NewConnectHandler(&conf, st, &log)
+	h := NewConnectHandler(&conf, st, log)
 
 	s := &Session{}
 	st.On("ReadSession", mock.Anything).Return(s, nil)
@@ -624,7 +624,7 @@ func TestConnectHandlerHandlePacketV5MaxKeepAliveAccepted(t *testing.T) {
 
 	st := &sessionStoreMock{}
 	log := logger.New(&bytes.Buffer{}, nil)
-	h := NewConnectHandler(&conf, st, &log)
+	h := NewConnectHandler(&conf, st, log)
 
 	s := &Session{}
 	st.On("ReadSession", mock.Anything).Return(s, nil)
@@ -668,7 +668,7 @@ func TestConnectHandlerHandlePacketV5MaxInflightMessages(t *testing.T) {
 
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			s := &Session{}
 			st.On("ReadSession", mock.Anything).Return(s, nil)
@@ -718,7 +718,7 @@ func TestConnectHandlerHandlePacketV5MaxPacketSize(t *testing.T) {
 
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			s := &Session{}
 			st.On("ReadSession", mock.Anything).Return(s, nil)
@@ -762,7 +762,7 @@ func TestConnectHandlerHandlePacketV5MaximumQoS(t *testing.T) {
 
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			s := &Session{}
 			st.On("ReadSession", mock.Anything).Return(s, nil)
@@ -808,7 +808,7 @@ func TestConnectHandlerHandlePacketV5TopicAliasMaximum(t *testing.T) {
 
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			s := &Session{}
 			st.On("ReadSession", mock.Anything).Return(s, nil)
@@ -853,7 +853,7 @@ func TestConnectHandlerHandlePacketV5RetainAvailable(t *testing.T) {
 
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			s := &Session{}
 			st.On("ReadSession", mock.Anything).Return(s, nil)
@@ -896,7 +896,7 @@ func TestConnectHandlerHandlePacketV5WildcardSubsAvailable(t *testing.T) {
 
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			s := &Session{}
 			st.On("ReadSession", mock.Anything).Return(s, nil)
@@ -939,7 +939,7 @@ func TestConnectHandlerHandlePacketV5SubscriptionIDAvailable(t *testing.T) {
 
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			s := &Session{}
 			st.On("ReadSession", mock.Anything).Return(s, nil)
@@ -982,7 +982,7 @@ func TestConnectHandlerHandlePacketV5SharedSubscriptionAvailable(t *testing.T) {
 
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			s := &Session{}
 			st.On("ReadSession", mock.Anything).Return(s, nil)
@@ -1018,7 +1018,7 @@ func TestConnectHandlerHandlePacketV5UserProperty(t *testing.T) {
 
 	st := &sessionStoreMock{}
 	log := logger.New(&bytes.Buffer{}, nil)
-	h := NewConnectHandler(&conf, st, &log)
+	h := NewConnectHandler(&conf, st, log)
 
 	s := &Session{}
 	st.On("ReadSession", mock.Anything).Return(s, nil)
@@ -1057,7 +1057,7 @@ func TestConnectHandlerHandlePacketReadSessionError(t *testing.T) {
 			conf := newDefaultConfiguration()
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			st.On("ReadSession", mock.Anything).Return(nil, errors.New("failed"))
 
@@ -1091,7 +1091,7 @@ func TestConnectHandlerHandlePacketDeleteSessionError(t *testing.T) {
 			conf := newDefaultConfiguration()
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			s := &Session{}
 			st.On("ReadSession", mock.Anything).Return(s, nil)
@@ -1131,7 +1131,7 @@ func TestConnectHandlerHandlePacketSaveSessionError(t *testing.T) {
 			conf := newDefaultConfiguration()
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewConnectHandler(&conf, st, &log)
+			h := NewConnectHandler(&conf, st, log)
 
 			s := &Session{}
 			st.On("ReadSession", mock.Anything).Return(s, nil)

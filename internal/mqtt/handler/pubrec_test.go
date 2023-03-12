@@ -37,7 +37,7 @@ func TestPubRecHandlerHandlePacket(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPubRecHandler(st, &log)
+			h := NewPubRecHandler(st, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc}
@@ -104,7 +104,7 @@ func TestPubRecHandlerHandlePacketAlreadyConfirmed(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPubRecHandler(st, &log)
+			h := NewPubRecHandler(st, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc}
@@ -159,7 +159,7 @@ func TestPubRecHandlerHandlePacketV3PacketIDNotFound(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPubRecHandler(st, &log)
+			h := NewPubRecHandler(st, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc}
@@ -182,7 +182,7 @@ func TestPubRecHandlerHandlePacketV3PacketIDNotFound(t *testing.T) {
 func TestPubRecHandlerHandlePacketV5PacketIDNotFound(t *testing.T) {
 	st := &sessionStoreMock{}
 	log := logger.New(&bytes.Buffer{}, nil)
-	h := NewPubRecHandler(st, &log)
+	h := NewPubRecHandler(st, log)
 
 	id := packet.ClientID("a")
 	s := &Session{ClientID: id, Version: packet.MQTT50}
@@ -219,7 +219,7 @@ func TestPubRecHandlerHandlePacketReadSessionError(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPubRecHandler(st, &log)
+			h := NewPubRecHandler(st, log)
 			id := packet.ClientID("a")
 
 			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)
@@ -249,7 +249,7 @@ func TestPubRecHandlerHandlePacketSaveSessionError(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPubRecHandler(st, &log)
+			h := NewPubRecHandler(st, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: packet.MQTT50}

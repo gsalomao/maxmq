@@ -45,14 +45,14 @@ func (h *DisconnectHandler) HandlePacket(
 	h.log.Trace().
 		Str("ClientId", string(id)).
 		Uint8("Version", uint8(discPkt.Version)).
-		Msg("MQTT Received DISCONNECT packet")
+		Msg("received DISCONNECT packet")
 
 	s, err := h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
 			Uint8("Version", uint8(discPkt.Version)).
-			Msg("MQTT Failed to read session (DISCONNECT): " + err.Error())
+			Msg("failed to read session (DISCONNECT): " + err.Error())
 		return nil, err
 	}
 
@@ -77,7 +77,7 @@ func (h *DisconnectHandler) HandlePacket(
 				Str("ClientId", string(s.ClientID)).
 				Uint64("SessionId", uint64(s.SessionID)).
 				Uint8("Version", uint8(s.Version)).
-				Msg("MQTT Failed to delete session (DISCONNECT)")
+				Msg("failed to delete session (DISCONNECT)")
 		}
 	} else {
 		err = h.sessionStore.SaveSession(s)
@@ -86,7 +86,7 @@ func (h *DisconnectHandler) HandlePacket(
 				Str("ClientId", string(s.ClientID)).
 				Uint64("SessionId", uint64(s.SessionID)).
 				Uint8("Version", uint8(s.Version)).
-				Msg("MQTT Failed to save session (DISCONNECT)")
+				Msg("failed to save session (DISCONNECT)")
 		}
 	}
 
@@ -99,7 +99,7 @@ func (h *DisconnectHandler) HandlePacket(
 		Int("Subscriptions", len(s.Subscriptions)).
 		Int("UnAckMessages", len(s.UnAckMessages)).
 		Uint8("Version", uint8(s.Version)).
-		Msg("MQTT Client disconnected")
+		Msg("client disconnected")
 
 	return nil, nil
 }
@@ -114,7 +114,7 @@ func (h *DisconnectHandler) unsubscribeAllTopics(s *Session) {
 				Uint64("SessionId", uint64(s.SessionID)).
 				Str("Topic", sub.TopicFilter).
 				Uint8("Version", uint8(s.Version)).
-				Msg("MQTT Failed to unsubscribe (DISCONNECT)")
+				Msg("failed to unsubscribe (DISCONNECT)")
 		}
 		delete(s.Subscriptions, sub.TopicFilter)
 	}
@@ -131,7 +131,7 @@ func (h *DisconnectHandler) handleProperties(
 			Uint8("Version", uint8(s.Version)).
 			Uint32("SessionExpiryInterval", *interval).
 			Uint64("SessionId", uint64(s.SessionID)).
-			Msg("MQTT DISCONNECT with invalid Session Expiry Interval")
+			Msg("packet DISCONNECT with invalid Session Expiry Interval")
 
 		replies := make([]packet.Packet, 0)
 		discReply := packet.NewDisconnect(

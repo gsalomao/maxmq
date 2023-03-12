@@ -38,7 +38,7 @@ func WithConfiguration(cf handler.Configuration) OptionsFn {
 // WithLogger sets the given Logger into the MQTT Listener.
 func WithLogger(log *logger.Logger) OptionsFn {
 	return func(l *Listener) {
-		l.log = log
+		l.log = log.WithPrefix("mqtt")
 	}
 }
 

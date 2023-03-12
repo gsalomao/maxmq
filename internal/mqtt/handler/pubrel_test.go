@@ -37,7 +37,7 @@ func TestPubRelHandlerHandlePacket(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPubRelHandler(st, subMgr, &log)
+			h := NewPubRelHandler(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, UnAckMessages: make(map[packet.ID]*Message)}
@@ -103,7 +103,7 @@ func TestPubRelHandlerHandlePacketAlreadyReleased(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPubRelHandler(st, subMgr, &log)
+			h := NewPubRelHandler(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, UnAckMessages: make(map[packet.ID]*Message)}
@@ -152,7 +152,7 @@ func TestPubRelHandlerHandlePacketV3PacketNotFound(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPubRelHandler(st, subMgr, &log)
+			h := NewPubRelHandler(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, UnAckMessages: make(map[packet.ID]*Message)}
@@ -177,7 +177,7 @@ func TestPubRelHandlerHandlePacketV5PacketNotFound(t *testing.T) {
 	st := &sessionStoreMock{}
 	subMgr := &subscriptionMgrMock{}
 	log := logger.New(&bytes.Buffer{}, nil)
-	h := NewPubRelHandler(st, subMgr, &log)
+	h := NewPubRelHandler(st, subMgr, log)
 
 	id := packet.ClientID("a")
 	s := &Session{ClientID: id, Version: packet.MQTT50, UnAckMessages: make(map[packet.ID]*Message)}
@@ -216,7 +216,7 @@ func TestPubRelHandlerHandlePacketPublishError(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPubRelHandler(st, subMgr, &log)
+			h := NewPubRelHandler(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, UnAckMessages: make(map[packet.ID]*Message)}
@@ -265,7 +265,7 @@ func TestPubRelHandlerHandlePacketReadSessionError(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPubRelHandler(st, subMgr, &log)
+			h := NewPubRelHandler(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)
@@ -297,7 +297,7 @@ func TestPubRelHandlerHandlePacketSaveSessionError(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil)
-			h := NewPubRelHandler(st, subMgr, &log)
+			h := NewPubRelHandler(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, UnAckMessages: make(map[packet.ID]*Message)}

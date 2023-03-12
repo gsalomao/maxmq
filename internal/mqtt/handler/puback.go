@@ -38,14 +38,14 @@ func (h *PubAckHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 		Str("ClientId", string(id)).
 		Uint16("PacketId", uint16(pubAck.PacketID)).
 		Uint8("Version", uint8(pubAck.Version)).
-		Msg("MQTT Received PUBACK packet")
+		Msg("received PUBACK packet")
 
 	s, err := h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
 			Uint8("Version", uint8(pubAck.Version)).
-			Msg("MQTT Failed to read session (PUBACK): " + err.Error())
+			Msg("failed to read session (PUBACK): " + err.Error())
 		return nil, err
 	}
 
@@ -59,7 +59,7 @@ func (h *PubAckHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 			Int("InflightMessages", s.InflightMessages.Len()).
 			Uint16("PacketId", uint16(pubAck.PacketID)).
 			Uint8("Version", uint8(s.Version)).
-			Msg("MQTT Received PUBACK with unknown packet ID")
+			Msg("received PUBACK with unknown packet ID")
 
 		return nil, ErrPacketNotFound
 	}
@@ -71,7 +71,7 @@ func (h *PubAckHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 			Str("ClientId", string(s.ClientID)).
 			Uint64("SessionId", uint64(s.SessionID)).
 			Uint8("Version", uint8(s.Version)).
-			Msg("MQTT Failed to save session (PUBACK): " + err.Error())
+			Msg("failed to save session (PUBACK): " + err.Error())
 		return nil, err
 	}
 
@@ -85,7 +85,7 @@ func (h *PubAckHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 		Uint8("Retain", msg.Packet.Retain).
 		Str("TopicName", msg.Packet.TopicName).
 		Uint8("Version", uint8(msg.Packet.Version)).
-		Msg("MQTT Message published to client (PUBACK)")
+		Msg("message published to client (PUBACK)")
 
 	return nil, nil
 }
