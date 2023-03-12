@@ -102,13 +102,13 @@ profile: ## Start server with CPU/Memory profiler
 .PHONY: unit
 unit: ## Run unit tests
 	$(call print_task,"Running unit tests")
-	@gotestsum --format pkgname --packages ./internal/... -- -timeout 10s -race
+	@gotestsum --format pkgname --packages ./cmd/... ./internal/... -- -timeout 10s -race
 	$(call print_task_result,"Running unit tests","done")
 
 .PHONY: unit-dev
 unit-dev: ## Run unit tests in development mode
 	$(call print_task,"Running unit tests in development mode")
-	@gotestsum --format testname --packages ./internal/... --watch -- -timeout 10s -race
+	@gotestsum --format testname --packages ./cmd/... --packages ./internal/... --watch -- -timeout 10s -race
 
 .PHONY: coverage
 coverage: ## Run unit tests with coverage report
@@ -116,7 +116,7 @@ coverage: ## Run unit tests with coverage report
 	@rm -rf ${COVERAGE_DIR}
 	@mkdir -p ${COVERAGE_DIR}
 	@go test -timeout 10s -cover -covermode=atomic -race \
-		-coverprofile=$(COVERAGE_DIR)/coverage.out ./internal/...
+		-coverprofile=$(COVERAGE_DIR)/coverage.out ./cmd/... ./internal/...
 	$(call print_task_result,"Running unit tests","done")
 
 	$(call print_task,"Generating coverage report")
