@@ -15,6 +15,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -92,31 +93,12 @@ func runCommandStart(enableProfile bool) {
 		log.Info().Msg("no config file found")
 	}
 
-	log.Debug().
-		Str("LogLevel", conf.LogLevel).
-		Bool("MetricsEnabled", conf.MetricsEnabled).
-		Str("MetricsAddress", conf.MetricsAddress).
-		Str("MetricsPath", conf.MetricsPath).
-		Bool("MetricsProfiling", conf.MetricsProfiling).
-		Str("MQTTTCPAddress", conf.MQTTTCPAddress).
-		Int("MQTTConnectTimeout", conf.MQTTConnectTimeout).
-		Int("MQTTBufferSize", conf.MQTTBufferSize).
-		Int("MQTTMaxPacketSize", conf.MQTTMaxPacketSize).
-		Int("MQTTMaxKeepAlive", conf.MQTTMaxKeepAlive).
-		Uint32("MQTTSessionExpiration", conf.MQTTSessionExpiration).
-		Int("MQTTMaxInflightMessages", conf.MQTTMaxInflightMessages).
-		Int("MQTTMaxInflightRetries", conf.MQTTMaxInflightRetries).
-		Int("MQTTMaximumQoS", conf.MQTTMaximumQoS).
-		Int("MQTTMaxTopicAlias", conf.MQTTMaxTopicAlias).
-		Bool("MQTTRetainAvailable", conf.MQTTRetainAvailable).
-		Bool("MQTTWildcardSubscription", conf.MQTTWildcardSubscription).
-		Bool("MQTTSubscriptionID", conf.MQTTSubscriptionID).
-		Bool("MQTTSharedSubscription", conf.MQTTSharedSubscription).
-		Int("MQTTMaxClientIDLen", conf.MQTTMaxClientIDLen).
-		Bool("MQTTAllowEmptyClientID", conf.MQTTAllowEmptyClientID).
-		Str("MQTTClientIDPrefix", conf.MQTTClientIDPrefix).
-		Int("MQTTDefaultVersion", conf.MQTTDefaultVersion).
-		Msg("using configuration")
+	var cf []byte
+	cf, err = json.Marshal(conf)
+	if err != nil {
+		log.Fatal().Msg("failed to encode configuration: " + err.Error())
+	}
+	log.Debug().RawJSON("Configuration", cf).Msg("using configuration")
 
 	s, err := newServer(conf, log, baseLogger, machineID)
 	if err != nil {
