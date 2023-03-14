@@ -80,7 +80,7 @@ func newMetrics(enabled bool, log *logger.Logger) *metrics {
 		err = multierr.Combine(err, m.registerSubscriptionsMetrics())
 		err = multierr.Combine(err, m.registerLatenciesMetrics())
 		if err != nil {
-			log.Error().Msg("failed to register metrics: " + err.Error())
+			log.Error().Msg("Failed to register metrics: " + err.Error())
 		}
 	}
 

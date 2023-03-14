@@ -50,7 +50,7 @@ func (s *Server) AddListener(l Listener) {
 
 // Start starts the server running all listeners.
 func (s *Server) Start() error {
-	s.log.Info().Msg("starting server")
+	s.log.Info().Msg("Starting server")
 
 	if len(s.listeners) == 0 {
 		return errors.New("no available listener")
@@ -68,20 +68,20 @@ func (s *Server) Start() error {
 		}(lsn)
 	}
 
-	s.log.Info().Msg("server started with success")
+	s.log.Info().Msg("Server started with success")
 	return nil
 }
 
 // Stop stops the server by stopping all listeners.
 func (s *Server) Stop() {
-	s.log.Info().Msg("stopping server")
+	s.log.Info().Msg("Stopping server")
 	s.wg.Add(1)
 
 	for _, l := range s.listeners {
 		l.Stop()
 	}
 
-	s.log.Info().Msg("server stopped with success")
+	s.log.Info().Msg("Server stopped with success")
 	s.wg.Done()
 }
 

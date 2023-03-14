@@ -38,14 +38,14 @@ func (h *PubRecHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 		Str("ClientId", string(id)).
 		Uint16("PacketId", uint16(pubRec.PacketID)).
 		Uint8("Version", uint8(pubRec.Version)).
-		Msg("received PUBREC packet")
+		Msg("Received PUBREC packet")
 
 	s, err := h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
 			Uint8("Version", uint8(pubRec.Version)).
-			Msg("failed to read session (PUBREC): " + err.Error())
+			Msg("Failed to read session (PUBREC): " + err.Error())
 		return nil, err
 	}
 
@@ -60,7 +60,7 @@ func (h *PubRecHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 			Int("InflightMessages", s.InflightMessages.Len()).
 			Uint16("PacketId", uint16(pubRec.PacketID)).
 			Uint8("Version", uint8(s.Version)).
-			Msg("received PUBREC with unknown packet ID")
+			Msg("Received PUBREC with unknown packet ID")
 
 		if s.Version != packet.MQTT50 {
 			return nil, ErrPacketNotFound
@@ -83,7 +83,7 @@ func (h *PubRecHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 		Uint64("MessageId", uint64(msg.ID)).
 		Uint16("PacketId", uint16(msg.PacketID)).
 		Uint8("Version", uint8(s.Version)).
-		Msg("client received the packet (PUBREC)")
+		Msg("Client received the packet (PUBREC)")
 
 	if msg.Packet != nil {
 		msg.Packet = nil
@@ -93,7 +93,7 @@ func (h *PubRecHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 				Str("ClientId", string(s.ClientID)).
 				Uint64("SessionId", uint64(s.SessionID)).
 				Uint8("Version", uint8(s.Version)).
-				Msg("failed to save session (PUBREC): " + err.Error())
+				Msg("Failed to save session (PUBREC): " + err.Error())
 			return nil, err
 		}
 	}
@@ -112,6 +112,6 @@ func (h *PubRecHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 		Uint16("PacketId", uint16(pubRel.PacketID)).
 		Int("UnAckMessages", len(s.UnAckMessages)).
 		Uint8("Version", uint8(pubRel.Version)).
-		Msg("sending PUBREL packet")
+		Msg("Sending PUBREL packet")
 	return replies, nil
 }

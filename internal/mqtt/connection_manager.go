@@ -97,21 +97,21 @@ func newConnectionManager(
 }
 
 func (cm *connectionManager) start() {
-	cm.log.Trace().Msg("starting connection manager")
+	cm.log.Trace().Msg("Starting connection manager")
 	cm.pubSub.start()
 }
 
 func (cm *connectionManager) stop() {
-	cm.log.Trace().Msg("stopping connection manager")
+	cm.log.Trace().Msg("Stopping connection manager")
 	cm.pubSub.stop()
-	cm.log.Debug().Msg("connection manager stopped with success")
+	cm.log.Debug().Msg("Connection manager stopped with success")
 }
 
 func (cm *connectionManager) handle(c connection) {
 	defer cm.closeConnection(&c, true /*force*/)
 
 	cm.metrics.recordConnection()
-	cm.log.Debug().Int("Timeout", c.timeout).Msg("handling connection")
+	cm.log.Debug().Int("Timeout", c.timeout).Msg("Handling connection")
 
 	for {
 		deadline := c.nextConnectionDeadline()
@@ -123,7 +123,7 @@ func (cm *connectionManager) handle(c connection) {
 				Float64("DeadlineIn", time.Until(deadline).Seconds()).
 				Int("Timeout", c.timeout).
 				Int("Version", int(c.version)).
-				Msg("failed to set read deadline: " + err.Error())
+				Msg("Failed to set read deadline: " + err.Error())
 			break
 		}
 
@@ -133,7 +133,7 @@ func (cm *connectionManager) handle(c connection) {
 			Float64("DeadlineIn", time.Until(deadline).Seconds()).
 			Int("Timeout", c.timeout).
 			Int("Version", int(c.version)).
-			Msg("waiting packet")
+			Msg("Waiting packet")
 
 		pkt, err := cm.readPacket(&c)
 		if err != nil {
@@ -160,7 +160,7 @@ func (cm *connectionManager) readPacket(c *connection) (packet.Packet, error) {
 				Bool("Connected", c.connected).
 				Int("Timeout", c.timeout).
 				Int("Version", int(c.version)).
-				Msg("network connection was closed: " + err.Error())
+				Msg("Network connection was closed: " + err.Error())
 			return nil, io.EOF
 		}
 
@@ -171,7 +171,7 @@ func (cm *connectionManager) readPacket(c *connection) (packet.Packet, error) {
 				Bool("Connected", c.connected).
 				Int("Timeout", c.timeout).
 				Int("Version", int(c.version)).
-				Msg("timeout - No packet received")
+				Msg("Timeout - No packet received")
 			return nil, errConnectionTimeout
 		}
 
@@ -180,7 +180,7 @@ func (cm *connectionManager) readPacket(c *connection) (packet.Packet, error) {
 			Bool("Connected", c.connected).
 			Int("Timeout", c.timeout).
 			Int("Version", int(c.version)).
-			Msg("failed to read packet: " + err.Error())
+			Msg("Failed to read packet: " + err.Error())
 		return nil, errProtocolError
 	}
 
@@ -191,7 +191,7 @@ func (cm *connectionManager) readPacket(c *connection) (packet.Packet, error) {
 		Uint8("PacketTypeId", uint8(p.Type())).
 		Int("Size", p.Size()).
 		Int("Version", int(c.version)).
-		Msg("received packet")
+		Msg("Received packet")
 	return p, nil
 }
 
@@ -232,7 +232,7 @@ func (cm *connectionManager) handlePacket(c *connection, p packet.Packet) error 
 					Bool("HasSession", c.hasSession).
 					Int("Timeout", c.timeout).
 					Int("Version", int(c.version)).
-					Msg("new connection")
+					Msg("New connection")
 
 				cm.mutex.Lock()
 				cm.connections[c.clientID] = c
@@ -252,7 +252,7 @@ func (cm *connectionManager) handlePacket(c *connection, p packet.Packet) error 
 			Uint8("PacketTypeId", uint8(reply.Type())).
 			Int("Size", reply.Size()).
 			Uint8("Version", uint8(c.version)).
-			Msg("packet sent with success")
+			Msg("Packet sent with success")
 
 		if reply.Type() == packet.DISCONNECT {
 			c.hasSession = false
@@ -292,7 +292,7 @@ func (cm *connectionManager) disconnectSession(c *connection) {
 			Bool("HasSession", c.hasSession).
 			Int("Timeout", c.timeout).
 			Int("Version", int(c.version)).
-			Msg("failed to read session (CONNMGR): " + err.Error())
+			Msg("Failed to read session (CONNMGR): " + err.Error())
 		return
 	}
 
@@ -303,7 +303,7 @@ func (cm *connectionManager) disconnectSession(c *connection) {
 				Str("ClientId", string(s.ClientID)).
 				Uint64("SessionId", uint64(s.SessionID)).
 				Uint8("Version", uint8(s.Version)).
-				Msg("failed to delete session (CONNMGR): " + err.Error())
+				Msg("Failed to delete session (CONNMGR): " + err.Error())
 			return
 		}
 	} else {
@@ -314,7 +314,7 @@ func (cm *connectionManager) disconnectSession(c *connection) {
 				Str("ClientId", string(s.ClientID)).
 				Uint64("SessionId", uint64(s.SessionID)).
 				Uint8("Version", uint8(s.Version)).
-				Msg("failed to save session (CONNMGR): " + err.Error())
+				Msg("Failed to save session (CONNMGR): " + err.Error())
 			return
 		}
 	}
@@ -329,7 +329,7 @@ func (cm *connectionManager) closeConnection(c *connection, force bool) {
 	cm.log.Trace().
 		Str("ClientId", string(c.clientID)).
 		Bool("Force", force).
-		Msg("closing connection")
+		Msg("Closing connection")
 
 	if tcp, ok := c.netConn.(*net.TCPConn); ok && force {
 		_ = tcp.SetLinger(0 /*sec*/)
@@ -352,7 +352,7 @@ func (cm *connectionManager) closeConnection(c *connection, force bool) {
 	cm.log.Debug().
 		Str("ClientId", string(c.clientID)).
 		Bool("Force", force).
-		Msg("connection closed")
+		Msg("Connection closed")
 }
 
 func (cm *connectionManager) replyPacket(rpl packet.Packet, c *connection) error {
@@ -361,7 +361,7 @@ func (cm *connectionManager) replyPacket(rpl packet.Packet, c *connection) error
 		Uint8("PacketTypeId", uint8(rpl.Type())).
 		Int("Size", rpl.Size()).
 		Uint8("Version", uint8(c.version)).
-		Msg("sending packet")
+		Msg("Sending packet")
 
 	err := cm.writer.WritePacket(c.netConn, rpl)
 	if err != nil {
@@ -369,7 +369,7 @@ func (cm *connectionManager) replyPacket(rpl packet.Packet, c *connection) error
 			Str("ClientId", string(c.clientID)).
 			Stringer("PacketType", rpl.Type()).
 			Uint8("Version", uint8(c.version)).
-			Msg("failed to send packet: " + err.Error())
+			Msg("Failed to send packet: " + err.Error())
 		return fmt.Errorf("failed to send packet: %w", err)
 	}
 	return nil
@@ -391,7 +391,7 @@ func (cm *connectionManager) deliverPacket(id packet.ClientID, p *packet.Publish
 		Int("Size", p.Size()).
 		Str("TopicName", p.TopicName).
 		Uint8("Version", uint8(p.Version)).
-		Msg("delivering packet to client")
+		Msg("Delivering packet to client")
 
 	err := cm.writer.WritePacket(conn.netConn, p)
 	if err != nil {
@@ -406,7 +406,7 @@ func (cm *connectionManager) deliverPacket(id packet.ClientID, p *packet.Publish
 		Int("Size", p.Size()).
 		Str("TopicName", p.TopicName).
 		Uint8("Version", uint8(p.Version)).
-		Msg("packet delivered to client with success")
+		Msg("Packet delivered to client with success")
 	return nil
 }
 

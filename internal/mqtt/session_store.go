@@ -50,20 +50,20 @@ func (st *sessionStore) NewSession(id packet.ClientID) *handler.Session {
 	st.log.Trace().
 		Str("ClientId", string(s.ClientID)).
 		Uint64("SessionId", uint64(s.SessionID)).
-		Msg("new session created")
+		Msg("New session created")
 	return s
 }
 
 // ReadSession reads the session for the given client identifier.
 func (st *sessionStore) ReadSession(id packet.ClientID) (*handler.Session, error) {
-	st.log.Trace().Str("ClientId", string(id)).Msg("reading session")
+	st.log.Trace().Str("ClientId", string(id)).Msg("Reading session")
 
 	st.mutex.RLock()
 	s, ok := st.sessions[id]
 	st.mutex.RUnlock()
 
 	if !ok {
-		st.log.Debug().Str("ClientId", string(id)).Msg("session not found")
+		st.log.Debug().Str("ClientId", string(id)).Msg("Session not found")
 		return nil, handler.ErrSessionNotFound
 	}
 
@@ -80,7 +80,7 @@ func (st *sessionStore) ReadSession(id packet.ClientID) (*handler.Session, error
 		Int("Subscriptions", len(s.Subscriptions)).
 		Int("UnAckMessages", len(s.UnAckMessages)).
 		Uint8("Version", uint8(s.Version)).
-		Msg("session read with success")
+		Msg("Session read with success")
 	return s, nil
 }
 
@@ -98,7 +98,7 @@ func (st *sessionStore) SaveSession(s *handler.Session) error {
 		Int("Subscriptions", len(s.Subscriptions)).
 		Int("UnAckMessages", len(s.UnAckMessages)).
 		Uint8("Version", uint8(s.Version)).
-		Msg("saving session")
+		Msg("Saving session")
 
 	st.mutex.Lock()
 	st.sessions[s.ClientID] = s
@@ -116,7 +116,7 @@ func (st *sessionStore) SaveSession(s *handler.Session) error {
 		Int("Subscriptions", len(s.Subscriptions)).
 		Int("UnAckMessages", len(s.UnAckMessages)).
 		Uint8("Version", uint8(s.Version)).
-		Msg("session saved with success")
+		Msg("Session saved with success")
 	return nil
 }
 
@@ -134,7 +134,7 @@ func (st *sessionStore) DeleteSession(s *handler.Session) error {
 		Int("Subscriptions", len(s.Subscriptions)).
 		Int("UnAckMessages", len(s.UnAckMessages)).
 		Uint8("Version", uint8(s.Version)).
-		Msg("deleting session")
+		Msg("Deleting session")
 
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
@@ -144,7 +144,7 @@ func (st *sessionStore) DeleteSession(s *handler.Session) error {
 			Str("ClientId", string(s.ClientID)).
 			Uint64("SessionId", uint64(s.SessionID)).
 			Uint8("Version", uint8(s.Version)).
-			Msg("session not found")
+			Msg("Session not found")
 		return handler.ErrSessionNotFound
 	}
 
@@ -161,6 +161,6 @@ func (st *sessionStore) DeleteSession(s *handler.Session) error {
 		Int("Subscriptions", len(s.Subscriptions)).
 		Int("UnAckMessages", len(s.UnAckMessages)).
 		Uint8("Version", uint8(s.Version)).
-		Msg("session deleted with success")
+		Msg("Session deleted with success")
 	return nil
 }

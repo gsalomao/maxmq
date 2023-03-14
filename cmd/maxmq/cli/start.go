@@ -84,28 +84,28 @@ func runCommandStart(enableProfile bool) {
 
 	err = logger.SetSeverityLevel(conf.LogLevel)
 	if err != nil {
-		cmdLog.Fatal().Msg("failed to set log severity: " + err.Error())
+		cmdLog.Fatal().Msg("Failed to set log severity: " + err.Error())
 	}
 
 	bannerWriter := colorable.NewColorableStdout()
 	banner.InitString(bannerWriter, true, true, bannerTemplate)
 
 	if !missingConfigFile {
-		cmdLog.Info().Msg("config file loaded with success")
+		cmdLog.Info().Msg("Config file loaded with success")
 	} else {
-		cmdLog.Info().Msg("no config file found")
+		cmdLog.Info().Msg("No config file found")
 	}
 
 	var cf []byte
 	cf, err = json.Marshal(conf)
 	if err != nil {
-		cmdLog.Fatal().Msg("failed to encode configuration: " + err.Error())
+		cmdLog.Fatal().Msg("Failed to encode configuration: " + err.Error())
 	}
-	cmdLog.Debug().RawJSON("Configuration", cf).Msg("using configuration")
+	cmdLog.Debug().RawJSON("Configuration", cf).Msg("Using configuration")
 
 	s, err := newServer(conf, baseLogger, machineID)
 	if err != nil {
-		cmdLog.Fatal().Msg("failed to create server: " + err.Error())
+		cmdLog.Fatal().Msg("Failed to create server: " + err.Error())
 	}
 
 	startServer(s, cmdLog, enableProfile)
@@ -175,11 +175,11 @@ func startServer(s *server.Server, l *logger.Logger, enableProfile bool) {
 	if enableProfile {
 		cpu, err := os.Create("cpu.prof")
 		if err != nil {
-			l.Fatal().Msg("failed to create CPU profile file: " + err.Error())
+			l.Fatal().Msg("Failed to create CPU profile file: " + err.Error())
 		}
 
 		if err = pprof.StartCPUProfile(cpu); err != nil {
-			l.Fatal().Msg("failed to start CPU profile: " + err.Error())
+			l.Fatal().Msg("Failed to start CPU profile: " + err.Error())
 		}
 
 		defer func() { _ = cpu.Close() }()
@@ -187,14 +187,14 @@ func startServer(s *server.Server, l *logger.Logger, enableProfile bool) {
 
 	err := s.Start()
 	if err != nil {
-		l.Fatal().Msg("failed to start server: " + err.Error())
+		l.Fatal().Msg("Failed to start server: " + err.Error())
 	}
 
 	go waitOSSignals(s)
 
 	err = s.Wait()
 	if err != nil {
-		l.Error().Msg("server stopped with error: " + err.Error())
+		l.Error().Msg("Server stopped with error: " + err.Error())
 	}
 
 	if enableProfile {
@@ -202,13 +202,13 @@ func startServer(s *server.Server, l *logger.Logger, enableProfile bool) {
 
 		heap, err = os.Create("heap.prof")
 		if err != nil {
-			l.Fatal().Msg("failed to create Heap profile file: " + err.Error())
+			l.Fatal().Msg("Failed to create Heap profile file: " + err.Error())
 		}
 		defer func() { _ = heap.Close() }()
 
 		runtime.GC()
 		if err = pprof.WriteHeapProfile(heap); err != nil {
-			l.Fatal().Msg("failed to save Heap profile: " + err.Error())
+			l.Fatal().Msg("Failed to save Heap profile: " + err.Error())
 		}
 
 		pprof.StopCPUProfile()

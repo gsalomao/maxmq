@@ -47,7 +47,7 @@ func NewListener(c Configuration, log *logger.Logger) (*Listener, error) {
 	m := http.NewServeMux()
 	m.Handle(c.Path, promhttp.Handler())
 	if c.Profiling {
-		l.Info().Msg("profiling metrics enabled")
+		l.Info().Msg("Profiling metrics enabled")
 		m.HandleFunc("/debug/pprof/", pprof.Index)
 		m.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 		m.HandleFunc("/debug/pprof/profile", pprof.Profile)
@@ -58,7 +58,7 @@ func NewListener(c Configuration, log *logger.Logger) (*Listener, error) {
 	l.Debug().
 		Str("Address", c.Address).
 		Str("Path", c.Path).
-		Msg("exporting metrics")
+		Msg("Exporting metrics")
 
 	s := &http.Server{
 		Addr:         c.Address,
@@ -78,18 +78,18 @@ func (l *Listener) Listen() error {
 		return err
 	}
 
-	l.log.Info().Msg("listening on " + lsn.Addr().String())
+	l.log.Info().Msg("Listening on " + lsn.Addr().String())
 	if err = l.srv.Serve(lsn); err != http.ErrServerClosed {
 		return err
 	}
 
-	l.log.Debug().Msg("listener stopped with success")
+	l.log.Debug().Msg("Listener stopped with success")
 	return nil
 }
 
 // Stop stops the Metrics Listener. Once called, it unblocks the Listen function.
 func (l *Listener) Stop() {
-	l.log.Debug().Msg("stopping listener")
+	l.log.Debug().Msg("Stopping listener")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

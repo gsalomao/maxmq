@@ -71,7 +71,7 @@ func (m *pubSubManager) Subscribe(s *handler.Subscription) error {
 		Uint8("RetainHandling", s.RetainHandling).
 		Int("SubscriptionID", s.ID).
 		Str("TopicFilter", s.TopicFilter).
-		Msg("subscribing to topic")
+		Msg("Subscribing to topic")
 
 	exists, err := m.tree.Insert(*s)
 	if err != nil {
@@ -83,7 +83,7 @@ func (m *pubSubManager) Subscribe(s *handler.Subscription) error {
 			Uint8("RetainHandling", s.RetainHandling).
 			Int("SubscriptionID", s.ID).
 			Str("TopicFilter", s.TopicFilter).
-			Msg("failed to subscribe to topic")
+			Msg("Failed to subscribe to topic")
 		return err
 	}
 
@@ -99,7 +99,7 @@ func (m *pubSubManager) Subscribe(s *handler.Subscription) error {
 		Uint8("RetainHandling", s.RetainHandling).
 		Int("SubscriptionID", s.ID).
 		Str("TopicFilter", s.TopicFilter).
-		Msg("subscribed to topic")
+		Msg("Subscribed to topic")
 
 	return nil
 }
@@ -109,14 +109,14 @@ func (m *pubSubManager) Unsubscribe(id packet.ClientID, topic string) error {
 	m.log.Trace().
 		Str("ClientId", string(id)).
 		Str("TopicFilter", topic).
-		Msg("unsubscribing to topic")
+		Msg("Unsubscribing to topic")
 
 	err := m.tree.Remove(id, topic)
 	if err != nil {
 		m.log.Warn().
 			Str("ClientId", string(id)).
 			Str("TopicFilter", topic).
-			Msg("failed to remove subscription: " + err.Error())
+			Msg("Failed to remove subscription: " + err.Error())
 		return err
 	}
 
@@ -124,7 +124,7 @@ func (m *pubSubManager) Unsubscribe(id packet.ClientID, topic string) error {
 	m.log.Debug().
 		Str("ClientId", string(id)).
 		Str("TopicFilter", topic).
-		Msg("unsubscribed to topic")
+		Msg("Unsubscribed to topic")
 
 	return err
 }
@@ -139,7 +139,7 @@ func (m *pubSubManager) Publish(msg *handler.Message) error {
 		Uint8("QoS", uint8(msg.Packet.QoS)).
 		Uint8("Retain", msg.Packet.Retain).
 		Str("TopicName", msg.Packet.TopicName).
-		Msg("adding message into the queue")
+		Msg("Adding message into the queue")
 
 	m.queue.Enqueue(msg)
 	m.action <- pubSubActionPublishMessage
@@ -152,19 +152,19 @@ func (m *pubSubManager) Publish(msg *handler.Message) error {
 		Uint8("QoS", uint8(msg.Packet.QoS)).
 		Uint8("Retain", msg.Packet.Retain).
 		Str("TopicName", msg.Packet.TopicName).
-		Msg("message queued for processing")
+		Msg("Message queued for processing")
 
 	return nil
 }
 
 func (m *pubSubManager) start() {
-	m.log.Trace().Msg("starting pubsub")
+	m.log.Trace().Msg("Starting pubsub")
 	go m.run()
 	<-m.action
 }
 
 func (m *pubSubManager) stop() {
-	m.log.Trace().Msg("stopping pubsub")
+	m.log.Trace().Msg("Stopping pubsub")
 	m.action <- pubSubActionStop
 
 	for {
@@ -174,12 +174,12 @@ func (m *pubSubManager) stop() {
 		}
 	}
 
-	m.log.Debug().Msg("pubsub stopped with success")
+	m.log.Debug().Msg("Pubsub stopped with success")
 }
 
 func (m *pubSubManager) run() {
 	m.action <- pubSubActionStarted
-	m.log.Debug().Msg("waiting for actions")
+	m.log.Debug().Msg("Waiting for actions")
 
 	for {
 		a := <-m.action
@@ -205,7 +205,7 @@ func (m *pubSubManager) handleQueuedMessages() {
 			Uint8("Retain", msg.Packet.Retain).
 			Str("TopicName", msg.Packet.TopicName).
 			Uint8("Version", uint8(msg.Packet.Version)).
-			Msg("publishing queued message")
+			Msg("Publishing queued message")
 
 		subscriptions := m.tree.FindMatches(msg.Packet.TopicName)
 		if len(subscriptions) == 0 {
@@ -214,7 +214,7 @@ func (m *pubSubManager) handleQueuedMessages() {
 				Uint16("PacketId", uint16(msg.Packet.PacketID)).
 				Int("Subscriptions", len(subscriptions)).
 				Str("TopicName", msg.Packet.TopicName).
-				Msg("no subscription found")
+				Msg("No subscription found")
 			continue
 		}
 
@@ -230,7 +230,7 @@ func (m *pubSubManager) handleQueuedMessages() {
 			Uint8("QoS", uint8(msg.Packet.QoS)).
 			Uint8("Retain", msg.Packet.Retain).
 			Str("TopicName", msg.Packet.TopicName).
-			Msg("queued message published with success")
+			Msg("Queued message published with success")
 	}
 }
 
@@ -245,7 +245,7 @@ func (m *pubSubManager) publishMsgToClient(id packet.ClientID, msg *handler.Mess
 			Uint8("Retain", msg.Packet.Retain).
 			Str("TopicName", msg.Packet.TopicName).
 			Uint8("Version", uint8(msg.Packet.Version)).
-			Msg("failed to read session (PUBSUB): " + err.Error())
+			Msg("Failed to read session (PUBSUB): " + err.Error())
 		return
 	}
 
@@ -269,7 +269,7 @@ func (m *pubSubManager) publishMsgToClient(id packet.ClientID, msg *handler.Mess
 		Uint64("SessionId", uint64(s.SessionID)).
 		Str("TopicName", msg.Packet.TopicName).
 		Uint8("Version", uint8(msg.Packet.Version)).
-		Msg("publishing message to client")
+		Msg("Publishing message to client")
 
 	if msg.Packet.QoS > packet.QoS0 {
 		if s.Connected {
@@ -291,7 +291,7 @@ func (m *pubSubManager) publishMsgToClient(id packet.ClientID, msg *handler.Mess
 				Uint64("SessionId", uint64(s.SessionID)).
 				Str("TopicName", msg.Packet.TopicName).
 				Uint8("Version", uint8(msg.Packet.Version)).
-				Msg("failed to save session (PUBSUB): " + err.Error())
+				Msg("Failed to save session (PUBSUB): " + err.Error())
 			return
 		}
 	}
@@ -309,7 +309,7 @@ func (m *pubSubManager) publishMsgToClient(id packet.ClientID, msg *handler.Mess
 					Uint64("SessionId", uint64(s.SessionID)).
 					Str("TopicName", msg.Packet.TopicName).
 					Uint8("Version", uint8(msg.Packet.Version)).
-					Msg("message delivered to client")
+					Msg("Message delivered to client")
 			} else {
 				m.log.Info().
 					Str("ClientId", string(s.ClientID)).
@@ -320,7 +320,7 @@ func (m *pubSubManager) publishMsgToClient(id packet.ClientID, msg *handler.Mess
 					Uint64("SessionId", uint64(s.SessionID)).
 					Str("TopicName", msg.Packet.TopicName).
 					Uint8("Version", uint8(msg.Packet.Version)).
-					Msg("message published to client")
+					Msg("Message published to client")
 			}
 		} else {
 			m.log.Error().
@@ -332,7 +332,7 @@ func (m *pubSubManager) publishMsgToClient(id packet.ClientID, msg *handler.Mess
 				Uint8("Retain", msg.Packet.Retain).
 				Str("TopicName", msg.Packet.TopicName).
 				Uint8("Version", uint8(msg.Packet.Version)).
-				Msg("failed to deliver message: " + err.Error())
+				Msg("Failed to deliver message: " + err.Error())
 		}
 	}
 }

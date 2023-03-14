@@ -174,13 +174,13 @@ func (l *Logger) formatTimestamp(i interface{}) string {
 func (l *Logger) formatLevel(i interface{}) string {
 	level := strings.ToUpper(fmt.Sprintf("%s", i))
 	color := levelColor[level]
-	return fmt.Sprintf(" %-14s ", colorize(color, level))
+	return fmt.Sprintf("| %-14s |", colorize(color, level))
 }
 
 func (l *Logger) formatMessage(i interface{}) string {
 	var prefix string
 	if l.prefix != "" {
-		prefix = fmt.Sprintf("%s: ", l.prefix)
+		prefix = fmt.Sprintf("[%s] ", l.prefix)
 	}
 	return colorize(cyan, fmt.Sprintf("%s%s", prefix, i))
 }
