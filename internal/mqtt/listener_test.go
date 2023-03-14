@@ -53,7 +53,7 @@ func newLogger() *logger.Logger {
 	idGen := &idGeneratorMock{}
 	idGen.On("NextID").Return(0)
 
-	return logger.New(&out, idGen)
+	return logger.New(&out, idGen, logger.LogFormatJson)
 }
 
 func TestListenerNewListener(t *testing.T) {

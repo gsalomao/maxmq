@@ -36,7 +36,7 @@ func TestPubAckHandlerHandlePacket(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewPubAckHandler(st, log)
 
 			id := packet.ClientID("a")
@@ -87,7 +87,7 @@ func TestPubAckHandlerHandlePacketUnknownMessage(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewPubAckHandler(st, log)
 
 			id := packet.ClientID("a")
@@ -119,7 +119,7 @@ func TestPubAckHandlerHandlePacketReadSessionError(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewPubAckHandler(st, log)
 			id := packet.ClientID("a")
 
@@ -149,7 +149,7 @@ func TestPubAckHandlerHandlePacketSaveSessionError(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewPubAckHandler(st, log)
 
 			id := packet.ClientID("a")

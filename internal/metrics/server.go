@@ -55,6 +55,11 @@ func NewListener(c Configuration, log *logger.Logger) (*Listener, error) {
 		m.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
 
+	l.Debug().
+		Str("Address", c.Address).
+		Str("Path", c.Path).
+		Msg("exporting metrics")
+
 	s := &http.Server{
 		Addr:         c.Address,
 		Handler:      m,

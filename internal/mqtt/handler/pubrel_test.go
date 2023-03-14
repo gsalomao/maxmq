@@ -36,7 +36,7 @@ func TestPubRelHandlerHandlePacket(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewPubRelHandler(st, subMgr, log)
 
 			id := packet.ClientID("a")
@@ -102,7 +102,7 @@ func TestPubRelHandlerHandlePacketAlreadyReleased(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewPubRelHandler(st, subMgr, log)
 
 			id := packet.ClientID("a")
@@ -151,7 +151,7 @@ func TestPubRelHandlerHandlePacketV3PacketNotFound(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewPubRelHandler(st, subMgr, log)
 
 			id := packet.ClientID("a")
@@ -176,7 +176,7 @@ func TestPubRelHandlerHandlePacketV3PacketNotFound(t *testing.T) {
 func TestPubRelHandlerHandlePacketV5PacketNotFound(t *testing.T) {
 	st := &sessionStoreMock{}
 	subMgr := &subscriptionMgrMock{}
-	log := logger.New(&bytes.Buffer{}, nil)
+	log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 	h := NewPubRelHandler(st, subMgr, log)
 
 	id := packet.ClientID("a")
@@ -215,7 +215,7 @@ func TestPubRelHandlerHandlePacketPublishError(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewPubRelHandler(st, subMgr, log)
 
 			id := packet.ClientID("a")
@@ -264,7 +264,7 @@ func TestPubRelHandlerHandlePacketReadSessionError(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewPubRelHandler(st, subMgr, log)
 
 			id := packet.ClientID("a")
@@ -296,7 +296,7 @@ func TestPubRelHandlerHandlePacketSaveSessionError(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewPubRelHandler(st, subMgr, log)
 
 			id := packet.ClientID("a")

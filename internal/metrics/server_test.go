@@ -45,7 +45,7 @@ func (b *logBuffer) Write(p []byte) (n int, err error) {
 
 func newLogger() *logger.Logger {
 	out := &logBuffer{}
-	return logger.New(out, &logIDGenStub{})
+	return logger.New(out, &logIDGenStub{}, logger.LogFormatJson)
 }
 
 func TestMetricsNewServer(t *testing.T) {

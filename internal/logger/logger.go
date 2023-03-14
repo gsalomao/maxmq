@@ -25,6 +25,17 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// LogFormat defines the log format.
+type LogFormat string
+
+const (
+	// LogFormatPretty defines the log format in human-friendly format.
+	LogFormatPretty LogFormat = "pretty"
+
+	// LogFormatJson defines the log format in JSON format.
+	LogFormatJson LogFormat = "json"
+)
+
 const (
 	reset  = "\x1b[0m"
 	red    = "\x1b[31m"
@@ -65,6 +76,9 @@ var levelCode = map[string]zerolog.Level{
 
 func init() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMicro
+	zerolog.TimestampFieldName = "Time"
+	zerolog.LevelFieldName = "Level"
+	zerolog.MessageFieldName = "Message"
 }
 
 // SetSeverityLevel sets the minimal severity level which the logs will be produced.
@@ -96,30 +110,39 @@ type Logger struct {
 	generator LogIDGenerator
 	writer    io.Writer
 	prefix    string
+	format    LogFormat
 }
 
 // New creates a new logger.
-func New(wr io.Writer, gen LogIDGenerator) *Logger {
-	l := &Logger{generator: gen, writer: wr}
+func New(wr io.Writer, gen LogIDGenerator, f LogFormat) *Logger {
+	l := &Logger{generator: gen, writer: wr, format: f}
 
-	output := &zerolog.ConsoleWriter{Out: wr, TimeFormat: time.RFC3339Nano}
-	output.FormatTimestamp = l.formatTimestamp
-	output.FormatLevel = l.formatLevel
-	output.FormatMessage = l.formatMessage
-	output.FormatFieldName = l.formatFieldName
-	output.FormatFieldValue = l.formatFieldValue
-	output.FormatErrFieldName = l.formatFieldName
-	output.FormatErrFieldValue = l.formatFieldValue
+	var ctx zerolog.Context
+	if f == LogFormatPretty {
+		output := &zerolog.ConsoleWriter{Out: wr, TimeFormat: time.RFC3339Nano}
+		output.FormatTimestamp = l.formatTimestamp
+		output.FormatLevel = l.formatLevel
+		output.FormatMessage = l.formatMessage
+		output.FormatFieldName = l.formatFieldName
+		output.FormatFieldValue = l.formatFieldValue
+		output.FormatErrFieldName = l.formatFieldName
+		output.FormatErrFieldValue = l.formatFieldValue
+		ctx = zerolog.New(output).Hook(l).With().Timestamp()
+	} else {
+		ctx = zerolog.New(wr).Hook(l).With().Timestamp()
+	}
 
-	ctx := zerolog.New(output).Hook(l).With().Timestamp()
 	l.Logger = ctx.Logger()
 	return l
 }
 
 // NewWithPrefix creates a new logger with a prefix.
-func NewWithPrefix(wr io.Writer, gen LogIDGenerator, prefix string) *Logger {
-	l := New(wr, gen)
+func NewWithPrefix(wr io.Writer, gen LogIDGenerator, prefix string, f LogFormat) *Logger {
+	l := New(wr, gen, f)
 	l.prefix = prefix
+	if f != LogFormatPretty {
+		l.Logger = l.Logger.With().Str("Prefix", prefix).Logger()
+	}
 	return l
 }
 
@@ -131,7 +154,7 @@ func (l *Logger) WithPrefix(prefix string) *Logger {
 		}
 	}
 
-	logger := NewWithPrefix(l.writer, l.generator, prefix)
+	logger := NewWithPrefix(l.writer, l.generator, prefix, l.format)
 	return logger
 }
 

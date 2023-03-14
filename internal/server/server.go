@@ -40,7 +40,7 @@ type Server struct {
 
 // New creates a new server.
 func New(l *logger.Logger) Server {
-	return Server{log: l}
+	return Server{log: l.WithPrefix("server")}
 }
 
 // AddListener adds a listener to the server.

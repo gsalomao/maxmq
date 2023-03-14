@@ -36,7 +36,7 @@ func TestPubCompHandlerHandlePacket(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewPubCompHandler(st, log)
 
 			id := packet.ClientID("a")
@@ -73,7 +73,7 @@ func TestPubCompHandlerHandlePacketPacketNotFound(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewPubCompHandler(st, log)
 
 			id := packet.ClientID("a")
@@ -105,7 +105,7 @@ func TestPubCompHandlerHandlePacketReadSessionError(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewPubCompHandler(st, log)
 
 			id := packet.ClientID("a")
@@ -134,7 +134,7 @@ func TestPubCompHandlerHandlePacketSaveSessionError(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewPubCompHandler(st, log)
 
 			id := packet.ClientID("a")

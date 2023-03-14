@@ -17,7 +17,6 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"runtime"
@@ -57,12 +56,11 @@ func newCommandStart() *cobra.Command {
 
 func runCommandStart(enableProfile bool) {
 	machineID := 0
-	baseLogger, err := newLogger(os.Stdout, machineID)
+	sf, err := snowflake.New(machineID)
 	if err != nil {
+		fmt.Println("failed to start server: " + err.Error())
 		os.Exit(1)
 	}
-
-	log := baseLogger.WithPrefix("server")
 
 	var missingConfigFile bool
 	err = config.ReadConfigFile()
@@ -70,60 +68,50 @@ func runCommandStart(enableProfile bool) {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			missingConfigFile = true
 		} else {
-			log.Fatal().Msg("failed to read config file: " + err.Error())
+			fmt.Println("failed to start server: " + err.Error())
+			os.Exit(1)
 		}
 	}
 
 	conf, err := config.LoadConfig()
 	if err != nil {
-		log.Fatal().Msg("failed to load configuration: " + err.Error())
+		fmt.Println("failed to start server: " + err.Error())
+		os.Exit(1)
 	}
+
+	baseLogger := logger.New(os.Stdout, sf, logger.LogFormat(conf.LogFormat))
+	cmdLog := baseLogger.WithPrefix("cmd")
 
 	err = logger.SetSeverityLevel(conf.LogLevel)
 	if err != nil {
-		log.Fatal().Msg("failed to set log severity: " + err.Error())
+		cmdLog.Fatal().Msg("failed to set log severity: " + err.Error())
 	}
 
 	bannerWriter := colorable.NewColorableStdout()
 	banner.InitString(bannerWriter, true, true, bannerTemplate)
 
 	if !missingConfigFile {
-		log.Info().Msg("config file loaded with success")
+		cmdLog.Info().Msg("config file loaded with success")
 	} else {
-		log.Info().Msg("no config file found")
+		cmdLog.Info().Msg("no config file found")
 	}
 
 	var cf []byte
 	cf, err = json.Marshal(conf)
 	if err != nil {
-		log.Fatal().Msg("failed to encode configuration: " + err.Error())
+		cmdLog.Fatal().Msg("failed to encode configuration: " + err.Error())
 	}
-	log.Debug().RawJSON("Configuration", cf).Msg("using configuration")
+	cmdLog.Debug().RawJSON("Configuration", cf).Msg("using configuration")
 
-	s, err := newServer(conf, log, baseLogger, machineID)
+	s, err := newServer(conf, baseLogger, machineID)
 	if err != nil {
-		log.Fatal().Msg("failed to create server: " + err.Error())
+		cmdLog.Fatal().Msg("failed to create server: " + err.Error())
 	}
 
-	startServer(s, log, enableProfile)
+	startServer(s, cmdLog, enableProfile)
 }
 
-func newLogger(wr io.Writer, machineID int) (*logger.Logger, error) {
-	sf, err := snowflake.New(machineID)
-	if err != nil {
-		return nil, err
-	}
-
-	lg := logger.New(wr, sf)
-	return lg, nil
-}
-
-func newServer(
-	c config.Config,
-	l *logger.Logger,
-	bl *logger.Logger,
-	machineID int,
-) (*server.Server, error) {
+func newServer(c config.Config, l *logger.Logger, machineID int) (*server.Server, error) {
 	mqttConf := handler.Configuration{
 		TCPAddress:                    c.MQTTTCPAddress,
 		ConnectTimeout:                c.MQTTConnectTimeout,
@@ -155,7 +143,7 @@ func newServer(
 	var lsn server.Listener
 	lsn, err = mqtt.NewListener(
 		mqtt.WithConfiguration(mqttConf),
-		mqtt.WithLogger(bl),
+		mqtt.WithLogger(l),
 		mqtt.WithIDGenerator(sf),
 	)
 	if err != nil {
@@ -166,18 +154,13 @@ func newServer(
 	s.AddListener(lsn)
 
 	if c.MetricsEnabled {
-		l.Debug().
-			Str("Address", c.MetricsAddress).
-			Str("Path", c.MetricsPath).
-			Msg("exporting metrics")
-
 		mtConf := metrics.Configuration{
 			Address:   c.MetricsAddress,
 			Path:      c.MetricsPath,
 			Profiling: c.MetricsProfiling,
 		}
 
-		lsn, err = metrics.NewListener(mtConf, bl)
+		lsn, err = metrics.NewListener(mtConf, l)
 		if err != nil {
 			return nil, err
 		}

@@ -23,8 +23,11 @@ import (
 
 // Config holds all the application configuration.
 type Config struct {
-	// Minimal severity level of the logs.
+	// The minimal severity level to log.
 	LogLevel string `mapstructure:"log_level"`
+
+	// The log format.
+	LogFormat string `mapstructure:"log_format"`
 
 	// Indicate whether the server exports metrics or not.
 	MetricsEnabled bool `mapstructure:"metrics_enabled"`
@@ -131,6 +134,7 @@ func LoadConfig() (Config, error) {
 
 	// Bind environment variables
 	_ = viper.BindEnv("log_level")
+	_ = viper.BindEnv("log_format")
 	_ = viper.BindEnv("metrics_enabled")
 	_ = viper.BindEnv("metrics_address")
 	_ = viper.BindEnv("metrics_path")
@@ -156,6 +160,7 @@ func LoadConfig() (Config, error) {
 	// Set the default values
 	c := Config{
 		LogLevel:                 "info",
+		LogFormat:                "pretty",
 		MetricsEnabled:           true,
 		MetricsAddress:           ":8888",
 		MetricsPath:              "/metrics",

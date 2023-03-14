@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ func TestLoggerLog(t *testing.T) {
 	gen.On("NextID").Return(1)
 
 	out := bytes.NewBufferString("")
-	log := New(out, &gen)
+	log := New(out, &gen, LogFormatPretty)
 	msg := gofakeit.Phrase()
 
 	log.Info().Msg(msg)
@@ -47,7 +47,7 @@ func TestLoggerLog(t *testing.T) {
 
 func TestLoggerLogWithoutIDGenerator(t *testing.T) {
 	out := bytes.NewBufferString("")
-	log := New(out, nil)
+	log := New(out, nil, LogFormatPretty)
 	msg := gofakeit.Phrase()
 
 	log.Info().Msg(msg)
@@ -60,7 +60,7 @@ func TestLoggerWithField(t *testing.T) {
 	gen.On("NextID").Return(1)
 
 	out := bytes.NewBufferString("")
-	log := New(out, &gen)
+	log := New(out, &gen, LogFormatPretty)
 	key := gofakeit.Word()
 	val := gofakeit.Phrase()
 
@@ -74,7 +74,7 @@ func TestLoggerWithLogId(t *testing.T) {
 	gen.On("NextID").Return(255)
 
 	out := bytes.NewBufferString("")
-	log := New(out, &gen)
+	log := New(out, &gen, LogFormatPretty)
 	msg := gofakeit.Phrase()
 
 	log.Info().Msg(msg)
@@ -84,7 +84,7 @@ func TestLoggerWithLogId(t *testing.T) {
 func TestLoggerSetSeverity(t *testing.T) {
 	gen := logIDGenMock{}
 	out := bytes.NewBufferString("")
-	log := New(out, &gen)
+	log := New(out, &gen, LogFormatJson)
 
 	msg := gofakeit.Phrase()
 	err := SetSeverityLevel("info")

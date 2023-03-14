@@ -36,7 +36,7 @@ func TestDisconnectHandlerHandlePacket(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewDisconnectHandler(st, subMgr, log)
 
 			id := packet.ClientID("a")
@@ -76,7 +76,7 @@ func TestDisconnectHandlerHandlePacketCleanSession(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewDisconnectHandler(st, subMgr, log)
 
 			id := packet.ClientID("a")
@@ -110,7 +110,7 @@ func TestDisconnectHandlerHandlePacketCleanSession(t *testing.T) {
 func TestDisconnectHandlerHandlePacketV5ExpiryInterval(t *testing.T) {
 	st := &sessionStoreMock{}
 	subMgr := &subscriptionMgrMock{}
-	log := logger.New(&bytes.Buffer{}, nil)
+	log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 	h := NewDisconnectHandler(st, subMgr, log)
 
 	id := packet.ClientID("a")
@@ -135,7 +135,7 @@ func TestDisconnectHandlerHandlePacketV5ExpiryInterval(t *testing.T) {
 func TestDisconnectHandlerHandlePacketV5CleanSessionExpInterval(t *testing.T) {
 	st := &sessionStoreMock{}
 	subMgr := &subscriptionMgrMock{}
-	log := logger.New(&bytes.Buffer{}, nil)
+	log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 	h := NewDisconnectHandler(st, subMgr, log)
 
 	id := packet.ClientID("a")
@@ -162,7 +162,7 @@ func TestDisconnectHandlerHandlePacketV5CleanSessionExpInterval(t *testing.T) {
 func TestDisconnectHandlerHandlePacketV5InvalidExpiryInterval(t *testing.T) {
 	st := &sessionStoreMock{}
 	subMgr := &subscriptionMgrMock{}
-	log := logger.New(&bytes.Buffer{}, nil)
+	log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 	h := NewDisconnectHandler(st, subMgr, log)
 
 	id := packet.ClientID("a")
@@ -200,7 +200,7 @@ func TestDisconnectHandlerHandlePacketReadSessionError(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewDisconnectHandler(st, subMgr, log)
 
 			id := packet.ClientID("a")
@@ -227,7 +227,7 @@ func TestDisconnectHandlerHandlePacketSaveSessionError(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewDisconnectHandler(st, subMgr, log)
 
 			id := packet.ClientID("a")
@@ -261,7 +261,7 @@ func TestDisconnectHandlerHandlePacketDeleteSessionError(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewDisconnectHandler(st, subMgr, log)
 
 			id := packet.ClientID("a")

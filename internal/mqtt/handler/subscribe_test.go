@@ -48,7 +48,7 @@ func TestSubscribeHandlerHandlePacket(t *testing.T) {
 			conf := newDefaultConfiguration()
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewSubscribeHandler(&conf, st, subMgr, log)
 
 			id := packet.ClientID("a")
@@ -102,7 +102,7 @@ func TestSubscribeHandlerHandlePacketMultipleTopics(t *testing.T) {
 			conf := newDefaultConfiguration()
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewSubscribeHandler(&conf, st, subMgr, log)
 
 			id := packet.ClientID("a")
@@ -172,7 +172,7 @@ func TestSubscribeHandlerHandlePacketError(t *testing.T) {
 			conf := newDefaultConfiguration()
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewSubscribeHandler(&conf, st, subMgr, log)
 
 			id := packet.ClientID("a")
@@ -221,7 +221,7 @@ func TestSubscribeHandlerHandlePacketReadSessionError(t *testing.T) {
 			conf := newDefaultConfiguration()
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewSubscribeHandler(&conf, st, subMgr, log)
 
 			id := packet.ClientID("a")
@@ -254,7 +254,7 @@ func TestSubscribeHandlerHandlePacketSaveSessionError(t *testing.T) {
 			conf := newDefaultConfiguration()
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil)
+			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			h := NewSubscribeHandler(&conf, st, subMgr, log)
 
 			id := packet.ClientID("a")
@@ -313,7 +313,7 @@ func TestSubscribeHandlerHandlePacketV5WithSubID(t *testing.T) {
 
 	st := &sessionStoreMock{}
 	subMgr := &subscriptionMgrMock{}
-	log := logger.New(&bytes.Buffer{}, nil)
+	log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 	h := NewSubscribeHandler(&conf, st, subMgr, log)
 
 	id := packet.ClientID("a")
@@ -354,7 +354,7 @@ func TestSubscribeHandlerHandlePacketV5WithSubIDError(t *testing.T) {
 
 	st := &sessionStoreMock{}
 	subMgr := &subscriptionMgrMock{}
-	log := logger.New(&bytes.Buffer{}, nil)
+	log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 	h := NewSubscribeHandler(&conf, st, subMgr, log)
 
 	id := packet.ClientID("a")
