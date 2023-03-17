@@ -122,7 +122,7 @@ func (cm *connectionManager) handle(c connection) {
 			cm.log.Error().
 				Str("ClientId", string(c.clientID)).
 				Bool("Connected", c.connected).
-				Float64("DeadlineIn", time.Until(deadline).Seconds()).
+				Float64("DeadlineInSec", time.Until(deadline).Seconds()).
 				Int("Timeout", c.timeout).
 				Int("Version", int(c.version)).
 				Msg("Failed to set read deadline: " + err.Error())
@@ -132,7 +132,7 @@ func (cm *connectionManager) handle(c connection) {
 		cm.log.Trace().
 			Str("ClientId", string(c.clientID)).
 			Bool("Connected", c.connected).
-			Float64("DeadlineIn", time.Until(deadline).Seconds()).
+			Float64("DeadlineInSec", time.Until(deadline).Seconds()).
 			Int("Timeout", c.timeout).
 			Int("Version", int(c.version)).
 			Msg("Waiting packet")

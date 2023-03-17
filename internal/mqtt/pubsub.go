@@ -81,7 +81,7 @@ func (m *pubSubManager) Subscribe(s *handler.Subscription) error {
 			Uint8("QoS", byte(s.QoS)).
 			Bool("RetainAsPublished", s.RetainAsPublished).
 			Uint8("RetainHandling", s.RetainHandling).
-			Int("SubscriptionID", s.ID).
+			Int("SubscriptionId", s.ID).
 			Str("TopicFilter", s.TopicFilter).
 			Msg("Failed to subscribe to topic")
 		return err
@@ -97,7 +97,7 @@ func (m *pubSubManager) Subscribe(s *handler.Subscription) error {
 		Uint8("QoS", byte(s.QoS)).
 		Bool("RetainAsPublished", s.RetainAsPublished).
 		Uint8("RetainHandling", s.RetainHandling).
-		Int("SubscriptionID", s.ID).
+		Int("SubscriptionId", s.ID).
 		Str("TopicFilter", s.TopicFilter).
 		Msg("Subscribed to topic")
 
