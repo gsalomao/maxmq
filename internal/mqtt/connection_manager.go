@@ -20,6 +20,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gsalomao/maxmq/internal/logger"
@@ -155,7 +156,7 @@ func (cm *connectionManager) handle(c connection) {
 func (cm *connectionManager) readPacket(c *connection) (packet.Packet, error) {
 	p, err := cm.reader.ReadPacket(c.netConn, c.version)
 	if err != nil {
-		if errors.Is(err, io.EOF) {
+		if errors.Is(err, io.EOF) || errors.Is(err, syscall.ECONNRESET) {
 			cm.log.Debug().
 				Str("ClientId", string(c.clientID)).
 				Bool("Connected", c.connected).
