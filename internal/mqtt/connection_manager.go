@@ -219,9 +219,11 @@ func (cm *connectionManager) handlePacket(c *connection, p packet.Packet) error 
 				err.Error()))
 	}
 
+	var code packet.ReasonCode
 	for _, reply := range replies {
 		if reply.Type() == packet.CONNACK {
 			ack := reply.(*packet.ConnAck)
+			code = ack.ReasonCode
 			if ack.ReasonCode == packet.ReasonCodeSuccess {
 				c.clientID = ack.ClientID
 				c.version = ack.Version
@@ -246,7 +248,6 @@ func (cm *connectionManager) handlePacket(c *connection, p packet.Packet) error 
 			return err
 		}
 
-		cm.recordLatencyMetrics(p, reply)
 		cm.metrics.recordPacketSent(reply)
 		cm.log.Debug().
 			Str("ClientId", string(c.clientID)).
@@ -272,6 +273,14 @@ func (cm *connectionManager) handlePacket(c *connection, p packet.Packet) error 
 		latency := time.Since(p.Timestamp())
 		cm.metrics.recordDisconnectLatency(latency)
 	}
+
+	latency := time.Since(p.Timestamp())
+	cm.recordLatencyMetrics(p.Type(), code, latency)
+	cm.log.Info().
+		Str("ClientId", string(c.clientID)).
+		Dur("LatencyInMs", latency).
+		Uint8("Version", uint8(c.version)).
+		Msg(fmt.Sprintf("Packet %v processed with success", p.Type().String()))
 
 	return nil
 }
@@ -411,19 +420,18 @@ func (cm *connectionManager) deliverPacket(id packet.ClientID, p *packet.Publish
 	return nil
 }
 
-func (cm *connectionManager) recordLatencyMetrics(pkt packet.Packet, reply packet.Packet) {
-	pktType := pkt.Type()
-	replyType := reply.Type()
-	latency := reply.Timestamp().Sub(pkt.Timestamp())
-
-	if pktType == packet.CONNECT && replyType == packet.CONNACK {
-		connAck := reply.(*packet.ConnAck)
-		cm.metrics.recordConnectLatency(latency, int(connAck.ReasonCode))
-	} else if pktType == packet.PINGREQ && replyType == packet.PINGRESP {
+func (cm *connectionManager) recordLatencyMetrics(
+	pktType packet.Type,
+	code packet.ReasonCode,
+	latency time.Duration,
+) {
+	if pktType == packet.CONNECT {
+		cm.metrics.recordConnectLatency(latency, int(code))
+	} else if pktType == packet.PINGREQ {
 		cm.metrics.recordPingLatency(latency)
-	} else if pktType == packet.SUBSCRIBE && replyType == packet.SUBACK {
+	} else if pktType == packet.SUBSCRIBE {
 		cm.metrics.recordSubscribeLatency(latency)
-	} else if pktType == packet.UNSUBSCRIBE && replyType == packet.UNSUBACK {
+	} else if pktType == packet.UNSUBSCRIBE {
 		cm.metrics.recordUnsubscribeLatency(latency)
 	}
 }
