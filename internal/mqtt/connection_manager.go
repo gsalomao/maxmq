@@ -110,6 +110,7 @@ func (cm *connectionManager) stop() {
 func (cm *connectionManager) handle(c connection) {
 	defer cm.closeConnection(&c, true /*force*/)
 
+	c.connected = true
 	cm.metrics.recordConnection()
 	cm.log.Debug().Int("Timeout", c.timeout).Msg("Handling connection")
 
@@ -224,7 +225,6 @@ func (cm *connectionManager) handlePacket(c *connection, p packet.Packet) error 
 				c.clientID = ack.ClientID
 				c.version = ack.Version
 				c.timeout = ack.KeepAlive
-				c.connected = true
 				c.hasSession = true
 				cm.log.Debug().
 					Str("ClientId", string(c.clientID)).
