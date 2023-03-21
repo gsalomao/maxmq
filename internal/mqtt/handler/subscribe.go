@@ -19,29 +19,22 @@ import (
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 )
 
-// SubscribeHandler is responsible for handling SUBSCRIBE packets.
-type SubscribeHandler struct {
+// Subscribe is responsible for handling SUBSCRIBE packets.
+type Subscribe struct {
+	// Unexported fields
 	conf            *Configuration
 	log             *logger.Logger
 	sessionStore    SessionStore
 	subscriptionMgr SubscriptionManager
 }
 
-// NewSubscribeHandler creates a new SubscribeHandler.
-func NewSubscribeHandler(
-	c *Configuration,
-	st SessionStore,
-	subMgr SubscriptionManager,
-	l *logger.Logger,
-) *SubscribeHandler {
-	return &SubscribeHandler{conf: c, log: l, sessionStore: st, subscriptionMgr: subMgr}
+// NewSubscribe creates a new Subscribe handler.
+func NewSubscribe(c *Configuration, ss SessionStore, sm SubscriptionManager, l *logger.Logger) *Subscribe {
+	return &Subscribe{conf: c, log: l, sessionStore: ss, subscriptionMgr: sm}
 }
 
 // HandlePacket handles the given packet as SUBSCRIBE packet.
-func (h *SubscribeHandler) HandlePacket(
-	id packet.ClientID,
-	p packet.Packet,
-) ([]packet.Packet, error) {
+func (h *Subscribe) HandlePacket(id packet.ClientID, p packet.Packet) (replies []packet.Packet, err error) {
 	sub := p.(*packet.Subscribe)
 	h.log.Trace().
 		Str("ClientId", string(id)).
@@ -50,7 +43,8 @@ func (h *SubscribeHandler) HandlePacket(
 		Uint8("Version", uint8(sub.Version)).
 		Msg("Received SUBSCRIBE packet")
 
-	s, err := h.sessionStore.ReadSession(id)
+	var s *Session
+	s, err = h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
@@ -88,8 +82,8 @@ func (h *SubscribeHandler) HandlePacket(
 		}
 	}
 
-	subAck := packet.NewSubAck(sub.PacketID, s.Version, codes, nil /*props*/)
-	replies := make([]packet.Packet, 0, 1)
+	subAck := packet.NewSubAck(sub.PacketID, s.Version, codes, nil)
+	replies = make([]packet.Packet, 0, 1)
 	replies = append(replies, &subAck)
 	h.log.Trace().
 		Str("ClientId", string(s.ClientID)).
@@ -101,17 +95,12 @@ func (h *SubscribeHandler) HandlePacket(
 	return replies, nil
 }
 
-func (h *SubscribeHandler) subscribe(
-	s *Session,
-	p *packet.Subscribe,
-	subsID int,
-) ([]packet.ReasonCode, bool) {
-	var sessionChanged bool
-	codes := make([]packet.ReasonCode, 0, len(p.Topics))
+func (h *Subscribe) subscribe(s *Session, p *packet.Subscribe, id int) (codes []packet.ReasonCode, changed bool) {
+	codes = make([]packet.ReasonCode, 0, len(p.Topics))
 
 	for _, topic := range p.Topics {
 		sub := &Subscription{
-			ID:                subsID,
+			ID:                id,
 			ClientID:          s.ClientID,
 			TopicFilter:       topic.Name,
 			QoS:               topic.QoS,
@@ -141,7 +130,7 @@ func (h *SubscribeHandler) subscribe(
 
 		codes = append(codes, packet.ReasonCode(sub.QoS))
 		s.Subscriptions[sub.TopicFilter] = sub
-		sessionChanged = true
+		changed = true
 
 		h.log.Info().
 			Str("ClientId", string(s.ClientID)).
@@ -158,14 +147,10 @@ func (h *SubscribeHandler) subscribe(
 			Msg("Client subscribed to topic")
 	}
 
-	return codes, sessionChanged
+	return codes, changed
 }
 
-func (h *SubscribeHandler) unsubscribe(
-	codes []packet.ReasonCode,
-	s *Session,
-	topics []packet.Topic,
-) {
+func (h *Subscribe) unsubscribe(codes []packet.ReasonCode, s *Session, topics []packet.Topic) {
 	for idx, code := range codes {
 		if code == packet.ReasonCodeV3Failure {
 			continue

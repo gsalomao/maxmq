@@ -19,8 +19,8 @@ import (
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 )
 
-// PublishHandler is responsible for handling PUBLISH packets.
-type PublishHandler struct {
+// Publish is responsible for handling PUBLISH packets.
+type Publish struct {
 	// Unexported fields
 	log             *logger.Logger
 	sessionStore    SessionStore
@@ -28,30 +28,26 @@ type PublishHandler struct {
 	idGen           MessageIDGenerator
 }
 
-// NewPublishHandler creates a new PublishHandler.
-func NewPublishHandler(
-	st SessionStore,
-	subMgr SubscriptionManager,
-	gen MessageIDGenerator, l *logger.Logger,
-) *PublishHandler {
-	return &PublishHandler{log: l, sessionStore: st, subscriptionMgr: subMgr, idGen: gen}
+// NewPublish creates a new Publish handler.
+func NewPublish(ss SessionStore, sm SubscriptionManager, g MessageIDGenerator,
+	l *logger.Logger) *Publish {
+	return &Publish{log: l, sessionStore: ss, subscriptionMgr: sm, idGen: g}
 }
 
 // HandlePacket handles the given packet as PUBLISH packet.
-func (h *PublishHandler) HandlePacket(
-	id packet.ClientID,
-	p packet.Packet,
-) ([]packet.Packet, error) {
+func (h *Publish) HandlePacket(id packet.ClientID, p packet.Packet) (replies []packet.Packet, err error) {
 	pubPkt := p.(*packet.Publish)
+	pID := pubPkt.PacketID
 	h.log.Trace().
 		Str("ClientId", string(id)).
-		Uint16("PacketId", uint16(pubPkt.PacketID)).
+		Uint16("PacketId", uint16(pID)).
 		Uint8("QoS", uint8(pubPkt.QoS)).
 		Str("TopicName", pubPkt.TopicName).
 		Uint8("Version", uint8(pubPkt.Version)).
 		Msg("Received PUBLISH packet")
 
-	s, err := h.sessionStore.ReadSession(id)
+	var s *Session
+	s, err = h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
@@ -60,8 +56,8 @@ func (h *PublishHandler) HandlePacket(
 		return nil, err
 	}
 
-	msgID := h.idGen.NextID()
-	msg := &Message{ID: MessageID(msgID), PacketID: pubPkt.PacketID, Packet: pubPkt}
+	mID := h.idGen.NextID()
+	msg := &Message{ID: MessageID(mID), PacketID: pID, Packet: pubPkt}
 
 	s.Mutex.RLock()
 	defer s.Mutex.RUnlock()
@@ -72,8 +68,8 @@ func (h *PublishHandler) HandlePacket(
 			h.log.Error().
 				Str("ClientId", string(id)).
 				Uint8("DUP", pubPkt.Dup).
-				Uint64("MessageId", msgID).
-				Uint16("PacketId", uint16(pubPkt.PacketID)).
+				Uint64("MessageId", mID).
+				Uint16("PacketId", uint16(pID)).
 				Uint8("QoS", byte(pubPkt.QoS)).
 				Uint8("Retain", pubPkt.Retain).
 				Uint64("SessionId", uint64(s.SessionID)).
@@ -100,14 +96,9 @@ func (h *PublishHandler) HandlePacket(
 		}
 	}
 
-	replies := make([]packet.Packet, 0, 1)
+	replies = make([]packet.Packet, 0, 1)
 	if pubPkt.QoS == packet.QoS1 {
-		pubAck := packet.NewPubAck(
-			pubPkt.PacketID,
-			pubPkt.Version,
-			packet.ReasonCodeV5Success,
-			nil, /*props*/
-		)
+		pubAck := packet.NewPubAck(pID, pubPkt.Version, packet.ReasonCodeV5Success, nil)
 		replies = append(replies, &pubAck)
 		h.log.Trace().
 			Str("ClientId", string(s.ClientID)).
@@ -119,22 +110,22 @@ func (h *PublishHandler) HandlePacket(
 		h.log.Debug().
 			Str("ClientId", string(s.ClientID)).
 			Uint64("MessageId", uint64(msg.ID)).
-			Uint16("PacketId", uint16(pubPkt.PacketID)).
+			Uint16("PacketId", uint16(pID)).
 			Int("UnAckMessages", len(s.UnAckMessages)).
 			Uint8("Version", uint8(pubPkt.Version)).
 			Msg("Received packet from client (PUBLISH)")
 
-		unAckMsg, ok := s.UnAckMessages[pubPkt.PacketID]
+		unAckMsg, ok := s.UnAckMessages[pID]
 		if !ok || unAckMsg.Packet == nil {
 			h.log.Trace().
 				Str("ClientId", string(s.ClientID)).
 				Uint64("MessageId", uint64(msg.ID)).
-				Uint16("PacketId", uint16(pubPkt.PacketID)).
+				Uint16("PacketId", uint16(pID)).
 				Int("UnAckMessages", len(s.UnAckMessages)).
 				Uint8("Version", uint8(s.Version)).
 				Msg("Adding message to UnAck messages (PUBLISH)")
 
-			s.UnAckMessages[pubPkt.PacketID] = msg
+			s.UnAckMessages[pID] = msg
 			err = h.sessionStore.SaveSession(s)
 			if err != nil {
 				h.log.Error().
@@ -146,12 +137,7 @@ func (h *PublishHandler) HandlePacket(
 			}
 		}
 
-		pubRec := packet.NewPubRec(
-			pubPkt.PacketID,
-			pubPkt.Version,
-			packet.ReasonCodeV5Success,
-			nil, /*props*/
-		)
+		pubRec := packet.NewPubRec(pID, pubPkt.Version, packet.ReasonCodeV5Success, nil)
 		replies = append(replies, &pubRec)
 		h.log.Trace().
 			Str("ClientId", string(s.ClientID)).

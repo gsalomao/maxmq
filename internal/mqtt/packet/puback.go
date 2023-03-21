@@ -45,7 +45,7 @@ type PubAck struct {
 	remainLength int
 }
 
-func newPacketPubAck(opts options) (Packet, error) {
+func newPacketPubAck(opts options) (p Packet, err error) {
 	if opts.packetType != PUBACK {
 		return nil, errors.New("packet type is not PUBACK")
 	}
@@ -64,17 +64,18 @@ func newPacketPubAck(opts options) (Packet, error) {
 		return nil, errors.New("invalid remaining length (PUBACK)")
 	}
 
-	return &PubAck{
+	p = &PubAck{
 		Version:      opts.version,
 		size:         opts.fixedHeaderLength + opts.remainingLength,
 		remainLength: opts.remainingLength,
 		timestamp:    opts.timestamp,
-	}, nil
+	}
+	return p, nil
 }
 
 // NewPubAck creates a PUBACK Packet.
-func NewPubAck(id ID, v Version, c ReasonCode, props *Properties) PubAck {
-	return PubAck{PacketID: id, Version: v, ReasonCode: c, Properties: props}
+func NewPubAck(id ID, v Version, c ReasonCode, p *Properties) PubAck {
+	return PubAck{PacketID: id, Version: v, ReasonCode: c, Properties: p}
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.

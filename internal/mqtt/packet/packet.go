@@ -87,8 +87,7 @@ type Packet interface {
 	// Size returns the packet size in bytes.
 	Size() int
 
-	// Timestamp returns the timestamp of the moment which the packet has been received or has been
-	// sent.
+	// Timestamp returns the timestamp of the moment which the packet has been received or has been sent.
 	Timestamp() time.Time
 }
 
@@ -100,16 +99,15 @@ type Topic struct {
 	// QoS represents the QoS level of the subscription.
 	QoS QoS
 
-	// RetainHandling indicates whether the retained message are sent when the subscription is
-	// established or not.
+	// RetainHandling indicates whether the retained message are sent when the subscription is established or not.
 	RetainHandling byte
 
-	// RetainAsPublished indicates whether the RETAIN flag is kept when messages are forwarded using
-	// this subscription or not.
+	// RetainAsPublished indicates whether the RETAIN flag is kept when messages are forwarded using this subscription
+	// or not.
 	RetainAsPublished bool
 
-	// NoLocal indicates whether the messages must not be forwarded to a connection with a client ID
-	// equal to the client ID of the publishing connection or not.
+	// NoLocal indicates whether the messages must not be forwarded to a connection with a client ID equal to the client
+	// ID of the publishing connection or not.
 	NoLocal bool
 }
 

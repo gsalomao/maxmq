@@ -35,7 +35,7 @@ type Listener struct {
 }
 
 // NewListener creates a Metrics Listener instance.
-func NewListener(c Configuration, log *logger.Logger) (*Listener, error) {
+func NewListener(c Configuration, log *logger.Logger) (l *Listener, err error) {
 	if c.Address == "" {
 		return nil, errors.New("metrics missing address")
 	}
@@ -43,11 +43,11 @@ func NewListener(c Configuration, log *logger.Logger) (*Listener, error) {
 		return nil, errors.New("metrics missing path")
 	}
 
-	l := log.WithPrefix("metrics")
+	lg := log.WithPrefix("metrics")
 	m := http.NewServeMux()
 	m.Handle(c.Path, promhttp.Handler())
 	if c.Profiling {
-		l.Info().Msg("Profiling metrics enabled")
+		lg.Info().Msg("Profiling metrics enabled")
 		m.HandleFunc("/debug/pprof/", pprof.Index)
 		m.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 		m.HandleFunc("/debug/pprof/profile", pprof.Profile)
@@ -55,7 +55,7 @@ func NewListener(c Configuration, log *logger.Logger) (*Listener, error) {
 		m.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
 
-	l.Debug().
+	lg.Debug().
 		Str("Address", c.Address).
 		Str("Path", c.Path).
 		Msg("Exporting metrics")
@@ -67,13 +67,14 @@ func NewListener(c Configuration, log *logger.Logger) (*Listener, error) {
 		WriteTimeout: 5 * time.Second,
 	}
 
-	return &Listener{conf: c, srv: s, mux: m, log: l}, nil
+	l = &Listener{conf: c, srv: s, mux: m, log: lg}
+	return l, nil
 }
 
-// Listen starts the execution of the Metrics Listener. Once called, it blocks waiting for
-// connections until it's stopped by the Stop function.
+// Listen starts the execution of the Metrics Listener. Once called, it blocks waiting for connections until it's
+// stopped by the Stop function.
 func (l *Listener) Listen() error {
-	lsn, err := net.Listen("tcp" /*network*/, l.srv.Addr)
+	lsn, err := net.Listen("tcp", l.srv.Addr)
 	if err != nil {
 		return err
 	}

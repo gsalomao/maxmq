@@ -45,24 +45,20 @@ type Connect struct {
 	// WillMessage represents the Will Message to be published.
 	WillMessage []byte
 
-	// UserName represents the UserName which the server must use for authentication and
-	// authorization.
+	// UserName represents the UserName which the server must use for authentication and authorization.
 	UserName []byte
 
-	// Password represents the Password which the server must use for authentication and
-	// authorization.
+	// Password represents the Password which the server must use for authentication and authorization.
 	Password []byte
 
 	// Properties represents the CONNECT properties (MQTT V5.0 only).
 	Properties *Properties
 
-	// WillProperties defines the Application Message properties to be sent with the Will Message
-	// when it is published.
+	// WillProperties defines the Application Message properties to be sent with the Will Message when it is published.
 	WillProperties *Properties
 
-	// KeepAlive is a time interval, measured in seconds, that is permitted to elapse between the
-	// point at which the Client finishes transmitting one Control Packet and the point it starts
-	// sending the next.
+	// KeepAlive is a time interval, measured in seconds, that is permitted to elapse between the point at which the
+	// Client finishes transmitting one Control Packet and the point it starts sending the next.
 	KeepAlive uint16
 
 	// Version represents the MQTT version.
@@ -74,8 +70,8 @@ type Connect struct {
 	// CleanSession indicates if the session is temporary or not.
 	CleanSession bool
 
-	// WillFlag indicates that, if the Connect request is accepted, and the Will Message MUST be
-	// stored on the server and associated with the connection.
+	// WillFlag indicates that, if the Connect request is accepted, and the Will Message MUST be stored on the server
+	// and associated with the connection.
 	WillFlag bool
 
 	// WillRetain indicates if the Will Message is to be Retained when it is published.
@@ -111,7 +107,7 @@ var protocolNames = map[Version]protocolName{
 	MQTT50:  {'M', 'Q', 'T', 'T'},
 }
 
-func newPacketConnect(opts options) (Packet, error) {
+func newPacketConnect(opts options) (p Packet, err error) {
 	if opts.packetType != CONNECT {
 		return nil, errors.New("packet type is not CONNECT")
 	}
@@ -120,11 +116,12 @@ func newPacketConnect(opts options) (Packet, error) {
 		return nil, errors.New("invalid Control Flags (CONNECT)")
 	}
 
-	return &Connect{
+	p = &Connect{
 		size:         opts.fixedHeaderLength + opts.remainingLength,
 		remainLength: opts.remainingLength,
 		timestamp:    opts.timestamp,
-	}, nil
+	}
+	return p, nil
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.
@@ -133,8 +130,7 @@ func (pkt *Connect) Write(_ *bufio.Writer) error {
 	return errors.New("unsupported (CONNECT)")
 }
 
-// Read reads the packet bytes from bufio.Reader and decodes them into the
-// packet.
+// Read reads the packet bytes from bufio.Reader and decodes them into the packet.
 func (pkt *Connect) Read(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {

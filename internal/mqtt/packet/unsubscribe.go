@@ -43,7 +43,7 @@ type Unsubscribe struct {
 	remainLength int
 }
 
-func newPacketUnsubscribe(opts options) (Packet, error) {
+func newPacketUnsubscribe(opts options) (p Packet, err error) {
 	if opts.packetType != UNSUBSCRIBE {
 		return nil, errors.New("packet type is not UNSUBSCRIBE")
 	}
@@ -54,13 +54,14 @@ func newPacketUnsubscribe(opts options) (Packet, error) {
 		return nil, errors.New("invalid version (UNSUBSCRIBE)")
 	}
 
-	return &Unsubscribe{
+	p = &Unsubscribe{
 		Version:      opts.version,
 		Topics:       make([]string, 0),
 		size:         opts.fixedHeaderLength + opts.remainingLength,
 		remainLength: opts.remainingLength,
 		timestamp:    opts.timestamp,
-	}, nil
+	}
+	return p, nil
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.

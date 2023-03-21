@@ -43,7 +43,7 @@ type Subscribe struct {
 	remainLength int
 }
 
-func newPacketSubscribe(opts options) (Packet, error) {
+func newPacketSubscribe(opts options) (p Packet, err error) {
 	if opts.packetType != SUBSCRIBE {
 		return nil, errors.New("packet type is not SUBSCRIBE")
 	}
@@ -54,13 +54,14 @@ func newPacketSubscribe(opts options) (Packet, error) {
 		return nil, errors.New("invalid version (SUBSCRIBE)")
 	}
 
-	return &Subscribe{
+	p = &Subscribe{
 		Version:      opts.version,
 		Topics:       make([]Topic, 0),
 		size:         opts.fixedHeaderLength + opts.remainingLength,
 		remainLength: opts.remainingLength,
 		timestamp:    opts.timestamp,
-	}, nil
+	}
+	return p, nil
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.

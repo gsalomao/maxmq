@@ -19,24 +19,25 @@ import (
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 )
 
-// PubRecHandler is responsible for handling PUBREC packets.
-type PubRecHandler struct {
+// PubRec is responsible for handling PUBREC packets.
+type PubRec struct {
 	// Unexported fields
 	log          *logger.Logger
 	sessionStore SessionStore
 }
 
-// NewPubRecHandler creates a new NewPubRecHandler.
-func NewPubRecHandler(st SessionStore, l *logger.Logger) *PubRecHandler {
-	return &PubRecHandler{log: l, sessionStore: st}
+// NewPubRec creates a new PubRec handler.
+func NewPubRec(ss SessionStore, l *logger.Logger) *PubRec {
+	return &PubRec{log: l, sessionStore: ss}
 }
 
 // HandlePacket handles the given packet as PUBREC packet.
-func (h *PubRecHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]packet.Packet, error) {
+func (h *PubRec) HandlePacket(id packet.ClientID, p packet.Packet) (replies []packet.Packet, err error) {
 	pubRec := p.(*packet.PubRec)
+	pID := pubRec.PacketID
 	h.log.Trace().
 		Str("ClientId", string(id)).
-		Uint16("PacketId", uint16(pubRec.PacketID)).
+		Uint16("PacketId", uint16(pID)).
 		Uint8("Version", uint8(pubRec.Version)).
 		Msg("Received PUBREC packet")
 
@@ -52,13 +53,13 @@ func (h *PubRecHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
 
-	replies := make([]packet.Packet, 0, 1)
-	inflightMsg := s.findInflightMessage(pubRec.PacketID)
+	replies = make([]packet.Packet, 0, 1)
+	inflightMsg := s.findInflightMessage(pID)
 	if inflightMsg == nil {
 		h.log.Warn().
 			Str("ClientId", string(id)).
 			Int("InflightMessages", s.InflightMessages.Len()).
-			Uint16("PacketId", uint16(pubRec.PacketID)).
+			Uint16("PacketId", uint16(pID)).
 			Uint8("Version", uint8(s.Version)).
 			Msg("Received PUBREC with unknown packet ID")
 
@@ -66,12 +67,7 @@ func (h *PubRecHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 			return nil, ErrPacketNotFound
 		}
 
-		pubRel := packet.NewPubRel(
-			pubRec.PacketID,
-			s.Version,
-			packet.ReasonCodeV5PacketIDNotFound,
-			nil, /*props*/
-		)
+		pubRel := packet.NewPubRel(pID, s.Version, packet.ReasonCodeV5PacketIDNotFound, nil)
 		replies = append(replies, &pubRel)
 		return replies, nil
 	}
@@ -98,12 +94,7 @@ func (h *PubRecHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 		}
 	}
 
-	pubRel := packet.NewPubRel(
-		pubRec.PacketID,
-		s.Version,
-		packet.ReasonCodeV5Success,
-		nil, /*props*/
-	)
+	pubRel := packet.NewPubRel(pID, s.Version, packet.ReasonCodeV5Success, nil)
 	replies = append(replies, &pubRel)
 
 	h.log.Trace().

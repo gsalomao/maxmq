@@ -23,8 +23,8 @@ import (
 	"github.com/rs/xid"
 )
 
-// ConnectHandler is responsible for handling CONNECT packets.
-type ConnectHandler struct {
+// Connect is responsible for handling CONNECT packets.
+type Connect struct {
 	// Unexported fields
 	conf         *Configuration
 	log          *logger.Logger
@@ -32,22 +32,19 @@ type ConnectHandler struct {
 	sessionStore SessionStore
 }
 
-// NewConnectHandler creates a new ConnectHandler.
-func NewConnectHandler(c *Configuration, st SessionStore, l *logger.Logger) *ConnectHandler {
+// NewConnect creates a new Connect handler.
+func NewConnect(c *Configuration, ss SessionStore, l *logger.Logger) *Connect {
 	props := make([]packet.UserProperty, 0, len(c.UserProperties))
 	for k, v := range c.UserProperties {
 		prop := packet.UserProperty{Key: []byte(k), Value: []byte(v)}
 		props = append(props, prop)
 	}
 
-	return &ConnectHandler{conf: c, log: l, props: props, sessionStore: st}
+	return &Connect{conf: c, log: l, props: props, sessionStore: ss}
 }
 
 // HandlePacket handles the given packet as CONNECT packet.
-func (h *ConnectHandler) HandlePacket(
-	_ packet.ClientID,
-	p packet.Packet,
-) ([]packet.Packet, error) {
+func (h *Connect) HandlePacket(_ packet.ClientID, p packet.Packet) (replies []packet.Packet, err error) {
 	connPkt := p.(*packet.Connect)
 	h.log.Trace().
 		Bool("CleanSession", connPkt.CleanSession).
@@ -56,25 +53,24 @@ func (h *ConnectHandler) HandlePacket(
 		Uint8("Version", uint8(connPkt.Version)).
 		Msg("Received CONNECT packet")
 
-	if err := h.checkPacket(connPkt); err != nil {
+	if pktErr := h.checkPacket(connPkt); pktErr != nil {
 		h.log.Trace().
 			Str("ClientId", string(connPkt.ClientID)).
-			Int("ReasonCode", int(err.ReasonCode)).
+			Int("ReasonCode", int(pktErr.ReasonCode)).
 			Uint8("Version", uint8(connPkt.Version)).
 			Msg("Sending CONNACK packet (Error)")
-		connAck := h.newConnAck(connPkt, nil /*session*/, err.ReasonCode, nil /*props*/)
-		return []packet.Packet{connAck}, err
+		connAck := h.newConnAck(connPkt, nil, pktErr.ReasonCode, nil)
+		return []packet.Packet{connAck}, pktErr
 	}
 
-	var s *Session
-	var err error
 	var idGenerated bool
-
 	id := packet.ClientID(connPkt.ClientID)
 	if len(id) == 0 {
 		id = h.createClientID()
 		idGenerated = true
 	}
+
+	var s *Session
 	if !idGenerated {
 		s, err = h.sessionStore.ReadSession(id)
 		if err != nil && err != ErrSessionNotFound {
@@ -125,9 +121,9 @@ func (h *ConnectHandler) HandlePacket(
 		Msg("Client connected")
 
 	code := packet.ReasonCodeV3ConnectionAccepted
-	connAckPkt := h.newConnAck(connPkt, s, code, nil /*props*/)
+	connAckPkt := h.newConnAck(connPkt, s, code, nil)
 
-	replies := make([]packet.Packet, 0, 1)
+	replies = make([]packet.Packet, 0, 1)
 	h.log.Trace().
 		Str("ClientId", string(connAckPkt.ClientID)).
 		Int("KeepAlive", connAckPkt.KeepAlive).
@@ -153,7 +149,7 @@ func (h *ConnectHandler) HandlePacket(
 	return replies, nil
 }
 
-func (h *ConnectHandler) checkPacket(p *packet.Connect) *packet.Error {
+func (h *Connect) checkPacket(p *packet.Connect) *packet.Error {
 	if err := h.checkKeepAlive(p); err != nil {
 		return err
 	}
@@ -163,9 +159,8 @@ func (h *ConnectHandler) checkPacket(p *packet.Connect) *packet.Error {
 	return nil
 }
 
-func (h *ConnectHandler) checkKeepAlive(p *packet.Connect) *packet.Error {
-	// For V5.0 clients, the Keep Alive sent in the CONNECT Packet can be
-	// overwritten in the CONNACK Packet.
+func (h *Connect) checkKeepAlive(p *packet.Connect) *packet.Error {
+	// For V5.0 clients, the Keep Alive sent in the CONNECT Packet can be overwritten in the CONNACK Packet.
 	if p.Version == packet.MQTT50 || h.conf.MaxKeepAlive == 0 {
 		return nil
 	}
@@ -183,7 +178,7 @@ func (h *ConnectHandler) checkKeepAlive(p *packet.Connect) *packet.Error {
 	return nil
 }
 
-func (h *ConnectHandler) checkClientID(p *packet.Connect) *packet.Error {
+func (h *Connect) checkClientID(p *packet.Connect) *packet.Error {
 	idLen := len(p.ClientID)
 	if idLen == 0 && !h.conf.AllowEmptyClientID {
 		if p.Version == packet.MQTT50 {
@@ -206,7 +201,7 @@ func (h *ConnectHandler) checkClientID(p *packet.Connect) *packet.Error {
 	return nil
 }
 
-func (h *ConnectHandler) createClientID() packet.ClientID {
+func (h *Connect) createClientID() packet.ClientID {
 	guid := xid.New()
 	prefix := h.conf.ClientIDPrefix
 	prefixLen := len(prefix)
@@ -221,7 +216,7 @@ func (h *ConnectHandler) createClientID() packet.ClientID {
 	return packet.ClientID(id)
 }
 
-func (h *ConnectHandler) sessionExpiryInterval(p *packet.Connect) uint32 {
+func (h *Connect) sessionExpiryInterval(p *packet.Connect) uint32 {
 	interval := uint32(math.MaxUint32)
 	if p.Version == packet.MQTT50 {
 		if p.Properties == nil || p.Properties.SessionExpiryInterval == nil {
@@ -236,14 +231,14 @@ func (h *ConnectHandler) sessionExpiryInterval(p *packet.Connect) uint32 {
 	return interval
 }
 
-func (h *ConnectHandler) sessionKeepAlive(keepAlive int) int {
+func (h *Connect) sessionKeepAlive(keepAlive int) int {
 	if h.conf.MaxKeepAlive > 0 && (keepAlive == 0 || keepAlive > h.conf.MaxKeepAlive) {
 		return h.conf.MaxKeepAlive
 	}
 	return keepAlive
 }
 
-func (h *ConnectHandler) addInflightMessages(r *[]packet.Packet, s *Session) {
+func (h *Connect) addInflightMessages(r *[]packet.Packet, s *Session) {
 	inflightMsg := s.InflightMessages.Front()
 	for inflightMsg != nil {
 		msg := inflightMsg.Value.(*Message)
@@ -269,7 +264,7 @@ func (h *ConnectHandler) addInflightMessages(r *[]packet.Packet, s *Session) {
 	}
 }
 
-func (h *ConnectHandler) replyUnavailable(p *packet.Connect, id packet.ClientID) []packet.Packet {
+func (h *Connect) replyUnavailable(p *packet.Connect, id packet.ClientID) []packet.Packet {
 	code := packet.ReasonCodeV5ServerUnavailable
 	if p.Version != packet.MQTT50 {
 		code = packet.ReasonCodeV3ServerUnavailable
@@ -280,13 +275,13 @@ func (h *ConnectHandler) replyUnavailable(p *packet.Connect, id packet.ClientID)
 		Uint8("Version", uint8(p.Version)).
 		Msg("Sending CONNACK packet (Unavailable)")
 
-	connAck := h.newConnAck(p, nil /*session*/, code, nil /*props*/)
+	connAck := h.newConnAck(p, nil, code, nil)
 	return []packet.Packet{connAck}
 }
 
-func (h *ConnectHandler) newConnAck(
-	p *packet.Connect, s *Session, code packet.ReasonCode, props *packet.Properties,
-) *packet.ConnAck {
+func (h *Connect) newConnAck(pkt *packet.Connect, s *Session, c packet.ReasonCode,
+	p *packet.Properties) *packet.ConnAck {
+
 	var id packet.ClientID
 	var keepAlive int
 	var sessionPresent bool
@@ -296,151 +291,151 @@ func (h *ConnectHandler) newConnAck(
 		keepAlive = s.KeepAlive
 		sessionPresent = s.Restored
 
-		if s.Version == packet.MQTT50 && code == packet.ReasonCodeV5Success {
+		if s.Version == packet.MQTT50 && c == packet.ReasonCodeV5Success {
 			var expInterval *uint32
 
-			if p.Properties != nil {
-				expInterval = p.Properties.SessionExpiryInterval
+			if pkt.Properties != nil {
+				expInterval = pkt.Properties.SessionExpiryInterval
 			}
 
-			h.addAssignedClientID(&props, s)
-			h.addSessionExpiryInterval(&props, expInterval)
-			h.addServerKeepAlive(&props, s, int(p.KeepAlive))
-			h.addReceiveMaximum(&props)
-			h.addMaxPacketSize(&props)
-			h.addMaximumQoS(&props)
-			h.addTopicAliasMax(&props)
-			h.addRetainAvailable(&props)
-			h.addWildcardSubsAvailable(&props)
-			h.addSubscriptionIDAvailable(&props)
-			h.addSharedSubsAvailable(&props)
-			h.addUserProperties(&props)
+			h.addAssignedClientID(&p, s)
+			h.addSessionExpiryInterval(&p, expInterval)
+			h.addServerKeepAlive(&p, s, int(pkt.KeepAlive))
+			h.addReceiveMaximum(&p)
+			h.addMaxPacketSize(&p)
+			h.addMaximumQoS(&p)
+			h.addTopicAliasMax(&p)
+			h.addRetainAvailable(&p)
+			h.addWildcardSubsAvailable(&p)
+			h.addSubscriptionIDAvailable(&p)
+			h.addSharedSubsAvailable(&p)
+			h.addUserProperties(&p)
 		}
 	}
 
-	connAckPkt := packet.NewConnAck(id, p.Version, code, sessionPresent, keepAlive, props)
+	connAckPkt := packet.NewConnAck(id, pkt.Version, c, sessionPresent, keepAlive, p)
 	return &connAckPkt
 }
 
-func (h *ConnectHandler) addAssignedClientID(props **packet.Properties, s *Session) {
+func (h *Connect) addAssignedClientID(p **packet.Properties, s *Session) {
 	if s.ClientIDGenerated {
-		if *props == nil {
-			*props = &packet.Properties{}
+		if *p == nil {
+			*p = &packet.Properties{}
 		}
-		(*props).AssignedClientID = []byte(s.ClientID)
+		(*p).AssignedClientID = []byte(s.ClientID)
 	}
 }
 
-func (h *ConnectHandler) addSessionExpiryInterval(props **packet.Properties, interval *uint32) {
+func (h *Connect) addSessionExpiryInterval(p **packet.Properties, interval *uint32) {
 	if interval == nil {
 		return
 	}
 
 	maxExpInt := h.conf.MaxSessionExpiryInterval
 	if maxExpInt > 0 && *interval > maxExpInt {
-		if *props == nil {
-			*props = &packet.Properties{}
+		if *p == nil {
+			*p = &packet.Properties{}
 		}
-		(*props).SessionExpiryInterval = new(uint32)
-		*(*props).SessionExpiryInterval = h.conf.MaxSessionExpiryInterval
+		(*p).SessionExpiryInterval = new(uint32)
+		*(*p).SessionExpiryInterval = h.conf.MaxSessionExpiryInterval
 	}
 }
 
-func (h *ConnectHandler) addServerKeepAlive(props **packet.Properties, s *Session, keepAlive int) {
+func (h *Connect) addServerKeepAlive(p **packet.Properties, s *Session, keepAlive int) {
 	if keepAlive != s.KeepAlive {
-		if *props == nil {
-			*props = &packet.Properties{}
+		if *p == nil {
+			*p = &packet.Properties{}
 		}
-		(*props).ServerKeepAlive = new(uint16)
-		*(*props).ServerKeepAlive = uint16(s.KeepAlive)
+		(*p).ServerKeepAlive = new(uint16)
+		*(*p).ServerKeepAlive = uint16(s.KeepAlive)
 	}
 }
 
-func (h *ConnectHandler) addReceiveMaximum(props **packet.Properties) {
+func (h *Connect) addReceiveMaximum(p **packet.Properties) {
 	if h.conf.MaxInflightMessages > 0 && h.conf.MaxInflightMessages < 65535 {
-		if *props == nil {
-			*props = &packet.Properties{}
+		if *p == nil {
+			*p = &packet.Properties{}
 		}
-		(*props).ReceiveMaximum = new(uint16)
-		*(*props).ReceiveMaximum = uint16(h.conf.MaxInflightMessages)
+		(*p).ReceiveMaximum = new(uint16)
+		*(*p).ReceiveMaximum = uint16(h.conf.MaxInflightMessages)
 	}
 }
 
-func (h *ConnectHandler) addMaxPacketSize(props **packet.Properties) {
+func (h *Connect) addMaxPacketSize(p **packet.Properties) {
 	if h.conf.MaxPacketSize > 0 && h.conf.MaxPacketSize < 268435456 {
-		if *props == nil {
-			*props = &packet.Properties{}
+		if *p == nil {
+			*p = &packet.Properties{}
 		}
-		(*props).MaximumPacketSize = new(uint32)
-		*(*props).MaximumPacketSize = uint32(h.conf.MaxPacketSize)
+		(*p).MaximumPacketSize = new(uint32)
+		*(*p).MaximumPacketSize = uint32(h.conf.MaxPacketSize)
 	}
 }
 
-func (h *ConnectHandler) addMaximumQoS(props **packet.Properties) {
+func (h *Connect) addMaximumQoS(p **packet.Properties) {
 	if h.conf.MaximumQoS < 2 {
-		if *props == nil {
-			*props = &packet.Properties{}
+		if *p == nil {
+			*p = &packet.Properties{}
 		}
-		(*props).MaximumQoS = new(byte)
-		*(*props).MaximumQoS = byte(h.conf.MaximumQoS)
+		(*p).MaximumQoS = new(byte)
+		*(*p).MaximumQoS = byte(h.conf.MaximumQoS)
 	}
 }
 
-func (h *ConnectHandler) addTopicAliasMax(props **packet.Properties) {
+func (h *Connect) addTopicAliasMax(p **packet.Properties) {
 	if h.conf.MaxTopicAlias > 0 {
-		if *props == nil {
-			*props = &packet.Properties{}
+		if *p == nil {
+			*p = &packet.Properties{}
 		}
-		(*props).TopicAliasMaximum = new(uint16)
-		*(*props).TopicAliasMaximum = uint16(h.conf.MaxTopicAlias)
+		(*p).TopicAliasMaximum = new(uint16)
+		*(*p).TopicAliasMaximum = uint16(h.conf.MaxTopicAlias)
 	}
 }
 
-func (h *ConnectHandler) addRetainAvailable(props **packet.Properties) {
+func (h *Connect) addRetainAvailable(p **packet.Properties) {
 	if !h.conf.RetainAvailable {
-		if *props == nil {
-			*props = &packet.Properties{}
+		if *p == nil {
+			*p = &packet.Properties{}
 		}
-		(*props).RetainAvailable = new(byte)
-		*(*props).RetainAvailable = 0
+		(*p).RetainAvailable = new(byte)
+		*(*p).RetainAvailable = 0
 	}
 }
 
-func (h *ConnectHandler) addWildcardSubsAvailable(props **packet.Properties) {
+func (h *Connect) addWildcardSubsAvailable(p **packet.Properties) {
 	if !h.conf.WildcardSubscriptionAvailable {
-		if *props == nil {
-			*props = &packet.Properties{}
+		if *p == nil {
+			*p = &packet.Properties{}
 		}
-		(*props).WildcardSubscriptionAvailable = new(byte)
-		*(*props).WildcardSubscriptionAvailable = 0
+		(*p).WildcardSubscriptionAvailable = new(byte)
+		*(*p).WildcardSubscriptionAvailable = 0
 	}
 }
 
-func (h *ConnectHandler) addSubscriptionIDAvailable(props **packet.Properties) {
+func (h *Connect) addSubscriptionIDAvailable(p **packet.Properties) {
 	if !h.conf.SubscriptionIDAvailable {
-		if *props == nil {
-			*props = &packet.Properties{}
+		if *p == nil {
+			*p = &packet.Properties{}
 		}
-		(*props).SubscriptionIDAvailable = new(byte)
-		*(*props).SubscriptionIDAvailable = 0
+		(*p).SubscriptionIDAvailable = new(byte)
+		*(*p).SubscriptionIDAvailable = 0
 	}
 }
 
-func (h *ConnectHandler) addSharedSubsAvailable(props **packet.Properties) {
+func (h *Connect) addSharedSubsAvailable(p **packet.Properties) {
 	if !h.conf.SharedSubscriptionAvailable {
-		if *props == nil {
-			*props = &packet.Properties{}
+		if *p == nil {
+			*p = &packet.Properties{}
 		}
-		(*props).SharedSubscriptionAvailable = new(byte)
-		*(*props).SharedSubscriptionAvailable = 0
+		(*p).SharedSubscriptionAvailable = new(byte)
+		*(*p).SharedSubscriptionAvailable = 0
 	}
 }
 
-func (h *ConnectHandler) addUserProperties(props **packet.Properties) {
+func (h *Connect) addUserProperties(p **packet.Properties) {
 	if len(h.conf.UserProperties) > 0 {
-		if *props == nil {
-			*props = &packet.Properties{}
+		if *p == nil {
+			*p = &packet.Properties{}
 		}
-		(*props).UserProperties = h.props
+		(*p).UserProperties = h.props
 	}
 }

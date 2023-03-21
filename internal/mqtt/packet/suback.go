@@ -45,8 +45,8 @@ type SubAck struct {
 }
 
 // NewSubAck creates a SUBACK Packet.
-func NewSubAck(id ID, v Version, c []ReasonCode, props *Properties) SubAck {
-	return SubAck{PacketID: id, Version: v, ReasonCodes: c, Properties: props}
+func NewSubAck(id ID, v Version, c []ReasonCode, p *Properties) SubAck {
+	return SubAck{PacketID: id, Version: v, ReasonCodes: c, Properties: p}
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.

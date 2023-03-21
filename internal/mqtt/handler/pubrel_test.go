@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPubRelHandlerHandlePacket(t *testing.T) {
+func TestPubRelHandlePacket(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -37,35 +37,20 @@ func TestPubRelHandlerHandlePacket(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPubRelHandler(st, subMgr, log)
+			h := NewPubRel(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, UnAckMessages: make(map[packet.ID]*Message)}
 
-			pubPkt := packet.NewPublish(
-				1,       /*id*/
-				tc,      /*version*/
-				"topic", /*topic*/
-				packet.QoS2,
-				0,              /*dup*/
-				0,              /*retain*/
-				[]byte("data"), /*payload*/
-				nil,            /*props*/
-			)
-
+			pubPkt := packet.NewPublish(1, tc, "t", packet.QoS2, 0, 0, []byte("d"), nil)
 			msg := &Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 			s.UnAckMessages[msg.PacketID] = msg.Clone()
+			pubRelPkt := packet.NewPubRel(pubPkt.PacketID, tc, packet.ReasonCodeV5Success, nil)
 
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
 			subMgr.On("Publish", msg).Return(nil)
 
-			pubRelPkt := packet.NewPubRel(
-				pubPkt.PacketID,
-				tc, /*version*/
-				packet.ReasonCodeV5Success,
-				nil, /*props*/
-			)
 			replies, err := h.HandlePacket(id, &pubRelPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -91,7 +76,7 @@ func TestPubRelHandlerHandlePacket(t *testing.T) {
 	}
 }
 
-func TestPubRelHandlerHandlePacketAlreadyReleased(t *testing.T) {
+func TestPubRelHandlePacketAlreadyReleased(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -103,21 +88,16 @@ func TestPubRelHandlerHandlePacketAlreadyReleased(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPubRelHandler(st, subMgr, log)
+			h := NewPubRel(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, UnAckMessages: make(map[packet.ID]*Message)}
 
 			msg := &Message{PacketID: 1}
 			s.UnAckMessages[msg.PacketID] = msg
+			pubRelPkt := packet.NewPubRel(msg.PacketID, tc, packet.ReasonCodeV5Success, nil)
 			st.On("ReadSession", id).Return(s, nil)
 
-			pubRelPkt := packet.NewPubRel(
-				msg.PacketID,
-				tc, /*version*/
-				packet.ReasonCodeV5Success,
-				nil, /*props*/
-			)
 			replies, err := h.HandlePacket(id, &pubRelPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -141,7 +121,7 @@ func TestPubRelHandlerHandlePacketAlreadyReleased(t *testing.T) {
 	}
 }
 
-func TestPubRelHandlerHandlePacketV3PacketNotFound(t *testing.T) {
+func TestPubRelHandlePacketV3PacketNotFound(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -152,18 +132,13 @@ func TestPubRelHandlerHandlePacketV3PacketNotFound(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPubRelHandler(st, subMgr, log)
+			h := NewPubRel(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, UnAckMessages: make(map[packet.ID]*Message)}
+			pubRelPkt := packet.NewPubRel(10, tc, packet.ReasonCodeV5Success, nil)
 			st.On("ReadSession", id).Return(s, nil)
 
-			pubRelPkt := packet.NewPubRel(
-				10, /*id*/
-				tc, /*version*/
-				packet.ReasonCodeV5Success,
-				nil, /*props*/
-			)
 			replies, err := h.HandlePacket(id, &pubRelPkt)
 			assert.NotNil(t, err)
 			assert.Len(t, replies, 0)
@@ -173,22 +148,17 @@ func TestPubRelHandlerHandlePacketV3PacketNotFound(t *testing.T) {
 	}
 }
 
-func TestPubRelHandlerHandlePacketV5PacketNotFound(t *testing.T) {
+func TestPubRelHandlePacketV5PacketNotFound(t *testing.T) {
 	st := &sessionStoreMock{}
 	subMgr := &subscriptionMgrMock{}
 	log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-	h := NewPubRelHandler(st, subMgr, log)
+	h := NewPubRel(st, subMgr, log)
 
 	id := packet.ClientID("a")
 	s := &Session{ClientID: id, Version: packet.MQTT50, UnAckMessages: make(map[packet.ID]*Message)}
+	pubRelPkt := packet.NewPubRel(10, packet.MQTT50, packet.ReasonCodeV5Success, nil)
 	st.On("ReadSession", id).Return(s, nil)
 
-	pubRelPkt := packet.NewPubRel(
-		10, /*id*/
-		packet.MQTT50,
-		packet.ReasonCodeV5Success,
-		nil, /*props*/
-	)
 	replies, err := h.HandlePacket(id, &pubRelPkt)
 	require.Nil(t, err)
 	require.Len(t, replies, 1)
@@ -204,7 +174,7 @@ func TestPubRelHandlerHandlePacketV5PacketNotFound(t *testing.T) {
 	subMgr.AssertExpectations(t)
 }
 
-func TestPubRelHandlerHandlePacketPublishError(t *testing.T) {
+func TestPubRelHandlePacketPublishError(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -216,34 +186,19 @@ func TestPubRelHandlerHandlePacketPublishError(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPubRelHandler(st, subMgr, log)
+			h := NewPubRel(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, UnAckMessages: make(map[packet.ID]*Message)}
-
-			pubPkt := packet.NewPublish(
-				1,       /*id*/
-				tc,      /*version*/
-				"topic", /*topic*/
-				packet.QoS2,
-				0,              /*dup*/
-				0,              /*retain*/
-				[]byte("data"), /*payload*/
-				nil,            /*props*/
-			)
+			pubPkt := packet.NewPublish(1, tc, "t", packet.QoS2, 0, 0, []byte("d"), nil)
 
 			msg := &Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 			s.UnAckMessages[msg.PacketID] = msg.Clone()
+			pubRelPkt := packet.NewPubRel(1, tc, packet.ReasonCodeV5Success, nil)
 
 			st.On("ReadSession", id).Return(s, nil)
 			subMgr.On("Publish", msg).Return(errors.New("failed"))
 
-			pubRelPkt := packet.NewPubRel(
-				1,  /*id*/
-				tc, /*version*/
-				packet.ReasonCodeV5Success,
-				nil, /*props*/
-			)
 			replies, err := h.HandlePacket(id, &pubRelPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)
@@ -253,7 +208,7 @@ func TestPubRelHandlerHandlePacketPublishError(t *testing.T) {
 	}
 }
 
-func TestPubRelHandlerHandlePacketReadSessionError(t *testing.T) {
+func TestPubRelHandlePacketReadSessionError(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -265,17 +220,12 @@ func TestPubRelHandlerHandlePacketReadSessionError(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPubRelHandler(st, subMgr, log)
+			h := NewPubRel(st, subMgr, log)
 
 			id := packet.ClientID("a")
+			pubRelPkt := packet.NewPubRel(1, tc, packet.ReasonCodeV5Success, nil)
 			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)
 
-			pubRelPkt := packet.NewPubRel(
-				1,  /*id*/
-				tc, /*version*/
-				packet.ReasonCodeV5Success,
-				nil, /*props*/
-			)
 			replies, err := h.HandlePacket(id, &pubRelPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)
@@ -285,7 +235,7 @@ func TestPubRelHandlerHandlePacketReadSessionError(t *testing.T) {
 	}
 }
 
-func TestPubRelHandlerHandlePacketSaveSessionError(t *testing.T) {
+func TestPubRelHandlePacketSaveSessionError(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -297,35 +247,20 @@ func TestPubRelHandlerHandlePacketSaveSessionError(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPubRelHandler(st, subMgr, log)
+			h := NewPubRel(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, UnAckMessages: make(map[packet.ID]*Message)}
-
-			pubPkt := packet.NewPublish(
-				1,       /*id*/
-				tc,      /*version*/
-				"topic", /*topic*/
-				packet.QoS2,
-				0,              /*dup*/
-				0,              /*retain*/
-				[]byte("data"), /*payload*/
-				nil,            /*props*/
-			)
+			pubPkt := packet.NewPublish(1, tc, "t", packet.QoS2, 0, 0, []byte("d"), nil)
 
 			msg := &Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 			s.UnAckMessages[msg.PacketID] = msg.Clone()
+			pubRelPkt := packet.NewPubRel(1, tc, packet.ReasonCodeV5Success, nil)
 
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(errors.New("failed"))
 			subMgr.On("Publish", msg).Return(nil)
 
-			pubRelPkt := packet.NewPubRel(
-				1,  /*id*/
-				tc, /*version*/
-				packet.ReasonCodeV5Success,
-				nil, /*props*/
-			)
 			replies, err := h.HandlePacket(id, &pubRelPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)

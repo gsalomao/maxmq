@@ -39,7 +39,7 @@ func TestDisconnectInvalidControlFlags(t *testing.T) {
 }
 
 func TestDisconnectWriteV3(t *testing.T) {
-	pkt := NewDisconnect(MQTT311, ReasonCodeV3ConnectionAccepted, nil /*props*/)
+	pkt := NewDisconnect(MQTT311, ReasonCodeV3ConnectionAccepted, nil)
 	require.Equal(t, DISCONNECT, pkt.Type())
 
 	buf := &bytes.Buffer{}
@@ -76,7 +76,7 @@ func TestDisconnectWriteV3NoProperties(t *testing.T) {
 }
 
 func TestDisconnectWriteV5(t *testing.T) {
-	pkt := NewDisconnect(MQTT50, ReasonCodeV5Success, nil /*props*/)
+	pkt := NewDisconnect(MQTT50, ReasonCodeV5Success, nil)
 	require.Equal(t, DISCONNECT, pkt.Type())
 
 	buf := &bytes.Buffer{}
@@ -127,7 +127,7 @@ func TestDisconnectWriteV5PropertiesInvalid(t *testing.T) {
 }
 
 func TestDisconnectWriteFailure(t *testing.T) {
-	pkt := NewDisconnect(MQTT50, ReasonCodeV5Success, nil /*props*/)
+	pkt := NewDisconnect(MQTT50, ReasonCodeV5Success, nil)
 	require.NotNil(t, pkt)
 
 	conn, _ := net.Pipe()
@@ -231,13 +231,13 @@ func TestDisconnectReadV5PropertiesInvalid(t *testing.T) {
 
 func TestDisconnectSize(t *testing.T) {
 	t.Run("Unknown", func(t *testing.T) {
-		pkt := NewDisconnect(MQTT311, ReasonCodeV3ConnectionAccepted, nil /*props*/)
+		pkt := NewDisconnect(MQTT311, ReasonCodeV3ConnectionAccepted, nil)
 		require.NotNil(t, pkt)
 		assert.Equal(t, 0, pkt.Size())
 	})
 
 	t.Run("V3", func(t *testing.T) {
-		pkt := NewDisconnect(MQTT311, ReasonCodeV3ConnectionAccepted, nil /*props*/)
+		pkt := NewDisconnect(MQTT311, ReasonCodeV3ConnectionAccepted, nil)
 		require.NotNil(t, pkt)
 
 		buf := &bytes.Buffer{}
@@ -250,7 +250,7 @@ func TestDisconnectSize(t *testing.T) {
 	})
 
 	t.Run("V5", func(t *testing.T) {
-		pkt := NewDisconnect(MQTT50, ReasonCodeV3ConnectionAccepted, nil /*props*/)
+		pkt := NewDisconnect(MQTT50, ReasonCodeV3ConnectionAccepted, nil)
 		require.NotNil(t, pkt)
 
 		buf := &bytes.Buffer{}

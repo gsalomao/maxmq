@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPingReqHandlerHandlePacket(t *testing.T) {
+func TestPingReqHandlePacket(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -35,7 +35,7 @@ func TestPingReqHandlerHandlePacket(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			st := &sessionStoreMock{}
-			h := NewPingReqHandler(st, log)
+			h := NewPingReq(st, log)
 
 			id := packet.ClientID('a')
 			s := &Session{ClientID: id}
@@ -53,7 +53,7 @@ func TestPingReqHandlerHandlePacket(t *testing.T) {
 	}
 }
 
-func TestPingReqHandlerHandlePacketReadSessionError(t *testing.T) {
+func TestPingReqHandlePacketReadSessionError(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -64,7 +64,7 @@ func TestPingReqHandlerHandlePacketReadSessionError(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
 			st := &sessionStoreMock{}
-			h := NewPingReqHandler(st, log)
+			h := NewPingReq(st, log)
 
 			id := packet.ClientID('a')
 			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)

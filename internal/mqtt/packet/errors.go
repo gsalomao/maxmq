@@ -19,8 +19,7 @@ import (
 )
 
 var (
-	// ErrV3UnacceptableProtocolVersion indicates that the server does not support the level of the
-	// MQTT protocol.
+	// ErrV3UnacceptableProtocolVersion indicates that the server does not support the level of the MQTT protocol.
 	ErrV3UnacceptableProtocolVersion = &Error{
 		ReasonCode: ReasonCodeV3UnacceptableProtocolVersion,
 		Reason:     "unacceptable protocol version",
@@ -38,22 +37,19 @@ var (
 		Reason:     "malformed packet",
 	}
 
-	// ErrV5ProtocolError indicates that data in the packet does not conform with the V5.0
-	// specification.
+	// ErrV5ProtocolError indicates that data in the packet does not conform with the V5.0 specification.
 	ErrV5ProtocolError = &Error{
 		ReasonCode: ReasonCodeV5ProtocolError,
 		Reason:     "protocol error",
 	}
 
-	// ErrV5InvalidClientID indicates that client ID in the packet is valid, but it is not allowed by
-	// the server.
+	// ErrV5InvalidClientID indicates that client ID in the packet is valid, but it is not allowed by the server.
 	ErrV5InvalidClientID = &Error{
 		ReasonCode: ReasonCodeV5InvalidClientID,
 		Reason:     "invalid client identifier",
 	}
 
-	// ErrV5SubscriptionIDNotSupported indicates that the server does not support subscription
-	// identifiers.
+	// ErrV5SubscriptionIDNotSupported indicates that the server does not support subscription identifiers.
 	ErrV5SubscriptionIDNotSupported = &Error{
 		ReasonCode: ReasonCodeV5SubscriptionIDNotSupported,
 		Reason:     "subscription identifier not supported",

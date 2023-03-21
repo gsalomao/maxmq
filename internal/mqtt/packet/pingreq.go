@@ -30,7 +30,7 @@ type PingReq struct {
 	size      int
 }
 
-func newPacketPingReq(opts options) (Packet, error) {
+func newPacketPingReq(opts options) (p Packet, err error) {
 	if opts.packetType != PINGREQ {
 		return nil, errors.New("packet type is not PINGREQ")
 	}
@@ -43,11 +43,12 @@ func newPacketPingReq(opts options) (Packet, error) {
 		return nil, errors.New("invalid Remain Length (PINGREQ)")
 	}
 
-	return &PingReq{
+	p = &PingReq{
 		Version:   opts.version,
 		size:      opts.fixedHeaderLength,
 		timestamp: opts.timestamp,
-	}, nil
+	}
+	return p, nil
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.

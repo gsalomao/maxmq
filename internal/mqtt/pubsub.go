@@ -32,18 +32,13 @@ const (
 type pubSubAction byte
 
 type packetDeliverer interface {
-	deliverPacket(id packet.ClientID, pkt *packet.Publish) error
+	deliverPacket(id packet.ClientID, p *packet.Publish) error
 }
 
-func newPubSubManager(
-	pd packetDeliverer,
-	sm handler.SessionStore,
-	mt *metrics,
-	l *logger.Logger,
-) *pubSubManager {
+func newPubSubManager(pd packetDeliverer, ss handler.SessionStore, mt *metrics, l *logger.Logger) *pubSubManager {
 	return &pubSubManager{
 		deliverer:  pd,
-		sessionMgr: sm,
+		sessionMgr: ss,
 		metrics:    mt,
 		log:        l.WithPrefix("pubsub"),
 		tree:       handler.NewSubscriptionTree(),

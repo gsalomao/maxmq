@@ -45,7 +45,7 @@ type PubRec struct {
 	remainLength int
 }
 
-func newPacketPubRec(opts options) (Packet, error) {
+func newPacketPubRec(opts options) (p Packet, err error) {
 	if opts.packetType != PUBREC {
 		return nil, errors.New("packet type is not PUBREC")
 	}
@@ -62,17 +62,18 @@ func newPacketPubRec(opts options) (Packet, error) {
 		return nil, errors.New("invalid remaining length (PUBREC)")
 	}
 
-	return &PubRec{
+	p = &PubRec{
 		Version:      opts.version,
 		size:         opts.fixedHeaderLength + opts.remainingLength,
 		remainLength: opts.remainingLength,
 		timestamp:    opts.timestamp,
-	}, nil
+	}
+	return p, nil
 }
 
 // NewPubRec creates a PUBREC Packet.
-func NewPubRec(id ID, v Version, c ReasonCode, props *Properties) PubRec {
-	return PubRec{PacketID: id, Version: v, ReasonCode: c, Properties: props}
+func NewPubRec(id ID, v Version, c ReasonCode, p *Properties) PubRec {
+	return PubRec{PacketID: id, Version: v, ReasonCode: c, Properties: p}
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.
@@ -162,17 +163,10 @@ func (pkt *PubRec) Timestamp() time.Time {
 }
 
 func (pkt *PubRec) isValidReasonCode() bool {
-	validPubRecReasonCodes := []ReasonCode{
-		ReasonCodeV5Success,
-		ReasonCodeV5NoMatchingSubscribers,
-		ReasonCodeV5UnspecifiedError,
-		ReasonCodeV5ImplementationError,
-		ReasonCodeV5NotAuthorized,
-		ReasonCodeV5TopicNameInvalid,
-		ReasonCodeV5PacketIDInUse,
-		ReasonCodeV5QuotaExceeded,
-		ReasonCodeV5PayloadFormatInvalid,
-	}
+	validPubRecReasonCodes := []ReasonCode{ReasonCodeV5Success, ReasonCodeV5NoMatchingSubscribers,
+		ReasonCodeV5UnspecifiedError, ReasonCodeV5ImplementationError, ReasonCodeV5NotAuthorized,
+		ReasonCodeV5TopicNameInvalid, ReasonCodeV5PacketIDInUse, ReasonCodeV5QuotaExceeded,
+		ReasonCodeV5PayloadFormatInvalid}
 
 	for _, code := range validPubRecReasonCodes {
 		if pkt.ReasonCode == code {

@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDisconnectHandlerHandlePacket(t *testing.T) {
+func TestDisconnectHandlePacket(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -37,7 +37,7 @@ func TestDisconnectHandlerHandlePacket(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewDisconnectHandler(st, subMgr, log)
+			h := NewDisconnect(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{
@@ -53,7 +53,7 @@ func TestDisconnectHandlerHandlePacket(t *testing.T) {
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
 
-			discPkt := packet.NewDisconnect(tc, packet.ReasonCodeV5Success, nil /*props*/)
+			discPkt := packet.NewDisconnect(tc, packet.ReasonCodeV5Success, nil)
 			replies, err := h.HandlePacket(id, &discPkt)
 			assert.Nil(t, err)
 			assert.Empty(t, replies)
@@ -65,7 +65,7 @@ func TestDisconnectHandlerHandlePacket(t *testing.T) {
 	}
 }
 
-func TestDisconnectHandlerHandlePacketCleanSession(t *testing.T) {
+func TestDisconnectHandlePacketCleanSession(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -77,7 +77,7 @@ func TestDisconnectHandlerHandlePacketCleanSession(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewDisconnectHandler(st, subMgr, log)
+			h := NewDisconnect(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{
@@ -95,7 +95,7 @@ func TestDisconnectHandlerHandlePacketCleanSession(t *testing.T) {
 			st.On("DeleteSession", s).Return(nil)
 			subMgr.On("Unsubscribe", id, sub.TopicFilter).Return(nil)
 
-			discPkt := packet.NewDisconnect(tc, packet.ReasonCodeV5Success, nil /*props*/)
+			discPkt := packet.NewDisconnect(tc, packet.ReasonCodeV5Success, nil)
 			replies, err := h.HandlePacket(id, &discPkt)
 			assert.Nil(t, err)
 			require.Empty(t, replies)
@@ -107,11 +107,11 @@ func TestDisconnectHandlerHandlePacketCleanSession(t *testing.T) {
 	}
 }
 
-func TestDisconnectHandlerHandlePacketV5ExpiryInterval(t *testing.T) {
+func TestDisconnectHandlePacketV5ExpiryInterval(t *testing.T) {
 	st := &sessionStoreMock{}
 	subMgr := &subscriptionMgrMock{}
 	log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-	h := NewDisconnectHandler(st, subMgr, log)
+	h := NewDisconnect(st, subMgr, log)
 
 	id := packet.ClientID("a")
 	s := &Session{ClientID: id, Version: packet.MQTT50, Connected: true, ExpiryInterval: 600}
@@ -132,25 +132,19 @@ func TestDisconnectHandlerHandlePacketV5ExpiryInterval(t *testing.T) {
 	subMgr.AssertExpectations(t)
 }
 
-func TestDisconnectHandlerHandlePacketV5CleanSessionExpInterval(t *testing.T) {
+func TestDisconnectHandlePacketV5CleanSessionExpInterval(t *testing.T) {
 	st := &sessionStoreMock{}
 	subMgr := &subscriptionMgrMock{}
 	log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-	h := NewDisconnectHandler(st, subMgr, log)
+	h := NewDisconnect(st, subMgr, log)
 
 	id := packet.ClientID("a")
-	s := &Session{
-		ClientID:       id,
-		Version:        packet.MQTT50,
-		Connected:      true,
-		CleanSession:   true,
-		ExpiryInterval: 600,
-	}
+	s := &Session{ClientID: id, Version: packet.MQTT50, Connected: true, CleanSession: true, ExpiryInterval: 600}
 
 	st.On("ReadSession", id).Return(s, nil)
 	st.On("SaveSession", s).Return(nil)
 
-	discPkt := packet.NewDisconnect(packet.MQTT50, packet.ReasonCodeV5Success, nil /*props*/)
+	discPkt := packet.NewDisconnect(packet.MQTT50, packet.ReasonCodeV5Success, nil)
 	replies, err := h.HandlePacket(id, &discPkt)
 	assert.Nil(t, err)
 	assert.Empty(t, replies)
@@ -159,11 +153,11 @@ func TestDisconnectHandlerHandlePacketV5CleanSessionExpInterval(t *testing.T) {
 	subMgr.AssertExpectations(t)
 }
 
-func TestDisconnectHandlerHandlePacketV5InvalidExpiryInterval(t *testing.T) {
+func TestDisconnectHandlePacketV5InvalidExpiryInterval(t *testing.T) {
 	st := &sessionStoreMock{}
 	subMgr := &subscriptionMgrMock{}
 	log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-	h := NewDisconnectHandler(st, subMgr, log)
+	h := NewDisconnect(st, subMgr, log)
 
 	id := packet.ClientID("a")
 	s := &Session{ClientID: id, Version: packet.MQTT50, Connected: true}
@@ -189,7 +183,7 @@ func TestDisconnectHandlerHandlePacketV5InvalidExpiryInterval(t *testing.T) {
 	subMgr.AssertExpectations(t)
 }
 
-func TestDisconnectHandlerHandlePacketReadSessionError(t *testing.T) {
+func TestDisconnectHandlePacketReadSessionError(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -201,12 +195,12 @@ func TestDisconnectHandlerHandlePacketReadSessionError(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewDisconnectHandler(st, subMgr, log)
+			h := NewDisconnect(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)
 
-			discPkt := packet.NewDisconnect(tc, packet.ReasonCodeV5Success, nil /*props*/)
+			discPkt := packet.NewDisconnect(tc, packet.ReasonCodeV5Success, nil)
 			replies, err := h.HandlePacket(id, &discPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)
@@ -216,7 +210,7 @@ func TestDisconnectHandlerHandlePacketReadSessionError(t *testing.T) {
 	}
 }
 
-func TestDisconnectHandlerHandlePacketSaveSessionError(t *testing.T) {
+func TestDisconnectHandlePacketSaveSessionError(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -228,7 +222,7 @@ func TestDisconnectHandlerHandlePacketSaveSessionError(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewDisconnectHandler(st, subMgr, log)
+			h := NewDisconnect(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, Connected: true}
@@ -236,11 +230,7 @@ func TestDisconnectHandlerHandlePacketSaveSessionError(t *testing.T) {
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(errors.New("failed"))
 
-			discPkt := packet.NewDisconnect(
-				packet.MQTT50,
-				packet.ReasonCodeV5Success,
-				nil, /*props*/
-			)
+			discPkt := packet.NewDisconnect(packet.MQTT50, packet.ReasonCodeV5Success, nil)
 			replies, err := h.HandlePacket(id, &discPkt)
 			assert.Nil(t, err)
 			assert.Empty(t, replies)
@@ -250,7 +240,7 @@ func TestDisconnectHandlerHandlePacketSaveSessionError(t *testing.T) {
 	}
 }
 
-func TestDisconnectHandlerHandlePacketDeleteSessionError(t *testing.T) {
+func TestDisconnectHandlePacketDeleteSessionError(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -262,24 +252,15 @@ func TestDisconnectHandlerHandlePacketDeleteSessionError(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewDisconnectHandler(st, subMgr, log)
+			h := NewDisconnect(st, subMgr, log)
 
 			id := packet.ClientID("a")
-			s := &Session{
-				ClientID:     id,
-				Version:      tc,
-				Connected:    true,
-				CleanSession: true,
-			}
+			s := &Session{ClientID: id, Version: tc, Connected: true, CleanSession: true}
 
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("DeleteSession", s).Return(errors.New("failed"))
 
-			discPkt := packet.NewDisconnect(
-				packet.MQTT311,
-				packet.ReasonCodeV5Success,
-				nil, /*props*/
-			)
+			discPkt := packet.NewDisconnect(packet.MQTT311, packet.ReasonCodeV5Success, nil)
 			replies, err := h.HandlePacket(id, &discPkt)
 			assert.Nil(t, err)
 			assert.Empty(t, replies)

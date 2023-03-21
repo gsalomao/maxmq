@@ -34,7 +34,7 @@ var errProtocolError = errors.New("protocol error")
 
 type packetHandler interface {
 	// HandlePacket handles the received packet from client.
-	HandlePacket(id packet.ClientID, p packet.Packet) ([]packet.Packet, error)
+	HandlePacket(id packet.ClientID, p packet.Packet) (replies []packet.Packet, err error)
 }
 
 type connectionManager struct {
@@ -50,13 +50,9 @@ type connectionManager struct {
 	writer       packet.Writer
 }
 
-func newConnectionManager(
-	c *handler.Configuration,
-	st handler.SessionStore,
-	mt *metrics,
-	idGen IDGenerator,
-	l *logger.Logger,
-) *connectionManager {
+func newConnectionManager(c *handler.Configuration, ss handler.SessionStore, mt *metrics, g IDGenerator,
+	l *logger.Logger) *connectionManager {
+
 	c.BufferSize = bufferSizeOrDefault(c.BufferSize)
 	c.ConnectTimeout = connectTimeoutOrDefault(c.ConnectTimeout)
 	c.DefaultVersion = defaultVersionOrDefault(c.DefaultVersion)
@@ -70,7 +66,7 @@ func newConnectionManager(
 	rdOpts := packet.ReaderOptions{BufferSize: c.BufferSize, MaxPacketSize: c.MaxPacketSize}
 	cm := &connectionManager{
 		conf:         c,
-		sessionStore: st,
+		sessionStore: ss,
 		metrics:      mt,
 		log:          l.WithPrefix("connmgr"),
 		connections:  make(map[packet.ClientID]*connection),
@@ -78,20 +74,20 @@ func newConnectionManager(
 		writer:       packet.NewWriter(c.BufferSize),
 	}
 
-	ps := newPubSubManager(cm, st, mt, l)
+	ps := newPubSubManager(cm, ss, mt, l)
 	cm.pubSub = ps
 	hl := l.WithPrefix("handler")
 	cm.handlers = map[packet.Type]packetHandler{
-		packet.CONNECT:     handler.NewConnectHandler(c, st, hl),
-		packet.DISCONNECT:  handler.NewDisconnectHandler(st, ps, hl),
-		packet.PINGREQ:     handler.NewPingReqHandler(st, hl),
-		packet.SUBSCRIBE:   handler.NewSubscribeHandler(c, st, ps, hl),
-		packet.UNSUBSCRIBE: handler.NewUnsubscribeHandler(st, ps, hl),
-		packet.PUBLISH:     handler.NewPublishHandler(st, ps, idGen, hl),
-		packet.PUBACK:      handler.NewPubAckHandler(st, hl),
-		packet.PUBREC:      handler.NewPubRecHandler(st, hl),
-		packet.PUBREL:      handler.NewPubRelHandler(st, ps, hl),
-		packet.PUBCOMP:     handler.NewPubCompHandler(st, hl),
+		packet.CONNECT:     handler.NewConnect(c, ss, hl),
+		packet.DISCONNECT:  handler.NewDisconnect(ss, ps, hl),
+		packet.PINGREQ:     handler.NewPingReq(ss, hl),
+		packet.SUBSCRIBE:   handler.NewSubscribe(c, ss, ps, hl),
+		packet.UNSUBSCRIBE: handler.NewUnsubscribe(ss, ps, hl),
+		packet.PUBLISH:     handler.NewPublish(ss, ps, g, hl),
+		packet.PUBACK:      handler.NewPubAck(ss, hl),
+		packet.PUBREC:      handler.NewPubRec(ss, hl),
+		packet.PUBREL:      handler.NewPubRel(ss, ps, hl),
+		packet.PUBCOMP:     handler.NewPubComp(ss, hl),
 	}
 
 	return cm
@@ -109,7 +105,7 @@ func (cm *connectionManager) stop() {
 }
 
 func (cm *connectionManager) handle(c connection) {
-	defer cm.closeConnection(&c, true /*force*/)
+	defer cm.closeConnection(&c, true)
 
 	c.connected = true
 	cm.metrics.recordConnection()
@@ -258,7 +254,7 @@ func (cm *connectionManager) handlePacket(c *connection, p packet.Packet) error 
 
 		if reply.Type() == packet.DISCONNECT {
 			c.hasSession = false
-			cm.closeConnection(c, false /*force*/)
+			cm.closeConnection(c, false)
 			break
 		}
 	}
@@ -268,7 +264,7 @@ func (cm *connectionManager) handlePacket(c *connection, p packet.Packet) error 
 
 	if p.Type() == packet.DISCONNECT {
 		c.hasSession = false
-		cm.closeConnection(c, false /*force*/)
+		cm.closeConnection(c, false)
 
 		latency := time.Since(p.Timestamp())
 		cm.metrics.recordDisconnectLatency(latency)
@@ -342,7 +338,7 @@ func (cm *connectionManager) closeConnection(c *connection, force bool) {
 		Msg("Closing connection")
 
 	if tcp, ok := c.netConn.(*net.TCPConn); ok && force {
-		_ = tcp.SetLinger(0 /*sec*/)
+		_ = tcp.SetLinger(0)
 	}
 
 	_ = c.netConn.Close()
@@ -420,18 +416,14 @@ func (cm *connectionManager) deliverPacket(id packet.ClientID, p *packet.Publish
 	return nil
 }
 
-func (cm *connectionManager) recordLatencyMetrics(
-	pktType packet.Type,
-	code packet.ReasonCode,
-	latency time.Duration,
-) {
-	if pktType == packet.CONNECT {
-		cm.metrics.recordConnectLatency(latency, int(code))
-	} else if pktType == packet.PINGREQ {
+func (cm *connectionManager) recordLatencyMetrics(t packet.Type, rc packet.ReasonCode, latency time.Duration) {
+	if t == packet.CONNECT {
+		cm.metrics.recordConnectLatency(latency, int(rc))
+	} else if t == packet.PINGREQ {
 		cm.metrics.recordPingLatency(latency)
-	} else if pktType == packet.SUBSCRIBE {
+	} else if t == packet.SUBSCRIBE {
 		cm.metrics.recordSubscribeLatency(latency)
-	} else if pktType == packet.UNSUBSCRIBE {
+	} else if t == packet.UNSUBSCRIBE {
 		cm.metrics.recordUnsubscribeLatency(latency)
 	}
 }

@@ -26,7 +26,7 @@ import (
 // Reader is responsible for read packets.
 type Reader interface {
 	// ReadPacket reads and unpack a MQTT Packet from the io.Reader.
-	ReadPacket(r io.Reader, v Version) (Packet, error)
+	ReadPacket(r io.Reader, v Version) (p Packet, err error)
 }
 
 // ReaderOptions contains the options for the Reader.
@@ -55,10 +55,10 @@ func NewReader(o ReaderOptions) Reader {
 
 // ReadPacket reads and unpack a MQTT Packet from the io.Reader.
 // It returns an error if it fails to read or unpack the packet.
-func (r *reader) ReadPacket(rd io.Reader, v Version) (Packet, error) {
+func (r *reader) ReadPacket(rd io.Reader, v Version) (p Packet, err error) {
 	ctrlByte := make([]byte, 1)
 
-	_, err := rd.Read(ctrlByte)
+	_, err = rd.Read(ctrlByte)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read control byte: %w", err)
 	}
@@ -68,8 +68,9 @@ func (r *reader) ReadPacket(rd io.Reader, v Version) (Packet, error) {
 	defer r.readerPool.Put(bufRd)
 	bufRd.Reset(rd)
 
+	var n int
 	var remainLen int
-	n, err := readVarInteger(bufRd, &remainLen)
+	n, err = readVarInteger(bufRd, &remainLen)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read remain length: %w", err)
 	}
@@ -87,16 +88,15 @@ func (r *reader) ReadPacket(rd io.Reader, v Version) (Packet, error) {
 		version:           v,
 	}
 
-	pkt, err := newPacket(opts)
+	p, err = newPacket(opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read packet: %w", err)
 	}
 
-	err = pkt.Read(bufRd)
+	err = p.Read(bufRd)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read packet %v: %w",
-			pkt.Type().String(), err)
+		return nil, fmt.Errorf("failed to read packet %v: %w", p.Type().String(), err)
 	}
 
-	return pkt, nil
+	return p, nil
 }

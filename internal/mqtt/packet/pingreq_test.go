@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -85,11 +85,7 @@ func BenchmarkPingReqRead(b *testing.B) {
 }
 
 func TestPingReqSize(t *testing.T) {
-	opts := options{
-		packetType:        PINGREQ,
-		remainingLength:   0,
-		fixedHeaderLength: 2,
-	}
+	opts := options{packetType: PINGREQ, remainingLength: 0, fixedHeaderLength: 2}
 	pkt, err := newPacketPingReq(opts)
 	require.Nil(t, err)
 	require.NotNil(t, pkt)
@@ -98,11 +94,7 @@ func TestPingReqSize(t *testing.T) {
 }
 
 func TestPingReqTimestamp(t *testing.T) {
-	opts := options{
-		packetType:        PINGREQ,
-		remainingLength:   0,
-		fixedHeaderLength: 2,
-	}
+	opts := options{packetType: PINGREQ, remainingLength: 0, fixedHeaderLength: 2}
 	pkt, err := newPacketPingReq(opts)
 	require.Nil(t, err)
 	require.NotNil(t, pkt)

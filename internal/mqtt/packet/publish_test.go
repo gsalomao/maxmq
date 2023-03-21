@@ -112,17 +112,7 @@ func TestPublishWriteV5Properties(t *testing.T) {
 	props := &Properties{PayloadFormatIndicator: new(byte)}
 	*props.PayloadFormatIndicator = 1
 
-	pkt := NewPublish(
-		5, /*id*/
-		MQTT50,
-		"a", /*topic*/
-		QoS0,
-		0,           /*dup*/
-		0,           /*retain*/
-		[]byte{'b'}, /*payload*/
-		props,
-	)
-
+	pkt := NewPublish(5, MQTT50, "t", QoS0, 0, 0, []byte{'d'}, props)
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 
@@ -132,21 +122,12 @@ func TestPublishWriteV5Properties(t *testing.T) {
 	err = wr.Flush()
 	assert.Nil(t, err)
 
-	msg := []byte{0x30, 7, 0, 1, 'a', 2, 1, 1, 'b'}
+	msg := []byte{0x30, 7, 0, 1, 't', 2, 1, 1, 'd'}
 	assert.Equal(t, msg, buf.Bytes())
 }
 
 func TestPublishWriteFailure(t *testing.T) {
-	pkt := NewPublish(
-		5, /*id*/
-		MQTT50,
-		"a", /*topic*/
-		QoS0,
-		0,           /*dup*/
-		0,           /*retain*/
-		[]byte{'b'}, /*payload*/
-		nil,         /*props*/
-	)
+	pkt := NewPublish(5, MQTT50, "t", QoS0, 0, 0, []byte{'d'}, nil)
 	require.NotNil(t, pkt)
 
 	conn, _ := net.Pipe()
@@ -161,17 +142,7 @@ func TestPublishWriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{MaximumQoS: new(byte)}
 	*props.MaximumQoS = 1
 
-	pkt := NewPublish(
-		5, /*id*/
-		MQTT50,
-		"a", /*topic*/
-		QoS0,
-		0,           /*dup*/
-		0,           /*retain*/
-		[]byte{'b'}, /*payload*/
-		props,       /*props*/
-	)
-
+	pkt := NewPublish(5, MQTT50, "t", QoS0, 0, 0, []byte{'d'}, props)
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
 
@@ -241,11 +212,7 @@ func TestPublishRead(t *testing.T) {
 
 func TestPublishReadInvalidLength(t *testing.T) {
 	var msg []byte
-	opts := options{
-		packetType:      PUBLISH,
-		version:         MQTT311,
-		remainingLength: 10,
-	}
+	opts := options{packetType: PUBLISH, version: MQTT311, remainingLength: 10}
 	pkt, err := newPacketPublish(opts)
 	require.Nil(t, err)
 
@@ -261,12 +228,7 @@ func TestPublishReadV5InvalidProperty(t *testing.T) {
 		0x13, 0, 5, // ServerKeepAlive
 		'm', 's', 'g', // payload
 	}
-	opts := options{
-		packetType:      PUBLISH,
-		version:         MQTT50,
-		remainingLength: len(msg),
-		controlFlags:    0x2,
-	}
+	opts := options{packetType: PUBLISH, version: MQTT50, remainingLength: len(msg), controlFlags: 0x2}
 	pkt, err := newPacketPublish(opts)
 	require.Nil(t, err)
 
@@ -278,12 +240,7 @@ func TestPublishReadNoTopic(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 	}
-	opts := options{
-		packetType:      PUBLISH,
-		version:         MQTT31,
-		controlFlags:    0x2,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: PUBLISH, version: MQTT31, controlFlags: 0x2, remainingLength: len(msg)}
 	pkt, err := newPacketPublish(opts)
 	require.Nil(t, err)
 
@@ -295,12 +252,7 @@ func TestPublishReadNoPacketID(t *testing.T) {
 	msg := []byte{
 		0, 3, 'a', '/', 'b', // topic
 	}
-	opts := options{
-		packetType:      PUBLISH,
-		version:         MQTT311,
-		controlFlags:    0x2,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: PUBLISH, version: MQTT311, controlFlags: 0x2, remainingLength: len(msg)}
 	pkt, err := newPacketPublish(opts)
 	require.Nil(t, err)
 
@@ -317,11 +269,7 @@ func TestPublishReadInvalidTopicName(t *testing.T) {
 			msg = append(msg, []byte(tc)...)
 			msg = append(msg, 0, 30)
 
-			opts := options{
-				packetType:      PUBLISH,
-				version:         MQTT311,
-				remainingLength: len(msg),
-			}
+			opts := options{packetType: PUBLISH, version: MQTT311, remainingLength: len(msg)}
 			pkt, err := newPacketPublish(opts)
 			require.Nil(t, err)
 
@@ -346,12 +294,7 @@ func TestPublishSize(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			opts := options{
-				packetType:        PUBLISH,
-				version:           MQTT311,
-				fixedHeaderLength: 2,
-				remainingLength:   tc.remainLen,
-			}
+			opts := options{packetType: PUBLISH, version: MQTT311, fixedHeaderLength: 2, remainingLength: tc.remainLen}
 			pkt, err := newPacketPublish(opts)
 			require.Nil(t, err)
 			require.NotNil(t, pkt)
@@ -368,11 +311,7 @@ func TestPublishTimestamp(t *testing.T) {
 		0,             // property length
 		'm', 's', 'g', // payload
 	}
-	opts := options{
-		packetType:      PUBLISH,
-		version:         MQTT50,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: PUBLISH, version: MQTT50, remainingLength: len(msg)}
 	pkt, err := newPacketPublish(opts)
 	require.Nil(t, err)
 	require.NotNil(t, pkt)
@@ -389,26 +328,14 @@ func TestPublishClone(t *testing.T) {
 		retain  uint8
 		payload []byte
 	}{
-		{id: 1, version: MQTT31, topic: "temp/0", qos: QoS0, dup: 0, retain: 0,
-			payload: []byte("data-0")},
-		{id: 2, version: MQTT311, topic: "temp/1", qos: QoS1, dup: 0, retain: 1,
-			payload: []byte("data-1")},
-		{id: 3, version: MQTT50, topic: "temp/2", qos: QoS2, dup: 1, retain: 0,
-			payload: []byte("data-2")},
+		{id: 1, version: MQTT31, topic: "temp/0", qos: QoS0, dup: 0, retain: 0, payload: []byte("data-0")},
+		{id: 2, version: MQTT311, topic: "temp/1", qos: QoS1, dup: 0, retain: 1, payload: []byte("data-1")},
+		{id: 3, version: MQTT50, topic: "temp/2", qos: QoS2, dup: 1, retain: 0, payload: []byte("data-2")},
 	}
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprint(tc.id), func(t *testing.T) {
-			pkt1 := NewPublish(
-				tc.id,
-				tc.version,
-				tc.topic,
-				tc.qos,
-				tc.dup,
-				tc.retain,
-				tc.payload,
-				nil, /*props*/
-			)
+			pkt1 := NewPublish(tc.id, tc.version, tc.topic, tc.qos, tc.dup, tc.retain, tc.payload, nil)
 			pkt2 := pkt1.Clone()
 
 			assert.Equal(t, pkt1.PacketID, pkt2.PacketID)
@@ -426,16 +353,7 @@ func TestPublishCloneProperties(t *testing.T) {
 	props := Properties{PayloadFormatIndicator: new(byte)}
 	*props.PayloadFormatIndicator = 5
 
-	pkt1 := NewPublish(
-		1, /*id*/
-		MQTT50,
-		"data", /*topic*/
-		QoS1,
-		1,             /*dup*/
-		1,             /*retain*/
-		[]byte("raw"), /*payload*/
-		&props,
-	)
+	pkt1 := NewPublish(1, MQTT50, "topic", QoS1, 1, 1, []byte("raw"), &props)
 	pkt2 := pkt1.Clone()
 
 	require.NotNil(t, pkt2.Properties)

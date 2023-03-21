@@ -38,7 +38,7 @@ type SessionStore interface {
 	NewSession(id packet.ClientID) *Session
 
 	// ReadSession reads the Session for the given client identifier.
-	ReadSession(id packet.ClientID) (*Session, error)
+	ReadSession(id packet.ClientID) (s *Session, err error)
 
 	// SaveSession saves the given Session.
 	SaveSession(s *Session) error
@@ -67,16 +67,15 @@ type Session struct {
 	// Mutex is the mutual exclusion lock to control concurrent access in the session.
 	Mutex sync.RWMutex
 
-	// KeepAlive is a time interval, measured in seconds, that is permitted to elapse between the
-	// point at which the client finishes transmitting one Control Packet and the point it starts
-	// sending the next.
+	// KeepAlive is a time interval, measured in seconds, that is permitted to elapse between the point at which the
+	// client finishes transmitting one Control Packet and the point it starts sending the next.
 	KeepAlive int
 
 	// ConnectedAt is the timestamp which the last connection was established.
 	ConnectedAt int64
 
-	// ExpiryInterval is the time, in seconds, which the server must store the session after the
-	// network connection is closed.
+	// ExpiryInterval is the time, in seconds, which the server must store the session after the network connection is
+	// closed.
 	ExpiryInterval uint32
 
 	// LastPacketID is the last packet identified generated in the session.
@@ -94,8 +93,7 @@ type Session struct {
 	// Restored indicates whether the session was restored or not.
 	Restored bool
 
-	// ClientIDGenerated indicates whether the client identifier was generated or given by the
-	// CONNECT packet.
+	// ClientIDGenerated indicates whether the client identifier was generated or given by the CONNECT packet.
 	ClientIDGenerated bool
 }
 
@@ -103,11 +101,11 @@ type Session struct {
 func (s *Session) NextPacketID() packet.ID {
 	id := atomic.LoadUint32(&s.LastPacketID)
 	if id == uint32(65535) || id == uint32(0) {
-		atomic.StoreUint32(&s.LastPacketID, 1 /*val*/)
+		atomic.StoreUint32(&s.LastPacketID, 1)
 		return 1
 	}
 
-	return packet.ID(atomic.AddUint32(&s.LastPacketID, 1 /*delta*/))
+	return packet.ID(atomic.AddUint32(&s.LastPacketID, 1))
 }
 
 func (s *Session) findInflightMessage(id packet.ID) *list.Element {

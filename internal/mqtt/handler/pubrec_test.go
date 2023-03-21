@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPubRecHandlerHandlePacket(t *testing.T) {
+func TestPubRecHandlePacket(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -37,24 +37,14 @@ func TestPubRecHandlerHandlePacket(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPubRecHandler(st, log)
+			h := NewPubRec(st, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc}
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
 
-			pubPkt := packet.NewPublish(
-				1,       /*id*/
-				tc,      /*version*/
-				"topic", /*topic*/
-				packet.QoS2,
-				0,              /*dup*/
-				0,              /*retain*/
-				[]byte("data"), /*payload*/
-				nil,            /*props*/
-			)
-
+			pubPkt := packet.NewPublish(1, tc, "t", packet.QoS2, 0, 0, []byte("d"), nil)
 			msg := &Message{
 				PacketID: pubPkt.PacketID,
 				Packet:   &pubPkt,
@@ -62,13 +52,8 @@ func TestPubRecHandlerHandlePacket(t *testing.T) {
 				LastSent: time.Now().UnixMicro(),
 			}
 			s.InflightMessages.PushBack(msg)
+			pubRecPkt := packet.NewPubRec(pubPkt.PacketID, pubPkt.Version, packet.ReasonCodeV5Success, nil)
 
-			pubRecPkt := packet.NewPubRec(
-				pubPkt.PacketID,
-				pubPkt.Version,
-				packet.ReasonCodeV5Success,
-				nil, /*props*/
-			)
 			replies, err := h.HandlePacket(id, &pubRecPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -93,7 +78,7 @@ func TestPubRecHandlerHandlePacket(t *testing.T) {
 	}
 }
 
-func TestPubRecHandlerHandlePacketAlreadyConfirmed(t *testing.T) {
+func TestPubRecHandlePacketAlreadyConfirmed(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -104,7 +89,7 @@ func TestPubRecHandlerHandlePacketAlreadyConfirmed(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPubRecHandler(st, log)
+			h := NewPubRec(st, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc}
@@ -112,13 +97,8 @@ func TestPubRecHandlerHandlePacketAlreadyConfirmed(t *testing.T) {
 
 			msg := &Message{PacketID: 1, Tries: 1, LastSent: time.Now().UnixMicro()}
 			s.InflightMessages.PushBack(msg)
+			pubRecPkt := packet.NewPubRec(msg.PacketID, tc, packet.ReasonCodeV5Success, nil)
 
-			pubRecPkt := packet.NewPubRec(
-				msg.PacketID,
-				tc, /*version*/
-				packet.ReasonCodeV5Success,
-				nil, /*props*/
-			)
 			replies, err := h.HandlePacket(id, &pubRecPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -149,7 +129,7 @@ func TestPubRecHandlerHandlePacketAlreadyConfirmed(t *testing.T) {
 	}
 }
 
-func TestPubRecHandlerHandlePacketV3PacketIDNotFound(t *testing.T) {
+func TestPubRecHandlePacketV3PacketIDNotFound(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -159,18 +139,13 @@ func TestPubRecHandlerHandlePacketV3PacketIDNotFound(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPubRecHandler(st, log)
+			h := NewPubRec(st, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc}
 			st.On("ReadSession", id).Return(s, nil)
+			pubRecPkt := packet.NewPubRec(2, tc, packet.ReasonCodeV5Success, nil)
 
-			pubRecPkt := packet.NewPubRec(
-				2,  /*id*/
-				tc, /*version*/
-				packet.ReasonCodeV5Success,
-				nil, /*props*/
-			)
 			replies, err := h.HandlePacket(id, &pubRecPkt)
 			assert.NotNil(t, err)
 			assert.Len(t, replies, 0)
@@ -179,21 +154,16 @@ func TestPubRecHandlerHandlePacketV3PacketIDNotFound(t *testing.T) {
 	}
 }
 
-func TestPubRecHandlerHandlePacketV5PacketIDNotFound(t *testing.T) {
+func TestPubRecHandlePacketV5PacketIDNotFound(t *testing.T) {
 	st := &sessionStoreMock{}
 	log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-	h := NewPubRecHandler(st, log)
+	h := NewPubRec(st, log)
 
 	id := packet.ClientID("a")
 	s := &Session{ClientID: id, Version: packet.MQTT50}
 	st.On("ReadSession", id).Return(s, nil)
+	pubRecPkt := packet.NewPubRec(2, packet.MQTT50, packet.ReasonCodeV5Success, nil)
 
-	pubRecPkt := packet.NewPubRec(
-		2, /*id*/
-		packet.MQTT50,
-		packet.ReasonCodeV5Success,
-		nil, /*props*/
-	)
 	replies, err := h.HandlePacket(id, &pubRecPkt)
 	require.Nil(t, err)
 	require.Len(t, replies, 1)
@@ -208,7 +178,7 @@ func TestPubRecHandlerHandlePacketV5PacketIDNotFound(t *testing.T) {
 	st.AssertExpectations(t)
 }
 
-func TestPubRecHandlerHandlePacketReadSessionError(t *testing.T) {
+func TestPubRecHandlePacketReadSessionError(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -219,17 +189,12 @@ func TestPubRecHandlerHandlePacketReadSessionError(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPubRecHandler(st, log)
+			h := NewPubRec(st, log)
 			id := packet.ClientID("a")
 
 			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)
+			pubRecPkt := packet.NewPubRec(1, tc, packet.ReasonCodeV5Success, nil)
 
-			pubRecPkt := packet.NewPubRec(
-				1,  /*id*/
-				tc, /*version*/
-				packet.ReasonCodeV5Success,
-				nil, /*props*/
-			)
 			replies, err := h.HandlePacket(id, &pubRecPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)
@@ -238,7 +203,7 @@ func TestPubRecHandlerHandlePacketReadSessionError(t *testing.T) {
 	}
 }
 
-func TestPubRecHandlerHandlePacketSaveSessionError(t *testing.T) {
+func TestPubRecHandlePacketSaveSessionError(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -249,7 +214,7 @@ func TestPubRecHandlerHandlePacketSaveSessionError(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPubRecHandler(st, log)
+			h := NewPubRec(st, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: packet.MQTT50}
@@ -257,17 +222,7 @@ func TestPubRecHandlerHandlePacketSaveSessionError(t *testing.T) {
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(errors.New("failed"))
 
-			pubPkt := packet.NewPublish(
-				1,       /*id*/
-				tc,      /*version*/
-				"topic", /*topic*/
-				packet.QoS2,
-				0,              /*dup*/
-				0,              /*retain*/
-				[]byte("data"), /*payload*/
-				nil,            /*props*/
-			)
-
+			pubPkt := packet.NewPublish(1, tc, "t", packet.QoS2, 0, 0, []byte("d"), nil)
 			msg := &Message{
 				PacketID: pubPkt.PacketID,
 				Packet:   &pubPkt,
@@ -275,13 +230,8 @@ func TestPubRecHandlerHandlePacketSaveSessionError(t *testing.T) {
 				LastSent: time.Now().UnixMicro(),
 			}
 			s.InflightMessages.PushBack(msg)
+			pubRecPkt := packet.NewPubRec(1, tc, packet.ReasonCodeV5Success, nil)
 
-			pubRecPkt := packet.NewPubRec(
-				1,  /*id*/
-				tc, /*version*/
-				packet.ReasonCodeV5Success,
-				nil, /*props*/
-			)
 			replies, err := h.HandlePacket(id, &pubRecPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)

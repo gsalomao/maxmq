@@ -56,12 +56,9 @@ func TestPubSubManagerRun(t *testing.T) {
 
 func TestPubSubManagerSubscribe(t *testing.T) {
 	testCases := []packet.Topic{
-		{Name: "sensor/temp0", QoS: packet.QoS0, RetainHandling: 0, RetainAsPublished: false,
-			NoLocal: false},
-		{Name: "sensor/temp1", QoS: packet.QoS1, RetainHandling: 1, RetainAsPublished: false,
-			NoLocal: true},
-		{Name: "sensor/temp2", QoS: packet.QoS2, RetainHandling: 0, RetainAsPublished: true,
-			NoLocal: false},
+		{Name: "sensor/temp0", QoS: packet.QoS0, RetainHandling: 0, RetainAsPublished: false, NoLocal: false},
+		{Name: "sensor/temp1", QoS: packet.QoS1, RetainHandling: 1, RetainAsPublished: false, NoLocal: true},
+		{Name: "sensor/temp2", QoS: packet.QoS2, RetainHandling: 0, RetainAsPublished: true, NoLocal: false},
 	}
 
 	for _, tc := range testCases {
@@ -164,17 +161,7 @@ func TestPubSubManagerPublishMessage(t *testing.T) {
 	mt := newMetrics(true, log)
 	ps := newPubSubManager(pd, sm, mt, log)
 
-	pubPkt := packet.NewPublish(
-		1, /*id*/
-		packet.MQTT311,
-		"test", /*topic*/
-		packet.QoS1,
-		0,   /*dup*/
-		0,   /*retain*/
-		nil, /*payload*/
-		nil, /*props*/
-	)
-
+	pubPkt := packet.NewPublish(1, packet.MQTT311, "t", packet.QoS1, 0, 0, nil, nil)
 	msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 
 	err := ps.Publish(msg)
@@ -194,17 +181,7 @@ func TestPubSubManagerHandleQueuedMessagesNoSubscription(t *testing.T) {
 	mt := newMetrics(true, log)
 	ps := newPubSubManager(pd, sm, mt, log)
 
-	pubPkt := packet.NewPublish(
-		1, /*id*/
-		packet.MQTT311,
-		"test", /*topic*/
-		packet.QoS0,
-		0,   /*dup*/
-		0,   /*retain*/
-		nil, /*payload*/
-		nil, /*props*/
-	)
-
+	pubPkt := packet.NewPublish(1, packet.MQTT311, "t", packet.QoS0, 0, 0, nil, nil)
 	msg := handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 	ps.queue.Enqueue(&msg)
 
@@ -236,17 +213,7 @@ func TestPubSubManagerHandleQueuedMessages(t *testing.T) {
 			_, err := ps.tree.Insert(sub)
 			require.Nil(t, err)
 
-			pubPkt := packet.NewPublish(
-				tc.id,
-				packet.MQTT311,
-				tc.topic,
-				tc.qos,
-				0,   /*dup*/
-				0,   /*retain*/
-				nil, /*payload*/
-				nil, /*props*/
-			)
-
+			pubPkt := packet.NewPublish(tc.id, packet.MQTT311, tc.topic, tc.qos, 0, 0, nil, nil)
 			msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 			ps.queue.Enqueue(msg)
 
@@ -303,17 +270,7 @@ func TestPubSubManagerHandleQueuedMessagesMultipleSubscribers(t *testing.T) {
 				require.Nil(t, err)
 			}
 
-			pubPkt := packet.NewPublish(
-				1, /*id*/
-				packet.MQTT311,
-				tc.topic,
-				packet.QoS0,
-				0,   /*dup*/
-				0,   /*retain*/
-				nil, /*payload*/
-				nil, /*props*/
-			)
-
+			pubPkt := packet.NewPublish(1, packet.MQTT311, tc.topic, packet.QoS0, 0, 0, nil, nil)
 			msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 			ps.queue.Enqueue(msg)
 
@@ -343,20 +300,11 @@ func TestPubSubManagerHandleQueuedMessagesNewPacketID(t *testing.T) {
 			ps := newPubSubManager(pd, sm, mt, log)
 
 			id := packet.ClientID("client")
-			sub := handler.Subscription{ClientID: id, TopicFilter: "a", QoS: tc}
+			sub := handler.Subscription{ClientID: id, TopicFilter: "t", QoS: tc}
 			_, err := ps.tree.Insert(sub)
 			require.Nil(t, err)
 
-			pubPkt := packet.NewPublish(
-				10, /*id*/
-				packet.MQTT311,
-				"a", /*topic*/
-				tc,  /*qos*/
-				0,   /*dup*/
-				0,   /*retain*/
-				nil, /*payload*/
-				nil, /*props*/
-			)
+			pubPkt := packet.NewPublish(10, packet.MQTT311, "t", tc, 0, 0, nil, nil)
 			msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 			ps.queue.Enqueue(msg)
 
@@ -393,20 +341,11 @@ func TestPubSubManagerHandleQueuedMessagesDifferentVersion(t *testing.T) {
 	ps := newPubSubManager(pd, sm, mt, log)
 
 	id := packet.ClientID("client")
-	sub := handler.Subscription{ClientID: id, TopicFilter: "a", QoS: packet.QoS0}
+	sub := handler.Subscription{ClientID: id, TopicFilter: "t", QoS: packet.QoS0}
 	_, err := ps.tree.Insert(sub)
 	require.Nil(t, err)
 
-	pubPkt := packet.NewPublish(
-		1, /*id*/
-		packet.MQTT311,
-		"a", /*topic*/
-		packet.QoS0,
-		0,   /*dup*/
-		0,   /*retain*/
-		nil, /*payload*/
-		nil, /*props*/
-	)
+	pubPkt := packet.NewPublish(1, packet.MQTT311, "t", packet.QoS0, 0, 0, nil, nil)
 	msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 	ps.queue.Enqueue(msg)
 
@@ -439,20 +378,11 @@ func TestPubSubManagerHandleQueuedMessagesDisconnected(t *testing.T) {
 			ps := newPubSubManager(pd, sm, mt, log)
 
 			id := packet.ClientID("client")
-			sub := handler.Subscription{ClientID: id, TopicFilter: "a", QoS: tc}
+			sub := handler.Subscription{ClientID: id, TopicFilter: "t", QoS: tc}
 			_, err := ps.tree.Insert(sub)
 			require.Nil(t, err)
 
-			pubPkt := packet.NewPublish(
-				1, /*id*/
-				packet.MQTT311,
-				"a", /*topic*/
-				tc,  /*qos*/
-				0,   /*dup*/
-				0,   /*retain*/
-				nil, /*payload*/
-				nil, /*props*/
-			)
+			pubPkt := packet.NewPublish(1, packet.MQTT311, "t", tc, 0, 0, nil, nil)
 			msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 			ps.queue.Enqueue(msg)
 
@@ -487,20 +417,11 @@ func TestPubSubManagerHandleQueuedMessagesDeliverPacketError(t *testing.T) {
 			ps := newPubSubManager(pd, sm, mt, log)
 
 			id := packet.ClientID("client")
-			sub := handler.Subscription{ClientID: id, TopicFilter: "a", QoS: tc}
+			sub := handler.Subscription{ClientID: id, TopicFilter: "t", QoS: tc}
 			_, err := ps.tree.Insert(sub)
 			require.Nil(t, err)
 
-			pubPkt := packet.NewPublish(
-				1, /*id*/
-				packet.MQTT311,
-				"a", /*topic*/
-				tc,  /*qos*/
-				0,   /*dup*/
-				0,   /*retain*/
-				nil, /*payload*/
-				nil, /*props*/
-			)
+			pubPkt := packet.NewPublish(1, packet.MQTT311, "t", tc, 0, 0, nil, nil)
 			msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 			ps.queue.Enqueue(msg)
 
@@ -528,20 +449,11 @@ func TestPubSubManagerHandleQueuedMessagesReadSessionError(t *testing.T) {
 	ps := newPubSubManager(pd, sm, mt, log)
 
 	id := packet.ClientID("client")
-	sub := handler.Subscription{ClientID: id, TopicFilter: "a", QoS: packet.QoS0}
+	sub := handler.Subscription{ClientID: id, TopicFilter: "t", QoS: packet.QoS0}
 	_, err := ps.tree.Insert(sub)
 	require.Nil(t, err)
 
-	pubPkt := packet.NewPublish(
-		1, /*id*/
-		packet.MQTT311,
-		"a", /*topic*/
-		packet.QoS0,
-		0,   /*dup*/
-		0,   /*retain*/
-		nil, /*payload*/
-		nil, /*props*/
-	)
+	pubPkt := packet.NewPublish(1, packet.MQTT311, "t", packet.QoS0, 0, 0, nil, nil)
 	msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 	ps.queue.Enqueue(msg)
 
@@ -561,20 +473,11 @@ func TestPubSubManagerHandleQueuedMessagesSaveSessionError(t *testing.T) {
 	ps := newPubSubManager(pd, sm, mt, log)
 
 	id := packet.ClientID("client")
-	sub := handler.Subscription{ClientID: id, TopicFilter: "a", QoS: packet.QoS1}
+	sub := handler.Subscription{ClientID: id, TopicFilter: "t", QoS: packet.QoS1}
 	_, err := ps.tree.Insert(sub)
 	require.Nil(t, err)
 
-	pubPkt := packet.NewPublish(
-		1, /*id*/
-		packet.MQTT311,
-		"a", /*topic*/
-		packet.QoS1,
-		0,   /*dup*/
-		0,   /*retain*/
-		nil, /*payload*/
-		nil, /*props*/
-	)
+	pubPkt := packet.NewPublish(1, packet.MQTT311, "t", packet.QoS1, 0, 0, nil, nil)
 	msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
 	ps.queue.Enqueue(msg)
 

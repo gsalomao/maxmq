@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,12 +63,7 @@ func TestUnsubscribeReadV3(t *testing.T) {
 		0, 5, 'c', '/', 'd', '/', 'e', // topic filter
 		0, 3, 'a', '/', '#', // topic filter
 	}
-	opts := options{
-		packetType:      UNSUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT311,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: UNSUBSCRIBE, controlFlags: 2, version: MQTT311, remainingLength: len(msg)}
 
 	pkt, err := newPacketUnsubscribe(opts)
 	require.Nil(t, err)
@@ -95,12 +90,7 @@ func BenchmarkUnsubscribeReadV3(b *testing.B) {
 		0, 5, 'c', '/', 'd', '/', 'e', // topic filter
 		0, 3, 'a', '/', '#', // topic filter
 	}
-	opts := options{
-		packetType:      UNSUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT311,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: UNSUBSCRIBE, controlFlags: 2, version: MQTT311, remainingLength: len(msg)}
 	pkt, _ := newPacketUnsubscribe(opts)
 	buf := bytes.NewBuffer(msg)
 	rd := bufio.NewReader(buf)
@@ -124,12 +114,7 @@ func TestUnsubscribeReadV5(t *testing.T) {
 		0,                   // property length
 		0, 3, 'a', '/', 'b', // topic filter
 	}
-	opts := options{
-		packetType:      UNSUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT50,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: UNSUBSCRIBE, controlFlags: 2, version: MQTT50, remainingLength: len(msg)}
 	pkt, err := newPacketUnsubscribe(opts)
 	require.Nil(t, err)
 
@@ -151,12 +136,7 @@ func BenchmarkUnsubscribeReadV5(b *testing.B) {
 		0,                   // property length
 		0, 3, 'a', '/', 'b', // topic filter
 	}
-	opts := options{
-		packetType:      UNSUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT50,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: UNSUBSCRIBE, controlFlags: 2, version: MQTT50, remainingLength: len(msg)}
 	pkt, _ := newPacketUnsubscribe(opts)
 	buf := bytes.NewBuffer(msg)
 	rd := bufio.NewReader(buf)
@@ -176,12 +156,7 @@ func BenchmarkUnsubscribeReadV5(b *testing.B) {
 
 func TestUnsubscribeReadInvalidLength(t *testing.T) {
 	var msg []byte
-	opts := options{
-		packetType:      UNSUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT311,
-		remainingLength: 10,
-	}
+	opts := options{packetType: UNSUBSCRIBE, controlFlags: 2, version: MQTT311, remainingLength: 10}
 	pkt, err := newPacketUnsubscribe(opts)
 	require.Nil(t, err)
 
@@ -191,12 +166,7 @@ func TestUnsubscribeReadInvalidLength(t *testing.T) {
 
 func TestUnsubscribeReadNoPacketID(t *testing.T) {
 	var msg []byte
-	opts := options{
-		packetType:      UNSUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT311,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: UNSUBSCRIBE, controlFlags: 2, version: MQTT311, remainingLength: len(msg)}
 	pkt, err := newPacketUnsubscribe(opts)
 	require.Nil(t, err)
 
@@ -206,12 +176,7 @@ func TestUnsubscribeReadNoPacketID(t *testing.T) {
 
 func TestUnsubscribeReadNoTopic(t *testing.T) {
 	msg := []byte{0, 10}
-	opts := options{
-		packetType:      UNSUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT311,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: UNSUBSCRIBE, controlFlags: 2, version: MQTT311, remainingLength: len(msg)}
 	pkt, err := newPacketUnsubscribe(opts)
 	require.Nil(t, err)
 
@@ -224,12 +189,7 @@ func TestUnsubscribeReadInvalidTopicName(t *testing.T) {
 		0, 10, // packet ID
 		0, 3, 'a', // invalid topic name
 	}
-	opts := options{
-		packetType:      UNSUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT311,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: UNSUBSCRIBE, controlFlags: 2, version: MQTT311, remainingLength: len(msg)}
 	pkt, err := newPacketUnsubscribe(opts)
 	require.Nil(t, err)
 
@@ -239,12 +199,7 @@ func TestUnsubscribeReadInvalidTopicName(t *testing.T) {
 
 func TestUnsubscribeReadV5InvalidProperties(t *testing.T) {
 	msg := []byte{0, 10}
-	opts := options{
-		packetType:      UNSUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT50,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: UNSUBSCRIBE, controlFlags: 2, version: MQTT50, remainingLength: len(msg)}
 	pkt, err := newPacketUnsubscribe(opts)
 	require.Nil(t, err)
 
@@ -255,12 +210,7 @@ func TestUnsubscribeReadV5InvalidProperties(t *testing.T) {
 func TestUnsubscribeSize(t *testing.T) {
 	t.Run("V3", func(t *testing.T) {
 		msg := []byte{0, 5, 0, 3, 'a', '/', 'b'}
-		opts := options{
-			packetType:      UNSUBSCRIBE,
-			controlFlags:    2,
-			version:         MQTT311,
-			remainingLength: len(msg),
-		}
+		opts := options{packetType: UNSUBSCRIBE, controlFlags: 2, version: MQTT311, remainingLength: len(msg)}
 		pkt, err := newPacketUnsubscribe(opts)
 		require.Nil(t, err)
 		require.NotNil(t, pkt)
@@ -269,12 +219,7 @@ func TestUnsubscribeSize(t *testing.T) {
 
 	t.Run("V5", func(t *testing.T) {
 		msg := []byte{0, 5, 0, 0, 3, 'a', '/', 'b'}
-		opts := options{
-			packetType:      UNSUBSCRIBE,
-			controlFlags:    2,
-			version:         MQTT50,
-			remainingLength: len(msg),
-		}
+		opts := options{packetType: UNSUBSCRIBE, controlFlags: 2, version: MQTT50, remainingLength: len(msg)}
 		pkt, err := newPacketUnsubscribe(opts)
 		require.Nil(t, err)
 		require.NotNil(t, pkt)
@@ -283,12 +228,7 @@ func TestUnsubscribeSize(t *testing.T) {
 
 	t.Run("V5-Properties", func(t *testing.T) {
 		msg := []byte{0, 5, 7, 38, 0, 1, 'a', 0, 1, 0, 0, 3, 'a', '/', 'b'}
-		opts := options{
-			packetType:      UNSUBSCRIBE,
-			controlFlags:    2,
-			version:         MQTT50,
-			remainingLength: len(msg),
-		}
+		opts := options{packetType: UNSUBSCRIBE, controlFlags: 2, version: MQTT50, remainingLength: len(msg)}
 		pkt, err := newPacketUnsubscribe(opts)
 		require.Nil(t, err)
 		require.NotNil(t, pkt)
@@ -298,12 +238,7 @@ func TestUnsubscribeSize(t *testing.T) {
 
 func TestUnsubscribeTimestamp(t *testing.T) {
 	msg := []byte{0, 5, 0, 3, 'a', '/', 'b', 1}
-	opts := options{
-		packetType:      UNSUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT50,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: UNSUBSCRIBE, controlFlags: 2, version: MQTT50, remainingLength: len(msg)}
 	pkt, err := newPacketUnsubscribe(opts)
 	require.Nil(t, err)
 	require.NotNil(t, pkt)

@@ -111,7 +111,7 @@ func runCommandStart(enableProfile bool) {
 	startServer(s, cmdLog, enableProfile)
 }
 
-func newServer(c config.Config, l *logger.Logger, machineID int) (*server.Server, error) {
+func newServer(c config.Config, l *logger.Logger, machineID int) (s *server.Server, err error) {
 	mqttConf := handler.Configuration{
 		TCPAddress:                    c.MQTTTCPAddress,
 		ConnectTimeout:                c.MQTTConnectTimeout,
@@ -150,7 +150,8 @@ func newServer(c config.Config, l *logger.Logger, machineID int) (*server.Server
 		return nil, err
 	}
 
-	s := server.New(l)
+	srv := server.New(l)
+	s = &srv
 	s.AddListener(lsn)
 
 	if c.MetricsEnabled {
@@ -168,7 +169,7 @@ func newServer(c config.Config, l *logger.Logger, machineID int) (*server.Server
 		s.AddListener(lsn)
 	}
 
-	return &s, nil
+	return s, nil
 }
 
 func startServer(s *server.Server, l *logger.Logger, enableProfile bool) {

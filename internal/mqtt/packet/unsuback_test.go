@@ -33,15 +33,13 @@ func TestUnsubAckWrite(t *testing.T) {
 		msg     []byte
 	}{
 		{id: 1, version: MQTT31, codes: nil, msg: []byte{0xB0, 2, 0, 1}},
-		{id: 2, version: MQTT311, codes: []ReasonCode{ReasonCodeV5Success},
-			msg: []byte{0xB0, 2, 0, 2}},
-		{id: 3, version: MQTT50, codes: []ReasonCode{ReasonCodeV5Success},
-			msg: []byte{0xB0, 4, 0, 3, 0, 0}},
+		{id: 2, version: MQTT311, codes: []ReasonCode{ReasonCodeV5Success}, msg: []byte{0xB0, 2, 0, 2}},
+		{id: 3, version: MQTT50, codes: []ReasonCode{ReasonCodeV5Success}, msg: []byte{0xB0, 4, 0, 3, 0, 0}},
 	}
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprint(tc.id), func(t *testing.T) {
-			pkt := NewUnsubAck(tc.id, tc.version, tc.codes, nil /*props*/)
+			pkt := NewUnsubAck(tc.id, tc.version, tc.codes, nil)
 			assert.Equal(t, UNSUBACK, pkt.Type())
 
 			buf := &bytes.Buffer{}
@@ -61,7 +59,7 @@ func TestUnsubAckWrite(t *testing.T) {
 func BenchmarkUnsubAckWriteV3(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
-	pkt := NewUnsubAck(4 /*id*/, MQTT311, nil /*code*/, nil /*props*/)
+	pkt := NewUnsubAck(4, MQTT311, nil, nil)
 
 	b.ReportAllocs()
 
@@ -78,7 +76,7 @@ func BenchmarkUnsubAckWriteV3(b *testing.B) {
 func BenchmarkUnsubAckWriteV5(b *testing.B) {
 	buf := &bytes.Buffer{}
 	wr := bufio.NewWriter(buf)
-	pkt := NewUnsubAck(4 /*id*/, MQTT50, []ReasonCode{0, 17, 128}, nil /*props*/)
+	pkt := NewUnsubAck(4, MQTT50, []ReasonCode{0, 17, 128}, nil)
 
 	b.ReportAllocs()
 
@@ -96,7 +94,7 @@ func TestUnsubAckWriteV5Properties(t *testing.T) {
 	props := &Properties{}
 	props.ReasonString = []byte("abc")
 
-	pkt := NewUnsubAck(5 /*id*/, MQTT50, []ReasonCode{0, 17, 128}, props)
+	pkt := NewUnsubAck(5, MQTT50, []ReasonCode{0, 17, 128}, props)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -116,7 +114,7 @@ func TestUnsubAckWriteV5InvalidProperty(t *testing.T) {
 	props := &Properties{TopicAlias: new(uint16)}
 	*props.TopicAlias = 10
 
-	pkt := NewUnsubAck(5 /*id*/, MQTT50, []ReasonCode{0, 17, 128}, props)
+	pkt := NewUnsubAck(5, MQTT50, []ReasonCode{0, 17, 128}, props)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -131,7 +129,7 @@ func TestUnsubAckWriteV5InvalidProperty(t *testing.T) {
 }
 
 func TestUnsubAckWriteFailure(t *testing.T) {
-	pkt := NewUnsubAck(5 /*id*/, MQTT50, []ReasonCode{1, 0, 2}, nil /*props*/)
+	pkt := NewUnsubAck(5, MQTT50, []ReasonCode{1, 0, 2}, nil)
 	require.NotNil(t, pkt)
 
 	conn, _ := net.Pipe()
@@ -143,7 +141,7 @@ func TestUnsubAckWriteFailure(t *testing.T) {
 }
 
 func TestUnsubAckReadUnsupported(t *testing.T) {
-	pkt := NewUnsubAck(4 /*id*/, MQTT311, nil /*code*/, nil /*props*/)
+	pkt := NewUnsubAck(4, MQTT311, nil, nil)
 	require.NotNil(t, pkt)
 
 	buf := &bytes.Buffer{}
@@ -168,7 +166,7 @@ func TestUnsubAckSize(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			pkt := NewUnsubAck(1 /*id*/, tc.version, tc.codes, tc.props)
+			pkt := NewUnsubAck(1, tc.version, tc.codes, tc.props)
 			require.NotNil(t, pkt)
 
 			buf := &bytes.Buffer{}
@@ -183,7 +181,7 @@ func TestUnsubAckSize(t *testing.T) {
 }
 
 func TestUnsubAckTimestamp(t *testing.T) {
-	pkt := NewUnsubAck(4 /*id*/, MQTT50, []ReasonCode{0}, nil /*props*/)
+	pkt := NewUnsubAck(4, MQTT50, []ReasonCode{0}, nil)
 	require.NotNil(t, pkt)
 	assert.NotNil(t, pkt.Timestamp())
 }

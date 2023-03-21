@@ -22,8 +22,7 @@ import (
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 )
 
-// ErrSubscriptionInvalidWildcard indicates that the Subscription has invalid wildcard in its topic
-// filter.
+// ErrSubscriptionInvalidWildcard indicates that the Subscription has invalid wildcard in its topic filter.
 var ErrSubscriptionInvalidWildcard = errors.New("invalid wildcard")
 
 // ErrSubscriptionNotFound indicates that the Subscription has not been found.
@@ -58,16 +57,15 @@ type Subscription struct {
 	// QoS represents the quality-of-service level of the subscription.
 	QoS packet.QoS
 
-	// RetainHandling indicates whether the retained message are sent when the subscription is
-	// established or not.
+	// RetainHandling indicates whether the retained message are sent when the subscription is established or not.
 	RetainHandling byte
 
-	// RetainAsPublished indicates whether the RETAIN flag is kept when messages are forwarded using
-	// this subscription or not.
+	// RetainAsPublished indicates whether the RETAIN flag is kept when messages are forwarded using this subscription
+	// or not.
 	RetainAsPublished bool
 
-	// NoLocal indicates whether the messages must not be forwarded to a connection with a client ID
-	// equal to the client ID of the publishing connection or not.
+	// NoLocal indicates whether the messages must not be forwarded to a connection with a client ID equal to the client
+	// ID of the publishing connection or not.
 	NoLocal bool
 
 	// Unexported fields
@@ -82,9 +80,7 @@ type SubscriptionTree struct {
 
 // NewSubscriptionTree creates a new SubscriptionTree.
 func NewSubscriptionTree() SubscriptionTree {
-	return SubscriptionTree{
-		root: newSubscriptionNode(),
-	}
+	return SubscriptionTree{root: newSubscriptionNode()}
 }
 
 // Insert inserts the given subscription into the SubscriptionTree.

@@ -19,30 +19,28 @@ import (
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 )
 
-// PingReqHandler is responsible for handling PINGREQ packets.
-type PingReqHandler struct {
+// PingReq is responsible for handling PINGREQ packets.
+type PingReq struct {
 	// Unexported fields
 	log          *logger.Logger
 	sessionStore SessionStore
 }
 
-// NewPingReqHandler creates a new NewPingReqHandler.
-func NewPingReqHandler(st SessionStore, l *logger.Logger) *PingReqHandler {
-	return &PingReqHandler{log: l, sessionStore: st}
+// NewPingReq creates a new PingReq handler.
+func NewPingReq(ss SessionStore, l *logger.Logger) *PingReq {
+	return &PingReq{log: l, sessionStore: ss}
 }
 
 // HandlePacket handles the given packet as PINGREQ packet.
-func (h *PingReqHandler) HandlePacket(
-	id packet.ClientID,
-	p packet.Packet,
-) ([]packet.Packet, error) {
+func (h *PingReq) HandlePacket(id packet.ClientID, p packet.Packet) (replies []packet.Packet, err error) {
 	pingReq := p.(*packet.PingReq)
 	h.log.Trace().
 		Str("ClientId", string(id)).
 		Uint8("Version", uint8(pingReq.Version)).
 		Msg("Received PINGREQ packet")
 
-	s, err := h.sessionStore.ReadSession(id)
+	var s *Session
+	s, err = h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
@@ -54,7 +52,9 @@ func (h *PingReqHandler) HandlePacket(
 	s.Mutex.RLock()
 	defer s.Mutex.RUnlock()
 
-	pingResp := packet.PingResp{}
+	replies = make([]packet.Packet, 0, 1)
+	pingResp := &packet.PingResp{}
+	replies = append(replies, pingResp)
 	h.log.Trace().
 		Str("ClientId", string(s.ClientID)).
 		Int("KeepAlive", s.KeepAlive).
@@ -62,6 +62,5 @@ func (h *PingReqHandler) HandlePacket(
 		Int("Subscriptions", len(s.Subscriptions)).
 		Uint8("Version", uint8(s.Version)).
 		Msg("Sending PINGRESP packet")
-
-	return []packet.Packet{&pingResp}, nil
+	return replies, nil
 }

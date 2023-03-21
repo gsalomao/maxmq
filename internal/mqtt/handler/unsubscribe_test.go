@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUnsubscribeHandlerHandlePacket(t *testing.T) {
+func TestUnsubscribeHandlePacket(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -37,19 +37,19 @@ func TestUnsubscribeHandlerHandlePacket(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewUnsubscribeHandler(st, subMgr, log)
+			h := NewUnsubscribe(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, Subscriptions: make(map[string]*Subscription)}
 
 			sub := &Subscription{ClientID: id, TopicFilter: "data"}
 			s.Subscriptions["data"] = sub
+			unsubPkt := &packet.Unsubscribe{PacketID: 1, Version: tc, Topics: []string{"data"}}
 
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
 			subMgr.On("Unsubscribe", id, sub.TopicFilter).Return(nil)
 
-			unsubPkt := &packet.Unsubscribe{PacketID: 1, Version: tc, Topics: []string{"data"}}
 			replies, err := h.HandlePacket(id, unsubPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -71,7 +71,7 @@ func TestUnsubscribeHandlerHandlePacket(t *testing.T) {
 	}
 }
 
-func TestUnsubscribeHandlerHandlePacketMultipleTopics(t *testing.T) {
+func TestUnsubscribeHandlePacketMultipleTopics(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -82,7 +82,7 @@ func TestUnsubscribeHandlerHandlePacketMultipleTopics(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewUnsubscribeHandler(st, subMgr, log)
+			h := NewUnsubscribe(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, Subscriptions: make(map[string]*Subscription)}
@@ -97,13 +97,14 @@ func TestUnsubscribeHandlerHandlePacketMultipleTopics(t *testing.T) {
 			s.Subscriptions[subs[1].TopicFilter] = subs[1]
 			s.Subscriptions[subs[2].TopicFilter] = subs[2]
 
+			topicNames := []string{"data/0", "data/#"}
+			unsubPkt := &packet.Unsubscribe{PacketID: 1, Version: tc, Topics: topicNames}
+
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
 			subMgr.On("Unsubscribe", id, subs[0].TopicFilter).Once().Return(nil)
 			subMgr.On("Unsubscribe", id, subs[1].TopicFilter).Once().Return(nil)
 
-			topicNames := []string{"data/0", "data/#"}
-			unsubPkt := &packet.Unsubscribe{PacketID: 1, Version: tc, Topics: topicNames}
 			replies, err := h.HandlePacket(id, unsubPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -126,7 +127,7 @@ func TestUnsubscribeHandlerHandlePacketMultipleTopics(t *testing.T) {
 	}
 }
 
-func TestUnsubscribeHandlerHandlePacketUnsubscribeError(t *testing.T) {
+func TestUnsubscribeHandlePacketUnsubscribeError(t *testing.T) {
 	testCases := []struct {
 		err  error
 		code packet.ReasonCode
@@ -140,7 +141,7 @@ func TestUnsubscribeHandlerHandlePacketUnsubscribeError(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewUnsubscribeHandler(st, subMgr, log)
+			h := NewUnsubscribe(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{
@@ -149,14 +150,15 @@ func TestUnsubscribeHandlerHandlePacketUnsubscribeError(t *testing.T) {
 				Subscriptions: make(map[string]*Subscription),
 			}
 
-			st.On("ReadSession", id).Return(s, nil)
-			subMgr.On("Unsubscribe", id, "data").Return(tc.err)
-
 			unsubPkt := &packet.Unsubscribe{
 				PacketID: 1,
 				Version:  packet.MQTT311,
 				Topics:   []string{"data"},
 			}
+
+			st.On("ReadSession", id).Return(s, nil)
+			subMgr.On("Unsubscribe", id, "data").Return(tc.err)
+
 			replies, err := h.HandlePacket(id, unsubPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -176,7 +178,7 @@ func TestUnsubscribeHandlerHandlePacketUnsubscribeError(t *testing.T) {
 	}
 }
 
-func TestUnsubscribeHandlerHandlePacketReadSessionError(t *testing.T) {
+func TestUnsubscribeHandlePacketReadSessionError(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -188,12 +190,12 @@ func TestUnsubscribeHandlerHandlePacketReadSessionError(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewUnsubscribeHandler(st, subMgr, log)
+			h := NewUnsubscribe(st, subMgr, log)
 
 			id := packet.ClientID("a")
+			unsubPkt := &packet.Unsubscribe{PacketID: 1, Version: tc, Topics: []string{"data"}}
 			st.On("ReadSession", id).Return(nil, errors.New("failed"))
 
-			unsubPkt := &packet.Unsubscribe{PacketID: 1, Version: tc, Topics: []string{"data"}}
 			replies, err := h.HandlePacket(id, unsubPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)
@@ -203,7 +205,7 @@ func TestUnsubscribeHandlerHandlePacketReadSessionError(t *testing.T) {
 	}
 }
 
-func TestUnsubscribeHandlerHandlePacketSaveSessionError(t *testing.T) {
+func TestUnsubscribeHandlePacketSaveSessionError(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -215,7 +217,7 @@ func TestUnsubscribeHandlerHandlePacketSaveSessionError(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewUnsubscribeHandler(st, subMgr, log)
+			h := NewUnsubscribe(st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, Subscriptions: make(map[string]*Subscription)}
@@ -228,13 +230,14 @@ func TestUnsubscribeHandlerHandlePacketSaveSessionError(t *testing.T) {
 			s.Subscriptions[subs[0].TopicFilter] = subs[0]
 			s.Subscriptions[subs[1].TopicFilter] = subs[1]
 
+			topicNames := []string{"data/0", "data/1"}
+			unsubPkt := &packet.Unsubscribe{PacketID: 1, Version: tc, Topics: topicNames}
+
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(errors.New("failed"))
 			subMgr.On("Unsubscribe", id, subs[0].TopicFilter).Return(nil)
 			subMgr.On("Unsubscribe", id, subs[1].TopicFilter).Return(nil)
 
-			topicNames := []string{"data/0", "data/1"}
-			unsubPkt := &packet.Unsubscribe{PacketID: 1, Version: tc, Topics: topicNames}
 			replies, err := h.HandlePacket(id, unsubPkt)
 			require.Nil(t, err)
 			require.Len(t, replies, 1)
@@ -246,10 +249,7 @@ func TestUnsubscribeHandlerHandlePacketSaveSessionError(t *testing.T) {
 			assert.Equal(t, unsubPkt.PacketID, unsubAckPkt.PacketID)
 			assert.Equal(t, unsubPkt.Version, unsubAckPkt.Version)
 
-			codes := []packet.ReasonCode{
-				packet.ReasonCodeV5UnspecifiedError,
-				packet.ReasonCodeV5UnspecifiedError,
-			}
+			codes := []packet.ReasonCode{packet.ReasonCodeV5UnspecifiedError, packet.ReasonCodeV5UnspecifiedError}
 			assert.Equal(t, codes, unsubAckPkt.ReasonCodes)
 
 			st.AssertExpectations(t)

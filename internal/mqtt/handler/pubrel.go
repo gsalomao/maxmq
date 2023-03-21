@@ -21,33 +21,31 @@ import (
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 )
 
-// PubRelHandler is responsible for handling PUBREL packets.
-type PubRelHandler struct {
+// PubRel is responsible for handling PUBREL packets.
+type PubRel struct {
 	// Unexported fields
 	log             *logger.Logger
 	sessionStore    SessionStore
 	subscriptionMgr SubscriptionManager
 }
 
-// NewPubRelHandler creates a new PubRelHandler.
-func NewPubRelHandler(
-	st SessionStore,
-	subMgr SubscriptionManager,
-	l *logger.Logger,
-) *PubRelHandler {
-	return &PubRelHandler{log: l, sessionStore: st, subscriptionMgr: subMgr}
+// NewPubRel creates a new PubRel.
+func NewPubRel(ss SessionStore, sm SubscriptionManager, l *logger.Logger) *PubRel {
+	return &PubRel{log: l, sessionStore: ss, subscriptionMgr: sm}
 }
 
 // HandlePacket handles the given packet as PUBREL packet.
-func (h *PubRelHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]packet.Packet, error) {
+func (h *PubRel) HandlePacket(id packet.ClientID, p packet.Packet) (replies []packet.Packet, err error) {
 	pubRel := p.(*packet.PubRel)
+	pID := pubRel.PacketID
 	h.log.Trace().
 		Str("ClientId", string(id)).
-		Uint16("PacketId", uint16(pubRel.PacketID)).
+		Uint16("PacketId", uint16(pID)).
 		Uint8("Version", uint8(pubRel.Version)).
 		Msg("Received PUBREL packet")
 
-	s, err := h.sessionStore.ReadSession(id)
+	var s *Session
+	s, err = h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
@@ -59,12 +57,12 @@ func (h *PubRelHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
 
-	replies := make([]packet.Packet, 0, 1)
-	msg, ok := s.UnAckMessages[pubRel.PacketID]
+	replies = make([]packet.Packet, 0, 1)
+	msg, ok := s.UnAckMessages[pID]
 	if !ok {
 		h.log.Warn().
 			Str("ClientId", string(id)).
-			Uint16("PacketId", uint16(pubRel.PacketID)).
+			Uint16("PacketId", uint16(pID)).
 			Int("UnAckMessages", len(s.UnAckMessages)).
 			Uint8("Version", uint8(s.Version)).
 			Msg("Received PUBREL with unknown packet ID")
@@ -73,12 +71,7 @@ func (h *PubRelHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 			return nil, ErrPacketNotFound
 		}
 
-		pubComp := packet.NewPubComp(
-			pubRel.PacketID,
-			pubRel.Version,
-			packet.ReasonCodeV5PacketIDNotFound,
-			nil, /*props*/
-		)
+		pubComp := packet.NewPubComp(pID, pubRel.Version, packet.ReasonCodeV5PacketIDNotFound, nil)
 		replies = append(replies, &pubComp)
 		return replies, nil
 	}
@@ -130,12 +123,7 @@ func (h *PubRelHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 		}
 	}
 
-	pubComp := packet.NewPubComp(
-		pubRel.PacketID,
-		pubRel.Version,
-		packet.ReasonCodeV5Success,
-		nil, /*props*/
-	)
+	pubComp := packet.NewPubComp(pID, pubRel.Version, packet.ReasonCodeV5Success, nil)
 	replies = append(replies, &pubComp)
 	h.log.Trace().
 		Str("ClientId", string(s.ClientID)).

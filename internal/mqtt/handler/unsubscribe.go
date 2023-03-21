@@ -19,27 +19,21 @@ import (
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 )
 
-// UnsubscribeHandler is responsible for handling UNSUBSCRIBE packets.
-type UnsubscribeHandler struct {
+// Unsubscribe is responsible for handling UNSUBSCRIBE packets.
+type Unsubscribe struct {
+	// Unexported fields
 	log             *logger.Logger
 	sessionStore    SessionStore
 	subscriptionMgr SubscriptionManager
 }
 
-// NewUnsubscribeHandler creates a new UnsubscribeHandler.
-func NewUnsubscribeHandler(
-	sm SessionStore,
-	subMgr SubscriptionManager,
-	l *logger.Logger,
-) *UnsubscribeHandler {
-	return &UnsubscribeHandler{log: l, sessionStore: sm, subscriptionMgr: subMgr}
+// NewUnsubscribe creates a new Unsubscribe handler.
+func NewUnsubscribe(ss SessionStore, sm SubscriptionManager, l *logger.Logger) *Unsubscribe {
+	return &Unsubscribe{log: l, sessionStore: ss, subscriptionMgr: sm}
 }
 
 // HandlePacket handles the given packet as UNSUBSCRIBE packet.
-func (h *UnsubscribeHandler) HandlePacket(
-	id packet.ClientID,
-	p packet.Packet,
-) ([]packet.Packet, error) {
+func (h *Unsubscribe) HandlePacket(id packet.ClientID, p packet.Packet) (replies []packet.Packet, err error) {
 	unsub := p.(*packet.Unsubscribe)
 	h.log.Trace().
 		Str("ClientId", string(id)).
@@ -48,7 +42,8 @@ func (h *UnsubscribeHandler) HandlePacket(
 		Uint8("Version", uint8(unsub.Version)).
 		Msg("Received UNSUBSCRIBE packet")
 
-	s, err := h.sessionStore.ReadSession(id)
+	var s *Session
+	s, err = h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
@@ -60,8 +55,8 @@ func (h *UnsubscribeHandler) HandlePacket(
 	s.Mutex.Lock()
 	defer s.Mutex.Unlock()
 
-	codes, sessionChanged := h.unsubscribe(s, unsub)
-	if sessionChanged {
+	codes, changed := h.unsubscribe(s, unsub)
+	if changed {
 		err = h.sessionStore.SaveSession(s)
 		if err != nil {
 			h.log.Error().
@@ -75,7 +70,7 @@ func (h *UnsubscribeHandler) HandlePacket(
 		}
 	}
 
-	replies := make([]packet.Packet, 0, 1)
+	replies = make([]packet.Packet, 0, 1)
 
 	unsubAck := packet.NewUnsubAck(unsub.PacketID, s.Version, codes, nil)
 	replies = append(replies, &unsubAck)
@@ -90,12 +85,8 @@ func (h *UnsubscribeHandler) HandlePacket(
 	return replies, nil
 }
 
-func (h *UnsubscribeHandler) unsubscribe(
-	s *Session,
-	p *packet.Unsubscribe,
-) ([]packet.ReasonCode, bool) {
-	codes := make([]packet.ReasonCode, 0, len(p.Topics))
-	var sessionChanged bool
+func (h *Unsubscribe) unsubscribe(s *Session, p *packet.Unsubscribe) (codes []packet.ReasonCode, changed bool) {
+	codes = make([]packet.ReasonCode, 0, len(p.Topics))
 
 	for _, topic := range p.Topics {
 		err := h.subscriptionMgr.Unsubscribe(s.ClientID, topic)
@@ -123,7 +114,7 @@ func (h *UnsubscribeHandler) unsubscribe(
 		}
 
 		delete(s.Subscriptions, topic)
-		sessionChanged = true
+		changed = true
 
 		h.log.Info().
 			Str("ClientId", string(s.ClientID)).
@@ -137,5 +128,5 @@ func (h *UnsubscribeHandler) unsubscribe(
 		codes = append(codes, packet.ReasonCodeV5Success)
 	}
 
-	return codes, sessionChanged
+	return codes, changed
 }

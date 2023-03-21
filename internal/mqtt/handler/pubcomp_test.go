@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPubCompHandlerHandlePacket(t *testing.T) {
+func TestPubCompHandlePacket(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -37,7 +37,7 @@ func TestPubCompHandlerHandlePacket(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPubCompHandler(st, log)
+			h := NewPubComp(st, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc}
@@ -48,12 +48,7 @@ func TestPubCompHandlerHandlePacket(t *testing.T) {
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(nil)
 
-			pubCompPkt := packet.NewPubComp(
-				msg.PacketID,
-				tc, /*version*/
-				packet.ReasonCodeV5Success,
-				nil, /*props*/
-			)
+			pubCompPkt := packet.NewPubComp(msg.PacketID, tc, packet.ReasonCodeV5Success, nil)
 			replies, err := h.HandlePacket(id, &pubCompPkt)
 			require.Nil(t, err)
 			require.Empty(t, replies)
@@ -63,7 +58,7 @@ func TestPubCompHandlerHandlePacket(t *testing.T) {
 	}
 }
 
-func TestPubCompHandlerHandlePacketPacketNotFound(t *testing.T) {
+func TestPubCompHandlePacketPacketNotFound(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -74,19 +69,14 @@ func TestPubCompHandlerHandlePacketPacketNotFound(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPubCompHandler(st, log)
+			h := NewPubComp(st, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc}
 
 			st.On("ReadSession", id).Return(s, nil)
 
-			pubCompPkt := packet.NewPubComp(
-				2,  /*id*/
-				tc, /*version*/
-				packet.ReasonCodeV5Success,
-				nil, /*props*/
-			)
+			pubCompPkt := packet.NewPubComp(2, tc, packet.ReasonCodeV5Success, nil)
 			replies, err := h.HandlePacket(id, &pubCompPkt)
 			require.NotNil(t, err)
 			require.Empty(t, replies)
@@ -95,7 +85,7 @@ func TestPubCompHandlerHandlePacketPacketNotFound(t *testing.T) {
 	}
 }
 
-func TestPubCompHandlerHandlePacketReadSessionError(t *testing.T) {
+func TestPubCompHandlePacketReadSessionError(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -106,17 +96,12 @@ func TestPubCompHandlerHandlePacketReadSessionError(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPubCompHandler(st, log)
+			h := NewPubComp(st, log)
 
 			id := packet.ClientID("a")
 			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)
 
-			pubCompPkt := packet.NewPubComp(
-				1,  /*id*/
-				tc, /*version*/
-				packet.ReasonCodeV5Success,
-				nil, /*props*/
-			)
+			pubCompPkt := packet.NewPubComp(1, tc, packet.ReasonCodeV5Success, nil)
 			replies, err := h.HandlePacket(id, &pubCompPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)
@@ -124,7 +109,7 @@ func TestPubCompHandlerHandlePacketReadSessionError(t *testing.T) {
 	}
 }
 
-func TestPubCompHandlerHandlePacketSaveSessionError(t *testing.T) {
+func TestPubCompHandlePacketSaveSessionError(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -135,7 +120,7 @@ func TestPubCompHandlerHandlePacketSaveSessionError(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPubCompHandler(st, log)
+			h := NewPubComp(st, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc}
@@ -146,12 +131,7 @@ func TestPubCompHandlerHandlePacketSaveSessionError(t *testing.T) {
 			st.On("ReadSession", id).Return(s, nil)
 			st.On("SaveSession", s).Return(errors.New("failed"))
 
-			pubCompPkt := packet.NewPubComp(
-				1,  /*id*/
-				tc, /*version*/
-				packet.ReasonCodeV5Success,
-				nil, /*props*/
-			)
+			pubCompPkt := packet.NewPubComp(1, tc, packet.ReasonCodeV5Success, nil)
 			replies, err := h.HandlePacket(id, &pubCompPkt)
 			assert.NotNil(t, err)
 			assert.Empty(t, replies)

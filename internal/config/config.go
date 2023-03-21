@@ -56,8 +56,8 @@ type Config struct {
 	// The maximum allowed MQTT Keep Alive value, in seconds.
 	MQTTMaxKeepAlive int `mapstructure:"mqtt_max_keep_alive"`
 
-	// The maximum period, in seconds, a MQTT session is still valid after the network connection
-	// with the client has been closed.
+	// The maximum period, in seconds, a MQTT session is still valid after the network connection with the client has
+	// been closed.
 	MQTTSessionExpiration uint32 `mapstructure:"mqtt_session_expiration"`
 
 	// The maximum number of MQTT QoS 1 or 2 messages that can be processed simultaneously.

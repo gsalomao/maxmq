@@ -32,9 +32,8 @@ type ConnAck struct {
 	// ClientID represents the client identifier associated with the session.
 	ClientID ClientID
 
-	// KeepAlive is a time interval, measured in seconds, that is permitted to elapse between the
-	// point at which the Client finishes transmitting one Control Packet and the point it starts
-	// sending the next.
+	// KeepAlive is a time interval, measured in seconds, that is permitted to elapse between the point at which the
+	// Client finishes transmitting one Control Packet and the point it starts sending the next.
 	KeepAlive int
 
 	// Version represents the MQTT version.
@@ -52,21 +51,14 @@ type ConnAck struct {
 }
 
 // NewConnAck creates a CONNACK Packet.
-func NewConnAck(
-	id ClientID,
-	v Version,
-	c ReasonCode,
-	sessionPresent bool,
-	keepAlive int,
-	props *Properties,
-) ConnAck {
+func NewConnAck(id ClientID, v Version, c ReasonCode, sessionPresent bool, keepAlive int, p *Properties) ConnAck {
 	return ConnAck{
 		ClientID:       id,
 		Version:        v,
 		ReasonCode:     c,
 		SessionPresent: sessionPresent,
 		KeepAlive:      keepAlive,
-		Properties:     props,
+		Properties:     p,
 	}
 }
 
@@ -104,8 +96,7 @@ func (pkt *ConnAck) Write(w *bufio.Writer) error {
 	return err
 }
 
-// Read reads the packet bytes from bytes.Buffer and decodes them into the
-// packet.
+// Read reads the packet bytes from bytes.Buffer and decodes them into the packet.
 // It is not supported by the CONNACK Packet.
 func (pkt *ConnAck) Read(_ *bufio.Reader) error {
 	return errors.New("unsupported (CONNACK)")

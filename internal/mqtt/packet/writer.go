@@ -24,7 +24,7 @@ import (
 // Writer is responsible for write packets.
 type Writer interface {
 	// WritePacket writes the given Packet into the io.Writer.
-	WritePacket(wr io.Writer, pkt Packet) error
+	WritePacket(wr io.Writer, p Packet) error
 }
 
 type writer struct {
@@ -42,15 +42,15 @@ func NewWriter(bufSize int) Writer {
 
 // WritePacket writes the given Packet into the io.Writer.
 // It returns an error if it fails to write the packet.
-func (w *writer) WritePacket(wr io.Writer, pkt Packet) error {
+func (w *writer) WritePacket(wr io.Writer, p Packet) error {
 	bufWr := w.writerPool.Get().(*bufio.Writer)
 	defer w.writerPool.Put(bufWr)
 	bufWr.Reset(wr)
 
-	err := pkt.Write(bufWr)
+	err := p.Write(bufWr)
 	if err != nil {
 		return fmt.Errorf("failed to write packet %v: %w",
-			pkt.Type().String(), err)
+			p.Type().String(), err)
 	}
 
 	return bufWr.Flush()

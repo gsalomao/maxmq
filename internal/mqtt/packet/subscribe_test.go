@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,12 +63,7 @@ func TestSubscribeReadV3(t *testing.T) {
 		0, 5, 'c', '/', 'd', '/', 'e', 0, // topic filter
 		0, 3, 'a', '/', '#', 2, // topic filter
 	}
-	opts := options{
-		packetType:      SUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT311,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT311, remainingLength: len(msg)}
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
@@ -96,12 +91,7 @@ func TestSubscribeReadV5(t *testing.T) {
 		0,                         // property length
 		0, 3, 'a', '/', 'b', 0x2E, // topic filter
 	}
-	opts := options{
-		packetType:      SUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT50,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT50, remainingLength: len(msg)}
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
@@ -123,12 +113,7 @@ func TestSubscribeReadV5(t *testing.T) {
 
 func TestSubscribeReadInvalidLength(t *testing.T) {
 	var msg []byte
-	opts := options{
-		packetType:      SUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT311,
-		remainingLength: 10,
-	}
+	opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT311, remainingLength: 10}
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
@@ -138,12 +123,7 @@ func TestSubscribeReadInvalidLength(t *testing.T) {
 
 func TestSubscribeReadNoPacketID(t *testing.T) {
 	var msg []byte
-	opts := options{
-		packetType:      SUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT311,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT311, remainingLength: len(msg)}
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
@@ -155,12 +135,7 @@ func TestSubscribeReadNoTopic(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 	}
-	opts := options{
-		packetType:      SUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT311,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT311, remainingLength: len(msg)}
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
@@ -173,12 +148,7 @@ func TestSubscribeReadInvalidTopicName(t *testing.T) {
 		0, 10, // packet ID
 		0, 3, 'a', // invalid topic name
 	}
-	opts := options{
-		packetType:      SUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT311,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT311, remainingLength: len(msg)}
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
@@ -191,12 +161,7 @@ func TestSubscribeReadNoTopicQoS(t *testing.T) {
 		0, 10, // packet ID
 		0, 1, 'a', // no topic QoS
 	}
-	opts := options{
-		packetType:      SUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT311,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT311, remainingLength: len(msg)}
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
@@ -209,12 +174,7 @@ func TestSubscribeReadV3InvalidSubscriptionOptions(t *testing.T) {
 		0, 10, // packet ID
 		0, 1, 'a', 0x10, // invalid subscription options
 	}
-	opts := options{
-		packetType:      SUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT311,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT311, remainingLength: len(msg)}
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
@@ -228,12 +188,7 @@ func TestSubscribeReadV5InvalidSubscriptionOptions(t *testing.T) {
 		0,               // property length
 		0, 1, 'a', 0x40, // invalid subscription options
 	}
-	opts := options{
-		packetType:      SUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT50,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT50, remainingLength: len(msg)}
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
@@ -246,12 +201,7 @@ func TestSubscribeReadV3InvalidQoS(t *testing.T) {
 		0, 10, // packet ID
 		0, 1, 'a', 0x03, // invalid QoS
 	}
-	opts := options{
-		packetType:      SUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT311,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT311, remainingLength: len(msg)}
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
@@ -265,12 +215,7 @@ func TestSubscribeReadV5InvalidQoS(t *testing.T) {
 		0,               // property length
 		0, 1, 'a', 0x03, // invalid QoS
 	}
-	opts := options{
-		packetType:      SUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT50,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT50, remainingLength: len(msg)}
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
@@ -284,12 +229,7 @@ func TestSubscribeReadV5InvalidRetainHandling(t *testing.T) {
 		0,               // property length
 		0, 1, 'a', 0x30, // invalid Retain Handling
 	}
-	opts := options{
-		packetType:      SUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT50,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT50, remainingLength: len(msg)}
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
@@ -301,12 +241,7 @@ func TestSubscribeReadV5InvalidProperties(t *testing.T) {
 	msg := []byte{
 		0, 10, // packet ID
 	}
-	opts := options{
-		packetType:      SUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT50,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT50, remainingLength: len(msg)}
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 
@@ -321,13 +256,8 @@ func TestSubscribeSize(t *testing.T) {
 			0, 3, 'a', '/', 'b', 1, // topic filter
 		}
 
-		opts := options{
-			packetType:        SUBSCRIBE,
-			controlFlags:      2,
-			version:           MQTT311,
-			fixedHeaderLength: 2,
-			remainingLength:   len(msg),
-		}
+		opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT311, fixedHeaderLength: 2,
+			remainingLength: len(msg)}
 		pkt, err := newPacketSubscribe(opts)
 		require.Nil(t, err)
 		require.NotNil(t, pkt)
@@ -342,13 +272,8 @@ func TestSubscribeSize(t *testing.T) {
 			0, 3, 'a', '/', 'b', 1, // topic filter
 		}
 
-		opts := options{
-			packetType:        SUBSCRIBE,
-			controlFlags:      2,
-			version:           MQTT50,
-			fixedHeaderLength: 2,
-			remainingLength:   len(msg),
-		}
+		opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT50, fixedHeaderLength: 2,
+			remainingLength: len(msg)}
 		pkt, err := newPacketSubscribe(opts)
 		require.Nil(t, err)
 		require.NotNil(t, pkt)
@@ -364,13 +289,8 @@ func TestSubscribeSize(t *testing.T) {
 			0, 3, 'a', '/', 'b', 1, // topic filter
 		}
 
-		opts := options{
-			packetType:        SUBSCRIBE,
-			controlFlags:      2,
-			version:           MQTT50,
-			fixedHeaderLength: 2,
-			remainingLength:   len(msg),
-		}
+		opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT50, fixedHeaderLength: 2,
+			remainingLength: len(msg)}
 		pkt, err := newPacketSubscribe(opts)
 		require.Nil(t, err)
 		require.NotNil(t, pkt)
@@ -384,12 +304,7 @@ func TestSubscribeTimestamp(t *testing.T) {
 		0, 5, // packet ID
 		0, 3, 'a', '/', 'b', 1, // topic filter
 	}
-	opts := options{
-		packetType:      SUBSCRIBE,
-		controlFlags:    2,
-		version:         MQTT50,
-		remainingLength: len(msg),
-	}
+	opts := options{packetType: SUBSCRIBE, controlFlags: 2, version: MQTT50, remainingLength: len(msg)}
 	pkt, err := newPacketSubscribe(opts)
 	require.Nil(t, err)
 	require.NotNil(t, pkt)

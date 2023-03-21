@@ -29,9 +29,7 @@ func TestPacketReadPacket(t *testing.T) {
 
 	done := make(chan bool)
 	go func() {
-		defer func() {
-			done <- true
-		}()
+		defer close(done)
 
 		opts := ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
 		rd := NewReader(opts)
@@ -115,9 +113,7 @@ func TestPacketReadPacketBiggerThanMaxPacketSize(t *testing.T) {
 
 	done := make(chan bool)
 	go func() {
-		defer func() {
-			done <- true
-		}()
+		defer close(done)
 
 		opts := ReaderOptions{BufferSize: 1024, MaxPacketSize: 2}
 		rd := NewReader(opts)
@@ -142,9 +138,7 @@ func TestPacketReadPacketError(t *testing.T) {
 
 	done := make(chan bool)
 	go func() {
-		defer func() {
-			done <- true
-		}()
+		defer close(done)
 
 		opts := ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}
 		rd := NewReader(opts)
@@ -175,9 +169,7 @@ func TestPacketReadPacketInvalid(t *testing.T) {
 
 			done := make(chan bool)
 			go func() {
-				defer func() {
-					done <- true
-				}()
+				defer close(done)
 
 				_ = sConn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 				opts := ReaderOptions{BufferSize: 1024, MaxPacketSize: 65536}

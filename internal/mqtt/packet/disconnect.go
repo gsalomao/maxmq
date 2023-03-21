@@ -42,7 +42,7 @@ type Disconnect struct {
 	remainLength int
 }
 
-func newPacketDisconnect(opts options) (Packet, error) {
+func newPacketDisconnect(opts options) (p Packet, err error) {
 	if opts.packetType != DISCONNECT {
 		return nil, errors.New("packet type is not DISCONNECT")
 	}
@@ -56,17 +56,18 @@ func newPacketDisconnect(opts options) (Packet, error) {
 		ver = MQTT50
 	}
 
-	return &Disconnect{
+	p = &Disconnect{
 		Version:      ver,
 		size:         opts.fixedHeaderLength + opts.remainingLength,
 		remainLength: opts.remainingLength,
 		timestamp:    opts.timestamp,
-	}, nil
+	}
+	return p, nil
 }
 
 // NewDisconnect creates a DISCONNECT Packet.
-func NewDisconnect(v Version, c ReasonCode, props *Properties) Disconnect {
-	return Disconnect{Version: v, ReasonCode: c, Properties: props}
+func NewDisconnect(v Version, c ReasonCode, p *Properties) Disconnect {
+	return Disconnect{Version: v, ReasonCode: c, Properties: p}
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.
@@ -137,8 +138,7 @@ func (pkt *Disconnect) Size() int {
 	return pkt.size
 }
 
-// Timestamp returns the timestamp of the moment which the packet has been received or has been
-// sent.
+// Timestamp returns the timestamp of the moment which the packet has been received or has been sent.
 func (pkt *Disconnect) Timestamp() time.Time {
 	return pkt.timestamp
 }

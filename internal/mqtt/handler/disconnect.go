@@ -19,35 +19,29 @@ import (
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 )
 
-// DisconnectHandler is responsible for handling DISCONNECT packets.
-type DisconnectHandler struct {
+// Disconnect is responsible for handling DISCONNECT packets.
+type Disconnect struct {
 	// Unexported fields
 	log             *logger.Logger
 	sessionStore    SessionStore
 	subscriptionMgr SubscriptionManager
 }
 
-// NewDisconnectHandler creates a new DisconnectHandler.
-func NewDisconnectHandler(
-	st SessionStore,
-	subMgr SubscriptionManager,
-	l *logger.Logger,
-) *DisconnectHandler {
-	return &DisconnectHandler{log: l, sessionStore: st, subscriptionMgr: subMgr}
+// NewDisconnect creates a new Disconnect handler.
+func NewDisconnect(ss SessionStore, sm SubscriptionManager, l *logger.Logger) *Disconnect {
+	return &Disconnect{log: l, sessionStore: ss, subscriptionMgr: sm}
 }
 
 // HandlePacket handles the given packet as DISCONNECT packet.
-func (h *DisconnectHandler) HandlePacket(
-	id packet.ClientID,
-	p packet.Packet,
-) ([]packet.Packet, error) {
+func (h *Disconnect) HandlePacket(id packet.ClientID, p packet.Packet) (replies []packet.Packet, err error) {
 	discPkt := p.(*packet.Disconnect)
 	h.log.Trace().
 		Str("ClientId", string(id)).
 		Uint8("Version", uint8(discPkt.Version)).
 		Msg("Received DISCONNECT packet")
 
-	s, err := h.sessionStore.ReadSession(id)
+	var s *Session
+	s, err = h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
@@ -60,8 +54,6 @@ func (h *DisconnectHandler) HandlePacket(
 	defer s.Mutex.Unlock()
 
 	if s.Version == packet.MQTT50 && discPkt.Properties != nil {
-		var replies []packet.Packet
-
 		replies, err = h.handleProperties(s, discPkt.Properties)
 		if err != nil {
 			return replies, err
@@ -100,11 +92,10 @@ func (h *DisconnectHandler) HandlePacket(
 		Int("UnAckMessages", len(s.UnAckMessages)).
 		Uint8("Version", uint8(s.Version)).
 		Msg("Client disconnected")
-
 	return nil, nil
 }
 
-func (h *DisconnectHandler) unsubscribeAllTopics(s *Session) {
+func (h *Disconnect) unsubscribeAllTopics(s *Session) {
 	for _, sub := range s.Subscriptions {
 		err := h.subscriptionMgr.Unsubscribe(s.ClientID, sub.TopicFilter)
 		if err != nil {
@@ -120,11 +111,8 @@ func (h *DisconnectHandler) unsubscribeAllTopics(s *Session) {
 	}
 }
 
-func (h *DisconnectHandler) handleProperties(
-	s *Session,
-	props *packet.Properties,
-) ([]packet.Packet, error) {
-	interval := props.SessionExpiryInterval
+func (h *Disconnect) handleProperties(s *Session, p *packet.Properties) (replies []packet.Packet, err error) {
+	interval := p.SessionExpiryInterval
 	if interval != nil && *interval > 0 && s.ExpiryInterval == 0 {
 		h.log.Debug().
 			Str("ClientId", string(s.ClientID)).
@@ -133,12 +121,8 @@ func (h *DisconnectHandler) handleProperties(
 			Uint64("SessionId", uint64(s.SessionID)).
 			Msg("Packet DISCONNECT with invalid Session Expiry Interval")
 
-		replies := make([]packet.Packet, 0)
-		discReply := packet.NewDisconnect(
-			s.Version,
-			packet.ReasonCodeV5ProtocolError,
-			nil, /*props*/
-		)
+		replies = make([]packet.Packet, 0)
+		discReply := packet.NewDisconnect(s.Version, packet.ReasonCodeV5ProtocolError, nil)
 		replies = append(replies, &discReply)
 		return replies, packet.ErrV5ProtocolError
 	}

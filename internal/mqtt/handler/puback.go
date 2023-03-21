@@ -19,20 +19,20 @@ import (
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 )
 
-// PubAckHandler is responsible for handling the PUBACK packets.
-type PubAckHandler struct {
+// PubAck is responsible for handling the PUBACK packets.
+type PubAck struct {
 	// Unexported fields
 	log          *logger.Logger
 	sessionStore SessionStore
 }
 
-// NewPubAckHandler creates a new NewPubAckHandler.
-func NewPubAckHandler(st SessionStore, l *logger.Logger) *PubAckHandler {
-	return &PubAckHandler{log: l, sessionStore: st}
+// NewPubAck creates a new PubAck handler.
+func NewPubAck(ss SessionStore, l *logger.Logger) *PubAck {
+	return &PubAck{log: l, sessionStore: ss}
 }
 
 // HandlePacket handles the given packet as PUBACK packet.
-func (h *PubAckHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]packet.Packet, error) {
+func (h *PubAck) HandlePacket(id packet.ClientID, p packet.Packet) (replies []packet.Packet, err error) {
 	pubAck := p.(*packet.PubAck)
 	h.log.Trace().
 		Str("ClientId", string(id)).
@@ -40,7 +40,8 @@ func (h *PubAckHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 		Uint8("Version", uint8(pubAck.Version)).
 		Msg("Received PUBACK packet")
 
-	s, err := h.sessionStore.ReadSession(id)
+	var s *Session
+	s, err = h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).
@@ -60,7 +61,6 @@ func (h *PubAckHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 			Uint16("PacketId", uint16(pubAck.PacketID)).
 			Uint8("Version", uint8(s.Version)).
 			Msg("Received PUBACK with unknown packet ID")
-
 		return nil, ErrPacketNotFound
 	}
 	s.InflightMessages.Remove(inflightMsg)
@@ -86,6 +86,5 @@ func (h *PubAckHandler) HandlePacket(id packet.ClientID, p packet.Packet) ([]pac
 		Str("TopicName", msg.Packet.TopicName).
 		Uint8("Version", uint8(msg.Packet.Version)).
 		Msg("Message published to client (PUBACK)")
-
 	return nil, nil
 }

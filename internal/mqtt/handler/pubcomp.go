@@ -19,23 +19,20 @@ import (
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 )
 
-// PubCompHandler is responsible for handling PUBCOMP packets.
-type PubCompHandler struct {
+// PubComp is responsible for handling PUBCOMP packets.
+type PubComp struct {
 	// Unexported fields
 	log          *logger.Logger
 	sessionStore SessionStore
 }
 
-// NewPubCompHandler creates a new NewPubCompHandler.
-func NewPubCompHandler(st SessionStore, l *logger.Logger) *PubCompHandler {
-	return &PubCompHandler{log: l, sessionStore: st}
+// NewPubComp creates a new PubComp handler.
+func NewPubComp(ss SessionStore, l *logger.Logger) *PubComp {
+	return &PubComp{log: l, sessionStore: ss}
 }
 
 // HandlePacket handles the given packet as PUBCOMP packet.
-func (h *PubCompHandler) HandlePacket(
-	id packet.ClientID,
-	p packet.Packet,
-) ([]packet.Packet, error) {
+func (h *PubComp) HandlePacket(id packet.ClientID, p packet.Packet) (replies []packet.Packet, err error) {
 	pubCompPkt := p.(*packet.PubComp)
 	h.log.Trace().
 		Str("ClientId", string(id)).
@@ -43,7 +40,8 @@ func (h *PubCompHandler) HandlePacket(
 		Uint8("Version", uint8(pubCompPkt.Version)).
 		Msg("Received PUBCOMP packet")
 
-	s, err := h.sessionStore.ReadSession(id)
+	var s *Session
+	s, err = h.sessionStore.ReadSession(id)
 	if err != nil {
 		h.log.Error().
 			Str("ClientId", string(id)).

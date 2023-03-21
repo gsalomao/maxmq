@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPublishHandlerHandlePacketQoS0(t *testing.T) {
+func TestPublishHandlePacketQoS0(t *testing.T) {
 	testCases := []struct {
 		topic   string
 		version packet.Version
@@ -44,21 +44,12 @@ func TestPublishHandlerHandlePacketQoS0(t *testing.T) {
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPublishHandler(st, subMgr, idGen, log)
+			h := NewPublish(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc.version}
 
-			pubPkt := packet.NewPublish(
-				1, /*id*/
-				tc.version,
-				tc.topic,
-				packet.QoS0,
-				0, /*dup*/
-				0, /*retain*/
-				[]byte(tc.payload),
-				nil, /*props*/
-			)
+			pubPkt := packet.NewPublish(1, tc.version, tc.topic, packet.QoS0, 0, 0, []byte(tc.payload), nil)
 			msg := &Message{ID: 10, PacketID: pubPkt.PacketID, Packet: &pubPkt}
 
 			st.On("ReadSession", id).Return(s, nil)
@@ -75,7 +66,7 @@ func TestPublishHandlerHandlePacketQoS0(t *testing.T) {
 	}
 }
 
-func TestPublishHandlerHandlePacketQoS1(t *testing.T) {
+func TestPublishHandlePacketQoS1(t *testing.T) {
 	testCases := []struct {
 		topic   string
 		version packet.Version
@@ -92,21 +83,12 @@ func TestPublishHandlerHandlePacketQoS1(t *testing.T) {
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPublishHandler(st, subMgr, idGen, log)
+			h := NewPublish(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc.version}
 
-			pubPkt := packet.NewPublish(
-				1, /*id*/
-				tc.version,
-				tc.topic,
-				packet.QoS1,
-				0, /*dup*/
-				0, /*retain*/
-				[]byte(tc.payload),
-				nil, /*props*/
-			)
+			pubPkt := packet.NewPublish(1, tc.version, tc.topic, packet.QoS1, 0, 0, []byte(tc.payload), nil)
 			msg := &Message{ID: 10, PacketID: pubPkt.PacketID, Packet: &pubPkt}
 
 			st.On("ReadSession", id).Return(s, nil)
@@ -131,7 +113,7 @@ func TestPublishHandlerHandlePacketQoS1(t *testing.T) {
 	}
 }
 
-func TestPublishHandlerHandlePacketQoS2(t *testing.T) {
+func TestPublishHandlePacketQoS2(t *testing.T) {
 	testCases := []struct {
 		topic   string
 		version packet.Version
@@ -148,7 +130,7 @@ func TestPublishHandlerHandlePacketQoS2(t *testing.T) {
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPublishHandler(st, subMgr, idGen, log)
+			h := NewPublish(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
 			s := &Session{
@@ -157,16 +139,7 @@ func TestPublishHandlerHandlePacketQoS2(t *testing.T) {
 				UnAckMessages: make(map[packet.ID]*Message),
 			}
 
-			pubPkt := packet.NewPublish(
-				1, /*id*/
-				tc.version,
-				tc.topic,
-				packet.QoS2,
-				0, /*dup*/
-				0, /*retain*/
-				[]byte(tc.payload),
-				nil, /*props*/
-			)
+			pubPkt := packet.NewPublish(1, tc.version, tc.topic, packet.QoS2, 0, 0, []byte(tc.payload), nil)
 			msg := &Message{ID: 10, PacketID: pubPkt.PacketID, Packet: &pubPkt}
 
 			st.On("ReadSession", id).Return(s, nil)
@@ -196,7 +169,7 @@ func TestPublishHandlerHandlePacketQoS2(t *testing.T) {
 	}
 }
 
-func TestPublishHandlerHandlePacketQoS2NoDuplication(t *testing.T) {
+func TestPublishHandlePacketQoS2NoDuplication(t *testing.T) {
 	testCases := []struct {
 		topic   string
 		version packet.Version
@@ -213,7 +186,7 @@ func TestPublishHandlerHandlePacketQoS2NoDuplication(t *testing.T) {
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPublishHandler(st, subMgr, idGen, log)
+			h := NewPublish(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
 			s := &Session{
@@ -222,28 +195,10 @@ func TestPublishHandlerHandlePacketQoS2NoDuplication(t *testing.T) {
 				UnAckMessages: make(map[packet.ID]*Message),
 			}
 
-			pubPkt1 := packet.NewPublish(
-				1, /*id*/
-				tc.version,
-				tc.topic,
-				packet.QoS2,
-				0, /*dup*/
-				0, /*retain*/
-				[]byte(tc.payload),
-				nil, /*props*/
-			)
+			pubPkt1 := packet.NewPublish(1, tc.version, tc.topic, packet.QoS2, 0, 0, []byte(tc.payload), nil)
 			msg1 := &Message{ID: 10, PacketID: pubPkt1.PacketID, Packet: &pubPkt1}
 
-			pubPkt2 := packet.NewPublish(
-				2, /*id*/
-				tc.version,
-				tc.topic,
-				packet.QoS2,
-				0, /*dup*/
-				0, /*retain*/
-				[]byte(tc.payload),
-				nil, /*props*/
-			)
+			pubPkt2 := packet.NewPublish(2, tc.version, tc.topic, packet.QoS2, 0, 0, []byte(tc.payload), nil)
 			msg2 := &Message{ID: 11, PacketID: pubPkt2.PacketID, Packet: &pubPkt2}
 
 			st.On("ReadSession", id).Return(s, nil)
@@ -291,7 +246,7 @@ func TestPublishHandlerHandlePacketQoS2NoDuplication(t *testing.T) {
 	}
 }
 
-func TestPublishHandlerHandlePacketQoS2SamePacketIDNewMessage(t *testing.T) {
+func TestPublishHandlePacketQoS2SamePacketIDNewMessage(t *testing.T) {
 	testCases := []struct {
 		topic   string
 		version packet.Version
@@ -308,7 +263,7 @@ func TestPublishHandlerHandlePacketQoS2SamePacketIDNewMessage(t *testing.T) {
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPublishHandler(st, subMgr, idGen, log)
+			h := NewPublish(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
 			s := &Session{
@@ -320,16 +275,7 @@ func TestPublishHandlerHandlePacketQoS2SamePacketIDNewMessage(t *testing.T) {
 			msg1 := &Message{ID: 10, PacketID: 10, Tries: 1, LastSent: time.Now().UnixMicro()}
 			s.UnAckMessages[msg1.PacketID] = msg1
 
-			pubPkt := packet.NewPublish(
-				msg1.PacketID,
-				tc.version,
-				tc.topic,
-				packet.QoS2,
-				0, /*dup*/
-				0, /*retain*/
-				[]byte(tc.payload),
-				nil, /*props*/
-			)
+			pubPkt := packet.NewPublish(msg1.PacketID, tc.version, tc.topic, packet.QoS2, 0, 0, []byte(tc.payload), nil)
 			msg2 := &Message{ID: msg1.ID + 1, PacketID: pubPkt.PacketID, Packet: &pubPkt}
 
 			st.On("ReadSession", id).Return(s, nil)
@@ -355,7 +301,7 @@ func TestPublishHandlerHandlePacketQoS2SamePacketIDNewMessage(t *testing.T) {
 	}
 }
 
-func TestPublishHandlerHandlePacketReadSessionError(t *testing.T) {
+func TestPublishHandlePacketReadSessionError(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -368,21 +314,11 @@ func TestPublishHandlerHandlePacketReadSessionError(t *testing.T) {
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPublishHandler(st, subMgr, idGen, log)
+			h := NewPublish(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
+			pubPkt := packet.NewPublish(1, tc, "t", packet.QoS0, 0, 0, []byte("d"), nil)
 			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)
-
-			pubPkt := packet.NewPublish(
-				1,      /*id*/
-				tc,     /*version*/
-				"data", /*topic*/
-				packet.QoS0,
-				0,              /*dup*/
-				0,              /*retain*/
-				[]byte("data"), /*payload*/
-				nil,            /*props*/
-			)
 
 			replies, err := h.HandlePacket(id, &pubPkt)
 			assert.NotNil(t, err)
@@ -394,7 +330,7 @@ func TestPublishHandlerHandlePacketReadSessionError(t *testing.T) {
 	}
 }
 
-func TestPublishHandlerHandlePacketPublishMessageError(t *testing.T) {
+func TestPublishHandlePacketPublishMessageError(t *testing.T) {
 	testCases := []struct {
 		version packet.Version
 		qos     packet.QoS
@@ -414,21 +350,12 @@ func TestPublishHandlerHandlePacketPublishMessageError(t *testing.T) {
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPublishHandler(st, subMgr, idGen, log)
+			h := NewPublish(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc.version}
 
-			pubPkt := packet.NewPublish(
-				1, /*id*/
-				tc.version,
-				"data", /*topic*/
-				tc.qos,
-				0,              /*dup*/
-				0,              /*retain*/
-				[]byte("data"), /*payload*/
-				nil,            /*props*/
-			)
+			pubPkt := packet.NewPublish(1, tc.version, "t", tc.qos, 0, 0, []byte("d"), nil)
 			msg := &Message{ID: 10, PacketID: pubPkt.PacketID, Packet: &pubPkt}
 
 			st.On("ReadSession", id).Return(s, nil)
@@ -445,7 +372,7 @@ func TestPublishHandlerHandlePacketPublishMessageError(t *testing.T) {
 	}
 }
 
-func TestPublishHandlerHandlePacketSaveSessionError(t *testing.T) {
+func TestPublishHandlePacketSaveSessionError(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -458,21 +385,12 @@ func TestPublishHandlerHandlePacketSaveSessionError(t *testing.T) {
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewPublishHandler(st, subMgr, idGen, log)
+			h := NewPublish(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, UnAckMessages: make(map[packet.ID]*Message)}
 
-			pubPkt := packet.NewPublish(
-				1,      /*id*/
-				tc,     /*version*/
-				"data", /*topic*/
-				packet.QoS2,
-				0,              /*dup*/
-				0,              /*retain*/
-				[]byte("data"), /*payload*/
-				nil,            /*props*/
-			)
+			pubPkt := packet.NewPublish(1, tc, "t", packet.QoS2, 0, 0, []byte("d"), nil)
 			msg := &Message{ID: 10, PacketID: pubPkt.PacketID, Packet: &pubPkt}
 
 			st.On("ReadSession", id).Return(s, nil)

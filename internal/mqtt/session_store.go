@@ -55,11 +55,12 @@ func (st *sessionStore) NewSession(id packet.ClientID) *handler.Session {
 }
 
 // ReadSession reads the session for the given client identifier.
-func (st *sessionStore) ReadSession(id packet.ClientID) (*handler.Session, error) {
+func (st *sessionStore) ReadSession(id packet.ClientID) (s *handler.Session, err error) {
 	st.log.Trace().Str("ClientId", string(id)).Msg("Reading session")
 
+	var ok bool
 	st.mutex.RLock()
-	s, ok := st.sessions[id]
+	s, ok = st.sessions[id]
 	st.mutex.RUnlock()
 
 	if !ok {

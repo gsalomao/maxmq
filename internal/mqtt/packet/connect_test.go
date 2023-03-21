@@ -923,11 +923,7 @@ func TestConnectSize(t *testing.T) {
 			0, 1, 'a', // client ID
 		}
 
-		opts := options{
-			packetType:        CONNECT,
-			remainingLength:   len(msg),
-			fixedHeaderLength: 2,
-		}
+		opts := options{packetType: CONNECT, remainingLength: len(msg), fixedHeaderLength: 2}
 		pkt, err := newPacketConnect(opts)
 		require.Nil(t, err)
 		require.NotNil(t, pkt)
@@ -943,11 +939,7 @@ func TestConnectSize(t *testing.T) {
 			0, // will property length
 		}
 
-		opts := options{
-			packetType:        CONNECT,
-			remainingLength:   len(msg),
-			fixedHeaderLength: 2,
-		}
+		opts := options{packetType: CONNECT, remainingLength: len(msg), fixedHeaderLength: 2}
 		pkt, err := newPacketConnect(opts)
 		require.Nil(t, err)
 		require.NotNil(t, pkt)
@@ -964,11 +956,7 @@ func TestConnectSize(t *testing.T) {
 			0, // will property length
 		}
 
-		opts := options{
-			packetType:        CONNECT,
-			remainingLength:   len(msg),
-			fixedHeaderLength: 2,
-		}
+		opts := options{packetType: CONNECT, remainingLength: len(msg), fixedHeaderLength: 2}
 		pkt, err := newPacketConnect(opts)
 		require.Nil(t, err)
 		require.NotNil(t, pkt)

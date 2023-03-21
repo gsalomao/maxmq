@@ -102,8 +102,7 @@ type LogIDGenerator interface {
 	NextID() uint64
 }
 
-// Logger represents a logging object responsible to generate outputs to
-// an io.Writer.
+// Logger represents a logging object responsible to generate outputs to an io.Writer.
 type Logger struct {
 	// Unexported fields.
 	zerolog.Logger
@@ -166,7 +165,7 @@ func (l *Logger) Run(e *zerolog.Event, _ zerolog.Level, _ string) {
 }
 
 func (l *Logger) formatTimestamp(i interface{}) string {
-	v, _ := strconv.ParseInt(fmt.Sprintf("%v", i), 10 /*base*/, 64 /*bitSize*/)
+	v, _ := strconv.ParseInt(fmt.Sprintf("%v", i), 10, 64)
 	t := time.UnixMicro(v)
 	return colorize(white, t.Format("2006-01-02 15:04:05.000000 -0700"))
 }

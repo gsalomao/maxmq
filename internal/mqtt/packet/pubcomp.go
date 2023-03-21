@@ -45,7 +45,7 @@ type PubComp struct {
 	remainLength int
 }
 
-func newPacketPubComp(opts options) (Packet, error) {
+func newPacketPubComp(opts options) (p Packet, err error) {
 	if opts.packetType != PUBCOMP {
 		return nil, errors.New("packet type is not PUBCOMP")
 	}
@@ -64,17 +64,18 @@ func newPacketPubComp(opts options) (Packet, error) {
 		return nil, errors.New("invalid remaining length (PUBCOMP)")
 	}
 
-	return &PubComp{
+	p = &PubComp{
 		Version:      opts.version,
 		size:         opts.fixedHeaderLength + opts.remainingLength,
 		remainLength: opts.remainingLength,
 		timestamp:    opts.timestamp,
-	}, nil
+	}
+	return p, nil
 }
 
 // NewPubComp creates a PUBCOMP Packet.
-func NewPubComp(id ID, v Version, c ReasonCode, props *Properties) PubComp {
-	return PubComp{PacketID: id, Version: v, ReasonCode: c, Properties: props}
+func NewPubComp(id ID, v Version, c ReasonCode, p *Properties) PubComp {
+	return PubComp{PacketID: id, Version: v, ReasonCode: c, Properties: p}
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.
@@ -116,8 +117,7 @@ func (pkt *PubComp) Write(w *bufio.Writer) error {
 	return nil
 }
 
-// Read reads the packet bytes from bufio.Reader and decodes them into the
-// packet.
+// Read reads the packet bytes from bufio.Reader and decodes them into the packet.
 func (pkt *PubComp) Read(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {

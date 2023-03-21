@@ -47,7 +47,7 @@ type PubRel struct {
 	remainLength int
 }
 
-func newPacketPubRel(opts options) (Packet, error) {
+func newPacketPubRel(opts options) (p Packet, err error) {
 	if opts.packetType != PUBREL {
 		return nil, errors.New("packet type is not PUBREL")
 	}
@@ -64,17 +64,18 @@ func newPacketPubRel(opts options) (Packet, error) {
 		return nil, errors.New("invalid remaining length (PUBREL)")
 	}
 
-	return &PubRel{
+	p = &PubRel{
 		Version:      opts.version,
 		size:         opts.fixedHeaderLength + opts.remainingLength,
 		remainLength: opts.remainingLength,
 		timestamp:    opts.timestamp,
-	}, nil
+	}
+	return p, nil
 }
 
 // NewPubRel creates a PUBREL Packet.
-func NewPubRel(id ID, v Version, c ReasonCode, props *Properties) PubRel {
-	return PubRel{PacketID: id, Version: v, ReasonCode: c, Properties: props}
+func NewPubRel(id ID, v Version, c ReasonCode, p *Properties) PubRel {
+	return PubRel{PacketID: id, Version: v, ReasonCode: c, Properties: p}
 }
 
 // Write encodes the packet into bytes and writes it into the io.Writer.
@@ -115,8 +116,7 @@ func (pkt *PubRel) Write(w *bufio.Writer) error {
 	return nil
 }
 
-// Read reads the packet bytes from bufio.Reader and decodes them into the
-// packet.
+// Read reads the packet bytes from bufio.Reader and decodes them into the packet.
 func (pkt *PubRel) Read(r *bufio.Reader) error {
 	msg := make([]byte, pkt.remainLength)
 	if _, err := io.ReadFull(r, msg); err != nil {

@@ -52,12 +52,11 @@ type Publish struct {
 	// Version represents the MQTT version.
 	Version Version
 
-	// Dup indicates that this is the first occasion that the client or server has attempted to send
-	// this packet.
+	// Dup indicates that this is the first occasion that the client or server has attempted to send this packet.
 	Dup uint8
 
-	// Retain indicates whether the server must replace any existing retained message for this topic
-	// and store the message, or not.
+	// Retain indicates whether the server must replace any existing retained message for this topic and store the
+	// message, or not.
 	Retain uint8
 
 	// Unexported fields
@@ -66,7 +65,7 @@ type Publish struct {
 	remainLength int
 }
 
-func newPacketPublish(opts options) (Packet, error) {
+func newPacketPublish(opts options) (p Packet, err error) {
 	if opts.packetType != PUBLISH {
 		return nil, errors.New("packet type is not PUBLISH")
 	}
@@ -85,7 +84,8 @@ func newPacketPublish(opts options) (Packet, error) {
 	}
 
 	retain := opts.controlFlags & publishFlagRetain
-	return &Publish{
+
+	p = &Publish{
 		QoS:          qos,
 		Dup:          dup,
 		Retain:       retain,
@@ -93,28 +93,21 @@ func newPacketPublish(opts options) (Packet, error) {
 		size:         opts.fixedHeaderLength + opts.remainingLength,
 		remainLength: opts.remainingLength,
 		timestamp:    opts.timestamp,
-	}, nil
+	}
+	return p, nil
 }
 
-func NewPublish(
-	id ID,
-	version Version,
-	topic string,
-	qos QoS,
-	dup uint8,
-	retain uint8,
-	payload []byte,
-	props *Properties,
-) Publish {
+func NewPublish(id ID, v Version, topic string, qos QoS, dup uint8, retain uint8, payload []byte,
+	p *Properties) Publish {
 	return Publish{
 		PacketID:   id,
-		Version:    version,
+		Version:    v,
 		TopicName:  topic,
 		QoS:        qos,
 		Dup:        dup,
 		Retain:     retain,
 		Payload:    payload,
-		Properties: props,
+		Properties: p,
 	}
 }
 

@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSubscribeHandlerHandlePacket(t *testing.T) {
+func TestSubscribeHandlePacket(t *testing.T) {
 	testCases := []struct {
 		version packet.Version
 		qos     packet.QoS
@@ -49,7 +49,7 @@ func TestSubscribeHandlerHandlePacket(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewSubscribeHandler(&conf, st, subMgr, log)
+			h := NewSubscribe(&conf, st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{
@@ -90,7 +90,7 @@ func TestSubscribeHandlerHandlePacket(t *testing.T) {
 	}
 }
 
-func TestSubscribeHandlerHandlePacketMultipleTopics(t *testing.T) {
+func TestSubscribeHandlePacketMultipleTopics(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -103,7 +103,7 @@ func TestSubscribeHandlerHandlePacketMultipleTopics(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewSubscribeHandler(&conf, st, subMgr, log)
+			h := NewSubscribe(&conf, st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, Subscriptions: make(map[string]*Subscription)}
@@ -160,7 +160,7 @@ func TestSubscribeHandlerHandlePacketMultipleTopics(t *testing.T) {
 	}
 }
 
-func TestSubscribeHandlerHandlePacketError(t *testing.T) {
+func TestSubscribeHandlePacketError(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -173,7 +173,7 @@ func TestSubscribeHandlerHandlePacketError(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewSubscribeHandler(&conf, st, subMgr, log)
+			h := NewSubscribe(&conf, st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, Subscriptions: make(map[string]*Subscription)}
@@ -209,7 +209,7 @@ func TestSubscribeHandlerHandlePacketError(t *testing.T) {
 	}
 }
 
-func TestSubscribeHandlerHandlePacketReadSessionError(t *testing.T) {
+func TestSubscribeHandlePacketReadSessionError(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -222,7 +222,7 @@ func TestSubscribeHandlerHandlePacketReadSessionError(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewSubscribeHandler(&conf, st, subMgr, log)
+			h := NewSubscribe(&conf, st, subMgr, log)
 
 			id := packet.ClientID("a")
 			st.On("ReadSession", id).Return(nil, ErrSessionNotFound)
@@ -242,7 +242,7 @@ func TestSubscribeHandlerHandlePacketReadSessionError(t *testing.T) {
 	}
 }
 
-func TestSubscribeHandlerHandlePacketSaveSessionError(t *testing.T) {
+func TestSubscribeHandlePacketSaveSessionError(t *testing.T) {
 	testCases := []packet.Version{
 		packet.MQTT31,
 		packet.MQTT311,
@@ -255,7 +255,7 @@ func TestSubscribeHandlerHandlePacketSaveSessionError(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-			h := NewSubscribeHandler(&conf, st, subMgr, log)
+			h := NewSubscribe(&conf, st, subMgr, log)
 
 			id := packet.ClientID("a")
 			s := &Session{ClientID: id, Version: tc, Subscriptions: make(map[string]*Subscription)}
@@ -307,14 +307,14 @@ func TestSubscribeHandlerHandlePacketSaveSessionError(t *testing.T) {
 	}
 }
 
-func TestSubscribeHandlerHandlePacketV5WithSubID(t *testing.T) {
+func TestSubscribeHandlePacketV5WithSubID(t *testing.T) {
 	conf := newDefaultConfiguration()
 	conf.SubscriptionIDAvailable = true
 
 	st := &sessionStoreMock{}
 	subMgr := &subscriptionMgrMock{}
 	log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-	h := NewSubscribeHandler(&conf, st, subMgr, log)
+	h := NewSubscribe(&conf, st, subMgr, log)
 
 	id := packet.ClientID("a")
 	s := &Session{
@@ -335,7 +335,8 @@ func TestSubscribeHandlerHandlePacketV5WithSubID(t *testing.T) {
 	subPkt := &packet.Subscribe{
 		PacketID:   2,
 		Version:    packet.MQTT50,
-		Properties: props, Topics: []packet.Topic{{Name: "data"}},
+		Properties: props,
+		Topics:     []packet.Topic{{Name: "data"}},
 	}
 
 	replies, err := h.HandlePacket(id, subPkt)
@@ -348,14 +349,14 @@ func TestSubscribeHandlerHandlePacketV5WithSubID(t *testing.T) {
 	subMgr.AssertExpectations(t)
 }
 
-func TestSubscribeHandlerHandlePacketV5WithSubIDError(t *testing.T) {
+func TestSubscribeHandlePacketV5WithSubIDError(t *testing.T) {
 	conf := newDefaultConfiguration()
 	conf.SubscriptionIDAvailable = false
 
 	st := &sessionStoreMock{}
 	subMgr := &subscriptionMgrMock{}
 	log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
-	h := NewSubscribeHandler(&conf, st, subMgr, log)
+	h := NewSubscribe(&conf, st, subMgr, log)
 
 	id := packet.ClientID("a")
 	s := &Session{
@@ -372,7 +373,8 @@ func TestSubscribeHandlerHandlePacketV5WithSubIDError(t *testing.T) {
 	subPkt := &packet.Subscribe{
 		PacketID:   2,
 		Version:    packet.MQTT50,
-		Properties: props, Topics: []packet.Topic{{Name: "topic"}},
+		Properties: props,
+		Topics:     []packet.Topic{{Name: "topic"}},
 	}
 
 	replies, err := h.HandlePacket(id, subPkt)

@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -54,8 +54,7 @@ func readVarInteger(r io.ByteReader, val *int) (n int, err error) {
 	return
 }
 
-func readUint[T constraints.Unsigned](buf *bytes.Buffer) (T, error) {
-	var val T
+func readUint[T constraints.Unsigned](buf *bytes.Buffer) (val T, err error) {
 	size := int(unsafe.Sizeof(val))
 
 	if buf.Len() < size {
@@ -74,8 +73,8 @@ func readUint[T constraints.Unsigned](buf *bytes.Buffer) (T, error) {
 	return val, nil
 }
 
-func readString(buf *bytes.Buffer) ([]byte, error) {
-	str, err := readBinary(buf)
+func readString(buf *bytes.Buffer) (str []byte, err error) {
+	str, err = readBinary(buf)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +86,7 @@ func readString(buf *bytes.Buffer) ([]byte, error) {
 	return str, nil
 }
 
-func readBinary(buf *bytes.Buffer) ([]byte, error) {
+func readBinary(buf *bytes.Buffer) (val []byte, err error) {
 	if buf.Len() < 2 {
 		return nil, newErrMalformedPacket("no enough bytes")
 	}
@@ -97,7 +96,7 @@ func readBinary(buf *bytes.Buffer) ([]byte, error) {
 		return nil, newErrMalformedPacket("no enough bytes")
 	}
 
-	val := buf.Next(length)
+	val = buf.Next(length)
 	return val, nil
 }
 

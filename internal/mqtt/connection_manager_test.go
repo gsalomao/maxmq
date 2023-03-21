@@ -40,12 +40,8 @@ type packetHandlerMock struct {
 	mock.Mock
 }
 
-func (h *packetHandlerMock) HandlePacket(
-	id packet.ClientID,
-	p packet.Packet,
-) ([]packet.Packet, error) {
+func (h *packetHandlerMock) HandlePacket(id packet.ClientID, p packet.Packet) (replies []packet.Packet, err error) {
 	args := h.Called(id, p)
-	var replies []packet.Packet
 	if args.Get(0) != nil {
 		replies = args.Get(0).([]packet.Packet)
 	}
@@ -56,13 +52,12 @@ type packetReaderMock struct {
 	mock.Mock
 }
 
-func (r *packetReaderMock) ReadPacket(rd io.Reader, v packet.Version) (packet.Packet, error) {
+func (r *packetReaderMock) ReadPacket(rd io.Reader, v packet.Version) (p packet.Packet, err error) {
 	args := r.Called(rd, v)
-	var pkt packet.Packet
 	if args.Get(0) != nil {
-		pkt = args.Get(0).(packet.Packet)
+		p = args.Get(0).(packet.Packet)
 	}
-	return pkt, args.Error(1)
+	return p, args.Error(1)
 }
 
 type packetWriterMock struct {
@@ -483,17 +478,7 @@ func TestConnectionManagerDeliverMessageWriteFailure(t *testing.T) {
 	wr := &packetWriterMock{}
 	cm.writer = wr
 
-	p := packet.NewPublish(
-		10, /*id*/
-		packet.MQTT311,
-		"data", /*topic*/
-		packet.QoS0,
-		0,   /*dup*/
-		0,   /*retain*/
-		nil, /*payload*/
-		nil, /*props*/
-	)
-
+	p := packet.NewPublish(10, packet.MQTT311, "t", packet.QoS0, 0, 0, nil, nil)
 	wr.On("WritePacket", sConn, &p).Return(errors.New("failed"))
 
 	err := cm.deliverPacket("client-a", &p)
@@ -519,17 +504,7 @@ func TestConnectionManagerDeliverMessage(t *testing.T) {
 	wr := &packetWriterMock{}
 	cm.writer = wr
 
-	p := packet.NewPublish(
-		10, /*id*/
-		packet.MQTT311,
-		"data", /*topic*/
-		packet.QoS0,
-		0,   /*dup*/
-		0,   /*retain*/
-		nil, /*payload*/
-		nil, /*props*/
-	)
-
+	p := packet.NewPublish(10, packet.MQTT311, "t", packet.QoS0, 0, 0, nil, nil)
 	wr.On("WritePacket", sConn, &p).Return(nil)
 
 	err := cm.deliverPacket("client-a", &p)
@@ -548,17 +523,7 @@ func TestConnectionManagerDeliverMessageConnectionNotFound(t *testing.T) {
 	mt := newMetrics(conf.MetricsEnabled, log)
 	cm := newConnectionManager(&conf, st, mt, idGen, log)
 
-	p := packet.NewPublish(
-		10, /*id*/
-		packet.MQTT311,
-		"data", /*topic*/
-		packet.QoS0,
-		0,   /*dup*/
-		0,   /*retain*/
-		nil, /*payload*/
-		nil, /*props*/
-	)
-
+	p := packet.NewPublish(10, packet.MQTT311, "t", packet.QoS0, 0, 0, nil, nil)
 	err := cm.deliverPacket("client-b", &p)
 	assert.NotNil(t, err)
 }

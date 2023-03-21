@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -141,11 +141,7 @@ func TestMQTTPublishQoS0(t *testing.T) {
 	require.True(t, c.IsConnectionOpen())
 
 	received := make(chan paho.Message)
-	token = c.Subscribe("data/#", 0,
-		func(c paho.Client, msg paho.Message) {
-			received <- msg
-		},
-	)
+	token = c.Subscribe("data/#", 0, func(c paho.Client, msg paho.Message) { received <- msg })
 	assert.True(t, token.WaitTimeout(100*time.Millisecond))
 
 	token = c.Publish("data/1", 0, false, []byte("hello"))
@@ -174,11 +170,7 @@ func TestMQTTPublishQoS1(t *testing.T) {
 	require.True(t, sub.IsConnectionOpen())
 
 	received := make(chan paho.Message)
-	token = sub.Subscribe("data/#", 1,
-		func(c paho.Client, msg paho.Message) {
-			received <- msg
-		},
-	)
+	token = sub.Subscribe("data/#", 1, func(c paho.Client, msg paho.Message) { received <- msg })
 	assert.True(t, token.WaitTimeout(100*time.Millisecond))
 
 	token = pub.Publish("data/1", 1, false, []byte("msg-1"))
@@ -226,11 +218,7 @@ func TestMQTTPublishQoS2(t *testing.T) {
 	require.True(t, sub.IsConnectionOpen())
 
 	received := make(chan paho.Message)
-	token = sub.Subscribe("data/#", 2,
-		func(c paho.Client, msg paho.Message) {
-			received <- msg
-		},
-	)
+	token = sub.Subscribe("data/#", 2, func(c paho.Client, msg paho.Message) { received <- msg })
 	assert.True(t, token.WaitTimeout(100*time.Millisecond))
 
 	token = pub.Publish("data/1", 2, false, []byte("msg-1"))
