@@ -14,7 +14,7 @@
 
 # Project parameters
 NAME            = maxmq
-BUILD_DIR       = dist
+BUILD_DIR       = bin
 COVERAGE_DIR    = coverage
 MAIN_FILE       = cmd/maxmq/main.go
 
