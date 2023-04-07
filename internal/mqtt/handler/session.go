@@ -71,7 +71,7 @@ type Session struct {
 	// client finishes transmitting one Control Packet and the point it starts sending the next.
 	KeepAlive int
 
-	// ConnectedAt is the timestamp which the last connection was established.
+	// ConnectedAt is the timestamp when the last connection was established.
 	ConnectedAt int64
 
 	// ExpiryInterval is the time, in seconds, which the server must store the session after the network connection is
