@@ -72,8 +72,13 @@ The session layer is responsible for:
 - Deliver the MQTT PUBLISH packet to clients
 - Session management
 
-The MQTT session for of connected clients are kept in memory and contains information about the session with the
-following attributes:
+Based on the MQTT specifications, when the client finishes the connection process, a session is created on the server.
+This session is kept in memory until the network connection is closed. When the session is created without the
+CleanSession flag set, the session is also stored in the [Storage Node](#storage-node) until the client sends the
+DISCONNECT packet, or the session expires.
+
+The table bellow shows the attributes and their respective types of a session. Please note that this is a simplified
+version, and it only includes the most important attributes.
 
 | Attribute         | Description                                                                                   | Type   |
 |-------------------|-----------------------------------------------------------------------------------------------|--------|
@@ -104,5 +109,48 @@ PUBLISH packets. In addition to that, when the server receives a new MQTT PUBLIS
 
 #### Routing Layer
 
+The routing layer is responsible for:
+
+- Maintain all local subscriptions
+- Dispatch MQTT messages to local subscribers
+- Maintain the route table
+- Route MQTT messages to others MQTT servers for external subscribers
+
+When a client sends a SUBSCRIBE packet, this packet contains the topic filter which the server must send all MQTT
+PUBLISH packets that match with this topic filter. When the server receives the SUBSCRIBE packet, it creates a new
+subscription.
+
+The table bellow shows the attributes and their respective types of a subscription. Please note that this is a
+simplified version, and it only includes the most important attributes.
+
+| Attribute    | Description                                               | Type   |
+|--------------|-----------------------------------------------------------|--------|
+| Topic Filter | Topic which the client subscribed                         | string |
+| Client ID    | Identifier of the client which sent the SUBSCRIBE packet  | string |
+| QoS          | Quality-of-Service level of the subscription              | byte   |
+
+Each MQTT server keeps all subscriptions made by clients which are connected with the server in the Subscription Tree.
+The Subscription Tree is a [Radix Tree](https://en.wikipedia.org/wiki/Radix_tree), and it is kept in memory as shown in
+the image bellow.
+
+![Subscription Tree](./assets/subscription-tree.svg)
+
+In the Subscription Tree, each node is either an intermediary node (black circle) or a subscription node (blue circle).
+The topic filter of a subscription node is the combination of the prefix of all parent nodes up to the root node (e.g.
+status/ba and status/battery/+).
+
+
 **WIP**
 
+### API Server
+
+**WIP**
+
+### Rule Engine
+
+**WIP**
+
+
+### Storage Node
+
+**WIP**
