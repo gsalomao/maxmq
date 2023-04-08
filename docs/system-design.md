@@ -59,10 +59,26 @@ The connection layer is responsible for:
 - Read (deserialize) MQTT packets from clients
 - Send (serialize) MQTT packets to clients
 - Connection management
-- Rate limit concurrent connections
-- Rate limit connection rate using Sliding Window Counter algorithm
-- Rate limit received TCP packets rate using Token Bucket algorithm
-- Rate limit received MQTT PUBLISH packets rate using Sliding Window Counter algorithm
+- Rate limiting
+
+The connection layers applies four different rate limiting with different configuration thresholds:
+
+- Number of concurrent connection
+- Connection rate
+- Received bytes rate
+- Received MQTT PUBLISH packets rate
+
+The rate limiting of connection rate and received MQTT PUBLISH packets rate uses the Sliding Window Counter algorithm,
+as shown in the image bellow:
+
+![Sliding Window Counter](./assets/sliding-window-counter.svg)
+
+When the server received a new connection request, or a new MQTT PUBLISH packet, it verifies the rate based on the
+sliding window, and rejects the request/packet if the rate is above the configured threshold.
+
+The rate limiting of the received bytes rate uses the Token Bucket algorithm, as shown in the image bellow:
+
+**WIP**
 
 #### Session Layer
 
@@ -131,7 +147,7 @@ simplified version, and it only includes the most important attributes.
 
 Each MQTT server keeps all subscriptions made by clients which are connected with the server in the Subscription Tree.
 The Subscription Tree is a [Radix Tree](https://en.wikipedia.org/wiki/Radix_tree), and it is kept in memory as shown in
-the image bellow.
+the image bellow:
 
 ![Subscription Tree](./assets/subscription-tree.svg)
 
