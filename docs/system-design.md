@@ -60,6 +60,17 @@ The connection layer is responsible for:
 - Send (serialize) MQTT packets to clients
 - Connection management
 - Rate limiting
+- Authentication and Authorization
+
+The MQTT server supports two different type of listeners:
+
+- TCP
+- WebSocket
+
+When the server is configured in multi-tenant mode, the server accepts several instances of the same listener type,
+where each listener binds to a specific TCP port and maps to each tenant, as shown in the image bellow:
+
+![Multi Tenancy](./assets/multi-tenancy.svg)
 
 The connection layers applies four different rate limiting with different configuration thresholds:
 
