@@ -44,6 +44,7 @@ designed for constrained devices and low-bandwidth, high-latency or unreliable n
 - [ ] Message rate limit
 - [ ] High-Availability (Cluster)
 - [ ] Rule Engine
+- [ ] Multi-tenant support
 - [ ] Extensible through plugins
 - [ ] WebUI
 

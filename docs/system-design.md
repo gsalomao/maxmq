@@ -60,17 +60,18 @@ The connection layer is responsible for:
 - Send (serialize) MQTT packets to clients
 - Connection management
 - Rate limiting
-- Authentication and Authorization
+- Identity and Access Management (IAM)
 
-The MQTT server supports two different type of listeners:
+The MQTT server supports four listeners:
 
 - TCP
 - WebSocket
+- TLS
+- Secure WebSocket
 
-When the server is configured in multi-tenant mode, the server accepts several instances of the same listener type,
-where each listener binds to a specific TCP port and maps to each tenant, as shown in the image bellow:
-
-![Multi Tenancy](./assets/multi-tenancy.svg)
+The TCP and WebSocket listeners send and receive data through an unencrypted channel, while the TLS and Secure
+Websockets uses the SSL/TLS protocol to encrypt the messages in-transit. When using the server in multi-tenant mode,
+only the TLS and Secure WebSocket listeners are available.
 
 The connection layers applies four different rate limiting with different configuration thresholds:
 
@@ -90,6 +91,22 @@ sliding window, and rejects the request/packet if the rate is above the configur
 The rate limiting of the received bytes rate uses the Token Bucket algorithm, as shown in the image bellow:
 
 **WIP**
+
+The connection layer is also responsible for Identity and Access Management. When clients connect with the server, the
+server authenticates the client before any operation. The server supports the following authentication methods:
+
+- Username/Password: The server validates the provided username/password in the MQTT CONNECT packet
+- Server certificate: The server validates if the X.509 certificate used to establish the TLS connection matches with
+the server certificate
+- Client certificates: The server validates if the X.509 certificate used to establish the TLS connection is a valid
+client certificate
+
+The server and client certificate authentication methods are available only for TLS and Secure WebSocket listeners.
+
+When the server is configured in multi-tenant mode, the server uses the Server Name Indicator (SNI) from the TLS
+protocol to identify the tenant, as shown in the image bellow:
+
+![Multi Tenancy](./assets/multi-tenancy.svg)
 
 #### Session Layer
 
