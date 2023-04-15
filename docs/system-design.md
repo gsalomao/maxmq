@@ -90,7 +90,7 @@ sliding window, and rejects the request/packet if the rate is above the configur
 
 The rate limiting of the received bytes rate uses the Token Bucket algorithm, as shown in the image bellow:
 
-**WIP**
+![Token Bucket](./assets/token-bucket.svg)
 
 The connection layer is also responsible for Identity and Access Management. When clients connect with the server, the
 server authenticates the client before any operation. The server supports the following authentication methods:
