@@ -46,69 +46,81 @@ func newCommandStart() *cobra.Command {
 	return &cobra.Command{
 		Use:   "start",
 		Short: "Start server",
-		Long:  "Start the execution of the MaxMQ server",
+		Long:  "Start the MaxMQ server",
 		Run: func(_ *cobra.Command, _ []string) {
 			enableProfile := profile != ""
-			runCommandStart(enableProfile)
+			machineID := 0
+
+			sf, err := snowflake.New(machineID)
+			if err != nil {
+				fmt.Println("failed to start server: " + err.Error())
+				os.Exit(1)
+			}
+
+			var conf config.Config
+			var confFileFound bool
+
+			conf, confFileFound, err = loadConfig()
+			if err != nil {
+				fmt.Println("failed to start server: " + err.Error())
+				os.Exit(1)
+			}
+
+			var baseLog *logger.Logger
+			baseLog, err = newLogger(logger.LogFormat(conf.LogFormat), conf.LogLevel, sf)
+			if err != nil {
+				fmt.Println("failed to start server: " + err.Error())
+				os.Exit(1)
+			}
+
+			bannerWriter := colorable.NewColorableStdout()
+			banner.InitString(bannerWriter, true, true, bannerTemplate)
+
+			bsLog := baseLog.WithPrefix("bootstrap")
+			if confFileFound {
+				bsLog.Info().Msg("Config file loaded with success")
+			} else {
+				bsLog.Info().Msg("No config file found")
+			}
+
+			var cf []byte
+			cf, err = json.Marshal(conf)
+			if err != nil {
+				bsLog.Fatal().Msg("Failed to encode configuration: " + err.Error())
+			}
+			bsLog.Debug().RawJSON("Configuration", cf).Msg("Using configuration")
+
+			var s *server.Server
+			s, err = newServer(conf, baseLog, machineID)
+			if err != nil {
+				fmt.Println("failed to start server: " + err.Error())
+				os.Exit(1)
+			}
+
+			startServer(s, bsLog, enableProfile)
 		},
 	}
 }
 
-func runCommandStart(enableProfile bool) {
-	machineID := 0
-	sf, err := snowflake.New(machineID)
-	if err != nil {
-		fmt.Println("failed to start server: " + err.Error())
-		os.Exit(1)
-	}
-
-	var missingConfigFile bool
+func loadConfig() (c config.Config, found bool, err error) {
 	err = config.ReadConfigFile()
+	if err == nil {
+		found = true
+	} else if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+		return c, found, err
+	}
+
+	c, err = config.LoadConfig()
+	return c, found, err
+}
+
+func newLogger(format logger.LogFormat, level string, gen logger.LogIDGenerator) (l *logger.Logger, err error) {
+	err = logger.SetSeverityLevel(level)
 	if err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			missingConfigFile = true
-		} else {
-			fmt.Println("failed to start server: " + err.Error())
-			os.Exit(1)
-		}
+		return nil, err
 	}
 
-	conf, err := config.LoadConfig()
-	if err != nil {
-		fmt.Println("failed to start server: " + err.Error())
-		os.Exit(1)
-	}
-
-	baseLogger := logger.New(os.Stdout, sf, logger.LogFormat(conf.LogFormat))
-	cmdLog := baseLogger.WithPrefix("cmd")
-
-	err = logger.SetSeverityLevel(conf.LogLevel)
-	if err != nil {
-		cmdLog.Fatal().Msg("Failed to set log severity: " + err.Error())
-	}
-
-	bannerWriter := colorable.NewColorableStdout()
-	banner.InitString(bannerWriter, true, true, bannerTemplate)
-
-	if !missingConfigFile {
-		cmdLog.Info().Msg("Config file loaded with success")
-	} else {
-		cmdLog.Info().Msg("No config file found")
-	}
-
-	var cf []byte
-	cf, err = json.Marshal(conf)
-	if err != nil {
-		cmdLog.Fatal().Msg("Failed to encode configuration: " + err.Error())
-	}
-	cmdLog.Debug().RawJSON("Configuration", cf).Msg("Using configuration")
-
-	s, err := newServer(conf, baseLogger, machineID)
-	if err != nil {
-		cmdLog.Fatal().Msg("Failed to create server: " + err.Error())
-	}
-
-	startServer(s, cmdLog, enableProfile)
+	return logger.New(os.Stdout, gen, format), nil
 }
 
 func newServer(c config.Config, l *logger.Logger, machineID int) (s *server.Server, err error) {
@@ -135,7 +147,8 @@ func newServer(c config.Config, l *logger.Logger, machineID int) (s *server.Serv
 		MetricsEnabled:                c.MetricsEnabled,
 	}
 
-	sf, err := snowflake.New(machineID)
+	var sf *snowflake.Snowflake
+	sf, err = snowflake.New(machineID)
 	if err != nil {
 		return nil, err
 	}
@@ -150,8 +163,7 @@ func newServer(c config.Config, l *logger.Logger, machineID int) (s *server.Serv
 		return nil, err
 	}
 
-	srv := server.New(l)
-	s = &srv
+	s = server.New(l)
 	s.AddListener(lsn)
 
 	if c.MetricsEnabled {

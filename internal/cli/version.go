@@ -1,4 +1,4 @@
-// Copyright 2022-2023 The MaxMQ Authors
+// Copyright 2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package cli
 
 import (
-	"os"
-
-	"github.com/gsalomao/maxmq/internal/cli"
+	"github.com/gsalomao/maxmq/internal/build"
+	"github.com/spf13/cobra"
 )
 
-func main() {
-	c := cli.New(os.Stdout, os.Args[1:])
-	err := c.Run()
-	if err != nil {
-		os.Exit(1)
+func newCommandVersion() *cobra.Command {
+	return &cobra.Command{
+		Use:                   "version",
+		Short:                 "Show version and build summary",
+		Long:                  "Show version and build summary.",
+		DisableFlagsInUseLine: true,
+		Run: func(c *cobra.Command, _ []string) {
+			info := build.GetInfo()
+			_, _ = c.OutOrStdout().Write([]byte(info.LongVersion()))
+		},
 	}
 }

@@ -55,11 +55,6 @@ func NewListener(c Configuration, log *logger.Logger) (l *Listener, err error) {
 		m.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
 
-	lg.Debug().
-		Str("Address", c.Address).
-		Str("Path", c.Path).
-		Msg("Exporting metrics")
-
 	s := &http.Server{
 		Addr:         c.Address,
 		Handler:      m,
@@ -74,6 +69,11 @@ func NewListener(c Configuration, log *logger.Logger) (l *Listener, err error) {
 // Listen starts the execution of the Metrics Listener. Once called, it blocks waiting for connections until it's
 // stopped by the Stop function.
 func (l *Listener) Listen() error {
+	l.log.Debug().
+		Str("Address", l.conf.Address).
+		Str("Path", l.conf.Path).
+		Msg("Exporting metrics")
+
 	lsn, err := net.Listen("tcp", l.srv.Addr)
 	if err != nil {
 		return err

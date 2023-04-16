@@ -15,21 +15,30 @@
 package cli
 
 import (
-	"fmt"
+	"bytes"
+	"testing"
 
-	"github.com/gsalomao/maxmq/internal/build"
-	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 )
 
-func newCommandVersion() *cobra.Command {
-	return &cobra.Command{
-		Use:                   "version",
-		Short:                 "Show version and build summary",
-		Long:                  "Show version and build summary.",
-		DisableFlagsInUseLine: true,
-		Run: func(_ *cobra.Command, _ []string) {
-			info := build.GetInfo()
-			fmt.Println(info.LongVersion())
-		},
+func TestCLIRun(t *testing.T) {
+	testCases := []struct {
+		name string
+		cmd  string
+		out  string
+	}{
+		{"Usage", "", "MaxMQ is a Cloud-Native and High-Performance MQTT Broker for IoT"},
+		{"ShortVersion", "--version", "MaxMQ OSS 0.0.0"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.cmd, func(t *testing.T) {
+			out := bytes.NewBufferString("")
+			c := New(out, []string{tc.cmd})
+
+			err := c.Run()
+			assert.Nil(t, err)
+			assert.Contains(t, out.String(), tc.out)
+		})
 	}
 }
