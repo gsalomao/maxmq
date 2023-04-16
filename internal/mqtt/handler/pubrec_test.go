@@ -36,7 +36,7 @@ func TestPubRecHandlePacket(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			h := NewPubRec(st, log)
 
 			id := packet.ClientID("a")
@@ -88,7 +88,7 @@ func TestPubRecHandlePacketAlreadyConfirmed(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			h := NewPubRec(st, log)
 
 			id := packet.ClientID("a")
@@ -138,7 +138,7 @@ func TestPubRecHandlePacketV3PacketIDNotFound(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			h := NewPubRec(st, log)
 
 			id := packet.ClientID("a")
@@ -156,7 +156,7 @@ func TestPubRecHandlePacketV3PacketIDNotFound(t *testing.T) {
 
 func TestPubRecHandlePacketV5PacketIDNotFound(t *testing.T) {
 	st := &sessionStoreMock{}
-	log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+	log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 	h := NewPubRec(st, log)
 
 	id := packet.ClientID("a")
@@ -188,7 +188,7 @@ func TestPubRecHandlePacketReadSessionError(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			h := NewPubRec(st, log)
 			id := packet.ClientID("a")
 
@@ -213,7 +213,7 @@ func TestPubRecHandlePacketSaveSessionError(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			h := NewPubRec(st, log)
 
 			id := packet.ClientID("a")

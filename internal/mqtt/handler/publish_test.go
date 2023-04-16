@@ -43,7 +43,7 @@ func TestPublishHandlePacketQoS0(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			h := NewPublish(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
@@ -82,7 +82,7 @@ func TestPublishHandlePacketQoS1(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			h := NewPublish(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
@@ -129,7 +129,7 @@ func TestPublishHandlePacketQoS2(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			h := NewPublish(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
@@ -185,7 +185,7 @@ func TestPublishHandlePacketQoS2NoDuplication(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			h := NewPublish(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
@@ -262,7 +262,7 @@ func TestPublishHandlePacketQoS2SamePacketIDNewMessage(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			h := NewPublish(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
@@ -313,7 +313,7 @@ func TestPublishHandlePacketReadSessionError(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			h := NewPublish(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
@@ -349,7 +349,7 @@ func TestPublishHandlePacketPublishMessageError(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			h := NewPublish(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")
@@ -384,7 +384,7 @@ func TestPublishHandlePacketSaveSessionError(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
 			idGen := &messageIDGenMock{}
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			h := NewPublish(st, subMgr, idGen, log)
 
 			id := packet.ClientID("a")

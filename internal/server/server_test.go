@@ -61,7 +61,7 @@ func (m *logIDGenStub) NextID() uint64 {
 
 func newLogger() *logger.Logger {
 	out := bytes.NewBufferString("")
-	return logger.New(out, &logIDGenStub{}, logger.LogFormatJson)
+	return logger.New(out, &logIDGenStub{}, logger.Json)
 }
 
 func TestServerStart(t *testing.T) {

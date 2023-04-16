@@ -33,7 +33,7 @@ func TestPingReqHandlePacket(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.String(), func(t *testing.T) {
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			st := &sessionStoreMock{}
 			h := NewPingReq(st, log)
 
@@ -62,7 +62,7 @@ func TestPingReqHandlePacketReadSessionError(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.String(), func(t *testing.T) {
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			st := &sessionStoreMock{}
 			h := NewPingReq(st, log)
 

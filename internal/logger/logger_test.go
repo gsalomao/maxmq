@@ -37,7 +37,7 @@ func TestLoggerLog(t *testing.T) {
 	gen.On("NextID").Return(1)
 
 	out := bytes.NewBufferString("")
-	log := New(out, &gen, LogFormatPretty)
+	log := New(out, &gen, Pretty)
 	msg := gofakeit.Phrase()
 
 	log.Info().Msg(msg)
@@ -47,7 +47,7 @@ func TestLoggerLog(t *testing.T) {
 
 func TestLoggerLogWithoutIDGenerator(t *testing.T) {
 	out := bytes.NewBufferString("")
-	log := New(out, nil, LogFormatPretty)
+	log := New(out, nil, Pretty)
 	msg := gofakeit.Phrase()
 
 	log.Info().Msg(msg)
@@ -60,7 +60,7 @@ func TestLoggerWithField(t *testing.T) {
 	gen.On("NextID").Return(1)
 
 	out := bytes.NewBufferString("")
-	log := New(out, &gen, LogFormatPretty)
+	log := New(out, &gen, Pretty)
 	key := gofakeit.Word()
 	val := gofakeit.Phrase()
 
@@ -74,7 +74,7 @@ func TestLoggerWithLogId(t *testing.T) {
 	gen.On("NextID").Return(255)
 
 	out := bytes.NewBufferString("")
-	log := New(out, &gen, LogFormatPretty)
+	log := New(out, &gen, Pretty)
 	msg := gofakeit.Phrase()
 
 	log.Info().Msg(msg)
@@ -84,7 +84,7 @@ func TestLoggerWithLogId(t *testing.T) {
 func TestLoggerSetSeverity(t *testing.T) {
 	gen := logIDGenMock{}
 	out := bytes.NewBufferString("")
-	log := New(out, &gen, LogFormatJson)
+	log := New(out, &gen, Json)
 
 	msg := gofakeit.Phrase()
 	err := SetSeverityLevel("info")

@@ -29,11 +29,11 @@ import (
 type LogFormat string
 
 const (
-	// LogFormatPretty defines the log format in human-friendly format.
-	LogFormatPretty LogFormat = "pretty"
+	// Pretty defines the log format in human-friendly format.
+	Pretty LogFormat = "pretty"
 
-	// LogFormatJson defines the log format in JSON format.
-	LogFormatJson LogFormat = "json"
+	// Json defines the log format in JSON format.
+	Json LogFormat = "json"
 )
 
 const (
@@ -117,7 +117,7 @@ func New(wr io.Writer, gen LogIDGenerator, f LogFormat) *Logger {
 	l := &Logger{generator: gen, writer: wr, format: f}
 
 	var ctx zerolog.Context
-	if f == LogFormatPretty {
+	if f == Pretty {
 		output := &zerolog.ConsoleWriter{Out: wr, TimeFormat: time.RFC3339Nano}
 		output.FormatTimestamp = l.formatTimestamp
 		output.FormatLevel = l.formatLevel
@@ -139,7 +139,7 @@ func New(wr io.Writer, gen LogIDGenerator, f LogFormat) *Logger {
 func NewWithPrefix(wr io.Writer, gen LogIDGenerator, prefix string, f LogFormat) *Logger {
 	l := New(wr, gen, f)
 	l.prefix = prefix
-	if f != LogFormatPretty {
+	if f != Pretty {
 		l.Logger = l.Logger.With().Str("Prefix", prefix).Logger()
 	}
 	return l

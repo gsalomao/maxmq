@@ -36,7 +36,7 @@ func TestUnsubscribeHandlePacket(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			h := NewUnsubscribe(st, subMgr, log)
 
 			id := packet.ClientID("a")
@@ -81,7 +81,7 @@ func TestUnsubscribeHandlePacketMultipleTopics(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			h := NewUnsubscribe(st, subMgr, log)
 
 			id := packet.ClientID("a")
@@ -140,7 +140,7 @@ func TestUnsubscribeHandlePacketUnsubscribeError(t *testing.T) {
 		t.Run(tc.err.Error(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			h := NewUnsubscribe(st, subMgr, log)
 
 			id := packet.ClientID("a")
@@ -189,7 +189,7 @@ func TestUnsubscribeHandlePacketReadSessionError(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			h := NewUnsubscribe(st, subMgr, log)
 
 			id := packet.ClientID("a")
@@ -216,7 +216,7 @@ func TestUnsubscribeHandlePacketSaveSessionError(t *testing.T) {
 		t.Run(tc.String(), func(t *testing.T) {
 			st := &sessionStoreMock{}
 			subMgr := &subscriptionMgrMock{}
-			log := logger.New(&bytes.Buffer{}, nil, logger.LogFormatJson)
+			log := logger.New(&bytes.Buffer{}, nil, logger.Json)
 			h := NewUnsubscribe(st, subMgr, log)
 
 			id := packet.ClientID("a")
