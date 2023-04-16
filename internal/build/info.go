@@ -23,10 +23,10 @@ import (
 
 // Variables updated at build time.
 var (
-	version      string // The application version
-	revision     string // The commit ID of the build
-	buildTime    string // The build time in UTC (year-month-day hour:min:sec)
-	distribution string // The application distribution
+	version      = "0.0.0"               // The application version
+	revision     = "0"                   // The commit ID of the build
+	buildTime    = "2020-01-01 00:00:00" // The build time in UTC (year-month-day hour:min:sec)
+	distribution = "OSS"                 // The application distribution
 )
 
 // Info contains build information
@@ -77,9 +77,7 @@ func (i Info) LongVersion() string {
 	_, _ = fmt.Fprintf(tw, "Built:           %s\n", i.BuildTime)
 	_, _ = fmt.Fprintf(tw, "Distribution:    %s\n", i.Distribution)
 	_, _ = fmt.Fprintf(tw, "Platform:        %s\n", i.Platform)
-
-	// The last line does not need newline as it's already printed by cobra
-	_, _ = fmt.Fprintf(tw, "Go version:      %s", i.GoVersion)
+	_, _ = fmt.Fprintf(tw, "Go version:      %s\n", i.GoVersion)
 
 	_ = tw.Flush()
 	return buf.String()
