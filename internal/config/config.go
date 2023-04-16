@@ -100,6 +100,29 @@ type Config struct {
 	MQTTDefaultVersion int `mapstructure:"mqtt_default_version"`
 }
 
+var DefaultConfig = Config{
+	LogLevel:                 "info",
+	LogFormat:                "pretty",
+	MetricsEnabled:           true,
+	MetricsAddress:           ":8888",
+	MetricsPath:              "/metrics",
+	MQTTTCPAddress:           ":1883",
+	MQTTConnectTimeout:       5,
+	MQTTBufferSize:           1024,
+	MQTTMaxPacketSize:        65536,
+	MQTTSessionExpiration:    7200,
+	MQTTMaxInflightMessages:  20,
+	MQTTMaximumQoS:           2,
+	MQTTMaxTopicAlias:        10,
+	MQTTRetainAvailable:      true,
+	MQTTWildcardSubscription: true,
+	MQTTSubscriptionID:       true,
+	MQTTSharedSubscription:   true,
+	MQTTMaxClientIDLen:       65535,
+	MQTTAllowEmptyClientID:   true,
+	MQTTDefaultVersion:       4,
+}
+
 // ReadConfigFile reads the configuration file.
 //
 // The configuration file can be stored at one of the following locations:
@@ -158,28 +181,7 @@ func LoadConfig() (Config, error) {
 	_ = viper.BindEnv("mqtt_default_version")
 
 	// Set the default values
-	c := Config{
-		LogLevel:                 "info",
-		LogFormat:                "pretty",
-		MetricsEnabled:           true,
-		MetricsAddress:           ":8888",
-		MetricsPath:              "/metrics",
-		MQTTTCPAddress:           ":1883",
-		MQTTConnectTimeout:       5,
-		MQTTBufferSize:           1024,
-		MQTTMaxPacketSize:        65536,
-		MQTTSessionExpiration:    7200,
-		MQTTMaxInflightMessages:  20,
-		MQTTMaximumQoS:           2,
-		MQTTMaxTopicAlias:        10,
-		MQTTRetainAvailable:      true,
-		MQTTWildcardSubscription: true,
-		MQTTSubscriptionID:       true,
-		MQTTSharedSubscription:   true,
-		MQTTMaxClientIDLen:       65535,
-		MQTTAllowEmptyClientID:   true,
-		MQTTDefaultVersion:       4,
-	}
+	c := DefaultConfig
 
 	err := viper.Unmarshal(&c)
 	return c, err
