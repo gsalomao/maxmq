@@ -13,7 +13,6 @@
 # limitations under the License.
 
 # Build artifacts
-build/
 bin/
 dist/
 coverage/
