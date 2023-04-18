@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	"github.com/gsalomao/maxmq/internal/logger"
+	"go.uber.org/multierr"
 )
 
 // Listener is an interface for network listeners.
@@ -56,18 +57,23 @@ func (s *Server) Start() error {
 		return errors.New("no available listener")
 	}
 
+	var starting sync.WaitGroup
+	starting.Add(len(s.listeners))
+	s.wg.Add(len(s.listeners))
+
 	for _, lsn := range s.listeners {
-		s.wg.Add(1)
 		go func(l Listener) {
 			defer s.wg.Done()
+			starting.Done()
 
 			err := l.Listen()
 			if err != nil {
-				s.err = err
+				s.err = multierr.Combine(s.err, err)
 			}
 		}(lsn)
 	}
 
+	starting.Wait()
 	s.log.Info().Msg("Server started with success")
 	return nil
 }
@@ -75,18 +81,15 @@ func (s *Server) Start() error {
 // Stop stops the server by stopping all listeners.
 func (s *Server) Stop() {
 	s.log.Info().Msg("Stopping server")
-	s.wg.Add(1)
 
 	for _, l := range s.listeners {
 		l.Stop()
 	}
-
-	s.log.Info().Msg("Server stopped with success")
-	s.wg.Done()
 }
 
 // Wait blocks while the server is running.
 func (s *Server) Wait() error {
 	s.wg.Wait()
+	s.log.Info().Msg("Server stopped")
 	return s.err
 }
