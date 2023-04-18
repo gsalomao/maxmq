@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package server_test
+package server
 
 import (
 	"bytes"
@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/gsalomao/maxmq/internal/logger"
-	"github.com/gsalomao/maxmq/internal/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -28,65 +27,50 @@ import (
 
 type listenerMock struct {
 	mock.Mock
-	runningCh chan bool
-	stopCh    chan bool
-	err       error
+	running chan bool
 }
 
 func newListenerMock() *listenerMock {
-	return &listenerMock{
-		runningCh: make(chan bool),
-		stopCh:    make(chan bool),
-	}
+	return &listenerMock{running: make(chan bool)}
 }
 
 func (l *listenerMock) Listen() error {
-	l.Called()
-	l.runningCh <- true
-	<-l.stopCh
-	return l.err
+	args := l.Called()
+	l.running <- true
+	<-l.running
+	return args.Error(0)
 }
 
 func (l *listenerMock) Stop() {
 	l.Called()
-	l.stopCh <- true
-}
-
-type logIDGenStub struct {
-}
-
-func (m *logIDGenStub) NextID() uint64 {
-	return 0
+	l.running <- false
 }
 
 func newLogger() *logger.Logger {
 	out := bytes.NewBufferString("")
-	return logger.New(out, &logIDGenStub{}, logger.Json)
+	return logger.New(out, nil, logger.Json)
 }
 
 func TestServerStart(t *testing.T) {
 	log := newLogger()
-	s := server.New(log)
+	s := New(log)
 
-	lsn := newListenerMock()
-	lsn.On("Listen")
-	s.AddListener(lsn)
+	l := newListenerMock()
+	l.On("Listen").Return(nil)
+	s.AddListener(l)
 
-	done := make(chan bool)
-	go func() {
-		defer close(done)
-		err := s.Start()
-		assert.Nil(t, err)
-	}()
+	err := s.Start()
+	require.Nil(t, err)
 
-	<-lsn.runningCh
-	lsn.stopCh <- true
-	<-done
+	<-l.running
+	l.running <- false
+	err = s.Wait()
+	assert.Nil(t, err)
 }
 
 func TestServerStartWithoutListener(t *testing.T) {
 	log := newLogger()
-	s := server.New(log)
+	s := New(log)
 
 	err := s.Start()
 	assert.ErrorContains(t, err, "no available listener")
@@ -94,49 +78,36 @@ func TestServerStartWithoutListener(t *testing.T) {
 
 func TestServerStop(t *testing.T) {
 	log := newLogger()
-	s := server.New(log)
+	s := New(log)
 
-	lsn := newListenerMock()
-	lsn.On("Listen")
-	lsn.On("Stop")
-	s.AddListener(lsn)
+	l := newListenerMock()
+	l.On("Listen").Return(nil)
+	l.On("Stop")
+	s.AddListener(l)
 
 	err := s.Start()
 	require.Nil(t, err)
 
-	done := make(chan bool)
-	go func() {
-		defer close(done)
-		err = s.Wait()
-		assert.Nil(t, err)
-	}()
-
-	<-lsn.runningCh
+	<-l.running
 	s.Stop()
-	<-done
+	err = s.Wait()
+	assert.Nil(t, err)
 }
 
 func TestServerListenerError(t *testing.T) {
 	log := newLogger()
-	s := server.New(log)
+	s := New(log)
 
-	lsn := newListenerMock()
-	lsn.On("Listen")
-	lsn.On("Stop")
-	s.AddListener(lsn)
+	l := newListenerMock()
+	l.On("Listen").Return(errors.New("any failure"))
+	l.On("Stop")
+	s.AddListener(l)
 
 	err := s.Start()
 	require.Nil(t, err)
 
-	done := make(chan bool)
-	go func() {
-		defer close(done)
-		err = s.Wait()
-		assert.NotNil(t, err)
-	}()
-
-	<-lsn.runningCh
-	lsn.err = errors.New("any failure")
+	<-l.running
 	s.Stop()
-	<-done
+	err = s.Wait()
+	assert.NotNil(t, err)
 }
