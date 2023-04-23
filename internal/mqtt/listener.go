@@ -18,6 +18,7 @@ import (
 	"errors"
 	"net"
 	"sync"
+	"sync/atomic"
 
 	"github.com/gsalomao/maxmq/internal/logger"
 	"github.com/gsalomao/maxmq/internal/mqtt/handler"
@@ -38,8 +39,7 @@ type Listener struct {
 	connectionMgr *connectionManager
 	conf          handler.Configuration
 	wg            sync.WaitGroup
-	running       bool
-	mtx           sync.Mutex
+	running       atomic.Bool
 }
 
 // NewListener creates a new MQTT Listener with the given options.
@@ -73,7 +73,7 @@ func (l *Listener) Start() error {
 
 	l.tcpLsn = lsn
 	l.connectionMgr.start()
-	l.setRunningState(true)
+	l.running.Store(true)
 	l.wg.Add(1)
 
 	l.log.Info().Msg("Listening on " + lsn.Addr().String())
@@ -89,7 +89,7 @@ func (l *Listener) Start() error {
 
 			tcpConn, err = lsn.Accept()
 			if err != nil {
-				if !l.isRunning() {
+				if !l.running.Load() {
 					break
 				}
 
@@ -117,7 +117,7 @@ func (l *Listener) Start() error {
 func (l *Listener) Stop() {
 	l.log.Debug().Msg("Stopping listener")
 
-	l.setRunningState(false)
+	l.running.Store(false)
 	_ = l.tcpLsn.Close()
 	l.connectionMgr.stop()
 
@@ -127,18 +127,4 @@ func (l *Listener) Stop() {
 
 func (l *Listener) Wait() {
 	l.wg.Wait()
-}
-
-func (l *Listener) setRunningState(st bool) {
-	l.mtx.Lock()
-	defer l.mtx.Unlock()
-
-	l.running = st
-}
-
-func (l *Listener) isRunning() bool {
-	l.mtx.Lock()
-	defer l.mtx.Unlock()
-
-	return l.running
 }
