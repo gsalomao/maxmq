@@ -66,7 +66,7 @@ func TestCLIRunStartNewServer(t *testing.T) {
 	assert.NotNil(t, s)
 }
 
-func TestCLIRunStartStartServer(t *testing.T) {
+func TestCLIRunStartStartStopServer(t *testing.T) {
 	out := bytes.NewBufferString("")
 	log := logger.New(out, nil, logger.Pretty)
 
@@ -82,6 +82,7 @@ func TestCLIRunStartStartServer(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		startServer(s, log, true)
+		stopServer(s, log, true)
 	}()
 
 	<-l.running
@@ -89,6 +90,7 @@ func TestCLIRunStartStartServer(t *testing.T) {
 	wg.Wait()
 	_ = os.Remove("cpu.prof")
 	_ = os.Remove("heap.prof")
+	l.AssertExpectations(t)
 }
 
 func TestCLIRunStartHelp(t *testing.T) {

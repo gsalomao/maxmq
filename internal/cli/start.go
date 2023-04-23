@@ -98,6 +98,14 @@ func newCommandStart() *cobra.Command {
 			}
 
 			startServer(s, bsLog, enableProfile)
+
+			stop := make(chan os.Signal, 1)
+			signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+			<-stop
+
+			// Generates a new line to split the logs
+			fmt.Println("")
+			stopServer(s, bsLog, enableProfile)
 		},
 	}
 }
@@ -202,18 +210,12 @@ func startServer(s *server.Server, l *logger.Logger, enableProfile bool) {
 	if err != nil {
 		l.Fatal().Msg("Failed to start server: " + err.Error())
 	}
+}
 
-	go waitOSSignals(s)
-
-	err = s.Wait()
-	if err != nil {
-		l.Error().Msg("Server stopped with error: " + err.Error())
-	}
-
+func stopServer(s *server.Server, l *logger.Logger, enableProfile bool) {
+	s.Stop()
 	if enableProfile {
-		var heap *os.File
-
-		heap, err = os.Create("heap.prof")
+		heap, err := os.Create("heap.prof")
 		if err != nil {
 			l.Fatal().Msg("Failed to create Heap profile file: " + err.Error())
 		}
