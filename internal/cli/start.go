@@ -161,11 +161,7 @@ func newServer(c config.Config, l *logger.Logger, machineID int) (s *server.Serv
 	}
 
 	var lsn server.Listener
-	lsn, err = mqtt.NewListener(
-		mqtt.WithConfiguration(mqttConf),
-		mqtt.WithLogger(l),
-		mqtt.WithIDGenerator(sf),
-	)
+	lsn, err = mqtt.NewListener(mqttConf, sf, l)
 	if err != nil {
 		return nil, err
 	}

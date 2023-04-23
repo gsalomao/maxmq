@@ -23,42 +23,45 @@ import (
 	"github.com/gsalomao/maxmq/internal/mqtt/handler"
 )
 
+// IDGenerator generates an identifier numbers.
+type IDGenerator interface {
+	// NextID generates the next identifier number.
+	NextID() uint64
+}
+
 // Listener is responsible to implement the MQTT protocol conform the v3.1, v3.1.1, and v5.0 specifications.
 type Listener struct {
 	// Unexported fields
 	tcpLsn        net.Listener
 	idGen         IDGenerator
 	log           *logger.Logger
-	conf          *handler.Configuration
 	connectionMgr *connectionManager
+	conf          handler.Configuration
+	wg            sync.WaitGroup
 	running       bool
 	mtx           sync.Mutex
 }
 
 // NewListener creates a new MQTT Listener with the given options.
-func NewListener(opts ...OptionsFn) (*Listener, error) {
-	l := &Listener{}
-
-	for _, fn := range opts {
-		fn(l)
-	}
-
-	if l.log == nil {
-		return nil, errors.New("missing logger")
-	}
-	if l.conf == nil {
-		return nil, errors.New("missing configuration")
-	}
-	if l.idGen == nil {
+func NewListener(c handler.Configuration, g IDGenerator, l *logger.Logger) (*Listener, error) {
+	if g == nil {
 		return nil, errors.New("missing ID generator")
 	}
+	if l == nil {
+		return nil, errors.New("missing logger")
+	}
 
-	mt := newMetrics(l.conf.MetricsEnabled, l.log)
-	st := newSessionStore(l.idGen, l.log)
-	cm := newConnectionManager(l.conf, st, mt, l.idGen, l.log)
+	log := l.WithPrefix("mqtt")
+	mt := newMetrics(c.MetricsEnabled, log)
+	st := newSessionStore(g, log)
+	cm := newConnectionManager(&c, st, mt, g, log)
 
-	l.connectionMgr = cm
-	return l, nil
+	return &Listener{
+		conf:          c,
+		idGen:         g,
+		log:           log,
+		connectionMgr: cm,
+	}, nil
 }
 
 // Start starts the execution of the MQTT listener.
@@ -68,33 +71,45 @@ func (l *Listener) Start() error {
 		return err
 	}
 
+	l.tcpLsn = lsn
 	l.connectionMgr.start()
+	l.setRunningState(true)
+	l.wg.Add(1)
 
 	l.log.Info().Msg("Listening on " + lsn.Addr().String())
-	l.tcpLsn = lsn
-	l.setRunningState(true)
+	starting := make(chan bool)
 
-	for {
-		l.log.Trace().Msg("Waiting for TCP connection")
+	go func() {
+		defer l.wg.Done()
+		close(starting)
 
-		var tcpConn net.Conn
-		tcpConn, err = l.tcpLsn.Accept()
-		if err != nil {
-			if !l.isRunning() {
-				break
+		for {
+			var tcpConn net.Conn
+			l.log.Trace().Msg("Waiting for TCP connection")
+
+			tcpConn, err = lsn.Accept()
+			if err != nil {
+				if !l.isRunning() {
+					break
+				}
+
+				l.log.Warn().Msg("Failed to accept TCP connection: " + err.Error())
+				continue
 			}
 
-			l.log.Warn().Msg("Failed to accept TCP connection: " + err.Error())
-			continue
+			conn := l.connectionMgr.newConnection(tcpConn)
+			l.log.Trace().Msg("New TCP connection")
+
+			l.wg.Add(1)
+			go func() {
+				defer l.wg.Done()
+				l.connectionMgr.handle(conn)
+			}()
 		}
+	}()
 
-		conn := l.connectionMgr.newConnection(tcpConn)
-		l.log.Trace().Msg("New TCP connection")
-
-		go func() { l.connectionMgr.handle(conn) }()
-	}
-
-	l.log.Debug().Msg("Listener stopped with success")
+	<-starting
+	l.log.Debug().Msg("Listener started with success")
 	return nil
 }
 
@@ -102,12 +117,16 @@ func (l *Listener) Start() error {
 func (l *Listener) Stop() {
 	l.log.Debug().Msg("Stopping listener")
 
-	l.connectionMgr.stop()
 	l.setRunningState(false)
 	_ = l.tcpLsn.Close()
+	l.connectionMgr.stop()
+
+	l.wg.Wait()
+	l.log.Debug().Msg("Listener stopped with success")
 }
 
 func (l *Listener) Wait() {
+	l.wg.Wait()
 }
 
 func (l *Listener) setRunningState(st bool) {

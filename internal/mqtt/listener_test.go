@@ -49,56 +49,30 @@ func (b *logBuffer) Write(p []byte) (n int, err error) {
 
 func newLogger() *logger.Logger {
 	out := logBuffer{}
-	idGen := &idGeneratorMock{}
-	idGen.On("NextID").Return(0)
-
-	return logger.New(&out, idGen, logger.Json)
+	return logger.New(&out, nil, logger.Json)
 }
 
 func TestListenerNewListener(t *testing.T) {
-	log := newLogger()
-
-	t.Run("MissingConfiguration", func(t *testing.T) {
-		idGen := &idGeneratorMock{}
-
-		_, err := NewListener(
-			WithLogger(log),
-			WithIDGenerator(idGen),
-		)
-
-		assert.ErrorContains(t, err, "missing configuration")
-	})
-
 	t.Run("MissingLogger", func(t *testing.T) {
 		idGen := &idGeneratorMock{}
 
-		_, err := NewListener(
-			WithConfiguration(handler.Configuration{}),
-			WithIDGenerator(idGen),
-		)
-
+		_, err := NewListener(handler.Configuration{}, idGen, nil)
 		assert.ErrorContains(t, err, "missing logger")
 	})
 
 	t.Run("MissingIDGenerator", func(t *testing.T) {
-		_, err := NewListener(
-			WithConfiguration(handler.Configuration{}),
-			WithLogger(log),
-		)
+		log := newLogger()
 
+		_, err := NewListener(handler.Configuration{}, nil, log)
 		assert.ErrorContains(t, err, "missing ID generator")
 	})
 }
 
-func TestListenerRunInvalidTCPAddress(t *testing.T) {
+func TestListenerStartInvalidTCPAddress(t *testing.T) {
 	log := newLogger()
 	idGen := &idGeneratorMock{}
 
-	l, err := NewListener(
-		WithConfiguration(handler.Configuration{TCPAddress: "."}),
-		WithLogger(log),
-		WithIDGenerator(idGen),
-	)
+	l, err := NewListener(handler.Configuration{TCPAddress: "."}, idGen, log)
 	require.Nil(t, err)
 	require.NotNil(t, l)
 
@@ -106,32 +80,30 @@ func TestListenerRunInvalidTCPAddress(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestListenerRunAndStop(t *testing.T) {
+func TestListenerStartAndStop(t *testing.T) {
 	log := newLogger()
 	idGen := &idGeneratorMock{}
 
-	l, err := NewListener(
-		WithConfiguration(handler.Configuration{TCPAddress: ":1883"}),
-		WithLogger(log),
-		WithIDGenerator(idGen),
-	)
+	l, err := NewListener(handler.Configuration{TCPAddress: ":1883"}, idGen, log)
 	require.Nil(t, err)
 	require.NotNil(t, l)
 
 	err = l.Start()
 	require.Nil(t, err)
 
-	done := make(chan bool)
+	var wg sync.WaitGroup
+	starting := make(chan struct{})
+
+	wg.Add(1)
 	go func() {
-		err = l.Listen()
-		done <- true
+		defer wg.Done()
+		close(starting)
+		l.Wait()
 	}()
 
-	<-time.After(10 * time.Millisecond)
+	<-starting
 	l.Stop()
-
-	<-done
-	assert.Nil(t, err)
+	wg.Wait()
 }
 
 func TestListenerHandleConnection(t *testing.T) {
@@ -139,37 +111,17 @@ func TestListenerHandleConnection(t *testing.T) {
 	idGen := &idGeneratorMock{}
 	idGen.On("NextID").Return(1)
 
-	l, err := NewListener(
-		WithConfiguration(handler.Configuration{TCPAddress: ":1883"}),
-		WithLogger(log),
-		WithIDGenerator(idGen),
-	)
-	require.Nil(t, err)
-
-	done := make(chan bool)
-	go func() {
-		err = l.Listen()
-		done <- true
-	}()
-
-	<-time.After(time.Millisecond)
-	conn, err := net.Dial("tcp", ":1883")
+	l, err := NewListener(handler.Configuration{TCPAddress: ":1883"}, idGen, log)
 	require.Nil(t, err)
 
 	err = l.Start()
 	require.Nil(t, err)
 
-	done := make(chan bool)
-	go func() {
-		err = l.Listen()
-		done <- true
-	}()
-
-	<-time.After(time.Millisecond)
-	conn, err := net.Dial("tcp", ":1883")
+	var conn net.Conn
+	conn, err = net.Dial("tcp", ":1883")
 	require.Nil(t, err)
-	defer func() { _ = conn.Close() }()
 
+	_ = conn.Close()
 	l.Stop()
 	l.Wait()
 }
