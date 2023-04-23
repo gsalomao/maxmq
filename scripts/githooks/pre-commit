@@ -34,7 +34,6 @@ CURRENT_YEAR=$(date +%Y)
 for i in $(git diff --name-only --cached); do
 	printf "${WHITE}    Updating '%s'${RESET}\n" "$i"
 	perl -pi -e "s/(?<=Copyright\ \d{4})(?<!$CURRENT_YEAR)(-\d{4})?/-$CURRENT_YEAR/g" "$i";
-	git add "$i"
 done
 print_task_info_result "Updating copyright year" "done"
 
