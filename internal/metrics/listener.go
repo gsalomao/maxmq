@@ -20,6 +20,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"sync"
 	"time"
 
 	"github.com/gsalomao/maxmq/internal/logger"
@@ -32,6 +33,7 @@ type Listener struct {
 	mux  *http.ServeMux
 	srv  *http.Server
 	log  *logger.Logger
+	wg   sync.WaitGroup
 }
 
 // NewListener creates a Metrics Listener instance.
@@ -66,9 +68,8 @@ func NewListener(c Configuration, log *logger.Logger) (l *Listener, err error) {
 	return l, nil
 }
 
-// Listen starts the execution of the Metrics Listener. Once called, it blocks waiting for connections until it's
-// stopped by the Stop function.
-func (l *Listener) Listen() error {
+// Start starts the execution of the listener.
+func (l *Listener) Start() error {
 	l.log.Debug().
 		Str("Address", l.conf.Address).
 		Str("Path", l.conf.Path).
@@ -80,15 +81,28 @@ func (l *Listener) Listen() error {
 	}
 
 	l.log.Info().Msg("Listening on " + lsn.Addr().String())
-	if err = l.srv.Serve(lsn); err != http.ErrServerClosed {
-		return err
-	}
 
-	l.log.Debug().Msg("Listener stopped with success")
+	starting := make(chan bool)
+	l.wg.Add(1)
+
+	go func() {
+		defer l.wg.Done()
+		close(starting)
+
+		for {
+			err = l.srv.Serve(lsn)
+			if err == http.ErrServerClosed {
+				break
+			}
+		}
+	}()
+
+	<-starting
+	l.log.Debug().Msg("Listener started with success")
 	return nil
 }
 
-// Stop stops the Metrics Listener. Once called, it unblocks the Listen function.
+// Stop stops the Metrics Listener. Once called, it unblocks the listener.
 func (l *Listener) Stop() {
 	l.log.Debug().Msg("Stopping listener")
 
@@ -99,4 +113,11 @@ func (l *Listener) Stop() {
 	if err != nil {
 		_ = l.srv.Close()
 	}
+
+	l.wg.Wait()
+	l.log.Debug().Msg("Listener stopped with success")
+}
+
+func (l *Listener) Wait() {
+	l.wg.Wait()
 }

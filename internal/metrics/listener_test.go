@@ -18,19 +18,11 @@ import (
 	"bytes"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/gsalomao/maxmq/internal/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-type logIDGenStub struct {
-}
-
-func (m *logIDGenStub) NextID() uint64 {
-	return 0
-}
 
 type logBuffer struct {
 	b bytes.Buffer
@@ -45,66 +37,71 @@ func (b *logBuffer) Write(p []byte) (n int, err error) {
 
 func newLogger() *logger.Logger {
 	out := &logBuffer{}
-	return logger.New(out, &logIDGenStub{}, logger.Json)
+	return logger.New(out, nil, logger.Json)
 }
 
-func TestMetricsNewServer(t *testing.T) {
+func TestListenerNewListener(t *testing.T) {
 	log := newLogger()
 
 	t.Run("Valid", func(t *testing.T) {
 		conf := Configuration{Address: ":8888", Path: "/metrics"}
 
-		lsn, err := NewListener(conf, log)
+		l, err := NewListener(conf, log)
 		assert.Nil(t, err)
-		assert.NotNil(t, lsn)
+		assert.NotNil(t, l)
 	})
 
 	t.Run("MissingAddress", func(t *testing.T) {
 		conf := Configuration{Address: "", Path: "/metrics"}
 
-		lsn, err := NewListener(conf, log)
-		assert.Nil(t, lsn)
+		l, err := NewListener(conf, log)
+		assert.Nil(t, l)
 		assert.ErrorContains(t, err, "missing address")
 	})
 
 	t.Run("MissingPath", func(t *testing.T) {
 		conf := Configuration{Address: ":8888", Path: ""}
 
-		lsn, err := NewListener(conf, log)
-		assert.Nil(t, lsn)
+		l, err := NewListener(conf, log)
+		assert.Nil(t, l)
 		assert.ErrorContains(t, err, "missing path")
 	})
 }
 
-func TestMetricsRunInvalidAddress(t *testing.T) {
+func TestListenerStartInvalidAddress(t *testing.T) {
 	log := newLogger()
 	conf := Configuration{Address: ".", Path: "/metrics"}
 
-	lsn, err := NewListener(conf, log)
+	l, err := NewListener(conf, log)
 	require.Nil(t, err)
-	require.NotNil(t, lsn)
+	require.NotNil(t, l)
 
-	err = lsn.Listen()
+	err = l.Start()
 	require.NotNil(t, err)
 }
 
-func TestMetricsRunAndStop(t *testing.T) {
+func TestListenerStartAndStop(t *testing.T) {
 	log := newLogger()
 	conf := Configuration{Address: ":8888", Path: "/metrics"}
 
-	lsn, err := NewListener(conf, log)
+	l, err := NewListener(conf, log)
 	require.Nil(t, err)
-	require.NotNil(t, lsn)
+	require.NotNil(t, l)
 
-	done := make(chan bool)
+	err = l.Start()
+	require.Nil(t, err)
+
+	var wg sync.WaitGroup
+	starting := make(chan struct{})
+
+	wg.Add(1)
 	go func() {
-		err = lsn.Listen()
-		done <- true
+		defer wg.Done()
+		close(starting)
+		l.Wait()
 	}()
 
-	<-time.After(5 * time.Millisecond)
-	lsn.Stop()
-
-	<-done
-	assert.Nil(t, err)
+	<-starting
+	l.Stop()
+	wg.Wait()
 }
