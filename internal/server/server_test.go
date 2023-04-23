@@ -42,11 +42,6 @@ func (l *listenerMock) Stop() {
 	l.wg.Done()
 }
 
-func (l *listenerMock) Wait() {
-	l.Called()
-	l.wg.Wait()
-}
-
 func newLogger() *logger.Logger {
 	out := bytes.NewBufferString("")
 	return logger.New(out, nil, logger.Json)
@@ -85,7 +80,6 @@ func TestServerStop(t *testing.T) {
 	require.Nil(t, err)
 
 	l.On("Stop")
-	l.On("Wait")
 	s.Stop()
 	l.AssertExpectations(t)
 }
@@ -109,7 +103,6 @@ func TestServerStartWithListenerErrorMultipleListeners(t *testing.T) {
 
 	l1 := &listenerMock{}
 	l1.On("Start").Return(nil)
-	l1.On("Wait")
 	l1.On("Stop")
 	s.AddListener(l1)
 

@@ -91,19 +91,7 @@ func TestListenerStartAndStop(t *testing.T) {
 	err = l.Start()
 	require.Nil(t, err)
 
-	var wg sync.WaitGroup
-	starting := make(chan struct{})
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		close(starting)
-		l.Wait()
-	}()
-
-	<-starting
 	l.Stop()
-	wg.Wait()
 }
 
 func TestListenerHandleConnection(t *testing.T) {
@@ -123,5 +111,4 @@ func TestListenerHandleConnection(t *testing.T) {
 
 	_ = conn.Close()
 	l.Stop()
-	l.Wait()
 }

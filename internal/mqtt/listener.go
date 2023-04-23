@@ -113,7 +113,7 @@ func (l *Listener) Start() error {
 	return nil
 }
 
-// Stop stops the MQTT listener. Once called, it unblocks the Run function.
+// Stop stops the MQTT listener.
 func (l *Listener) Stop() {
 	l.log.Debug().Msg("Stopping listener")
 
@@ -123,8 +123,4 @@ func (l *Listener) Stop() {
 
 	l.wg.Wait()
 	l.log.Debug().Msg("Listener stopped with success")
-}
-
-func (l *Listener) Wait() {
-	l.wg.Wait()
 }

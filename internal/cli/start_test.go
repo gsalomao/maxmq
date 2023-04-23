@@ -30,13 +30,11 @@ import (
 type listenerMock struct {
 	mock.Mock
 	running chan struct{}
-	stopped chan struct{}
 }
 
 func newListenerMock() *listenerMock {
 	return &listenerMock{
 		running: make(chan struct{}, 1),
-		stopped: make(chan struct{}, 1),
 	}
 }
 
@@ -48,12 +46,6 @@ func (l *listenerMock) Start() error {
 
 func (l *listenerMock) Stop() {
 	l.Called()
-	l.stopped <- struct{}{}
-}
-
-func (l *listenerMock) Wait() {
-	l.Called()
-	<-l.stopped
 }
 
 func TestCLIRunStartLoadConfig(t *testing.T) {
@@ -88,7 +80,6 @@ func TestCLIRunStartStartStopServer(t *testing.T) {
 	s.AddListener(l)
 
 	l.On("Start").Return(nil)
-	l.On("Wait")
 	l.On("Stop")
 
 	var wg sync.WaitGroup

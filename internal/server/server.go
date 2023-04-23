@@ -23,15 +23,11 @@ import (
 
 // Listener is an interface for network listeners.
 type Listener interface {
-	// Start starts the listener. If the listener has already started, this function has no effect.
+	// Start starts the listener.
 	Start() error
 
-	// Stop stops the listener unblocking the Wait function. If the listener has not started, this function has no
-	// effect.
+	// Stop stops the listener.
 	Stop()
-
-	// Wait blocks until the listener stops. If the listener has not started, this function returns immediately.
-	Wait()
 }
 
 type serverListener struct {
@@ -102,7 +98,6 @@ func (s *Server) stopRunningListeners() {
 	for _, lsn := range s.listeners {
 		if lsn.running {
 			lsn.listener.Stop()
-			lsn.listener.Wait()
 			lsn.running = false
 			s.wg.Done()
 		}

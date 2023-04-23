@@ -117,7 +117,3 @@ func (l *Listener) Stop() {
 	l.wg.Wait()
 	l.log.Debug().Msg("Listener stopped with success")
 }
-
-func (l *Listener) Wait() {
-	l.wg.Wait()
-}
