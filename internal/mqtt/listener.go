@@ -61,9 +61,8 @@ func NewListener(opts ...OptionsFn) (*Listener, error) {
 	return l, nil
 }
 
-// Listen starts the execution of the MQTT Listener.
-// Once called, it blocks waiting for connections until it's stopped by the Stop function.
-func (l *Listener) Listen() error {
+// Start starts the execution of the MQTT listener.
+func (l *Listener) Start() error {
 	lsn, err := net.Listen("tcp", l.conf.TCPAddress)
 	if err != nil {
 		return err
@@ -99,14 +98,16 @@ func (l *Listener) Listen() error {
 	return nil
 }
 
-// Stop stops the MQTT Listener.
-// Once called, it unblocks the Run function.
+// Stop stops the MQTT listener. Once called, it unblocks the Run function.
 func (l *Listener) Stop() {
 	l.log.Debug().Msg("Stopping listener")
 
 	l.connectionMgr.stop()
 	l.setRunningState(false)
 	_ = l.tcpLsn.Close()
+}
+
+func (l *Listener) Wait() {
 }
 
 func (l *Listener) setRunningState(st bool) {

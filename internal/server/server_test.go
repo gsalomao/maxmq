@@ -17,6 +17,7 @@ package server
 import (
 	"bytes"
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/gsalomao/maxmq/internal/logger"
@@ -27,23 +28,23 @@ import (
 
 type listenerMock struct {
 	mock.Mock
-	running chan bool
+	wg sync.WaitGroup
 }
 
-func newListenerMock() *listenerMock {
-	return &listenerMock{running: make(chan bool)}
-}
-
-func (l *listenerMock) Listen() error {
+func (l *listenerMock) Start() error {
 	args := l.Called()
-	l.running <- true
-	<-l.running
+	l.wg.Add(1)
 	return args.Error(0)
 }
 
 func (l *listenerMock) Stop() {
 	l.Called()
-	l.running <- false
+	l.wg.Done()
+}
+
+func (l *listenerMock) Wait() {
+	l.Called()
+	l.wg.Wait()
 }
 
 func newLogger() *logger.Logger {
@@ -55,17 +56,13 @@ func TestServerStart(t *testing.T) {
 	log := newLogger()
 	s := New(log)
 
-	l := newListenerMock()
-	l.On("Listen").Return(nil)
+	l := &listenerMock{}
+	l.On("Start").Return(nil)
 	s.AddListener(l)
 
 	err := s.Start()
 	require.Nil(t, err)
-
-	<-l.running
-	l.running <- false
-	err = s.Wait()
-	assert.Nil(t, err)
+	l.AssertExpectations(t)
 }
 
 func TestServerStartWithoutListener(t *testing.T) {
@@ -80,34 +77,49 @@ func TestServerStop(t *testing.T) {
 	log := newLogger()
 	s := New(log)
 
-	l := newListenerMock()
-	l.On("Listen").Return(nil)
-	l.On("Stop")
+	l := &listenerMock{}
+	l.On("Start").Return(nil)
 	s.AddListener(l)
 
 	err := s.Start()
 	require.Nil(t, err)
 
-	<-l.running
+	l.On("Stop")
+	l.On("Wait")
 	s.Stop()
-	err = s.Wait()
-	assert.Nil(t, err)
+	l.AssertExpectations(t)
 }
 
-func TestServerListenerError(t *testing.T) {
+func TestServerStartWithListenerError(t *testing.T) {
 	log := newLogger()
 	s := New(log)
 
-	l := newListenerMock()
-	l.On("Listen").Return(errors.New("any failure"))
-	l.On("Stop")
+	l := &listenerMock{}
+	l.On("Start").Return(errors.New("any failure"))
 	s.AddListener(l)
 
 	err := s.Start()
-	require.Nil(t, err)
+	require.NotNil(t, err)
+	l.AssertExpectations(t)
+}
 
-	<-l.running
-	s.Stop()
-	err = s.Wait()
-	assert.NotNil(t, err)
+func TestServerStartWithListenerErrorMultipleListeners(t *testing.T) {
+	log := newLogger()
+	s := New(log)
+
+	l1 := &listenerMock{}
+	l1.On("Start").Return(nil)
+	l1.On("Wait")
+	l1.On("Stop")
+	s.AddListener(l1)
+
+	l2 := &listenerMock{}
+	l2.On("Start").Return(errors.New("any failure"))
+	s.AddListener(l2)
+
+	err := s.Start()
+	require.NotNil(t, err)
+
+	l1.AssertExpectations(t)
+	l2.AssertExpectations(t)
 }

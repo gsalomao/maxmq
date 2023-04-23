@@ -19,7 +19,6 @@ import (
 	"net"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/gsalomao/maxmq/internal/logger"
 	"github.com/gsalomao/maxmq/internal/mqtt/handler"
@@ -103,7 +102,7 @@ func TestListenerRunInvalidTCPAddress(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, l)
 
-	err = l.Listen()
+	err = l.Start()
 	require.NotNil(t, err)
 }
 
@@ -116,6 +115,10 @@ func TestListenerRunAndStop(t *testing.T) {
 		WithLogger(log),
 		WithIDGenerator(idGen),
 	)
+	require.Nil(t, err)
+	require.NotNil(t, l)
+
+	err = l.Start()
 	require.Nil(t, err)
 
 	done := make(chan bool)
@@ -152,23 +155,8 @@ func TestListenerHandleConnection(t *testing.T) {
 	<-time.After(time.Millisecond)
 	conn, err := net.Dial("tcp", ":1883")
 	require.Nil(t, err)
-	defer func() { _ = conn.Close() }()
 
-	l.Stop()
-	<-done
-	assert.Nil(t, err)
-}
-
-func TestListenerHandleConnectionFailure(t *testing.T) {
-	log := newLogger()
-	idGen := &idGeneratorMock{}
-	idGen.On("NextID").Return(1)
-
-	l, err := NewListener(
-		WithConfiguration(handler.Configuration{TCPAddress: ":1883"}),
-		WithLogger(log),
-		WithIDGenerator(idGen),
-	)
+	err = l.Start()
 	require.Nil(t, err)
 
 	done := make(chan bool)
@@ -183,6 +171,5 @@ func TestListenerHandleConnectionFailure(t *testing.T) {
 	defer func() { _ = conn.Close() }()
 
 	l.Stop()
-	<-done
-	assert.Nil(t, err)
+	l.Wait()
 }

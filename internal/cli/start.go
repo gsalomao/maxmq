@@ -26,7 +26,6 @@ import (
 	"github.com/dimiro1/banner"
 	"github.com/gsalomao/maxmq/internal/config"
 	"github.com/gsalomao/maxmq/internal/logger"
-	"github.com/gsalomao/maxmq/internal/metrics"
 	"github.com/gsalomao/maxmq/internal/mqtt"
 	"github.com/gsalomao/maxmq/internal/mqtt/handler"
 	"github.com/gsalomao/maxmq/internal/server"
@@ -174,20 +173,20 @@ func newServer(c config.Config, l *logger.Logger, machineID int) (s *server.Serv
 	s = server.New(l)
 	s.AddListener(lsn)
 
-	if c.MetricsEnabled {
-		mtConf := metrics.Configuration{
-			Address:   c.MetricsAddress,
-			Path:      c.MetricsPath,
-			Profiling: c.MetricsProfiling,
-		}
-
-		lsn, err = metrics.NewListener(mtConf, l)
-		if err != nil {
-			return nil, err
-		}
-
-		s.AddListener(lsn)
-	}
+	//if c.MetricsEnabled {
+	//	mtConf := metrics.Configuration{
+	//		Address:   c.MetricsAddress,
+	//		Path:      c.MetricsPath,
+	//		Profiling: c.MetricsProfiling,
+	//	}
+	//
+	//	lsn, err = metrics.NewListener(mtConf, l)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//
+	//	s.AddListener(lsn)
+	//}
 
 	return s, nil
 }
@@ -227,18 +226,5 @@ func stopServer(s *server.Server, l *logger.Logger, enableProfile bool) {
 		}
 
 		pprof.StopCPUProfile()
-	}
-}
-
-func waitOSSignals(s *server.Server) {
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-
-	for {
-		<-stop
-
-		// Generates a new line to split the logs
-		fmt.Println("")
-		s.Stop()
 	}
 }

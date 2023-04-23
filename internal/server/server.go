@@ -19,24 +19,31 @@ import (
 	"sync"
 
 	"github.com/gsalomao/maxmq/internal/logger"
-	"go.uber.org/multierr"
 )
 
 // Listener is an interface for network listeners.
 type Listener interface {
-	// Listen starts listening and block until the listener stops.
-	Listen() error
+	// Start starts the listener. If the listener has already started, this function has no effect.
+	Start() error
 
-	// Stop stops the listener unblocking the Listen function.
+	// Stop stops the listener unblocking the Wait function. If the listener has not started, this function has no
+	// effect.
 	Stop()
+
+	// Wait blocks until the listener stops. If the listener has not started, this function returns immediately.
+	Wait()
+}
+
+type serverListener struct {
+	listener Listener
+	running  bool
 }
 
 // Server represents the MaxMQ server.
 type Server struct {
 	log       *logger.Logger
 	wg        sync.WaitGroup
-	listeners []Listener
-	err       error
+	listeners []serverListener
 }
 
 // New creates a new server.
@@ -46,7 +53,7 @@ func New(l *logger.Logger) *Server {
 
 // AddListener adds a listener to the server.
 func (s *Server) AddListener(l Listener) {
-	s.listeners = append(s.listeners, l)
+	s.listeners = append(s.listeners, serverListener{listener: l})
 }
 
 // Start starts the server running all listeners.
@@ -57,23 +64,27 @@ func (s *Server) Start() error {
 		return errors.New("no available listener")
 	}
 
-	var starting sync.WaitGroup
-	starting.Add(len(s.listeners))
-	s.wg.Add(len(s.listeners))
+	var err error
 
-	for _, lsn := range s.listeners {
-		go func(l Listener) {
-			defer s.wg.Done()
-			starting.Done()
+	for i := range s.listeners {
+		lsn := &s.listeners[i]
 
-			err := l.Listen()
-			if err != nil {
-				s.err = multierr.Combine(s.err, err)
-			}
-		}(lsn)
+		err = lsn.listener.Start()
+		if err != nil {
+			break
+		}
+
+		lsn.running = true
+		s.wg.Add(1)
 	}
 
-	starting.Wait()
+	if err != nil {
+		s.log.Error().Msg("Stopping started listeners due to error: " + err.Error())
+		s.stopRunningListeners()
+		s.wg.Wait()
+		return err
+	}
+
 	s.log.Info().Msg("Server started with success")
 	return nil
 }
@@ -81,15 +92,19 @@ func (s *Server) Start() error {
 // Stop stops the server by stopping all listeners.
 func (s *Server) Stop() {
 	s.log.Info().Msg("Stopping server")
+	s.stopRunningListeners()
 
-	for _, l := range s.listeners {
-		l.Stop()
-	}
+	s.wg.Wait()
+	s.log.Info().Msg("Server stopped with success")
 }
 
-// Wait blocks while the server is running.
-func (s *Server) Wait() error {
-	s.wg.Wait()
-	s.log.Info().Msg("Server stopped")
-	return s.err
+func (s *Server) stopRunningListeners() {
+	for _, lsn := range s.listeners {
+		if lsn.running {
+			lsn.listener.Stop()
+			lsn.listener.Wait()
+			lsn.running = false
+			s.wg.Done()
+		}
+	}
 }

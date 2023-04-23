@@ -29,19 +29,31 @@ import (
 
 type listenerMock struct {
 	mock.Mock
-	running chan bool
+	running chan struct{}
+	stopped chan struct{}
 }
 
-func (l *listenerMock) Listen() error {
+func newListenerMock() *listenerMock {
+	return &listenerMock{
+		running: make(chan struct{}, 1),
+		stopped: make(chan struct{}, 1),
+	}
+}
+
+func (l *listenerMock) Start() error {
 	args := l.Called()
-	l.running <- true
-	<-l.running
+	l.running <- struct{}{}
 	return args.Error(0)
 }
 
 func (l *listenerMock) Stop() {
 	l.Called()
-	l.running <- false
+	l.stopped <- struct{}{}
+}
+
+func (l *listenerMock) Wait() {
+	l.Called()
+	<-l.stopped
 }
 
 func TestCLIRunStartLoadConfig(t *testing.T) {
@@ -72,10 +84,12 @@ func TestCLIRunStartStartStopServer(t *testing.T) {
 
 	s := server.New(log)
 
-	l := &listenerMock{running: make(chan bool)}
+	l := newListenerMock()
 	s.AddListener(l)
 
-	l.On("Listen").Return(nil)
+	l.On("Start").Return(nil)
+	l.On("Wait")
+	l.On("Stop")
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -86,7 +100,6 @@ func TestCLIRunStartStartStopServer(t *testing.T) {
 	}()
 
 	<-l.running
-	l.running <- false
 	wg.Wait()
 	_ = os.Remove("cpu.prof")
 	_ = os.Remove("heap.prof")
