@@ -44,8 +44,11 @@ type Config struct {
 	// TCP address (<IP>:<port>) that the MQTT will bind to.
 	MQTTTCPAddress string `mapstructure:"mqtt_tcp_address"`
 
-	// The amount of time, in seconds, the MQTT waits for the CONNECT Packet.
+	// The number of seconds the MQTT server waits for the CONNECT Packet.
 	MQTTConnectTimeout int `mapstructure:"mqtt_connect_timeout"`
+
+	// The number of seconds to wait for the MQTT server to shut down gracefully.
+	MQTTShutdownTimeout int `mapstructure:"mqtt_shutdown_timeout"`
 
 	// The size, in bytes, of the MQTT receiver and transmitter buffers.
 	MQTTBufferSize int `mapstructure:"mqtt_buffer_size"`
@@ -108,6 +111,7 @@ var DefaultConfig = Config{
 	MetricsPath:              "/metrics",
 	MQTTTCPAddress:           ":1883",
 	MQTTConnectTimeout:       5,
+	MQTTShutdownTimeout:      15,
 	MQTTBufferSize:           1024,
 	MQTTMaxPacketSize:        65536,
 	MQTTSessionExpiration:    7200,
@@ -151,7 +155,7 @@ func ReadConfigFile() error {
 //
 // Note: The ReadConfigFile must be called before in order to load the
 // configuration from the conf file.
-func LoadConfig() (Config, error) {
+func LoadConfig() (c Config, err error) {
 	viper.SetEnvPrefix("MAXMQ")
 	viper.AutomaticEnv()
 
@@ -164,6 +168,7 @@ func LoadConfig() (Config, error) {
 	_ = viper.BindEnv("metrics_profiling")
 	_ = viper.BindEnv("mqtt_tcp_address")
 	_ = viper.BindEnv("mqtt_connect_timeout")
+	_ = viper.BindEnv("mqtt_shutdown_timeout")
 	_ = viper.BindEnv("mqtt_buffer_size")
 	_ = viper.BindEnv("mqtt_max_packet_size")
 	_ = viper.BindEnv("mqtt_max_keep_alive")
@@ -181,8 +186,8 @@ func LoadConfig() (Config, error) {
 	_ = viper.BindEnv("mqtt_default_version")
 
 	// Set the default values
-	c := DefaultConfig
+	c = DefaultConfig
 
-	err := viper.Unmarshal(&c)
+	err = viper.Unmarshal(&c)
 	return c, err
 }
