@@ -19,42 +19,34 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
-	"time"
 
-	"github.com/gsalomao/maxmq/internal/mqtt/handler"
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-func TestPubSubManagerStartStop(t *testing.T) {
-	pd := &packetDelivererMock{}
-	sm := &sessionStoreMock{}
-	log := newLogger()
-	mt := newMetrics(true, log)
-	ps := newPubSubManager(pd, sm, mt, log)
-
-	ps.start()
-	<-time.After(10 * time.Millisecond)
-	ps.stop()
+type packetDelivererMock struct {
+	mock.Mock
+	stream chan *packet.Publish
 }
 
-func TestPubSubManagerRun(t *testing.T) {
-	pd := &packetDelivererMock{}
-	sm := &sessionStoreMock{}
-	log := newLogger()
-	mt := newMetrics(true, log)
-	ps := newPubSubManager(pd, sm, mt, log)
-
-	go ps.run()
-	<-ps.action
-	ps.action <- pubSubActionPublishMessage
-	ps.action <- pubSubActionStop
-	<-ps.action
+func newPacketDeliverMock() *packetDelivererMock {
+	return &packetDelivererMock{
+		stream: make(chan *packet.Publish, 1),
+	}
 }
 
-func TestPubSubManagerSubscribe(t *testing.T) {
+func (p *packetDelivererMock) deliverPacket(id packet.ClientID, pkt *packet.Publish) error {
+	args := p.Called(id, pkt)
+	p.stream <- pkt
+	if len(args) > 0 {
+		return args.Error(0)
+	}
+	return nil
+}
+
+func TestPubSubSubscribe(t *testing.T) {
 	testCases := []packet.Topic{
 		{Name: "sensor/temp0", QoS: packet.QoS0, RetainHandling: 0, RetainAsPublished: false, NoLocal: false},
 		{Name: "sensor/temp1", QoS: packet.QoS1, RetainHandling: 1, RetainAsPublished: false, NoLocal: true},
@@ -63,29 +55,30 @@ func TestPubSubManagerSubscribe(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			pd := &packetDelivererMock{}
-			sm := &sessionStoreMock{}
+			gen := &idGeneratorMock{}
+			pd := newPacketDeliverMock()
 			log := newLogger()
+			ss := newSessionStore(gen, log)
 			mt := newMetrics(true, log)
-			ps := newPubSubManager(pd, sm, mt, log)
+			ps := newPubSub(pd, ss, mt, log)
 
-			sub := &handler.Subscription{
-				ClientID:          "a",
-				ID:                rand.Int(),
-				TopicFilter:       tc.Name,
-				QoS:               tc.QoS,
-				RetainHandling:    tc.RetainHandling,
-				RetainAsPublished: tc.RetainAsPublished,
-				NoLocal:           tc.NoLocal,
+			sub := &subscription{
+				clientID:          "client-a",
+				id:                subscriptionID(rand.Int()),
+				topicFilter:       tc.Name,
+				qos:               tc.QoS,
+				retainHandling:    tc.RetainHandling,
+				retainAsPublished: tc.RetainAsPublished,
+				noLocal:           tc.NoLocal,
 			}
 
-			err := ps.Subscribe(sub)
+			err := ps.subscribe(sub)
 			assert.Nil(t, err)
 		})
 	}
 }
 
-func TestPubSubManagerSubscribeError(t *testing.T) {
+func TestPubSubSubscribeError(t *testing.T) {
 	testCases := []packet.Topic{
 		{Name: "tempQoS0#", QoS: packet.QoS0},
 		{Name: "data/tempQoS1#", QoS: packet.QoS1},
@@ -94,20 +87,21 @@ func TestPubSubManagerSubscribeError(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			pd := &packetDelivererMock{}
-			sm := &sessionStoreMock{}
+			gen := &idGeneratorMock{}
+			pd := newPacketDeliverMock()
 			log := newLogger()
+			ss := newSessionStore(gen, log)
 			mt := newMetrics(true, log)
-			ps := newPubSubManager(pd, sm, mt, log)
+			ps := newPubSub(pd, ss, mt, log)
 
-			sub := &handler.Subscription{ClientID: "a", TopicFilter: tc.Name, QoS: tc.QoS}
-			err := ps.Subscribe(sub)
+			sub := &subscription{clientID: "client-a", topicFilter: tc.Name, qos: tc.QoS}
+			err := ps.subscribe(sub)
 			assert.NotNil(t, err)
 		})
 	}
 }
 
-func TestPubSubManagerUnsubscribeTopic(t *testing.T) {
+func TestPubSubUnsubscribeTopic(t *testing.T) {
 	testCases := []packet.Topic{
 		{Name: "sensor"},
 		{Name: "sensor/temp"},
@@ -116,23 +110,24 @@ func TestPubSubManagerUnsubscribeTopic(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			pd := &packetDelivererMock{}
-			sm := &sessionStoreMock{}
+			gen := &idGeneratorMock{}
+			pd := newPacketDeliverMock()
 			log := newLogger()
+			ss := newSessionStore(gen, log)
 			mt := newMetrics(true, log)
-			ps := newPubSubManager(pd, sm, mt, log)
+			ps := newPubSub(pd, ss, mt, log)
 
-			sub := &handler.Subscription{ClientID: "a", TopicFilter: tc.Name}
-			err := ps.Subscribe(sub)
+			sub := &subscription{clientID: "client-a", topicFilter: tc.Name}
+			err := ps.subscribe(sub)
 			require.Nil(t, err)
 
-			err = ps.Unsubscribe(sub.ClientID, sub.TopicFilter)
+			err = ps.unsubscribe(sub.clientID, sub.topicFilter)
 			assert.Nil(t, err)
 		})
 	}
 }
 
-func TestPubSubManagerUnsubscribeSubscriptionNotFound(t *testing.T) {
+func TestPubSubUnsubscribeSubscriptionNotFound(t *testing.T) {
 	testCases := []packet.Topic{
 		{Name: "sensor"},
 		{Name: "sensor/temp"},
@@ -141,352 +136,311 @@ func TestPubSubManagerUnsubscribeSubscriptionNotFound(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			pd := &packetDelivererMock{}
-			sm := &sessionStoreMock{}
+			gen := &idGeneratorMock{}
+			pd := newPacketDeliverMock()
 			log := newLogger()
+			ss := newSessionStore(gen, log)
 			mt := newMetrics(true, log)
-			ps := newPubSubManager(pd, sm, mt, log)
-			s := handler.Session{ClientID: "a"}
+			ps := newPubSub(pd, ss, mt, log)
+			s := session{clientID: "client-a"}
 
-			err := ps.Unsubscribe(s.ClientID, tc.Name)
-			assert.Equal(t, handler.ErrSubscriptionNotFound, err)
+			err := ps.unsubscribe(s.clientID, tc.Name)
+			assert.Equal(t, errSubscriptionNotFound, err)
 		})
 	}
 }
 
-func TestPubSubManagerPublishMessage(t *testing.T) {
-	pd := &packetDelivererMock{}
-	sm := &sessionStoreMock{}
+func TestPubSubPublishConnected(t *testing.T) {
+	testCases := []packet.QoS{
+		packet.QoS0,
+		packet.QoS1,
+		packet.QoS2,
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprint(tc), func(t *testing.T) {
+			gen := &idGeneratorMock{}
+			pd := newPacketDeliverMock()
+			log := newLogger()
+			ss := newSessionStore(gen, log)
+			mt := newMetrics(true, log)
+			ps := newPubSub(pd, ss, mt, log)
+
+			s := &session{clientID: "client-a", connected: true, version: packet.MQTT311}
+			err := ss.saveSession(s)
+			require.Nil(t, err)
+
+			sub := &subscription{clientID: s.clientID, topicFilter: "test"}
+			err = ps.subscribe(sub)
+			require.Nil(t, err)
+
+			pubPkt := packet.NewPublish(1, s.version, sub.topicFilter, tc, 0, 0, nil, nil)
+			msg := &message{packetID: pubPkt.PacketID, packet: &pubPkt}
+
+			pd.On("deliverPacket", sub.clientID, mock.Anything)
+
+			err = ps.publish(msg)
+			require.Nil(t, err)
+
+			pkt := <-pd.stream
+			assert.NotNil(t, pkt)
+			assert.Equal(t, msg.packet, pkt)
+			pd.AssertExpectations(t)
+		})
+	}
+}
+
+func TestPubSubPublishNotConnected(t *testing.T) {
+	gen := &idGeneratorMock{}
+	pd := newPacketDeliverMock()
 	log := newLogger()
+	ss := newSessionStore(gen, log)
 	mt := newMetrics(true, log)
-	ps := newPubSubManager(pd, sm, mt, log)
+	ps := newPubSub(pd, ss, mt, log)
 
-	pubPkt := packet.NewPublish(1, packet.MQTT311, "t", packet.QoS1, 0, 0, nil, nil)
-	msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
-
-	err := ps.Publish(msg)
+	s := &session{clientID: "client-a", connected: false, version: packet.MQTT311}
+	err := ss.saveSession(s)
 	require.Nil(t, err)
 
-	act := <-ps.action
-	assert.Equal(t, pubSubActionPublishMessage, act)
+	sub := &subscription{clientID: s.clientID, topicFilter: "test"}
+	err = ps.subscribe(sub)
+	require.Nil(t, err)
 
-	assert.Equal(t, 1, ps.queue.Len())
-	assert.Same(t, msg, ps.queue.Dequeue())
+	pubPkt := packet.NewPublish(1, s.version, sub.topicFilter, packet.QoS1, 0, 0, nil, nil)
+	msg := &message{packetID: pubPkt.PacketID, packet: &pubPkt}
+
+	err = ps.publish(msg)
+	require.Nil(t, err)
+	pd.AssertExpectations(t)
 }
 
-func TestPubSubManagerHandleQueuedMessagesNoSubscription(t *testing.T) {
-	pd := &packetDelivererMock{}
-	sm := &sessionStoreMock{}
+func TestPubSubPublishWithoutSubscription(t *testing.T) {
+	gen := &idGeneratorMock{}
+	pd := newPacketDeliverMock()
 	log := newLogger()
+	ss := newSessionStore(gen, log)
 	mt := newMetrics(true, log)
-	ps := newPubSubManager(pd, sm, mt, log)
+	ps := newPubSub(pd, ss, mt, log)
 
 	pubPkt := packet.NewPublish(1, packet.MQTT311, "t", packet.QoS0, 0, 0, nil, nil)
-	msg := handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
-	ps.queue.Enqueue(&msg)
+	msg := &message{packetID: pubPkt.PacketID, packet: &pubPkt}
 
-	ps.handleQueuedMessages()
-	assert.Zero(t, ps.queue.Len())
+	err := ps.publish(msg)
+	require.Nil(t, err)
+	pd.AssertExpectations(t)
 }
 
-func TestPubSubManagerHandleQueuedMessages(t *testing.T) {
+func TestPubSubPublishToMultipleSubscriptions(t *testing.T) {
+	gen := &idGeneratorMock{}
+	pd := newPacketDeliverMock()
+	log := newLogger()
+	ss := newSessionStore(gen, log)
+	mt := newMetrics(true, log)
+	ps := newPubSub(pd, ss, mt, log)
+
+	version := packet.MQTT311
+	topic := "test"
+
+	s1 := &session{clientID: "client-a", connected: true, version: version}
+	err := ss.saveSession(s1)
+	require.Nil(t, err)
+
+	s2 := &session{clientID: "client-b", connected: true, version: version}
+	err = ss.saveSession(s2)
+	require.Nil(t, err)
+
+	sub1 := &subscription{clientID: s1.clientID, topicFilter: topic}
+	err = ps.subscribe(sub1)
+	require.Nil(t, err)
+
+	sub2 := &subscription{clientID: s2.clientID, topicFilter: topic}
+	err = ps.subscribe(sub2)
+	require.Nil(t, err)
+
+	pubPkt := packet.NewPublish(1, version, topic, packet.QoS1, 0, 0, nil, nil)
+	msg := &message{packetID: pubPkt.PacketID, packet: &pubPkt}
+
+	pd.On("deliverPacket", sub1.clientID, mock.Anything)
+	pd.On("deliverPacket", sub2.clientID, mock.Anything)
+
+	err = ps.publish(msg)
+	require.Nil(t, err)
+
+	pkt1 := <-pd.stream
+	assert.NotNil(t, pkt1)
+	assert.Equal(t, msg.packet, pkt1)
+
+	pkt2 := <-pd.stream
+	assert.NotNil(t, pkt2)
+	assert.Equal(t, msg.packet, pkt2)
+	pd.AssertExpectations(t)
+}
+
+func TestPubSubPublishAddsToInflightMessages(t *testing.T) {
 	testCases := []struct {
 		id    packet.ID
 		topic string
 		qos   packet.QoS
 	}{
-		{1, "a/0", packet.QoS0},
-		{2, "a/0", packet.QoS1},
-		{3, "a/0", packet.QoS2},
+		{1, "a/0", packet.QoS1},
+		{2, "a/0", packet.QoS2},
 	}
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("ID-%v", tc.id), func(t *testing.T) {
-			pd := &packetDelivererMock{}
-			sm := &sessionStoreMock{}
+			gen := &idGeneratorMock{}
+			pd := newPacketDeliverMock()
 			log := newLogger()
+			ss := newSessionStore(gen, log)
 			mt := newMetrics(true, log)
-			ps := newPubSubManager(pd, sm, mt, log)
-			id := packet.ClientID("client")
+			ps := newPubSub(pd, ss, mt, log)
 
-			sub := handler.Subscription{ClientID: id, TopicFilter: tc.topic, QoS: tc.qos}
-			_, err := ps.tree.Insert(sub)
+			s := &session{clientID: "client-a", connected: true, version: packet.MQTT311}
+			err := ss.saveSession(s)
 			require.Nil(t, err)
 
-			pubPkt := packet.NewPublish(tc.id, packet.MQTT311, tc.topic, tc.qos, 0, 0, nil, nil)
-			msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
-			ps.queue.Enqueue(msg)
+			sub := &subscription{clientID: s.clientID, topicFilter: tc.topic, qos: tc.qos}
+			err = ps.subscribe(sub)
+			require.Nil(t, err)
 
-			s := &handler.Session{
-				ClientID:     id,
-				Version:      packet.MQTT311,
-				Connected:    true,
-				LastPacketID: uint32(tc.id + 9),
-			}
-			sm.On("ReadSession", id).Return(s, nil)
-			pd.On("deliverPacket", id, mock.Anything).Return(nil)
+			pubPkt := packet.NewPublish(tc.id, s.version, tc.topic, tc.qos, 0, 0, nil, nil)
+			msg := &message{packetID: pubPkt.PacketID, packet: &pubPkt}
 
-			if tc.qos > packet.QoS0 {
-				sm.On("SaveSession", s).Return(nil)
-			}
+			pd.On("deliverPacket", sub.clientID, mock.Anything)
 
-			ps.handleQueuedMessages()
-			assert.Zero(t, ps.queue.Len())
-			if tc.qos > packet.QoS0 {
-				require.Equal(t, 1, s.InflightMessages.Len())
-				ifMsg := s.InflightMessages.Front().Value.(*handler.Message)
-				assert.Equal(t, msg.ID, ifMsg.ID)
-				assert.Equal(t, 1, ifMsg.Tries)
-				assert.NotZero(t, ifMsg.LastSent)
-			}
-			sm.AssertExpectations(t)
+			err = ps.publish(msg)
+			require.Nil(t, err)
+			<-pd.stream
+
+			require.Equal(t, 1, s.inflightMessages.Len())
+			ifMsg := s.inflightMessages.Front().Value.(*message)
+			assert.Equal(t, msg.id, ifMsg.id)
+			assert.Equal(t, 1, ifMsg.tries)
+			assert.NotZero(t, ifMsg.lastSent)
 			pd.AssertExpectations(t)
 		})
 	}
 }
 
-func TestPubSubManagerHandleQueuedMessagesMultipleSubscribers(t *testing.T) {
-	testCases := []struct {
-		topic string
-		subs  []string
-	}{
-		{"a/0", []string{"a/0"}},
-		{"b/1", []string{"b/1", "b/+"}},
-		{"c/2", []string{"c/2", "c/#"}},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.topic, func(t *testing.T) {
-			pd := &packetDelivererMock{}
-			sm := &sessionStoreMock{}
-			log := newLogger()
-			mt := newMetrics(true, log)
-			ps := newPubSubManager(pd, sm, mt, log)
-			id := packet.ClientID("client")
-
-			for _, topic := range tc.subs {
-				sub := handler.Subscription{ClientID: id, TopicFilter: topic}
-				_, err := ps.tree.Insert(sub)
-				require.Nil(t, err)
-			}
-
-			pubPkt := packet.NewPublish(1, packet.MQTT311, tc.topic, packet.QoS0, 0, 0, nil, nil)
-			msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
-			ps.queue.Enqueue(msg)
-
-			s := &handler.Session{ClientID: id, Version: packet.MQTT311, Connected: true}
-			sm.On("ReadSession", id).Return(s, nil)
-			pd.On("deliverPacket", id, mock.Anything).Return(nil).Times(len(tc.subs))
-
-			ps.handleQueuedMessages()
-			assert.Zero(t, ps.queue.Len())
-			sm.AssertExpectations(t)
-			pd.AssertExpectations(t)
-		})
-	}
-}
-
-func TestPubSubManagerHandleQueuedMessagesNewPacketID(t *testing.T) {
+func TestPubSubPublishCreatesNewPacketID(t *testing.T) {
 	testCases := []packet.QoS{
 		packet.QoS1,
 		packet.QoS2,
 	}
+
 	for _, tc := range testCases {
 		t.Run(fmt.Sprint(tc), func(t *testing.T) {
-			pd := &packetDelivererMock{}
-			sm := &sessionStoreMock{}
+			gen := &idGeneratorMock{}
+			pd := newPacketDeliverMock()
 			log := newLogger()
+			ss := newSessionStore(gen, log)
 			mt := newMetrics(true, log)
-			ps := newPubSubManager(pd, sm, mt, log)
-
-			id := packet.ClientID("client")
-			sub := handler.Subscription{ClientID: id, TopicFilter: "t", QoS: tc}
-			_, err := ps.tree.Insert(sub)
-			require.Nil(t, err)
-
-			pubPkt := packet.NewPublish(10, packet.MQTT311, "t", tc, 0, 0, nil, nil)
-			msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
-			ps.queue.Enqueue(msg)
+			ps := newPubSub(pd, ss, mt, log)
 
 			lastPktID := uint32(1)
-			s := &handler.Session{
-				ClientID:     id,
-				Version:      packet.MQTT311,
-				Connected:    true,
-				LastPacketID: lastPktID,
-			}
-			sm.On("ReadSession", id).Return(s, nil)
-			sm.On("SaveSession", s).Return(nil)
-			pd.On("deliverPacket", id, mock.Anything).Return(nil)
+			s := &session{clientID: "client-a", connected: true, version: packet.MQTT311, lastPacketID: lastPktID}
+			err := ss.saveSession(s)
+			require.Nil(t, err)
 
-			ps.handleQueuedMessages()
-			assert.Zero(t, ps.queue.Len())
+			sub := &subscription{clientID: s.clientID, topicFilter: "test", qos: tc}
+			err = ps.subscribe(sub)
+			require.Nil(t, err)
 
-			pkt := pd.Calls[0].Arguments[1].(*packet.Publish)
+			pubPkt := packet.NewPublish(1, s.version, sub.topicFilter, tc, 0, 0, nil, nil)
+			msg := &message{packetID: pubPkt.PacketID, packet: &pubPkt}
+
+			pd.On("deliverPacket", sub.clientID, mock.Anything)
+
+			err = ps.publish(msg)
+			require.Nil(t, err)
+
+			pkt := <-pd.stream
+			require.NotNil(t, pkt)
 			assert.Equal(t, packet.ID(lastPktID+1), pkt.PacketID)
-			assert.Equal(t, packet.ID(s.LastPacketID), pkt.PacketID)
-			assert.Equal(t, pubPkt.PacketID, msg.PacketID)
-			assert.Equal(t, &pubPkt, msg.Packet)
-			sm.AssertExpectations(t)
+
+			s, err = ss.readSession(s.clientID)
+			require.Nil(t, err)
+
+			assert.Equal(t, uint32(pkt.PacketID), s.lastPacketID)
 			pd.AssertExpectations(t)
 		})
 	}
 }
 
-func TestPubSubManagerHandleQueuedMessagesDifferentVersion(t *testing.T) {
-	pd := &packetDelivererMock{}
-	sm := &sessionStoreMock{}
+func TestPubSubPublishDifferentVersion(t *testing.T) {
+	gen := &idGeneratorMock{}
+	pd := newPacketDeliverMock()
 	log := newLogger()
+	ss := newSessionStore(gen, log)
 	mt := newMetrics(true, log)
-	ps := newPubSubManager(pd, sm, mt, log)
+	ps := newPubSub(pd, ss, mt, log)
 
-	id := packet.ClientID("client")
-	sub := handler.Subscription{ClientID: id, TopicFilter: "t", QoS: packet.QoS0}
-	_, err := ps.tree.Insert(sub)
+	s := &session{clientID: "client-a", connected: true, version: packet.MQTT311}
+	err := ss.saveSession(s)
 	require.Nil(t, err)
 
-	pubPkt := packet.NewPublish(1, packet.MQTT311, "t", packet.QoS0, 0, 0, nil, nil)
-	msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
-	ps.queue.Enqueue(msg)
+	sub := &subscription{clientID: s.clientID, topicFilter: "test"}
+	err = ps.subscribe(sub)
+	require.Nil(t, err)
 
-	s := &handler.Session{ClientID: id, Version: packet.MQTT50, Connected: true}
-	sm.On("ReadSession", id).Return(s, nil)
-	pd.On("deliverPacket", id, mock.Anything).Return(nil)
+	pubPkt := packet.NewPublish(1, packet.MQTT50, sub.topicFilter, packet.QoS1, 0, 0, nil, nil)
+	msg := &message{packetID: pubPkt.PacketID, packet: &pubPkt}
 
-	ps.handleQueuedMessages()
-	assert.Zero(t, ps.queue.Len())
+	pd.On("deliverPacket", sub.clientID, mock.Anything)
 
-	pkt := pd.Calls[0].Arguments[1].(*packet.Publish)
-	assert.Equal(t, s.Version, pkt.Version)
-	sm.AssertExpectations(t)
+	err = ps.publish(msg)
+	require.Nil(t, err)
+
+	pkt := <-pd.stream
+	assert.NotNil(t, pkt)
+	assert.Equal(t, s.version, pkt.Version)
 	pd.AssertExpectations(t)
 }
 
-func TestPubSubManagerHandleQueuedMessagesDisconnected(t *testing.T) {
-	testCases := []packet.QoS{
-		packet.QoS0,
-		packet.QoS1,
-		packet.QoS2,
-	}
-
-	for _, tc := range testCases {
-		t.Run(fmt.Sprint(tc), func(t *testing.T) {
-			pd := &packetDelivererMock{}
-			sm := &sessionStoreMock{}
-			log := newLogger()
-			mt := newMetrics(true, log)
-			ps := newPubSubManager(pd, sm, mt, log)
-
-			id := packet.ClientID("client")
-			sub := handler.Subscription{ClientID: id, TopicFilter: "t", QoS: tc}
-			_, err := ps.tree.Insert(sub)
-			require.Nil(t, err)
-
-			pubPkt := packet.NewPublish(1, packet.MQTT311, "t", tc, 0, 0, nil, nil)
-			msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
-			ps.queue.Enqueue(msg)
-
-			s := &handler.Session{ClientID: id, Version: packet.MQTT50}
-			sm.On("ReadSession", id).Return(s, nil)
-
-			if tc > packet.QoS0 {
-				sm.On("SaveSession", s).Return(nil)
-			}
-
-			ps.handleQueuedMessages()
-			assert.Zero(t, ps.queue.Len())
-			sm.AssertExpectations(t)
-			pd.AssertExpectations(t)
-		})
-	}
-}
-
-func TestPubSubManagerHandleQueuedMessagesDeliverPacketError(t *testing.T) {
-	testCases := []packet.QoS{
-		packet.QoS0,
-		packet.QoS1,
-		packet.QoS2,
-	}
-
-	for _, tc := range testCases {
-		t.Run(fmt.Sprint(tc), func(t *testing.T) {
-			pd := &packetDelivererMock{}
-			sm := &sessionStoreMock{}
-			log := newLogger()
-			mt := newMetrics(true, log)
-			ps := newPubSubManager(pd, sm, mt, log)
-
-			id := packet.ClientID("client")
-			sub := handler.Subscription{ClientID: id, TopicFilter: "t", QoS: tc}
-			_, err := ps.tree.Insert(sub)
-			require.Nil(t, err)
-
-			pubPkt := packet.NewPublish(1, packet.MQTT311, "t", tc, 0, 0, nil, nil)
-			msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
-			ps.queue.Enqueue(msg)
-
-			s := &handler.Session{ClientID: id, Version: packet.MQTT311, Connected: true}
-			sm.On("ReadSession", id).Return(s, nil)
-			pd.On("deliverPacket", id, &pubPkt).Return(errors.New("failed"))
-
-			if tc > packet.QoS0 {
-				sm.On("SaveSession", s).Return(nil)
-			}
-
-			ps.handleQueuedMessages()
-			assert.Zero(t, ps.queue.Len())
-			sm.AssertExpectations(t)
-			pd.AssertExpectations(t)
-		})
-	}
-}
-
-func TestPubSubManagerHandleQueuedMessagesReadSessionError(t *testing.T) {
-	pd := &packetDelivererMock{}
-	sm := &sessionStoreMock{}
+func TestPubSubPublishDeliverPacketError(t *testing.T) {
+	gen := &idGeneratorMock{}
+	pd := newPacketDeliverMock()
 	log := newLogger()
+	ss := newSessionStore(gen, log)
 	mt := newMetrics(true, log)
-	ps := newPubSubManager(pd, sm, mt, log)
+	ps := newPubSub(pd, ss, mt, log)
 
-	id := packet.ClientID("client")
-	sub := handler.Subscription{ClientID: id, TopicFilter: "t", QoS: packet.QoS0}
-	_, err := ps.tree.Insert(sub)
+	s := &session{clientID: "client-a", connected: true, version: packet.MQTT311}
+	err := ss.saveSession(s)
 	require.Nil(t, err)
 
-	pubPkt := packet.NewPublish(1, packet.MQTT311, "t", packet.QoS0, 0, 0, nil, nil)
-	msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
-	ps.queue.Enqueue(msg)
+	sub := &subscription{clientID: s.clientID, topicFilter: "test"}
+	err = ps.subscribe(sub)
+	require.Nil(t, err)
 
-	sm.On("ReadSession", id).Return(nil, handler.ErrSessionNotFound)
+	pubPkt := packet.NewPublish(1, s.version, sub.topicFilter, packet.QoS0, 0, 0, nil, nil)
+	msg := &message{packetID: pubPkt.PacketID, packet: &pubPkt}
 
-	ps.handleQueuedMessages()
-	assert.Zero(t, ps.queue.Len())
-	sm.AssertExpectations(t)
+	pd.On("deliverPacket", sub.clientID, mock.Anything).Return(errors.New("failed"))
+
+	err = ps.publish(msg)
+	require.Nil(t, err)
+
+	<-pd.stream
 	pd.AssertExpectations(t)
 }
 
-func TestPubSubManagerHandleQueuedMessagesSaveSessionError(t *testing.T) {
-	pd := &packetDelivererMock{}
-	sm := &sessionStoreMock{}
+func TestPubSubPublishToClientReadSessionError(t *testing.T) {
+	gen := &idGeneratorMock{}
+	pd := newPacketDeliverMock()
 	log := newLogger()
+	ss := newSessionStore(gen, log)
 	mt := newMetrics(true, log)
-	ps := newPubSubManager(pd, sm, mt, log)
+	ps := newPubSub(pd, ss, mt, log)
 
-	id := packet.ClientID("client")
-	sub := handler.Subscription{ClientID: id, TopicFilter: "t", QoS: packet.QoS1}
-	_, err := ps.tree.Insert(sub)
+	sub := &subscription{clientID: "client-a", topicFilter: "test"}
+	err := ps.subscribe(sub)
 	require.Nil(t, err)
 
-	pubPkt := packet.NewPublish(1, packet.MQTT311, "t", packet.QoS1, 0, 0, nil, nil)
-	msg := &handler.Message{PacketID: pubPkt.PacketID, Packet: &pubPkt}
-	ps.queue.Enqueue(msg)
+	pubPkt := packet.NewPublish(1, packet.MQTT311, sub.topicFilter, packet.QoS0, 0, 0, nil, nil)
+	msg := &message{packetID: pubPkt.PacketID, packet: &pubPkt}
 
-	s := &handler.Session{ClientID: id, Version: packet.MQTT311}
-	sm.On("ReadSession", id).Return(s, nil)
-	sm.On("SaveSession", s).Return(errors.New("failed"))
-
-	ps.handleQueuedMessages()
-	assert.Zero(t, ps.queue.Len())
-	sm.AssertExpectations(t)
+	ps.publishToClient(sub.clientID, msg)
+	require.Nil(t, err)
 	pd.AssertExpectations(t)
 }

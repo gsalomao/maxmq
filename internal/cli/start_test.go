@@ -1,4 +1,4 @@
-// Copyright 2023 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,88 +16,55 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/gsalomao/maxmq/internal/config"
 	"github.com/gsalomao/maxmq/internal/logger"
-	"github.com/gsalomao/maxmq/internal/server"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
-type listenerMock struct {
-	mock.Mock
-	running chan struct{}
-}
-
-func newListenerMock() *listenerMock {
-	return &listenerMock{
-		running: make(chan struct{}, 1),
-	}
-}
-
-func (l *listenerMock) Start() error {
-	args := l.Called()
-	l.running <- struct{}{}
-	return args.Error(0)
-}
-
-func (l *listenerMock) Stop() {
-	l.Called()
-}
-
-func TestCLIRunStartLoadConfig(t *testing.T) {
+func TestStartLoadConfig(t *testing.T) {
 	c, found, err := loadConfig()
 	assert.Nil(t, err)
 	assert.False(t, found)
 	assert.Equal(t, config.DefaultConfig, c)
 }
 
-func TestCLIRunStartNewLogger(t *testing.T) {
-	l, err := newLogger(logger.Pretty, "TRACE", nil)
+func TestStartNewLogger(t *testing.T) {
+	l, err := newLogger(logger.Pretty, "TRACE", 0)
 	assert.Nil(t, err)
 	assert.NotNil(t, l)
 }
 
-func TestCLIRunStartNewServer(t *testing.T) {
+func TestStartRunServer(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
 	out := bytes.NewBufferString("")
 	log := logger.New(out, nil, logger.Pretty)
-
-	s, err := newServer(config.DefaultConfig, log, 0)
-	assert.Nil(t, err)
-	assert.NotNil(t, s)
-}
-
-func TestCLIRunStartStartStopServer(t *testing.T) {
-	out := bytes.NewBufferString("")
-	log := logger.New(out, nil, logger.Pretty)
-
-	s := server.New(log)
-
-	l := newListenerMock()
-	s.AddListener(l)
-
-	l.On("Start").Return(nil)
-	l.On("Stop")
 
 	var wg sync.WaitGroup
+	starting := make(chan struct{})
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		startServer(s, log, true)
-		stopServer(s, log, true)
+		close(starting)
+		runServer(ctx, config.DefaultConfig, true, true, 0, log)
 	}()
 
-	<-l.running
+	<-starting
+	<-time.After(100 * time.Millisecond)
+
+	cancel()
 	wg.Wait()
 	_ = os.Remove("cpu.prof")
 	_ = os.Remove("heap.prof")
-	l.AssertExpectations(t)
 }
 
-func TestCLIRunStartHelp(t *testing.T) {
+func TestStartHelp(t *testing.T) {
 	out := bytes.NewBufferString("")
 	c := New(out, []string{"start", "--help"})
 

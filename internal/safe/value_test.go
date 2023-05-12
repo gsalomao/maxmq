@@ -1,4 +1,4 @@
-// Copyright 2022-2023 The MaxMQ Authors
+// Copyright 2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,26 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mqtt
+package safe
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestConnectionNextDeadlineWithTimeout(t *testing.T) {
-	c := connection{timeout: 3}
-	now := time.Now()
-
-	deadline := c.nextDeadline()
-	assert.True(t, deadline.After(now))
+func TestValueLoad(t *testing.T) {
+	v := NewValue(5)
+	assert.Equal(t, 5, v.Load())
 }
 
-func TestConnectionNextConnectionDeadlineNoTimeout(t *testing.T) {
-	c := connection{}
-
-	deadline := c.nextDeadline()
-	assert.Zero(t, deadline)
+func TestValueStore(t *testing.T) {
+	v := NewValue(5)
+	v.Store(10)
+	assert.Equal(t, 10, v.Load())
 }

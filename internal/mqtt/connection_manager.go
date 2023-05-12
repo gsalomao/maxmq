@@ -15,44 +15,46 @@
 package mqtt
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"net"
-	"sync"
-	"syscall"
 	"time"
 
 	"github.com/gsalomao/maxmq/internal/logger"
-	"github.com/gsalomao/maxmq/internal/mqtt/handler"
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
+	"github.com/gsalomao/maxmq/internal/safe"
 	"go.uber.org/multierr"
 )
 
 var errConnectionTimeout = errors.New("timeout - no packet received")
 var errProtocolError = errors.New("protocol error")
 
+// IDGenerator generates an identifier numbers.
+type IDGenerator interface {
+	// NextID generates the next identifier number.
+	NextID() uint64
+}
+
 type packetHandler interface {
-	// HandlePacket handles the received packet from client.
-	HandlePacket(id packet.ClientID, p packet.Packet) (replies []packet.Packet, err error)
+	handlePacket(id packet.ClientID, pkt packet.Packet) (replies []packet.Packet, err error)
 }
 
 type connectionManager struct {
-	conf         *handler.Configuration
-	sessionStore handler.SessionStore
-	log          *logger.Logger
-	metrics      *metrics
-	pubSub       *pubSubManager
-	connections  map[packet.ClientID]*connection
-	handlers     map[packet.Type]packetHandler
-	mutex        sync.RWMutex
-	reader       packet.Reader
-	writer       packet.Writer
+	log                *logger.Logger
+	metrics            *metrics
+	sessionStore       *sessionStore
+	pubSub             *pubSub
+	conf               Config
+	connections        safe.Value[map[packet.ClientID]*connection]
+	pendingConnections safe.Value[[]*connection]
+	handlers           map[packet.Type]packetHandler
+	reader             packet.Reader
+	writer             packet.Writer
 }
 
-func newConnectionManager(c *handler.Configuration, ss handler.SessionStore, mt *metrics, g IDGenerator,
-	l *logger.Logger) *connectionManager {
-
+func newConnectionManager(c Config, ss *sessionStore, mt *metrics, g IDGenerator, l *logger.Logger) *connectionManager {
 	c.BufferSize = bufferSizeOrDefault(c.BufferSize)
 	c.ConnectTimeout = connectTimeoutOrDefault(c.ConnectTimeout)
 	c.DefaultVersion = defaultVersionOrDefault(c.DefaultVersion)
@@ -64,61 +66,66 @@ func newConnectionManager(c *handler.Configuration, ss handler.SessionStore, mt 
 	c.MaxClientIDLen = maxClientIDLenOrDefault(c.MaxClientIDLen)
 
 	rdOpts := packet.ReaderOptions{BufferSize: c.BufferSize, MaxPacketSize: c.MaxPacketSize}
+
 	cm := &connectionManager{
-		conf:         c,
-		sessionStore: ss,
-		metrics:      mt,
-		log:          l.WithPrefix("connmgr"),
-		connections:  make(map[packet.ClientID]*connection),
-		reader:       packet.NewReader(rdOpts),
-		writer:       packet.NewWriter(c.BufferSize),
+		log:                l.WithPrefix("mqtt.connmgr"),
+		metrics:            mt,
+		sessionStore:       ss,
+		conf:               c,
+		pendingConnections: safe.NewValue(make([]*connection, 0)),
+		connections:        safe.NewValue(make(map[packet.ClientID]*connection)),
+		reader:             packet.NewReader(rdOpts),
+		writer:             packet.NewWriter(c.BufferSize),
 	}
 
-	ps := newPubSubManager(cm, ss, mt, l)
+	ps := newPubSub(cm, ss, mt, l)
 	cm.pubSub = ps
-	hl := l.WithPrefix("handler")
 	cm.handlers = map[packet.Type]packetHandler{
-		packet.CONNECT:     handler.NewConnect(c, ss, hl),
-		packet.DISCONNECT:  handler.NewDisconnect(ss, ps, hl),
-		packet.PINGREQ:     handler.NewPingReq(ss, hl),
-		packet.SUBSCRIBE:   handler.NewSubscribe(c, ss, ps, hl),
-		packet.UNSUBSCRIBE: handler.NewUnsubscribe(ss, ps, hl),
-		packet.PUBLISH:     handler.NewPublish(ss, ps, g, hl),
-		packet.PUBACK:      handler.NewPubAck(ss, hl),
-		packet.PUBREC:      handler.NewPubRec(ss, hl),
-		packet.PUBREL:      handler.NewPubRel(ss, ps, hl),
-		packet.PUBCOMP:     handler.NewPubComp(ss, hl),
+		packet.CONNECT:     newConnectHandler(c, ss, l),
+		packet.DISCONNECT:  newDisconnectHandler(ss, ps, l),
+		packet.PINGREQ:     newPingReqHandler(ss, l),
+		packet.SUBSCRIBE:   newSubscribeHandler(c, ss, ps, l),
+		packet.UNSUBSCRIBE: newUnsubscribeHandler(ss, ps, l),
+		packet.PUBLISH:     newPublishHandler(ss, ps, g, l),
+		packet.PUBACK:      newPubAckHandler(ss, l),
+		packet.PUBREC:      newPubRecHandler(ss, l),
+		packet.PUBREL:      newPubRelHandler(ss, ps, l),
+		packet.PUBCOMP:     newPubCompHandler(ss, l),
 	}
 
 	return cm
 }
 
-func (cm *connectionManager) start() {
-	cm.log.Trace().Msg("Starting connection manager")
-	cm.pubSub.start()
+func (cm *connectionManager) newConnection(nc net.Conn) *connection {
+	return &connection{
+		netConn: nc,
+		timeout: cm.conf.ConnectTimeout,
+		version: packet.Version(cm.conf.DefaultVersion),
+	}
 }
 
-func (cm *connectionManager) stop() {
-	cm.log.Trace().Msg("Stopping connection manager")
-	cm.pubSub.stop()
-	cm.log.Debug().Msg("Connection manager stopped with success")
+func (cm *connectionManager) addConnection(c *connection) {
+	cm.pendingConnections.Lock()
+	defer cm.pendingConnections.Unlock()
+
+	cm.pendingConnections.Value = append(cm.pendingConnections.Value, c)
 }
 
-func (cm *connectionManager) handle(c connection) {
-	defer cm.closeConnection(&c, true)
+func (cm *connectionManager) serveConnection(c *connection) {
+	defer cm.closeConnection(c, true)
 
-	c.connected = true
 	cm.metrics.recordConnection()
-	cm.log.Debug().Int("Timeout", c.timeout).Msg("Handling connection")
+	cm.log.Debug().Int("Timeout", c.timeout).Msg("Serving connection")
 
 	for {
-		deadline := c.nextConnectionDeadline()
+		deadline := c.nextDeadline()
 		err := c.netConn.SetReadDeadline(deadline)
+
 		if err != nil {
 			cm.log.Error().
 				Str("ClientId", string(c.clientID)).
-				Bool("Connected", c.connected).
-				Float64("DeadlineInSec", time.Until(deadline).Seconds()).
+				Bool("Connected", c.connected()).
+				Float64("Deadline", time.Until(deadline).Seconds()).
 				Int("Timeout", c.timeout).
 				Int("Version", int(c.version)).
 				Msg("Failed to set read deadline: " + err.Error())
@@ -127,38 +134,39 @@ func (cm *connectionManager) handle(c connection) {
 
 		cm.log.Trace().
 			Str("ClientId", string(c.clientID)).
-			Bool("Connected", c.connected).
-			Float64("DeadlineInSec", time.Until(deadline).Seconds()).
+			Bool("Connected", c.connected()).
+			Float64("Deadline", time.Until(deadline).Seconds()).
 			Int("Timeout", c.timeout).
 			Int("Version", int(c.version)).
 			Msg("Waiting packet")
 
-		pkt, err := cm.readPacket(&c)
+		var pkt packet.Packet
+		pkt, err = cm.readPacket(c)
 		if err != nil {
 			break
 		}
 
-		err = cm.handlePacket(&c, pkt)
+		err = cm.handlePacket(c, pkt)
 		if err != nil {
 			break
 		}
 
-		if !c.connected {
+		if !c.connected() {
 			break
 		}
 	}
 }
 
-func (cm *connectionManager) readPacket(c *connection) (packet.Packet, error) {
-	p, err := cm.reader.ReadPacket(c.netConn, c.version)
+func (cm *connectionManager) readPacket(c *connection) (pkt packet.Packet, err error) {
+	pkt, err = cm.reader.ReadPacket(c.netConn, c.version)
 	if err != nil {
-		if errors.Is(err, io.EOF) || errors.Is(err, syscall.ECONNRESET) {
+		if errors.Is(err, io.EOF) || !c.connected() {
 			cm.log.Debug().
 				Str("ClientId", string(c.clientID)).
-				Bool("Connected", c.connected).
+				Bool("Connected", c.connected()).
 				Int("Timeout", c.timeout).
 				Int("Version", int(c.version)).
-				Msg("Network connection was closed: " + err.Error())
+				Msg("Network connection was closed")
 			return nil, io.EOF
 		}
 
@@ -166,7 +174,7 @@ func (cm *connectionManager) readPacket(c *connection) (packet.Packet, error) {
 		if errors.As(err, &netErr) && netErr.Timeout() {
 			cm.log.Debug().
 				Str("ClientId", string(c.clientID)).
-				Bool("Connected", c.connected).
+				Bool("Connected", c.connected()).
 				Int("Timeout", c.timeout).
 				Int("Version", int(c.version)).
 				Msg("Timeout - No packet received")
@@ -175,44 +183,44 @@ func (cm *connectionManager) readPacket(c *connection) (packet.Packet, error) {
 
 		cm.log.Error().
 			Str("ClientId", string(c.clientID)).
-			Bool("Connected", c.connected).
+			Bool("Connected", c.connected()).
 			Int("Timeout", c.timeout).
 			Int("Version", int(c.version)).
 			Msg("Failed to read packet: " + err.Error())
 		return nil, errProtocolError
 	}
 
-	cm.metrics.recordPacketReceived(p)
+	cm.metrics.recordPacketReceived(pkt)
 	cm.log.Debug().
 		Str("ClientId", string(c.clientID)).
-		Bool("Connected", c.connected).
-		Uint8("PacketTypeId", uint8(p.Type())).
-		Int("Size", p.Size()).
+		Bool("Connected", c.connected()).
+		Uint8("PacketTypeId", uint8(pkt.Type())).
+		Int("Size", pkt.Size()).
 		Int("Version", int(c.version)).
 		Msg("Received packet")
-	return p, nil
+	return pkt, nil
 }
 
 func (cm *connectionManager) handlePacket(c *connection, p packet.Packet) error {
 	var replies []packet.Packet
 	var err error
 
+	c.setState(stateActive)
+
 	h, ok := cm.handlers[p.Type()]
 	if ok {
-		replies, err = h.HandlePacket(c.clientID, p)
+		replies, err = h.handlePacket(c.clientID, p)
 	} else {
 		err = errors.New("invalid packet type")
 	}
 	if err != nil {
 		cm.log.Error().
 			Str("ClientId", string(c.clientID)).
-			Bool("Connected", c.connected).
+			Bool("Connected", c.connected()).
 			Bool("HasSession", c.hasSession).
 			Int("Timeout", c.timeout).
 			Int("Version", int(c.version)).
-			Msg(fmt.Sprintf("failed to handle packet %v: %v",
-				p.Type().String(),
-				err.Error()))
+			Msg(fmt.Sprintf("Failed to handle packet %v: %v", p.Type().String(), err.Error()))
 	}
 
 	var code packet.ReasonCode
@@ -227,21 +235,25 @@ func (cm *connectionManager) handlePacket(c *connection, p packet.Packet) error 
 				c.hasSession = true
 				cm.log.Debug().
 					Str("ClientId", string(c.clientID)).
-					Bool("Connected", c.connected).
+					Bool("Connected", c.connected()).
 					Bool("HasSession", c.hasSession).
 					Int("Timeout", c.timeout).
 					Int("Version", int(c.version)).
-					Msg("New connection")
+					Msg("New MQTT connection")
 
-				cm.mutex.Lock()
-				cm.connections[c.clientID] = c
-				cm.mutex.Unlock()
+				cm.pendingConnections.Lock()
+				cm.removePendingConnectionLocked(c)
+				cm.pendingConnections.Unlock()
+
+				cm.connections.Lock()
+				cm.connections.Value[c.clientID] = c
+				cm.connections.Unlock()
 			}
 		}
 
 		if rplErr := cm.replyPacket(reply, c); rplErr != nil {
 			err = multierr.Combine(err, rplErr)
-			return err
+			break
 		}
 
 		cm.metrics.recordPacketSent(reply)
@@ -258,77 +270,64 @@ func (cm *connectionManager) handlePacket(c *connection, p packet.Packet) error 
 			break
 		}
 	}
-	if err != nil {
-		return err
-	}
 
-	if p.Type() == packet.DISCONNECT {
-		c.hasSession = false
-		cm.closeConnection(c, false)
+	if err == nil {
+		if p.Type() == packet.DISCONNECT {
+			c.hasSession = false
+			cm.closeConnection(c, false)
+
+			latency := time.Since(p.Timestamp())
+			cm.metrics.recordDisconnectLatency(latency)
+		}
 
 		latency := time.Since(p.Timestamp())
-		cm.metrics.recordDisconnectLatency(latency)
+		cm.recordLatencyMetrics(p.Type(), code, latency)
+		cm.log.Info().
+			Str("ClientId", string(c.clientID)).
+			Dur("LatencyInMs", latency).
+			Uint8("Version", uint8(c.version)).
+			Msg(fmt.Sprintf("Packet %v processed with success", p.Type().String()))
 	}
 
-	latency := time.Since(p.Timestamp())
-	cm.recordLatencyMetrics(p.Type(), code, latency)
-	cm.log.Info().
-		Str("ClientId", string(c.clientID)).
-		Dur("LatencyInMs", latency).
-		Uint8("Version", uint8(c.version)).
-		Msg(fmt.Sprintf("Packet %v processed with success", p.Type().String()))
+	if c.connected() {
+		c.setState(stateIdle)
+	}
 
+	return err
+}
+
+func (cm *connectionManager) replyPacket(reply packet.Packet, c *connection) error {
+	cm.log.Trace().
+		Str("ClientId", string(c.clientID)).
+		Uint8("PacketTypeId", uint8(reply.Type())).
+		Int("Size", reply.Size()).
+		Uint8("Version", uint8(c.version)).
+		Msg("Sending packet")
+
+	err := cm.writer.WritePacket(c.netConn, reply)
+	if err != nil {
+		cm.log.Warn().
+			Str("ClientId", string(c.clientID)).
+			Stringer("PacketType", reply.Type()).
+			Uint8("Version", uint8(c.version)).
+			Msg("Failed to send packet: " + err.Error())
+		return fmt.Errorf("failed to send packet: %w", err)
+	}
 	return nil
 }
 
-func (cm *connectionManager) newConnection(nc net.Conn) connection {
-	return connection{
-		netConn: nc,
-		timeout: cm.conf.ConnectTimeout,
-		version: packet.Version(cm.conf.DefaultVersion),
-	}
-}
-
-func (cm *connectionManager) disconnectSession(c *connection) {
-	s, err := cm.sessionStore.ReadSession(c.clientID)
-	if err != nil {
-		cm.log.Error().
-			Str("ClientId", string(c.clientID)).
-			Bool("Connected", c.connected).
-			Bool("HasSession", c.hasSession).
-			Int("Timeout", c.timeout).
-			Int("Version", int(c.version)).
-			Msg("Failed to read session (CONNMGR): " + err.Error())
-		return
-	}
-
-	if s.CleanSession {
-		err = cm.sessionStore.DeleteSession(s)
-		if err != nil {
-			cm.log.Error().
-				Str("ClientId", string(s.ClientID)).
-				Uint64("SessionId", uint64(s.SessionID)).
-				Uint8("Version", uint8(s.Version)).
-				Msg("Failed to delete session (CONNMGR): " + err.Error())
-			return
-		}
-	} else {
-		s.Connected = false
-		err = cm.sessionStore.SaveSession(s)
-		if err != nil {
-			cm.log.Error().
-				Str("ClientId", string(s.ClientID)).
-				Uint64("SessionId", uint64(s.SessionID)).
-				Uint8("Version", uint8(s.Version)).
-				Msg("Failed to save session (CONNMGR): " + err.Error())
-			return
-		}
-	}
-	c.hasSession = false
-}
-
 func (cm *connectionManager) closeConnection(c *connection, force bool) {
-	if !c.connected && !c.hasSession {
+	cm.pendingConnections.Lock()
+	defer cm.pendingConnections.Unlock()
+
+	cm.connections.Lock()
+	defer cm.connections.Unlock()
+
+	cm.closeConnectionLocked(c, force)
+}
+
+func (cm *connectionManager) closeConnectionLocked(c *connection, force bool) {
+	if c.state() == stateClosed {
 		return
 	}
 
@@ -337,17 +336,13 @@ func (cm *connectionManager) closeConnection(c *connection, force bool) {
 		Bool("Force", force).
 		Msg("Closing connection")
 
-	if tcp, ok := c.netConn.(*net.TCPConn); ok && force {
-		_ = tcp.SetLinger(0)
-	}
+	state := c.state()
+	c.close(force)
 
-	_ = c.netConn.Close()
-
-	if c.connected {
-		cm.mutex.Lock()
-		delete(cm.connections, c.clientID)
-		c.connected = false
-		cm.mutex.Unlock()
+	if state == stateNew {
+		cm.removePendingConnectionLocked(c)
+	} else {
+		delete(cm.connections.Value, c.clientID)
 	}
 
 	if c.hasSession {
@@ -361,59 +356,109 @@ func (cm *connectionManager) closeConnection(c *connection, force bool) {
 		Msg("Connection closed")
 }
 
-func (cm *connectionManager) replyPacket(rpl packet.Packet, c *connection) error {
-	cm.log.Trace().
-		Str("ClientId", string(c.clientID)).
-		Uint8("PacketTypeId", uint8(rpl.Type())).
-		Int("Size", rpl.Size()).
-		Uint8("Version", uint8(c.version)).
-		Msg("Sending packet")
-
-	err := cm.writer.WritePacket(c.netConn, rpl)
-	if err != nil {
-		cm.log.Warn().
-			Str("ClientId", string(c.clientID)).
-			Stringer("PacketType", rpl.Type()).
-			Uint8("Version", uint8(c.version)).
-			Msg("Failed to send packet: " + err.Error())
-		return fmt.Errorf("failed to send packet: %w", err)
+func (cm *connectionManager) removePendingConnectionLocked(c *connection) {
+	l := make([]*connection, 0, len(cm.pendingConnections.Value)-1)
+	for _, cn := range cm.connections.Value {
+		if cn.clientID != c.clientID {
+			l = append(l, cn)
+		}
 	}
-	return nil
+	cm.pendingConnections.Value = l
 }
 
-func (cm *connectionManager) deliverPacket(id packet.ClientID, p *packet.Publish) error {
-	cm.mutex.RLock()
-	conn, ok := cm.connections[id]
-	cm.mutex.RUnlock()
-	if !ok {
-		return errors.New("connection not found")
+func (cm *connectionManager) closeIdleConnections() bool {
+	cm.pendingConnections.Lock()
+	defer cm.pendingConnections.Unlock()
+
+	cm.connections.Lock()
+	defer cm.connections.Unlock()
+
+	for _, cn := range cm.pendingConnections.Value {
+		cm.closeConnectionLocked(cn, false)
 	}
 
-	cm.log.Trace().
-		Str("ClientId", string(conn.clientID)).
-		Uint16("PacketId", uint16(p.PacketID)).
-		Uint8("QoS", uint8(p.QoS)).
-		Uint8("Retain", p.Retain).
-		Int("Size", p.Size()).
-		Str("TopicName", p.TopicName).
-		Uint8("Version", uint8(p.Version)).
-		Msg("Delivering packet to client")
+	quiescent := true
+	for _, cn := range cm.connections.Value {
+		if cn.state() == stateIdle {
+			cm.closeConnectionLocked(cn, false)
+		} else {
+			quiescent = false
+		}
+	}
 
-	err := cm.writer.WritePacket(conn.netConn, p)
+	return quiescent
+}
+
+func (cm *connectionManager) closeAllConnections() {
+	cm.pendingConnections.Lock()
+	defer cm.pendingConnections.Unlock()
+
+	cm.connections.Lock()
+	defer cm.connections.Unlock()
+
+	for _, cn := range cm.pendingConnections.Value {
+		cm.closeConnectionLocked(cn, true)
+	}
+
+	for _, cn := range cm.connections.Value {
+		cm.closeConnectionLocked(cn, true)
+	}
+}
+
+func (cm *connectionManager) disconnectSession(c *connection) {
+	s, err := cm.sessionStore.readSession(c.clientID)
 	if err != nil {
-		return err
+		cm.log.Error().
+			Str("ClientId", string(c.clientID)).
+			Bool("Connected", c.connected()).
+			Bool("HasSession", c.hasSession).
+			Int("Timeout", c.timeout).
+			Int("Version", int(c.version)).
+			Msg("Failed to read session (CONNMGR): " + err.Error())
+		return
 	}
 
-	cm.log.Debug().
-		Str("ClientId", string(conn.clientID)).
-		Uint16("PacketId", uint16(p.PacketID)).
-		Uint8("QoS", uint8(p.QoS)).
-		Uint8("Retain", p.Retain).
-		Int("Size", p.Size()).
-		Str("TopicName", p.TopicName).
-		Uint8("Version", uint8(p.Version)).
-		Msg("Packet delivered to client with success")
-	return nil
+	if s.cleanSession {
+		for _, sub := range s.subscriptions {
+			err = cm.pubSub.unsubscribe(s.clientID, sub.topicFilter)
+			if err != nil {
+				cm.log.Error().
+					Str("ClientId", string(s.clientID)).
+					Bool("Connected", s.connected).
+					Uint64("SessionId", uint64(s.sessionID)).
+					Str("Topic", sub.topicFilter).
+					Uint8("Version", uint8(s.version)).
+					Msg("Failed to unsubscribe topic")
+			}
+			delete(s.subscriptions, sub.topicFilter)
+		}
+
+		err = cm.sessionStore.deleteSession(s)
+		if err != nil {
+			cm.log.Error().
+				Str("ClientId", string(s.clientID)).
+				Uint64("SessionId", uint64(s.sessionID)).
+				Uint8("Version", uint8(s.version)).
+				Msg("Failed to delete session (CONNMGR): " + err.Error())
+			return
+		}
+	} else {
+		s.connected = false
+		err = cm.sessionStore.saveSession(s)
+		if err != nil {
+			cm.log.Error().
+				Str("ClientId", string(s.clientID)).
+				Uint64("SessionId", uint64(s.sessionID)).
+				Uint8("Version", uint8(s.version)).
+				Msg("Failed to save session (CONNMGR): " + err.Error())
+			return
+		}
+	}
+	c.hasSession = false
+}
+
+func (cm *connectionManager) wait(ctx context.Context) {
+	cm.pubSub.wait(ctx)
 }
 
 func (cm *connectionManager) recordLatencyMetrics(t packet.Type, rc packet.ReasonCode, latency time.Duration) {
@@ -426,4 +471,40 @@ func (cm *connectionManager) recordLatencyMetrics(t packet.Type, rc packet.Reaso
 	} else if t == packet.UNSUBSCRIBE {
 		cm.metrics.recordUnsubscribeLatency(latency)
 	}
+}
+
+func (cm *connectionManager) deliverPacket(id packet.ClientID, p *packet.Publish) error {
+	cm.connections.RLock()
+	c, ok := cm.connections.Value[id]
+	cm.connections.RUnlock()
+
+	if !ok {
+		return errors.New("connection not found")
+	}
+
+	cm.log.Trace().
+		Str("ClientId", string(c.clientID)).
+		Uint16("PacketId", uint16(p.PacketID)).
+		Uint8("QoS", uint8(p.QoS)).
+		Uint8("Retain", p.Retain).
+		Int("Size", p.Size()).
+		Str("TopicName", p.TopicName).
+		Uint8("Version", uint8(p.Version)).
+		Msg("Delivering packet to client")
+
+	err := cm.writer.WritePacket(c.netConn, p)
+	if err != nil {
+		return err
+	}
+
+	cm.log.Debug().
+		Str("ClientId", string(c.clientID)).
+		Uint16("PacketId", uint16(p.PacketID)).
+		Uint8("QoS", uint8(p.QoS)).
+		Uint8("Retain", p.Retain).
+		Int("Size", p.Size()).
+		Str("TopicName", p.TopicName).
+		Uint8("Version", uint8(p.Version)).
+		Msg("Packet delivered to client with success")
+	return nil
 }

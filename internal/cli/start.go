@@ -15,21 +15,22 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
 	"runtime"
 	"runtime/pprof"
+	"sync"
 	"syscall"
+	"time"
 
 	"github.com/dimiro1/banner"
 	"github.com/gsalomao/maxmq/internal/config"
 	"github.com/gsalomao/maxmq/internal/logger"
-	"github.com/gsalomao/maxmq/internal/metrics"
 	"github.com/gsalomao/maxmq/internal/mqtt"
-	"github.com/gsalomao/maxmq/internal/mqtt/handler"
-	"github.com/gsalomao/maxmq/internal/server"
+	"github.com/gsalomao/maxmq/internal/mqtt/listener"
 	"github.com/gsalomao/maxmq/internal/snowflake"
 	"github.com/mattn/go-colorable"
 	"github.com/spf13/cobra"
@@ -48,26 +49,17 @@ func newCommandStart() *cobra.Command {
 		Short: "Start server",
 		Long:  "Start the MaxMQ server",
 		Run: func(_ *cobra.Command, _ []string) {
-			enableProfile := profile != ""
+			profileEnabled := profile != ""
 			machineID := 0
 
-			sf, err := snowflake.New(machineID)
+			conf, confFileFound, err := loadConfig()
 			if err != nil {
 				fmt.Println("failed to start server: " + err.Error())
 				os.Exit(1)
 			}
 
-			var conf config.Config
-			var confFileFound bool
-
-			conf, confFileFound, err = loadConfig()
-			if err != nil {
-				fmt.Println("failed to start server: " + err.Error())
-				os.Exit(1)
-			}
-
-			var baseLog *logger.Logger
-			baseLog, err = newLogger(logger.LogFormat(conf.LogFormat), conf.LogLevel, sf)
+			var log *logger.Logger
+			log, err = newLogger(logger.LogFormat(conf.LogFormat), conf.LogLevel, machineID)
 			if err != nil {
 				fmt.Println("failed to start server: " + err.Error())
 				os.Exit(1)
@@ -76,38 +68,34 @@ func newCommandStart() *cobra.Command {
 			bannerWriter := colorable.NewColorableStdout()
 			banner.InitString(bannerWriter, true, true, bannerTemplate)
 
-			bsLog := baseLog.WithPrefix("bootstrap")
-			if confFileFound {
-				bsLog.Info().Msg("Config file loaded with success")
-			} else {
-				bsLog.Info().Msg("No config file found")
-			}
+			ctx, cancel := context.WithCancel(context.Background())
 
-			var cf []byte
-			cf, err = json.Marshal(conf)
-			if err != nil {
-				bsLog.Fatal().Msg("Failed to encode configuration: " + err.Error())
-			}
-			bsLog.Debug().RawJSON("Configuration", cf).Msg("Using configuration")
+			sigs := make(chan os.Signal, 1)
+			signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+			go func() {
+				<-sigs
+				fmt.Println("")
+				cancel()
+			}()
 
-			var s *server.Server
-			s, err = newServer(conf, baseLog, machineID)
-			if err != nil {
-				fmt.Println("failed to start server: " + err.Error())
-				os.Exit(1)
-			}
-
-			startServer(s, bsLog, enableProfile)
-
-			stop := make(chan os.Signal, 1)
-			signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-			<-stop
-
-			// Generates a new line to split the logs
-			fmt.Println("")
-			stopServer(s, bsLog, enableProfile)
+			runServer(ctx, conf, confFileFound, profileEnabled, machineID, log)
 		},
 	}
+}
+
+func newLogger(format logger.LogFormat, level string, machineID int) (l *logger.Logger, err error) {
+	err = logger.SetSeverityLevel(level)
+	if err != nil {
+		return nil, err
+	}
+
+	var gen logger.LogIDGenerator
+	gen, err = snowflake.New(machineID)
+	if err != nil {
+		return nil, err
+	}
+
+	return logger.New(os.Stdout, gen, format), nil
 }
 
 func loadConfig() (c config.Config, found bool, err error) {
@@ -122,17 +110,69 @@ func loadConfig() (c config.Config, found bool, err error) {
 	return c, found, err
 }
 
-func newLogger(format logger.LogFormat, level string, gen logger.LogIDGenerator) (l *logger.Logger, err error) {
-	err = logger.SetSeverityLevel(level)
-	if err != nil {
-		return nil, err
+func runServer(ctx context.Context, c config.Config, confFileFound, profileEnabled bool, machineID int,
+	log *logger.Logger) {
+
+	bsLog := log.WithPrefix("bootstrap")
+	if confFileFound {
+		bsLog.Info().Msg("Config file loaded with success")
+	} else {
+		bsLog.Info().Msg("No config file found")
 	}
 
-	return logger.New(os.Stdout, gen, format), nil
+	if cf, err := json.Marshal(c); err == nil {
+		bsLog.Debug().RawJSON("Configuration", cf).Msg("Using configuration")
+	} else {
+		bsLog.Fatal().Msg("Failed to encode configuration: " + err.Error())
+	}
+
+	var err error
+	var cpu *os.File
+
+	if profileEnabled {
+		cpu, err = os.Create("cpu.prof")
+		if err != nil {
+			bsLog.Fatal().Msg("Failed to create CPU profile file: " + err.Error())
+		}
+
+		if err = pprof.StartCPUProfile(cpu); err != nil {
+			bsLog.Fatal().Msg("Failed to start CPU profile: " + err.Error())
+		}
+	}
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err = runMQTTServer(ctx, c, log, machineID)
+		if err != nil {
+			bsLog.Fatal().Msg("Failed to run MQTT server: " + err.Error())
+		}
+	}()
+
+	wg.Wait()
+
+	if profileEnabled {
+		var heap *os.File
+		heap, err = os.Create("heap.prof")
+		if err != nil {
+			bsLog.Fatal().Msg("Failed to create Heap profile file: " + err.Error())
+		}
+
+		runtime.GC()
+		if err = pprof.WriteHeapProfile(heap); err != nil {
+			bsLog.Fatal().Msg("Failed to save Heap profile: " + err.Error())
+		}
+
+		pprof.StopCPUProfile()
+		_ = heap.Close()
+		_ = cpu.Close()
+	}
 }
 
-func newServer(c config.Config, l *logger.Logger, machineID int) (s *server.Server, err error) {
-	mqttConf := handler.Configuration{
+func runMQTTServer(ctx context.Context, c config.Config, log *logger.Logger, machineID int) error {
+	mqttConf := mqtt.Config{
 		TCPAddress:                    c.MQTTTCPAddress,
 		ConnectTimeout:                c.MQTTConnectTimeout,
 		BufferSize:                    c.MQTTBufferSize,
@@ -155,73 +195,27 @@ func newServer(c config.Config, l *logger.Logger, machineID int) (s *server.Serv
 		MetricsEnabled:                c.MetricsEnabled,
 	}
 
-	var sf *snowflake.Snowflake
-	sf, err = snowflake.New(machineID)
+	gen, err := snowflake.New(machineID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var lsn server.Listener
-	lsn, err = mqtt.NewListener(mqttConf, sf, l)
+	server := mqtt.NewServer(mqttConf, gen, log)
+	server.AddListener(listener.NewTCPListener(c.MQTTTCPAddress, log))
+
+	err = server.Start()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	s = server.New(l)
-	s.AddListener(lsn)
+	<-ctx.Done()
 
-	if c.MetricsEnabled {
-		mtConf := metrics.Configuration{
-			Address:   c.MetricsAddress,
-			Path:      c.MetricsPath,
-			Profiling: c.MetricsProfiling,
-		}
+	sdCtx, cancel := context.WithTimeout(context.Background(), time.Duration(c.MQTTShutdownTimeout)*time.Second)
+	defer cancel()
 
-		lsn, err = metrics.NewListener(mtConf, l)
-		if err != nil {
-			return nil, err
-		}
-
-		s.AddListener(lsn)
+	if server.Shutdown(sdCtx) != nil {
+		server.Stop()
 	}
 
-	return s, nil
-}
-
-func startServer(s *server.Server, l *logger.Logger, enableProfile bool) {
-	if enableProfile {
-		cpu, err := os.Create("cpu.prof")
-		if err != nil {
-			l.Fatal().Msg("Failed to create CPU profile file: " + err.Error())
-		}
-
-		if err = pprof.StartCPUProfile(cpu); err != nil {
-			l.Fatal().Msg("Failed to start CPU profile: " + err.Error())
-		}
-
-		defer func() { _ = cpu.Close() }()
-	}
-
-	err := s.Start()
-	if err != nil {
-		l.Fatal().Msg("Failed to start server: " + err.Error())
-	}
-}
-
-func stopServer(s *server.Server, l *logger.Logger, enableProfile bool) {
-	s.Stop()
-	if enableProfile {
-		heap, err := os.Create("heap.prof")
-		if err != nil {
-			l.Fatal().Msg("Failed to create Heap profile file: " + err.Error())
-		}
-		defer func() { _ = heap.Close() }()
-
-		runtime.GC()
-		if err = pprof.WriteHeapProfile(heap); err != nil {
-			l.Fatal().Msg("Failed to save Heap profile: " + err.Error())
-		}
-
-		pprof.StopCPUProfile()
-	}
+	return err
 }

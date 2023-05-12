@@ -18,20 +18,25 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestConnectionNextDeadlineWithTimeout(t *testing.T) {
-	c := connection{timeout: 3}
-	now := time.Now()
+func TestMessageClone(t *testing.T) {
+	pkt := packet.NewPublish(5, packet.MQTT311, "t", packet.QoS1, 0, 0, []byte("d"), nil)
+	msg1 := &message{
+		id:       100,
+		packetID: pkt.PacketID,
+		packet:   &pkt,
+		lastSent: time.Now().Unix(),
+		tries:    3,
+	}
 
-	deadline := c.nextDeadline()
-	assert.True(t, deadline.After(now))
-}
-
-func TestConnectionNextConnectionDeadlineNoTimeout(t *testing.T) {
-	c := connection{}
-
-	deadline := c.nextDeadline()
-	assert.Zero(t, deadline)
+	msg2 := msg1.clone()
+	require.NotNil(t, msg2)
+	assert.NotSame(t, msg1, msg2)
+	assert.Equal(t, msg1, msg2)
+	assert.NotSame(t, msg1.packet, msg2.packet)
+	assert.Equal(t, msg1.packet, msg2.packet)
 }

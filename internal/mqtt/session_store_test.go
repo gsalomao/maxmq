@@ -17,39 +17,10 @@ package mqtt
 import (
 	"testing"
 
-	"github.com/gsalomao/maxmq/internal/mqtt/handler"
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
-
-type sessionStoreMock struct {
-	mock.Mock
-}
-
-func (m *sessionStoreMock) NewSession(id packet.ClientID) *handler.Session {
-	args := m.Called(id)
-	return args.Get(0).(*handler.Session)
-}
-
-func (m *sessionStoreMock) ReadSession(id packet.ClientID) (s *handler.Session, err error) {
-	args := m.Called(id)
-	if args.Get(0) != nil {
-		s = args.Get(0).(*handler.Session)
-	}
-	return s, args.Error(1)
-}
-
-func (m *sessionStoreMock) SaveSession(s *handler.Session) error {
-	args := m.Called(s)
-	return args.Error(0)
-}
-
-func (m *sessionStoreMock) DeleteSession(s *handler.Session) error {
-	args := m.Called(s)
-	return args.Error(0)
-}
 
 func TestSessionStoreNewSession(t *testing.T) {
 	idGen := &idGeneratorMock{}
@@ -60,10 +31,10 @@ func TestSessionStoreNewSession(t *testing.T) {
 	sID := 10
 	idGen.On("NextID").Return(sID)
 
-	s := sm.NewSession(cID)
+	s := sm.newSession(cID)
 	require.NotNil(t, s)
-	assert.Equal(t, cID, s.ClientID)
-	assert.Equal(t, handler.SessionID(sID), s.SessionID)
+	assert.Equal(t, cID, s.clientID)
+	assert.Equal(t, sessionID(sID), s.sessionID)
 	idGen.AssertExpectations(t)
 }
 
@@ -73,10 +44,10 @@ func TestSessionStoreReadSession(t *testing.T) {
 	sm := newSessionStore(idGen, log)
 
 	cID := packet.ClientID("a")
-	s := &handler.Session{ClientID: cID, SessionID: 10}
+	s := &session{clientID: cID, sessionID: 10}
 	sm.sessions[cID] = s
 
-	ss, err := sm.ReadSession(cID)
+	ss, err := sm.readSession(cID)
 	require.Nil(t, err)
 	require.NotNil(t, ss)
 	assert.Equal(t, s, ss)
@@ -88,8 +59,8 @@ func TestSessionStoreReadSessionNotFound(t *testing.T) {
 	sm := newSessionStore(idGen, log)
 	cID := packet.ClientID("a")
 
-	ss, err := sm.ReadSession(cID)
-	assert.Equal(t, handler.ErrSessionNotFound, err)
+	ss, err := sm.readSession(cID)
+	assert.Equal(t, errSessionNotFound, err)
 	assert.Nil(t, ss)
 }
 
@@ -99,9 +70,9 @@ func TestSessionStoreSaveSession(t *testing.T) {
 	sm := newSessionStore(idGen, log)
 
 	cID := packet.ClientID("a")
-	s := &handler.Session{ClientID: cID, SessionID: 10}
+	s := &session{clientID: cID, sessionID: 10}
 
-	err := sm.SaveSession(s)
+	err := sm.saveSession(s)
 	assert.Nil(t, err)
 }
 
@@ -111,10 +82,10 @@ func TestSessionStoreDeleteSession(t *testing.T) {
 	sm := newSessionStore(idGen, log)
 
 	cID := packet.ClientID("a")
-	s := &handler.Session{ClientID: cID, SessionID: 10}
+	s := &session{clientID: cID, sessionID: 10}
 	sm.sessions[cID] = s
 
-	err := sm.DeleteSession(s)
+	err := sm.deleteSession(s)
 	assert.Nil(t, err)
 }
 
@@ -124,8 +95,8 @@ func TestSessionStoreDeleteSessionError(t *testing.T) {
 	sm := newSessionStore(idGen, log)
 
 	cID := packet.ClientID("a")
-	s := &handler.Session{ClientID: cID, SessionID: 10}
+	s := &session{clientID: cID, sessionID: 10}
 
-	err := sm.DeleteSession(s)
+	err := sm.deleteSession(s)
 	assert.NotNil(t, err)
 }

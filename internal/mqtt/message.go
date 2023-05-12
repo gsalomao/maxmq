@@ -15,23 +15,25 @@
 package mqtt
 
 import (
-	"testing"
-	"time"
-
-	"github.com/stretchr/testify/assert"
+	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 )
 
-func TestConnectionNextDeadlineWithTimeout(t *testing.T) {
-	c := connection{timeout: 3}
-	now := time.Now()
+type messageID uint64
 
-	deadline := c.nextDeadline()
-	assert.True(t, deadline.After(now))
+type message struct {
+	id       messageID
+	packet   *packet.Publish
+	lastSent int64
+	tries    int
+	packetID packet.ID
 }
 
-func TestConnectionNextConnectionDeadlineNoTimeout(t *testing.T) {
-	c := connection{}
-
-	deadline := c.nextDeadline()
-	assert.Zero(t, deadline)
+func (m *message) clone() *message {
+	return &message{
+		id:       m.id,
+		packetID: m.packetID,
+		packet:   m.packet.Clone(),
+		lastSent: m.lastSent,
+		tries:    m.tries,
+	}
 }

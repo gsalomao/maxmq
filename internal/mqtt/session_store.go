@@ -18,44 +18,41 @@ import (
 	"sync"
 
 	"github.com/gsalomao/maxmq/internal/logger"
-	"github.com/gsalomao/maxmq/internal/mqtt/handler"
 	"github.com/gsalomao/maxmq/internal/mqtt/packet"
 )
 
 func newSessionStore(g IDGenerator, l *logger.Logger) *sessionStore {
 	return &sessionStore{
 		idGen:    g,
-		log:      l.WithPrefix("store"),
-		sessions: make(map[packet.ClientID]*handler.Session),
+		log:      l.WithPrefix("mqtt.store"),
+		sessions: make(map[packet.ClientID]*session),
 	}
 }
 
 type sessionStore struct {
 	log      *logger.Logger
-	sessions map[packet.ClientID]*handler.Session
+	sessions map[packet.ClientID]*session
 	idGen    IDGenerator
 	mutex    sync.RWMutex
 }
 
-// NewSession creates a new session for given client identifier.
-func (st *sessionStore) NewSession(id packet.ClientID) *handler.Session {
+func (st *sessionStore) newSession(id packet.ClientID) *session {
 	sID := st.idGen.NextID()
-	s := &handler.Session{
-		ClientID:      id,
-		SessionID:     handler.SessionID(sID),
-		Subscriptions: make(map[string]*handler.Subscription),
-		UnAckMessages: make(map[packet.ID]*handler.Message),
+	s := &session{
+		clientID:      id,
+		sessionID:     sessionID(sID),
+		subscriptions: make(map[string]*subscription),
+		unAckMessages: make(map[packet.ID]*message),
 	}
 
 	st.log.Trace().
-		Str("ClientId", string(s.ClientID)).
-		Uint64("SessionId", uint64(s.SessionID)).
+		Str("ClientId", string(s.clientID)).
+		Uint64("SessionId", uint64(s.sessionID)).
 		Msg("New session created")
 	return s
 }
 
-// ReadSession reads the session for the given client identifier.
-func (st *sessionStore) ReadSession(id packet.ClientID) (s *handler.Session, err error) {
+func (st *sessionStore) readSession(id packet.ClientID) (s *session, err error) {
 	st.log.Trace().Str("ClientId", string(id)).Msg("Reading session")
 
 	var ok bool
@@ -65,103 +62,101 @@ func (st *sessionStore) ReadSession(id packet.ClientID) (s *handler.Session, err
 
 	if !ok {
 		st.log.Debug().Str("ClientId", string(id)).Msg("Session not found")
-		return nil, handler.ErrSessionNotFound
+		return nil, errSessionNotFound
 	}
 
-	s.Restored = true
+	s.restored = true
 	st.log.Debug().
-		Bool("CleanSession", s.CleanSession).
-		Str("ClientId", string(s.ClientID)).
-		Bool("Connected", s.Connected).
-		Int64("ConnectedAt", s.ConnectedAt).
-		Uint32("ExpiryInterval", s.ExpiryInterval).
-		Int("InflightMessages", s.InflightMessages.Len()).
-		Int("KeepAlive", s.KeepAlive).
-		Uint64("SessionId", uint64(s.SessionID)).
-		Int("Subscriptions", len(s.Subscriptions)).
-		Int("UnAckMessages", len(s.UnAckMessages)).
-		Uint8("Version", uint8(s.Version)).
+		Bool("CleanSession", s.cleanSession).
+		Str("ClientId", string(s.clientID)).
+		Bool("Connected", s.connected).
+		Int64("ConnectedAt", s.connectedAt).
+		Uint32("ExpiryInterval", s.expiryInterval).
+		Int("InflightMessages", s.inflightMessages.Len()).
+		Int("KeepAlive", s.keepAlive).
+		Uint64("SessionId", uint64(s.sessionID)).
+		Int("Subscriptions", len(s.subscriptions)).
+		Int("UnAckMessages", len(s.unAckMessages)).
+		Uint8("Version", uint8(s.version)).
 		Msg("Session read with success")
 	return s, nil
 }
 
-// SaveSession saves the given session.
-func (st *sessionStore) SaveSession(s *handler.Session) error {
+func (st *sessionStore) saveSession(s *session) error {
 	st.log.Trace().
-		Bool("CleanSession", s.CleanSession).
-		Str("ClientId", string(s.ClientID)).
-		Bool("Connected", s.Connected).
-		Int64("ConnectedAt", s.ConnectedAt).
-		Uint32("ExpiryInterval", s.ExpiryInterval).
-		Int("InflightMessages", s.InflightMessages.Len()).
-		Int("KeepAlive", s.KeepAlive).
-		Uint64("SessionId", uint64(s.SessionID)).
-		Int("Subscriptions", len(s.Subscriptions)).
-		Int("UnAckMessages", len(s.UnAckMessages)).
-		Uint8("Version", uint8(s.Version)).
+		Bool("CleanSession", s.cleanSession).
+		Str("ClientId", string(s.clientID)).
+		Bool("Connected", s.connected).
+		Int64("ConnectedAt", s.connectedAt).
+		Uint32("ExpiryInterval", s.expiryInterval).
+		Int("InflightMessages", s.inflightMessages.Len()).
+		Int("KeepAlive", s.keepAlive).
+		Uint64("SessionId", uint64(s.sessionID)).
+		Int("Subscriptions", len(s.subscriptions)).
+		Int("UnAckMessages", len(s.unAckMessages)).
+		Uint8("Version", uint8(s.version)).
 		Msg("Saving session")
 
 	st.mutex.Lock()
-	st.sessions[s.ClientID] = s
+	st.sessions[s.clientID] = s
 	st.mutex.Unlock()
 
 	st.log.Debug().
-		Bool("CleanSession", s.CleanSession).
-		Str("ClientId", string(s.ClientID)).
-		Bool("Connected", s.Connected).
-		Int64("ConnectedAt", s.ConnectedAt).
-		Uint32("ExpiryInterval", s.ExpiryInterval).
-		Int("InflightMessages", s.InflightMessages.Len()).
-		Int("KeepAlive", s.KeepAlive).
-		Uint64("SessionId", uint64(s.SessionID)).
-		Int("Subscriptions", len(s.Subscriptions)).
-		Int("UnAckMessages", len(s.UnAckMessages)).
-		Uint8("Version", uint8(s.Version)).
+		Bool("CleanSession", s.cleanSession).
+		Str("ClientId", string(s.clientID)).
+		Bool("Connected", s.connected).
+		Int64("ConnectedAt", s.connectedAt).
+		Uint32("ExpiryInterval", s.expiryInterval).
+		Int("InflightMessages", s.inflightMessages.Len()).
+		Int("KeepAlive", s.keepAlive).
+		Uint64("SessionId", uint64(s.sessionID)).
+		Int("Subscriptions", len(s.subscriptions)).
+		Int("UnAckMessages", len(s.unAckMessages)).
+		Uint8("Version", uint8(s.version)).
 		Msg("Session saved with success")
 	return nil
 }
 
-// DeleteSession deletes the given Session.
-func (st *sessionStore) DeleteSession(s *handler.Session) error {
+func (st *sessionStore) deleteSession(s *session) error {
 	st.log.Trace().
-		Bool("CleanSession", s.CleanSession).
-		Str("ClientId", string(s.ClientID)).
-		Bool("Connected", s.Connected).
-		Int64("ConnectedAt", s.ConnectedAt).
-		Uint32("ExpiryInterval", s.ExpiryInterval).
-		Int("InflightMessages", s.InflightMessages.Len()).
-		Int("KeepAlive", s.KeepAlive).
-		Uint64("SessionId", uint64(s.SessionID)).
-		Int("Subscriptions", len(s.Subscriptions)).
-		Int("UnAckMessages", len(s.UnAckMessages)).
-		Uint8("Version", uint8(s.Version)).
+		Bool("CleanSession", s.cleanSession).
+		Str("ClientId", string(s.clientID)).
+		Bool("Connected", s.connected).
+		Int64("ConnectedAt", s.connectedAt).
+		Uint32("ExpiryInterval", s.expiryInterval).
+		Int("InflightMessages", s.inflightMessages.Len()).
+		Int("KeepAlive", s.keepAlive).
+		Uint64("SessionId", uint64(s.sessionID)).
+		Int("Subscriptions", len(s.subscriptions)).
+		Int("UnAckMessages", len(s.unAckMessages)).
+		Uint8("Version", uint8(s.version)).
 		Msg("Deleting session")
 
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
-	if _, ok := st.sessions[s.ClientID]; !ok {
+	if _, ok := st.sessions[s.clientID]; !ok {
 		st.log.Debug().
-			Str("ClientId", string(s.ClientID)).
-			Uint64("SessionId", uint64(s.SessionID)).
-			Uint8("Version", uint8(s.Version)).
+			Str("ClientId", string(s.clientID)).
+			Uint64("SessionId", uint64(s.sessionID)).
+			Uint8("Version", uint8(s.version)).
 			Msg("Session not found")
-		return handler.ErrSessionNotFound
+		return errSessionNotFound
 	}
 
-	delete(st.sessions, s.ClientID)
+	delete(st.sessions, s.clientID)
 	st.log.Debug().
-		Bool("CleanSession", s.CleanSession).
-		Str("ClientId", string(s.ClientID)).
-		Bool("Connected", s.Connected).
-		Int64("ConnectedAt", s.ConnectedAt).
-		Uint32("ExpiryInterval", s.ExpiryInterval).
-		Int("InflightMessages", s.InflightMessages.Len()).
-		Int("KeepAlive", s.KeepAlive).
-		Uint64("SessionId", uint64(s.SessionID)).
-		Int("Subscriptions", len(s.Subscriptions)).
-		Int("UnAckMessages", len(s.UnAckMessages)).
-		Uint8("Version", uint8(s.Version)).
+		Bool("CleanSession", s.cleanSession).
+		Str("ClientId", string(s.clientID)).
+		Bool("Connected", s.connected).
+		Int64("ConnectedAt", s.connectedAt).
+		Uint32("ExpiryInterval", s.expiryInterval).
+		Int("InflightMessages", s.inflightMessages.Len()).
+		Int("KeepAlive", s.keepAlive).
+		Uint64("SessionId", uint64(s.sessionID)).
+		Int("Subscriptions", len(s.subscriptions)).
+		Int("UnAckMessages", len(s.unAckMessages)).
+		Uint8("Version", uint8(s.version)).
 		Msg("Session deleted with success")
 	return nil
 }
