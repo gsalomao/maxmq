@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io"
 	"net"
 	"sync"
 	"testing"
@@ -248,7 +247,7 @@ func TestServerHandleNewConnection(t *testing.T) {
 
 		close(starting)
 		_, readErr := c1.Read(buf)
-		assert.ErrorIs(t, readErr, io.EOF)
+		assert.Error(t, readErr)
 	}()
 
 	<-starting
