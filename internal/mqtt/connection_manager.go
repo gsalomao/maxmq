@@ -48,7 +48,7 @@ type connectionManager struct {
 	pubSub             *pubSub
 	conf               Config
 	connections        safe.Value[map[packet.ClientID]*connection]
-	pendingConnections safe.Value[[]*connection]
+	pendingConnections safe.Value[[]*connection] // TODO: Replace with a linked list
 	handlers           map[packet.Type]packetHandler
 	reader             packet.Reader
 	writer             packet.Writer
@@ -317,6 +317,11 @@ func (cm *connectionManager) replyPacket(reply packet.Packet, c *connection) err
 }
 
 func (cm *connectionManager) closeConnection(c *connection, force bool) {
+	cm.log.Trace().
+		Str("ClientId", string(c.clientID)).
+		Bool("Force", force).
+		Msg("Closing connection")
+
 	cm.pendingConnections.Lock()
 	defer cm.pendingConnections.Unlock()
 
@@ -328,13 +333,17 @@ func (cm *connectionManager) closeConnection(c *connection, force bool) {
 
 func (cm *connectionManager) closeConnectionLocked(c *connection, force bool) {
 	if c.state() == stateClosed {
+		cm.log.Trace().
+			Str("ClientId", string(c.clientID)).
+			Bool("Force", force).
+			Msg("Connection already closed (locked)")
 		return
 	}
 
 	cm.log.Trace().
 		Str("ClientId", string(c.clientID)).
 		Bool("Force", force).
-		Msg("Closing connection")
+		Msg("Closing connection (locked)")
 
 	state := c.state()
 	c.close(force)
@@ -357,6 +366,14 @@ func (cm *connectionManager) closeConnectionLocked(c *connection, force bool) {
 }
 
 func (cm *connectionManager) removePendingConnectionLocked(c *connection) {
+	cm.log.Trace().
+		Str("ClientId", string(c.clientID)).
+		Bool("Connected", c.connected()).
+		Bool("HasSession", c.hasSession).
+		Int("Timeout", c.timeout).
+		Int("Version", int(c.version)).
+		Msg("Removing pending connection")
+
 	l := make([]*connection, 0, len(cm.pendingConnections.Value)-1)
 	for _, cn := range cm.connections.Value {
 		if cn.clientID != c.clientID {
