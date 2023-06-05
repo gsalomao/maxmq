@@ -150,7 +150,7 @@ func TestConnectionManagerServeConnectionPacketConnect(t *testing.T) {
 	rd.On("ReadPacket", c2, packet.MQTT311).Return(nil, io.EOF)
 
 	c := cm.newConnection(c2)
-	cm.addConnection(c)
+	cm.addPendingConnection(c)
 	cm.serveConnection(c)
 
 	rd.AssertExpectations(t)
@@ -187,7 +187,7 @@ func TestConnectionManagerServeConnectionPacketConnectCleanSession(t *testing.T)
 	rd.On("ReadPacket", c2, packet.MQTT311).Return(nil, io.EOF)
 
 	c := cm.newConnection(c2)
-	cm.addConnection(c)
+	cm.addPendingConnection(c)
 	cm.serveConnection(c)
 
 	rd.AssertExpectations(t)
@@ -346,7 +346,7 @@ func TestConnectionManagerServeConnectionReadFailure(t *testing.T) {
 	rd.On("ReadPacket", c2, packet.MQTT311).Return(nil, errors.New("failed"))
 
 	c := cm.newConnection(c2)
-	cm.addConnection(c)
+	cm.addPendingConnection(c)
 	cm.serveConnection(c)
 
 	assert.Equal(t, stateClosed, c.state())
@@ -367,7 +367,7 @@ func TestConnectionManagerServeConnectionSetDeadlineFailure(t *testing.T) {
 	_ = c1.Close()
 
 	c := cm.newConnection(c2)
-	cm.addConnection(c)
+	cm.addPendingConnection(c)
 
 	// It is expected to run and return immediately
 	cm.serveConnection(c)
@@ -390,7 +390,7 @@ func TestConnectionManagerServeConnectionReadTimeout(t *testing.T) {
 	defer func() { _ = c1.Close() }()
 
 	c := cm.newConnection(c2)
-	cm.addConnection(c)
+	cm.addPendingConnection(c)
 	cm.serveConnection(c)
 
 	assert.Equal(t, stateClosed, c.state())
@@ -424,7 +424,7 @@ func TestConnectionManagerServeConnectionWritePacketFailure(t *testing.T) {
 	wr.On("WritePacket", c2, replies[0]).Return(errors.New("failed"))
 
 	c := cm.newConnection(c2)
-	cm.addConnection(c)
+	cm.addPendingConnection(c)
 	cm.serveConnection(c)
 
 	assert.Equal(t, stateClosed, c.state())
@@ -451,7 +451,7 @@ func TestConnectionManagerServeConnectionInvalidPacket(t *testing.T) {
 	rd.On("ReadPacket", c2, packet.MQTT311).Return(p)
 
 	c := cm.newConnection(c2)
-	cm.addConnection(c)
+	cm.addPendingConnection(c)
 	cm.serveConnection(c)
 
 	assert.Equal(t, stateClosed, c.state())

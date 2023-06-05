@@ -217,7 +217,7 @@ func (s *Server) run(connStream <-chan *connection) <-chan struct{} {
 				Str("Listener", c.listener).
 				Msg("Accepted new connection")
 
-			s.connectionMgr.addConnection(c)
+			s.connectionMgr.addPendingConnection(c)
 			s.waitGroup.Add(1)
 
 			go func() {

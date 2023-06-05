@@ -104,11 +104,18 @@ func (cm *connectionManager) newConnection(nc net.Conn) *connection {
 	}
 }
 
-func (cm *connectionManager) addConnection(c *connection) {
+func (cm *connectionManager) addPendingConnection(c *connection) {
 	cm.pendingConnections.Lock()
 	defer cm.pendingConnections.Unlock()
 
 	cm.pendingConnections.Value = append(cm.pendingConnections.Value, c)
+}
+
+func (cm *connectionManager) addActiveConnection(c *connection) {
+	cm.connections.Lock()
+	defer cm.connections.Unlock()
+
+	cm.connections.Value[c.clientID] = c
 }
 
 func (cm *connectionManager) serveConnection(c *connection) {
@@ -241,13 +248,8 @@ func (cm *connectionManager) handlePacket(c *connection, p packet.Packet) error 
 					Int("Version", int(c.version)).
 					Msg("New MQTT connection")
 
-				cm.pendingConnections.Lock()
-				cm.removePendingConnectionLocked(c)
-				cm.pendingConnections.Unlock()
-
-				cm.connections.Lock()
-				cm.connections.Value[c.clientID] = c
-				cm.connections.Unlock()
+				cm.removePendingConnection(c)
+				cm.addActiveConnection(c)
 			}
 		}
 
@@ -336,14 +338,14 @@ func (cm *connectionManager) closeConnectionLocked(c *connection, force bool) {
 		cm.log.Trace().
 			Str("ClientId", string(c.clientID)).
 			Bool("Force", force).
-			Msg("Connection already closed (locked)")
+			Msg("Connection already closed (Locked)")
 		return
 	}
 
 	cm.log.Trace().
 		Str("ClientId", string(c.clientID)).
 		Bool("Force", force).
-		Msg("Closing connection (locked)")
+		Msg("Closing connection (Locked)")
 
 	state := c.state()
 	c.close(force)
@@ -365,6 +367,20 @@ func (cm *connectionManager) closeConnectionLocked(c *connection, force bool) {
 		Msg("Connection closed")
 }
 
+func (cm *connectionManager) removePendingConnection(c *connection) {
+	cm.pendingConnections.Lock()
+	defer cm.pendingConnections.Unlock()
+
+	cm.log.Trace().
+		Str("ClientId", string(c.clientID)).
+		Bool("Connected", c.connected()).
+		Bool("HasSession", c.hasSession).
+		Int("Timeout", c.timeout).
+		Int("Version", int(c.version)).
+		Msg("Removing pending connection (Locked)")
+	cm.removePendingConnectionLocked(c)
+}
+
 func (cm *connectionManager) removePendingConnectionLocked(c *connection) {
 	cm.log.Trace().
 		Str("ClientId", string(c.clientID)).
@@ -372,14 +388,20 @@ func (cm *connectionManager) removePendingConnectionLocked(c *connection) {
 		Bool("HasSession", c.hasSession).
 		Int("Timeout", c.timeout).
 		Int("Version", int(c.version)).
-		Msg("Removing pending connection")
+		Msg("Removing pending connection (Locked)")
 
-	l := make([]*connection, 0, len(cm.pendingConnections.Value)-1)
-	for _, cn := range cm.connections.Value {
-		if cn.clientID != c.clientID {
-			l = append(l, cn)
+	var l []*connection
+	if len(cm.pendingConnections.Value) > 1 {
+		l = make([]*connection, 0, len(cm.pendingConnections.Value)-1)
+		for _, cn := range cm.pendingConnections.Value {
+			if cn.clientID != c.clientID {
+				l = append(l, cn)
+			}
 		}
+	} else {
+		l = make([]*connection, 0)
 	}
+
 	cm.pendingConnections.Value = l
 }
 
