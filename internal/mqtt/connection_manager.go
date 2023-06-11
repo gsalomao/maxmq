@@ -319,7 +319,7 @@ func (cm *connectionManager) replyPacket(reply packet.Packet, c *connection) err
 }
 
 func (cm *connectionManager) closeConnection(c *connection, force bool) {
-	cm.log.Trace().
+	cm.log.Debug().
 		Str("ClientId", string(c.clientID)).
 		Bool("Force", force).
 		Msg("Closing connection")
@@ -335,14 +335,14 @@ func (cm *connectionManager) closeConnection(c *connection, force bool) {
 
 func (cm *connectionManager) closeConnectionLocked(c *connection, force bool) {
 	if c.state() == stateClosed {
-		cm.log.Trace().
+		cm.log.Debug().
 			Str("ClientId", string(c.clientID)).
 			Bool("Force", force).
 			Msg("Connection already closed (Locked)")
 		return
 	}
 
-	cm.log.Trace().
+	cm.log.Debug().
 		Str("ClientId", string(c.clientID)).
 		Bool("Force", force).
 		Msg("Closing connection (Locked)")
@@ -371,18 +371,18 @@ func (cm *connectionManager) removePendingConnection(c *connection) {
 	cm.pendingConnections.Lock()
 	defer cm.pendingConnections.Unlock()
 
-	cm.log.Trace().
+	cm.log.Debug().
 		Str("ClientId", string(c.clientID)).
 		Bool("Connected", c.connected()).
 		Bool("HasSession", c.hasSession).
 		Int("Timeout", c.timeout).
 		Int("Version", int(c.version)).
-		Msg("Removing pending connection (Locked)")
+		Msg("Removing pending connection")
 	cm.removePendingConnectionLocked(c)
 }
 
 func (cm *connectionManager) removePendingConnectionLocked(c *connection) {
-	cm.log.Trace().
+	cm.log.Debug().
 		Str("ClientId", string(c.clientID)).
 		Bool("Connected", c.connected()).
 		Bool("HasSession", c.hasSession).
