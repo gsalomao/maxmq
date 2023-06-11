@@ -44,6 +44,10 @@ type listener struct {
 	connStream <-chan net.Conn
 }
 
+type tickers struct {
+	willDelay *time.Ticker
+}
+
 // Server is an MQTT server.
 type Server struct {
 	// Unexported fields
@@ -52,6 +56,8 @@ type Server struct {
 	conf          Config
 	listeners     safe.Value[[]*listener]
 	waitGroup     sync.WaitGroup
+	done          chan bool
+	tickers       *tickers
 }
 
 // NewServer creates a new instance of the MQTT Server.
@@ -63,6 +69,10 @@ func NewServer(c Config, g IDGenerator, l *logger.Logger) *Server {
 		connectionMgr: newConnectionManager(c, store, mt, g, l),
 		conf:          c,
 		listeners:     safe.NewValue(make([]*listener, 0)),
+		done:          make(chan bool),
+		tickers: &tickers{
+			willDelay: time.NewTicker(time.Second),
+		},
 	}
 }
 
@@ -84,21 +94,21 @@ func (s *Server) Start() error {
 	connStream, err := s.serveListeners()
 	if err != nil {
 		s.log.Error().Msg("Failed to start MQTT server: " + err.Error())
-		s.Stop()
+		s.Stop(context.Background())
 		return err
 	}
 
-	ready := s.run(connStream)
-	<-ready
+	s.serveConnections(connStream)
+	s.startEventLoop()
 
 	s.log.Info().Msg("MQTT server started with success")
 	return nil
 }
 
-// Shutdown stops the MQTT Server gracefully by closing all listeners and waiting for all connections to have been
-// closed, or the context has been cancelled.
-func (s *Server) Shutdown(ctx context.Context) error {
-	s.log.Info().Msg("Shutting down MQTT server")
+// Stop stops the MQTT Server by closing all listeners and connections.
+func (s *Server) Stop(ctx context.Context) {
+	s.log.Info().Msg("Stopping MQTT server")
+	close(s.done)
 	s.closeListeners()
 
 	var poolIntervalCnt int
@@ -107,33 +117,26 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	timer := time.NewTimer(poolInterval)
 	defer timer.Stop()
 
+	s.log.Info().Msg("Waiting for MQTT server to stop")
+
 	for {
 		if s.connectionMgr.closeIdleConnections() {
+			s.connectionMgr.wait(ctx)
 			break
 		}
 		select {
 		case <-ctx.Done():
-			s.log.Info().Msg("Graceful shutdown timed out")
-			return ctx.Err()
+			s.log.Info().Msg("Graceful stop timed out")
+			break
 		case <-timer.C:
 			poolIntervalCnt++
 			if poolIntervalCnt == 5 {
-				s.log.Info().Msg("Still shutting down the MQTT server")
+				s.log.Info().Msg("Waiting for MQTT server to stop")
 				poolIntervalCnt = 0
 			}
 			timer.Reset(poolInterval)
 		}
 	}
-
-	s.connectionMgr.wait(ctx)
-	s.log.Info().Msg("MQTT server stopped with success")
-	return nil
-}
-
-// Stop stops the MQTT Server by closing all listeners and connections.
-func (s *Server) Stop() {
-	s.log.Info().Msg("Stopping MQTT server")
-	s.closeListeners()
 
 	s.connectionMgr.closeAllConnections()
 	s.waitGroup.Wait()
@@ -196,7 +199,7 @@ func (s *Server) mergeConnStreamsLocked(streams ...<-chan net.Conn) <-chan *conn
 	return connStreams
 }
 
-func (s *Server) run(connStream <-chan *connection) <-chan struct{} {
+func (s *Server) serveConnections(connStream <-chan *connection) {
 	ready := make(chan struct{})
 	s.waitGroup.Add(1)
 
@@ -227,7 +230,29 @@ func (s *Server) run(connStream <-chan *connection) <-chan struct{} {
 		}
 	}()
 
-	return ready
+	<-ready
+}
+
+func (s *Server) startEventLoop() {
+	ready := make(chan struct{})
+	s.waitGroup.Add(1)
+
+	go func() {
+		defer s.waitGroup.Done()
+		s.log.Debug().Msg("Running event loop")
+		close(ready)
+
+		for {
+			select {
+			case <-s.done:
+				s.log.Debug().Msg("Stopping event loop")
+				return
+			case <-s.tickers.willDelay.C:
+			}
+		}
+	}()
+
+	<-ready
 }
 
 func (s *Server) closeListeners() {

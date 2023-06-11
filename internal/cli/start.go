@@ -213,9 +213,6 @@ func runMQTTServer(ctx context.Context, c config.Config, log *logger.Logger, mac
 	sdCtx, cancel := context.WithTimeout(context.Background(), time.Duration(c.MQTTShutdownTimeout)*time.Second)
 	defer cancel()
 
-	if server.Shutdown(sdCtx) != nil {
-		server.Stop()
-	}
-
+	server.Stop(sdCtx)
 	return err
 }

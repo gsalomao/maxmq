@@ -171,7 +171,7 @@ func TestServerStartMultipleListenersFail(t *testing.T) {
 	l2.AssertExpectations(t)
 }
 
-func TestServerShutdown(t *testing.T) {
+func TestServerStop(t *testing.T) {
 	s := newServer()
 	l := &listenerNewMock{}
 
@@ -182,12 +182,12 @@ func TestServerShutdown(t *testing.T) {
 	require.Nil(t, err)
 
 	l.On("Close")
-	err = s.Shutdown(context.Background())
-	assert.Nil(t, err)
+
+	s.Stop(context.Background())
 	l.AssertExpectations(t)
 }
 
-func TestServerShutdownMultipleListeners(t *testing.T) {
+func TestServerStopMultipleListeners(t *testing.T) {
 	s := newServer()
 	l1 := &listenerNewMock{}
 	l2 := &listenerNewMock{}
@@ -203,25 +203,10 @@ func TestServerShutdownMultipleListeners(t *testing.T) {
 
 	l1.On("Close").Return(errors.New("failed"))
 	l2.On("Close")
-	err = s.Shutdown(context.Background())
-	assert.Nil(t, err)
+
+	s.Stop(context.Background())
 	l1.AssertExpectations(t)
 	l2.AssertExpectations(t)
-}
-
-func TestServerStop(t *testing.T) {
-	s := newServer()
-	l := &listenerNewMock{}
-
-	l.On("Listen").Return(make(chan net.Conn))
-	s.AddListener(l)
-
-	err := s.Start()
-	require.Nil(t, err)
-
-	l.On("Close")
-	s.Stop()
-	l.AssertExpectations(t)
 }
 
 func TestServerHandleNewConnection(t *testing.T) {
@@ -254,8 +239,7 @@ func TestServerHandleNewConnection(t *testing.T) {
 	connStream <- c2
 
 	l.On("Close")
-	err = s.Shutdown(context.Background())
-	assert.Nil(t, err)
+	s.Stop(context.Background())
 
 	_ = c1.Close()
 	wg.Wait()
