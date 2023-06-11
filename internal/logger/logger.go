@@ -139,9 +139,7 @@ func New(wr io.Writer, gen LogIDGenerator, f LogFormat) *Logger {
 func NewWithPrefix(wr io.Writer, gen LogIDGenerator, prefix string, f LogFormat) *Logger {
 	l := New(wr, gen, f)
 	l.prefix = prefix
-	if f != Pretty {
-		l.Logger = l.Logger.With().Str("Prefix", prefix).Logger()
-	}
+	l.Logger = l.Logger.With().Str("Prefix", prefix).Logger()
 	return l
 }
 
@@ -177,11 +175,7 @@ func (l *Logger) formatLevel(i interface{}) string {
 }
 
 func (l *Logger) formatMessage(i interface{}) string {
-	var prefix string
-	if l.prefix != "" {
-		prefix = fmt.Sprintf("[%s] ", l.prefix)
-	}
-	return colorize(cyan, fmt.Sprintf("%s%s", prefix, i))
+	return colorize(cyan, fmt.Sprintf("%s", i))
 }
 
 func (l *Logger) formatFieldName(i interface{}) string {
