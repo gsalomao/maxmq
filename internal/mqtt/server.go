@@ -46,7 +46,7 @@ func NewServer(opts ...OptionFn) (*Server, error) {
 		s.conf = &defaultConfig
 	}
 	if s.log == nil {
-		s.log = logger.New(os.Stdout, nil, logger.Json)
+		s.log = logger.New(os.Stdout, nil, logger.JSON)
 	}
 
 	log := zerolog.New(nil)

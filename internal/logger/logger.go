@@ -32,8 +32,8 @@ const (
 	// Pretty defines the log format in human-friendly format.
 	Pretty LogFormat = "pretty"
 
-	// Json defines the log format in JSON format.
-	Json LogFormat = "json"
+	// JSON defines the log format in JSON format.
+	JSON LogFormat = "json"
 )
 
 const (

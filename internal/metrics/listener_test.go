@@ -37,7 +37,7 @@ func (b *logBuffer) Write(p []byte) (n int, err error) {
 
 func newLogger() *logger.Logger {
 	out := &logBuffer{}
-	return logger.New(out, nil, logger.Json)
+	return logger.New(out, nil, logger.JSON)
 }
 
 func TestListenerNewListener(t *testing.T) {

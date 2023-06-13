@@ -46,7 +46,7 @@ func TestLoggerNewWithPrefix(t *testing.T) {
 	gen.On("NextID").Return(1)
 
 	out := bytes.NewBufferString("")
-	log := NewWithPrefix(out, &gen, "prefix", Json)
+	log := NewWithPrefix(out, &gen, "prefix", JSON)
 	assert.NotNil(t, log)
 }
 
@@ -139,7 +139,7 @@ func TestLoggerBaseLogger(t *testing.T) {
 func TestLoggerSetSeverity(t *testing.T) {
 	gen := logIDGenMock{}
 	out := bytes.NewBufferString("")
-	log := New(out, &gen, Json)
+	log := New(out, &gen, JSON)
 
 	msg := gofakeit.Phrase()
 	err := SetSeverityLevel("info")
