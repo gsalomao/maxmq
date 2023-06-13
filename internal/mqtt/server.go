@@ -15,267 +15,109 @@
 package mqtt
 
 import (
-	"context"
-	"net"
-	"sync"
-	"time"
+	"os"
 
 	"github.com/gsalomao/maxmq/internal/logger"
-	"github.com/gsalomao/maxmq/internal/safe"
+	"github.com/mochi-co/mqtt/v2"
+	"github.com/mochi-co/mqtt/v2/hooks/auth"
+	"github.com/mochi-co/mqtt/v2/listeners"
+	"github.com/rs/zerolog"
 )
 
-// Listener is responsible for listen and accept the connections.
-type Listener interface {
-	// Name returns the name of the listener.
-	Name() string
-
-	// Listen starts listening for new connections without blocking the caller.
-	Listen() (c <-chan net.Conn, err error)
-
-	// Close closes the listener. Once called, it blocks the caller until the listener has stopped to accept new
-	// connections.
-	Close() error
-}
-
-type listener struct {
-	listener   Listener
-	name       string
-	running    bool
-	connStream <-chan net.Conn
-}
-
-type tickers struct {
-	willDelay *time.Ticker
-}
-
-// Server is an MQTT server.
+// Server is an MQTT server. It must be created using the NewServer function.
 type Server struct {
 	// Unexported fields
-	log           *logger.Logger
-	connectionMgr *connectionManager
-	conf          Config
-	listeners     safe.Value[[]*listener]
-	waitGroup     sync.WaitGroup
-	done          chan bool
-	tickers       *tickers
+	mochi     *mqtt.Server
+	conf      *Config
+	log       *logger.Logger
+	machineID int
 }
 
-// NewServer creates a new instance of the MQTT Server.
-func NewServer(c Config, g IDGenerator, l *logger.Logger) *Server {
-	store := newSessionStore(g, l)
-	mt := newMetrics(c.MetricsEnabled, l)
-	return &Server{
-		log:           l.WithPrefix("mqtt"),
-		connectionMgr: newConnectionManager(c, store, mt, g, l),
-		conf:          c,
-		listeners:     safe.NewValue(make([]*listener, 0)),
-		done:          make(chan bool),
-		tickers: &tickers{
-			willDelay: time.NewTicker(time.Second),
-		},
+// NewServer creates an instance of the MQTT Server. It takes a variable number of OptionFn and returns the Server
+// instance or an error.
+func NewServer(opts ...OptionFn) (*Server, error) {
+	s := &Server{}
+
+	for _, opt := range opts {
+		opt(s)
 	}
+
+	if s.conf == nil {
+		s.conf = &defaultConfig
+	}
+	if s.log == nil {
+		s.log = logger.New(os.Stdout, nil, logger.Json)
+	}
+
+	log := zerolog.New(nil)
+	opt := &mqtt.Options{
+		Capabilities: mqtt.DefaultServerCapabilities,
+		Logger:       &log,
+	}
+
+	if s.conf != nil {
+		var sharedSubAvailable byte
+		var retainAvailable byte
+		var wildcardSubAvailable byte
+		var subIDAvailable byte
+
+		if s.conf.SharedSubscriptionAvailable {
+			sharedSubAvailable = 1
+		}
+		if s.conf.RetainAvailable {
+			retainAvailable = 1
+		}
+		if s.conf.WildcardSubscriptionAvailable {
+			wildcardSubAvailable = 1
+		}
+		if s.conf.SubscriptionIDAvailable {
+			subIDAvailable = 1
+		}
+
+		opt.Capabilities.MaximumMessageExpiryInterval = int64(s.conf.MaxMessageExpiryInterval)
+		opt.Capabilities.MaximumClientWritesPending = int32(s.conf.MaxOutboundMessages)
+		opt.Capabilities.MaximumSessionExpiryInterval = uint32(s.conf.MaxSessionExpiryInterval)
+		opt.Capabilities.MaximumPacketSize = uint32(s.conf.MaxPacketSize)
+		opt.Capabilities.ReceiveMaximum = uint16(s.conf.ReceiveMaximum)
+		opt.Capabilities.TopicAliasMaximum = uint16(s.conf.MaxTopicAlias)
+		opt.Capabilities.SharedSubAvailable = sharedSubAvailable
+		opt.Capabilities.MinimumProtocolVersion = s.conf.MinProtocolVersion
+		opt.Capabilities.MaximumQos = s.conf.MaximumQoS
+		opt.Capabilities.RetainAvailable = retainAvailable
+		opt.Capabilities.WildcardSubAvailable = wildcardSubAvailable
+		opt.Capabilities.SubIDAvailable = subIDAvailable
+
+		opt.ClientNetWriteBufferSize = s.conf.BufferSize
+		opt.ClientNetReadBufferSize = s.conf.BufferSize
+		opt.SysTopicResendInterval = int64(s.conf.SysTopicUpdateInterval)
+	}
+
+	s.mochi = mqtt.New(opt)
+	_ = s.mochi.AddHook(newLoggingHook(s.log), nil)
+	_ = s.mochi.AddHook(new(auth.AllowHook), nil)
+
+	return s, nil
 }
 
-// AddListener adds a Listener to the MQTT Server. The listeners must be added into the Server before it has been
-// started.
-func (s *Server) AddListener(l Listener) {
-	s.listeners.Lock()
-	defer s.listeners.Unlock()
-
-	lsn := &listener{listener: l, name: l.Name()}
-	s.listeners.Value = append(s.listeners.Value, lsn)
-	s.log.Info().Str("Name", lsn.name).Msg("Listener added to MQTT server")
-}
-
-// Start starts the MQTT Server. The listeners must be added into the Server before it has been started.
+// Start starts the MQTT Server. In case of failure, it returns the error.
 func (s *Server) Start() error {
-	s.log.Info().Msg("Starting MQTT server")
+	s.log.Debug().Msg("Starting MQTT server")
 
-	connStream, err := s.serveListeners()
+	err := s.mochi.AddListener(listeners.NewTCP("tcp", s.conf.TCPAddress, nil))
 	if err != nil {
-		s.log.Error().Msg("Failed to start MQTT server: " + err.Error())
-		s.Stop(context.Background())
+		s.log.Error().Err(err).Msg("Failed to add tcp listener")
 		return err
 	}
 
-	s.serveConnections(connStream)
-	s.startEventLoop()
-
+	_ = s.mochi.Serve()
 	s.log.Info().Msg("MQTT server started with success")
 	return nil
 }
 
-// Stop stops the MQTT Server by closing all listeners and connections.
-func (s *Server) Stop(ctx context.Context) {
-	s.log.Info().Msg("Stopping MQTT server")
-	close(s.done)
-	s.closeListeners()
+// Stop stops gracefully the MQTT Server.
+func (s *Server) Stop() {
+	s.log.Debug().Msg("Stopping MQTT server")
 
-	var poolIntervalCnt int
-	poolInterval := time.Second
-
-	timer := time.NewTimer(poolInterval)
-	defer timer.Stop()
-
-	s.log.Info().Msg("Waiting for MQTT server to stop")
-
-	for {
-		if s.connectionMgr.closeIdleConnections() {
-			s.connectionMgr.wait(ctx)
-			break
-		}
-		select {
-		case <-ctx.Done():
-			s.log.Info().Msg("Graceful stop timed out")
-			break
-		case <-timer.C:
-			poolIntervalCnt++
-			if poolIntervalCnt == 5 {
-				s.log.Info().Msg("Waiting for MQTT server to stop")
-				poolIntervalCnt = 0
-			}
-			timer.Reset(poolInterval)
-		}
-	}
-
-	s.connectionMgr.closeAllConnections()
-	s.waitGroup.Wait()
+	_ = s.mochi.Close()
 	s.log.Info().Msg("MQTT server stopped with success")
-}
-
-func (s *Server) serveListeners() (c <-chan *connection, err error) {
-	s.listeners.Lock()
-	defer s.listeners.Unlock()
-
-	connStreams := make([]<-chan net.Conn, len(s.listeners.Value))
-
-	for i, lsn := range s.listeners.Value {
-		var stream <-chan net.Conn
-
-		stream, err = lsn.listener.Listen()
-		if err != nil {
-			return nil, err
-		}
-
-		lsn.running = true
-		lsn.connStream = stream
-		connStreams[i] = stream
-	}
-
-	return s.mergeConnStreamsLocked(connStreams...), nil
-}
-
-func (s *Server) mergeConnStreamsLocked(streams ...<-chan net.Conn) <-chan *connection {
-	connStreams := make(chan *connection)
-
-	var wg sync.WaitGroup
-	wg.Add(len(streams))
-
-	for i, st := range streams {
-		go func(l *listener, stream <-chan net.Conn) {
-			defer wg.Done()
-
-			for {
-				nc, ok := <-stream
-				if !ok {
-					break
-				}
-
-				c := s.connectionMgr.newConnection(nc)
-				c.listener = l.name
-				connStreams <- c
-			}
-		}(s.listeners.Value[i], st)
-	}
-
-	s.waitGroup.Add(1)
-	go func() {
-		defer s.waitGroup.Done()
-
-		wg.Wait()
-		close(connStreams)
-	}()
-
-	return connStreams
-}
-
-func (s *Server) serveConnections(connStream <-chan *connection) {
-	ready := make(chan struct{})
-	s.waitGroup.Add(1)
-
-	go func() {
-		defer s.waitGroup.Done()
-
-		s.log.Trace().Msg("Waiting for connections")
-		close(ready)
-
-		for {
-			c, ok := <-connStream
-			if !ok {
-				break
-			}
-
-			s.log.Trace().
-				Str("Address", c.netConn.RemoteAddr().String()).
-				Str("Listener", c.listener).
-				Msg("Accepted new connection")
-
-			s.connectionMgr.addPendingConnection(c)
-			s.waitGroup.Add(1)
-
-			go func() {
-				defer s.waitGroup.Done()
-				s.connectionMgr.serveConnection(c)
-			}()
-		}
-	}()
-
-	<-ready
-}
-
-func (s *Server) startEventLoop() {
-	ready := make(chan struct{})
-	s.waitGroup.Add(1)
-
-	go func() {
-		defer s.waitGroup.Done()
-		s.log.Debug().Msg("Running event loop")
-		close(ready)
-
-		for {
-			select {
-			case <-s.done:
-				s.log.Debug().Msg("Stopping event loop")
-				return
-			case <-s.tickers.willDelay.C:
-			}
-		}
-	}()
-
-	<-ready
-}
-
-func (s *Server) closeListeners() {
-	s.listeners.Lock()
-	defer s.listeners.Unlock()
-
-	for _, lsn := range s.listeners.Value {
-		if lsn.running {
-			s.log.Trace().
-				Str("Name", lsn.name).
-				Msg("Closing Listener")
-
-			err := lsn.listener.Close()
-			if err == nil {
-				s.log.Debug().
-					Str("Name", lsn.name).
-					Msg("Listener closed with success")
-			} else {
-				s.log.Error().
-					Str("Name", lsn.name).
-					Msg("Listener failed to close: " + err.Error())
-			}
-			lsn.running = false
-		}
-	}
 }

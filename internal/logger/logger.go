@@ -139,7 +139,9 @@ func New(wr io.Writer, gen LogIDGenerator, f LogFormat) *Logger {
 func NewWithPrefix(wr io.Writer, gen LogIDGenerator, prefix string, f LogFormat) *Logger {
 	l := New(wr, gen, f)
 	l.prefix = prefix
-	l.Logger = l.Logger.With().Str("Prefix", prefix).Logger()
+	if f != Pretty {
+		l.Logger = l.Logger.With().Str("Prefix", prefix).Logger()
+	}
 	return l
 }
 
@@ -153,6 +155,11 @@ func (l *Logger) WithPrefix(prefix string) *Logger {
 
 	logger := NewWithPrefix(l.writer, l.generator, prefix, l.format)
 	return logger
+}
+
+// BaseLogger returns the zerolog.Logger.
+func (l *Logger) BaseLogger() *zerolog.Logger {
+	return &l.Logger
 }
 
 // Run implements the zerolog.Hook interface to add log ID into the log event.
@@ -175,7 +182,11 @@ func (l *Logger) formatLevel(i interface{}) string {
 }
 
 func (l *Logger) formatMessage(i interface{}) string {
-	return colorize(cyan, fmt.Sprintf("%s", i))
+	var prefix string
+	if l.prefix != "" {
+		prefix = fmt.Sprintf("[%s] ", l.prefix)
+	}
+	return colorize(cyan, fmt.Sprintf("%s%s", prefix, i))
 }
 
 func (l *Logger) formatFieldName(i interface{}) string {

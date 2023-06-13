@@ -1,4 +1,4 @@
-// Copyright 2022 The MaxMQ Authors
+// Copyright 2022-2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,20 +36,17 @@ func TestConfigLoadConfig(t *testing.T) {
 	assert.Equal(t, "/metrics", conf.MetricsPath)
 	assert.False(t, conf.MetricsProfiling)
 	assert.Equal(t, ":1883", conf.MQTTTCPAddress)
-	assert.Equal(t, 5, conf.MQTTConnectTimeout)
 	assert.Equal(t, 1024, conf.MQTTBufferSize)
-	assert.Equal(t, 0, conf.MQTTMaxKeepAlive)
-	assert.Equal(t, uint32(7200), conf.MQTTSessionExpiration)
-	assert.Equal(t, 20, conf.MQTTMaxInflightMessages)
-	assert.Equal(t, 0, conf.MQTTMaxInflightRetries)
-	assert.Equal(t, 2, conf.MQTTMaximumQoS)
-	assert.Equal(t, 10, conf.MQTTMaxTopicAlias)
+	assert.Equal(t, 7200, conf.MQTTMaxSessionExpiryInterval)
+	assert.Equal(t, 86400, conf.MQTTMaxMessageExpiryInterval)
+	assert.Equal(t, 1, conf.MQTTSysTopicUpdateInterval)
+	assert.Equal(t, 65535, conf.MQTTMaxTopicAlias)
+	assert.Equal(t, 8192, conf.MQTTMaxOutboundMessages)
+	assert.Equal(t, 1024, conf.MQTTReceiveMaximum)
+	assert.Equal(t, byte(2), conf.MQTTMaximumQoS)
 	assert.Equal(t, true, conf.MQTTRetainAvailable)
-	assert.Equal(t, true, conf.MQTTWildcardSubscription)
-	assert.Equal(t, true, conf.MQTTSubscriptionID)
-	assert.Equal(t, true, conf.MQTTSharedSubscription)
-	assert.Equal(t, 65535, conf.MQTTMaxClientIDLen)
-	assert.Equal(t, "", conf.MQTTClientIDPrefix)
-	assert.Equal(t, true, conf.MQTTAllowEmptyClientID)
-	assert.Equal(t, 4, conf.MQTTDefaultVersion)
+	assert.Equal(t, true, conf.MQTTWildcardSubscriptionAvailable)
+	assert.Equal(t, true, conf.MQTTSubscriptionIDAvailable)
+	assert.Equal(t, true, conf.MQTTSharedSubscriptionAvailable)
+	assert.Equal(t, byte(3), conf.MQTTMinProtocolVersion)
 }

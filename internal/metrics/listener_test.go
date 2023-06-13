@@ -44,7 +44,7 @@ func TestListenerNewListener(t *testing.T) {
 	log := newLogger()
 
 	t.Run("Valid", func(t *testing.T) {
-		conf := Configuration{Address: ":8888", Path: "/metrics"}
+		conf := Configuration{Address: ":8888", Path: "/metrics", Profiling: true}
 
 		l, err := NewListener(conf, log)
 		assert.Nil(t, err)

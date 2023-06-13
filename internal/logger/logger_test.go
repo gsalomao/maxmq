@@ -32,6 +32,35 @@ func (m *logIDGenMock) NextID() uint64 {
 	return uint64(args.Int(0))
 }
 
+func TestLoggerNew(t *testing.T) {
+	gen := logIDGenMock{}
+	gen.On("NextID").Return(1)
+
+	out := bytes.NewBufferString("")
+	log := New(out, &gen, Pretty)
+	assert.NotNil(t, log)
+}
+
+func TestLoggerNewWithPrefix(t *testing.T) {
+	gen := logIDGenMock{}
+	gen.On("NextID").Return(1)
+
+	out := bytes.NewBufferString("")
+	log := NewWithPrefix(out, &gen, "prefix", Json)
+	assert.NotNil(t, log)
+}
+
+func TestLoggerWithPrefix(t *testing.T) {
+	gen := logIDGenMock{}
+	gen.On("NextID").Return(1)
+
+	out := bytes.NewBufferString("")
+	log := NewWithPrefix(out, &gen, "prefix", Pretty)
+
+	nlg := log.WithPrefix("test")
+	assert.NotNil(t, nlg)
+}
+
 func TestLoggerLog(t *testing.T) {
 	gen := logIDGenMock{}
 	gen.On("NextID").Return(1)
@@ -43,6 +72,18 @@ func TestLoggerLog(t *testing.T) {
 	log.Info().Msg(msg)
 	assert.Contains(t, out.String(), "INFO")
 	assert.Contains(t, out.String(), msg)
+}
+
+func TestLoggerLogWithPrefix(t *testing.T) {
+	gen := logIDGenMock{}
+	gen.On("NextID").Return(1)
+
+	out := bytes.NewBufferString("")
+	log := NewWithPrefix(out, &gen, "prefix", Pretty)
+	msg := gofakeit.Phrase()
+
+	log.Info().Msg(msg)
+	assert.Contains(t, out.String(), "[prefix]")
 }
 
 func TestLoggerLogWithoutIDGenerator(t *testing.T) {
@@ -79,6 +120,20 @@ func TestLoggerWithLogId(t *testing.T) {
 
 	log.Info().Msg(msg)
 	assert.Contains(t, out.String(), "LogId=")
+}
+
+func TestLoggerBaseLogger(t *testing.T) {
+	gen := logIDGenMock{}
+	gen.On("NextID").Return(255)
+
+	out := bytes.NewBufferString("")
+	log := New(out, &gen, Pretty)
+	msg := gofakeit.Phrase()
+
+	bsLog := log.BaseLogger()
+	bsLog.Info().Msg(msg)
+	assert.Contains(t, out.String(), "INFO")
+	assert.Contains(t, out.String(), msg)
 }
 
 func TestLoggerSetSeverity(t *testing.T) {

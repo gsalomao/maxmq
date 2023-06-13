@@ -29,6 +29,9 @@ type Config struct {
 	// The log format.
 	LogFormat string `mapstructure:"log_format"`
 
+	// The ID of the machine.
+	MachineID int `mapstructure:"machine_id"`
+
 	// Indicate whether the server exports metrics or not.
 	MetricsEnabled bool `mapstructure:"metrics_enabled"`
 
@@ -44,9 +47,6 @@ type Config struct {
 	// TCP address (<IP>:<port>) that the MQTT will bind to.
 	MQTTTCPAddress string `mapstructure:"mqtt_tcp_address"`
 
-	// The number of seconds the MQTT server waits for the CONNECT Packet.
-	MQTTConnectTimeout int `mapstructure:"mqtt_connect_timeout"`
-
 	// The number of seconds to wait for the MQTT server to shut down gracefully.
 	MQTTShutdownTimeout int `mapstructure:"mqtt_shutdown_timeout"`
 
@@ -56,75 +56,65 @@ type Config struct {
 	// The maximum size, in bytes, allowed for MQTT Packets.
 	MQTTMaxPacketSize int `mapstructure:"mqtt_max_packet_size"`
 
-	// The maximum allowed MQTT Keep Alive value, in seconds.
-	MQTTMaxKeepAlive int `mapstructure:"mqtt_max_keep_alive"`
-
 	// The maximum period, in seconds, a MQTT session is still valid after the network connection with the client has
 	// been closed.
-	MQTTSessionExpiration uint32 `mapstructure:"mqtt_session_expiration"`
+	MQTTMaxSessionExpiryInterval int `mapstructure:"mqtt_max_session_expiry_interval"`
 
-	// The maximum number of MQTT QoS 1 or 2 messages that can be processed simultaneously.
-	MQTTMaxInflightMessages int `mapstructure:"mqtt_max_inflight_messages"`
+	// The maximum period, in seconds, a MQTT message is still valid.
+	MQTTMaxMessageExpiryInterval int `mapstructure:"mqtt_max_message_expiry_interval"`
 
-	// The maximum number of retries to send a MQTT inflight message to a client.
-	MQTTMaxInflightRetries int `mapstructure:"mqtt_max_inflight_retries"`
-
-	// The maximum MQTT QoS for PUBLISH Packets accepted by the server.
-	MQTTMaximumQoS int `mapstructure:"mqtt_max_qos"`
+	// The interval, in seconds, to send MQTT messages in the $SYS topic.
+	MQTTSysTopicUpdateInterval int `mapstructure:"mqtt_sys_topic_update_interval"`
 
 	// The maximum number of topic aliases that an MQTT V5 client is allowed to create.
 	MQTTMaxTopicAlias int `mapstructure:"mqtt_max_topic_alias"`
+
+	// The maximum number of outbound message for a client.
+	MQTTMaxOutboundMessages int `mapstructure:"mqtt_max_outbound_messages"`
+
+	// The maximum number of QoS 1 and QoS 2 publications that it is willing to process concurrently.
+	MQTTReceiveMaximum int `mapstructure:"mqtt_receive_maximum"`
+
+	// The maximum MQTT QoS for PUBLISH Packets accepted by the server.
+	MQTTMaximumQoS byte `mapstructure:"mqtt_max_qos"`
 
 	// Indicate whether the server allows retained MQTT messages or not.
 	MQTTRetainAvailable bool `mapstructure:"mqtt_retain_available"`
 
 	// Indicate whether the server allows MQTT wildcard subscription or not.
-	MQTTWildcardSubscription bool `mapstructure:"mqtt_wildcard_subscription"`
+	MQTTWildcardSubscriptionAvailable bool `mapstructure:"mqtt_wildcard_subscription_available"`
 
 	// Indicate whether the server allows MQTT subscription identifier or not.
-	MQTTSubscriptionID bool `mapstructure:"mqtt_subscription_identifier"`
+	MQTTSubscriptionIDAvailable bool `mapstructure:"mqtt_subscription_identifier_available"`
 
 	// Indicate whether the server allows MQTT shared subscription or not.
-	MQTTSharedSubscription bool `mapstructure:"mqtt_shared_subscription"`
+	MQTTSharedSubscriptionAvailable bool `mapstructure:"mqtt_shared_subscription_available"`
 
-	// The maximum length, in bytes, for MQTT client ID allowed by the server.
-	MQTTMaxClientIDLen int `mapstructure:"mqtt_max_client_id_len"`
-
-	// Indicate whether the server allows zero-length MQTT client identifier or not.
-	MQTTAllowEmptyClientID bool `mapstructure:"mqtt_allow_empty_client_id"`
-
-	// Prefix to be added to automatically generated MQTT client IDs.
-	MQTTClientIDPrefix string `mapstructure:"mqtt_client_id_prefix"`
-
-	// Provide additional information to MQTT clients including diagnostic information.
-	MQTTUserProperties map[string]string `mapstructure:"mqtt_user_properties"`
-
-	// Set the default MQTT protocol version.
-	MQTTDefaultVersion int `mapstructure:"mqtt_default_version"`
+	// Set the minimal MQTT protocol version.
+	MQTTMinProtocolVersion byte `mapstructure:"mqtt_min_protocol_version"`
 }
 
 var DefaultConfig = Config{
-	LogLevel:                 "info",
-	LogFormat:                "pretty",
-	MetricsEnabled:           true,
-	MetricsAddress:           ":8888",
-	MetricsPath:              "/metrics",
-	MQTTTCPAddress:           ":1883",
-	MQTTConnectTimeout:       5,
-	MQTTShutdownTimeout:      15,
-	MQTTBufferSize:           1024,
-	MQTTMaxPacketSize:        65536,
-	MQTTSessionExpiration:    7200,
-	MQTTMaxInflightMessages:  20,
-	MQTTMaximumQoS:           2,
-	MQTTMaxTopicAlias:        10,
-	MQTTRetainAvailable:      true,
-	MQTTWildcardSubscription: true,
-	MQTTSubscriptionID:       true,
-	MQTTSharedSubscription:   true,
-	MQTTMaxClientIDLen:       65535,
-	MQTTAllowEmptyClientID:   true,
-	MQTTDefaultVersion:       4,
+	LogLevel:                          "info",
+	LogFormat:                         "pretty",
+	MetricsEnabled:                    true,
+	MetricsAddress:                    ":8888",
+	MetricsPath:                       "/metrics",
+	MQTTTCPAddress:                    ":1883",
+	MQTTShutdownTimeout:               15,
+	MQTTBufferSize:                    1024,
+	MQTTMaxSessionExpiryInterval:      7200,
+	MQTTMaxMessageExpiryInterval:      86400,
+	MQTTSysTopicUpdateInterval:        1,
+	MQTTMaxTopicAlias:                 65535,
+	MQTTMaxOutboundMessages:           8192,
+	MQTTReceiveMaximum:                1024,
+	MQTTMaximumQoS:                    2,
+	MQTTRetainAvailable:               true,
+	MQTTWildcardSubscriptionAvailable: true,
+	MQTTSubscriptionIDAvailable:       true,
+	MQTTSharedSubscriptionAvailable:   true,
+	MQTTMinProtocolVersion:            3,
 }
 
 // ReadConfigFile reads the configuration file.
@@ -162,28 +152,27 @@ func LoadConfig() (c Config, err error) {
 	// Bind environment variables
 	_ = viper.BindEnv("log_level")
 	_ = viper.BindEnv("log_format")
+	_ = viper.BindEnv("machine_id")
 	_ = viper.BindEnv("metrics_enabled")
 	_ = viper.BindEnv("metrics_address")
 	_ = viper.BindEnv("metrics_path")
 	_ = viper.BindEnv("metrics_profiling")
 	_ = viper.BindEnv("mqtt_tcp_address")
-	_ = viper.BindEnv("mqtt_connect_timeout")
 	_ = viper.BindEnv("mqtt_shutdown_timeout")
 	_ = viper.BindEnv("mqtt_buffer_size")
 	_ = viper.BindEnv("mqtt_max_packet_size")
-	_ = viper.BindEnv("mqtt_max_keep_alive")
-	_ = viper.BindEnv("mqtt_session_expiration")
-	_ = viper.BindEnv("mqtt_max_inflight_messages")
-	_ = viper.BindEnv("mqtt_max_qos")
+	_ = viper.BindEnv("mqtt_max_session_expiry_interval")
+	_ = viper.BindEnv("mqtt_max_message_expiry_interval")
+	_ = viper.BindEnv("mqtt_sys_topic_update_interval")
 	_ = viper.BindEnv("mqtt_max_topic_alias")
+	_ = viper.BindEnv("mqtt_max_outbound_messages")
+	_ = viper.BindEnv("mqtt_receive_maximum")
+	_ = viper.BindEnv("mqtt_max_qos")
 	_ = viper.BindEnv("mqtt_retain_available")
-	_ = viper.BindEnv("mqtt_wildcard_subscription")
-	_ = viper.BindEnv("mqtt_subscription_identifier")
-	_ = viper.BindEnv("mqtt_shared_subscription")
-	_ = viper.BindEnv("mqtt_max_client_id_len")
-	_ = viper.BindEnv("mqtt_allow_empty_client_id")
-	_ = viper.BindEnv("mqtt_client_id_prefix")
-	_ = viper.BindEnv("mqtt_default_version")
+	_ = viper.BindEnv("mqtt_wildcard_subscription_available")
+	_ = viper.BindEnv("mqtt_subscription_identifier_available")
+	_ = viper.BindEnv("mqtt_shared_subscription_available")
+	_ = viper.BindEnv("mqtt_min_protocol_version")
 
 	// Set the default values
 	c = DefaultConfig

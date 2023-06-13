@@ -52,7 +52,7 @@ func TestStartRunServer(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		close(starting)
-		runServer(ctx, config.DefaultConfig, true, true, 0, log)
+		runServer(ctx, config.DefaultConfig, true, true, log)
 	}()
 
 	<-starting
