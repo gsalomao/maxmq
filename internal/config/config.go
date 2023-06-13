@@ -94,6 +94,7 @@ type Config struct {
 	MQTTMinProtocolVersion byte `mapstructure:"mqtt_min_protocol_version"`
 }
 
+// DefaultConfig contains the default configuration.
 var DefaultConfig = Config{
 	LogLevel:                          "info",
 	LogFormat:                         "pretty",
