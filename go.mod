@@ -1,6 +1,6 @@
 module github.com/gsalomao/maxmq
 
-go 1.19
+go 1.20
 
 require (
 	github.com/brianvoe/gofakeit/v6 v6.17.0
