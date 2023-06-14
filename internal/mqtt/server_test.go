@@ -15,7 +15,7 @@
 package mqtt
 
 import (
-	"bytes"
+	"io"
 	"testing"
 
 	"github.com/gsalomao/maxmq/internal/logger"
@@ -30,8 +30,7 @@ func TestServerNewServer(t *testing.T) {
 }
 
 func TestServerNewServerWithOptions(t *testing.T) {
-	out := bytes.NewBufferString("")
-	log := logger.New(out, nil, logger.Pretty)
+	log := logger.New(io.Discard, nil, logger.Pretty)
 
 	s, err := NewServer(
 		WithConfig(&Config{
@@ -48,8 +47,7 @@ func TestServerNewServerWithOptions(t *testing.T) {
 }
 
 func TestServerStartAndStop(t *testing.T) {
-	out := bytes.NewBufferString("")
-	log := logger.New(out, nil, logger.Pretty)
+	log := logger.New(io.Discard, nil, logger.Pretty)
 
 	s, err := NewServer(WithLogger(log))
 	require.Nil(t, err)
@@ -60,8 +58,7 @@ func TestServerStartAndStop(t *testing.T) {
 }
 
 func TestServerStartError(t *testing.T) {
-	out := bytes.NewBufferString("")
-	log := logger.New(out, nil, logger.Pretty)
+	log := logger.New(io.Discard, nil, logger.Pretty)
 
 	s, err := NewServer(
 		WithConfig(&Config{

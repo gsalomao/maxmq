@@ -55,42 +55,40 @@ func NewServer(opts ...OptionFn) (*Server, error) {
 		Logger:       &log,
 	}
 
-	if s.conf != nil {
-		var sharedSubAvailable byte
-		var retainAvailable byte
-		var wildcardSubAvailable byte
-		var subIDAvailable byte
+	var sharedSubAvailable byte
+	var retainAvailable byte
+	var wildcardSubAvailable byte
+	var subIDAvailable byte
 
-		if s.conf.SharedSubscriptionAvailable {
-			sharedSubAvailable = 1
-		}
-		if s.conf.RetainAvailable {
-			retainAvailable = 1
-		}
-		if s.conf.WildcardSubscriptionAvailable {
-			wildcardSubAvailable = 1
-		}
-		if s.conf.SubscriptionIDAvailable {
-			subIDAvailable = 1
-		}
-
-		opt.Capabilities.MaximumMessageExpiryInterval = int64(s.conf.MaxMessageExpiryInterval)
-		opt.Capabilities.MaximumClientWritesPending = int32(s.conf.MaxOutboundMessages)
-		opt.Capabilities.MaximumSessionExpiryInterval = uint32(s.conf.MaxSessionExpiryInterval)
-		opt.Capabilities.MaximumPacketSize = uint32(s.conf.MaxPacketSize)
-		opt.Capabilities.ReceiveMaximum = uint16(s.conf.ReceiveMaximum)
-		opt.Capabilities.TopicAliasMaximum = uint16(s.conf.MaxTopicAlias)
-		opt.Capabilities.SharedSubAvailable = sharedSubAvailable
-		opt.Capabilities.MinimumProtocolVersion = s.conf.MinProtocolVersion
-		opt.Capabilities.MaximumQos = s.conf.MaximumQoS
-		opt.Capabilities.RetainAvailable = retainAvailable
-		opt.Capabilities.WildcardSubAvailable = wildcardSubAvailable
-		opt.Capabilities.SubIDAvailable = subIDAvailable
-
-		opt.ClientNetWriteBufferSize = s.conf.BufferSize
-		opt.ClientNetReadBufferSize = s.conf.BufferSize
-		opt.SysTopicResendInterval = int64(s.conf.SysTopicUpdateInterval)
+	if s.conf.SharedSubscriptionAvailable {
+		sharedSubAvailable = 1
 	}
+	if s.conf.RetainAvailable {
+		retainAvailable = 1
+	}
+	if s.conf.WildcardSubscriptionAvailable {
+		wildcardSubAvailable = 1
+	}
+	if s.conf.SubscriptionIDAvailable {
+		subIDAvailable = 1
+	}
+
+	opt.Capabilities.MaximumMessageExpiryInterval = int64(s.conf.MaxMessageExpiryInterval)
+	opt.Capabilities.MaximumClientWritesPending = int32(s.conf.MaxOutboundMessages)
+	opt.Capabilities.MaximumSessionExpiryInterval = uint32(s.conf.MaxSessionExpiryInterval)
+	opt.Capabilities.MaximumPacketSize = uint32(s.conf.MaxPacketSize)
+	opt.Capabilities.ReceiveMaximum = uint16(s.conf.ReceiveMaximum)
+	opt.Capabilities.TopicAliasMaximum = uint16(s.conf.MaxTopicAlias)
+	opt.Capabilities.SharedSubAvailable = sharedSubAvailable
+	opt.Capabilities.MinimumProtocolVersion = s.conf.MinProtocolVersion
+	opt.Capabilities.MaximumQos = s.conf.MaximumQoS
+	opt.Capabilities.RetainAvailable = retainAvailable
+	opt.Capabilities.WildcardSubAvailable = wildcardSubAvailable
+	opt.Capabilities.SubIDAvailable = subIDAvailable
+
+	opt.ClientNetWriteBufferSize = s.conf.BufferSize
+	opt.ClientNetReadBufferSize = s.conf.BufferSize
+	opt.SysTopicResendInterval = int64(s.conf.SysTopicUpdateInterval)
 
 	s.mochi = mqtt.New(opt)
 	_ = s.mochi.AddHook(newLoggingHook(s.log), nil)
@@ -109,7 +107,12 @@ func (s *Server) Start() error {
 		return err
 	}
 
+	if s.conf.MetricsEnabled {
+		registerMetrics(s.mochi.Info)
+	}
+
 	_ = s.mochi.Serve()
+
 	s.log.Info().Msg("MQTT server started with success")
 	return nil
 }
