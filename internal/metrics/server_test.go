@@ -15,8 +15,7 @@
 package metrics
 
 import (
-	"bytes"
-	"sync"
+	"io"
 	"testing"
 
 	"github.com/gsalomao/maxmq/internal/logger"
@@ -24,29 +23,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type logBuffer struct {
-	b bytes.Buffer
-	m sync.Mutex
-}
-
-func (b *logBuffer) Write(p []byte) (n int, err error) {
-	b.m.Lock()
-	defer b.m.Unlock()
-	return b.b.Write(p)
-}
-
-func newLogger() *logger.Logger {
-	out := &logBuffer{}
-	return logger.New(out, nil, logger.JSON)
-}
-
-func TestListenerNewListener(t *testing.T) {
-	log := newLogger()
+func TestServerNewServer(t *testing.T) {
+	log := logger.New(io.Discard, nil, logger.JSON)
 
 	t.Run("Valid", func(t *testing.T) {
 		conf := Configuration{Address: ":8888", Path: "/metrics", Profiling: true}
 
-		l, err := NewListener(conf, log)
+		l, err := NewServer(conf, log)
 		assert.Nil(t, err)
 		assert.NotNil(t, l)
 	})
@@ -54,7 +37,7 @@ func TestListenerNewListener(t *testing.T) {
 	t.Run("MissingAddress", func(t *testing.T) {
 		conf := Configuration{Address: "", Path: "/metrics"}
 
-		l, err := NewListener(conf, log)
+		l, err := NewServer(conf, log)
 		assert.Nil(t, l)
 		assert.ErrorContains(t, err, "missing address")
 	})
@@ -62,17 +45,17 @@ func TestListenerNewListener(t *testing.T) {
 	t.Run("MissingPath", func(t *testing.T) {
 		conf := Configuration{Address: ":8888", Path: ""}
 
-		l, err := NewListener(conf, log)
+		l, err := NewServer(conf, log)
 		assert.Nil(t, l)
 		assert.ErrorContains(t, err, "missing path")
 	})
 }
 
-func TestListenerStartInvalidAddress(t *testing.T) {
-	log := newLogger()
+func TestServerStartInvalidAddress(t *testing.T) {
+	log := logger.New(io.Discard, nil, logger.JSON)
 	conf := Configuration{Address: ".", Path: "/metrics"}
 
-	l, err := NewListener(conf, log)
+	l, err := NewServer(conf, log)
 	require.Nil(t, err)
 	require.NotNil(t, l)
 
@@ -80,11 +63,11 @@ func TestListenerStartInvalidAddress(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestListenerStartAndStop(t *testing.T) {
-	log := newLogger()
+func TestServerStartAndStop(t *testing.T) {
+	log := logger.New(io.Discard, nil, logger.JSON)
 	conf := Configuration{Address: ":8888", Path: "/metrics"}
 
-	l, err := NewListener(conf, log)
+	l, err := NewServer(conf, log)
 	require.Nil(t, err)
 	require.NotNil(t, l)
 

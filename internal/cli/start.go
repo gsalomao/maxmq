@@ -28,6 +28,7 @@ import (
 	"github.com/dimiro1/banner"
 	"github.com/gsalomao/maxmq/internal/config"
 	"github.com/gsalomao/maxmq/internal/logger"
+	"github.com/gsalomao/maxmq/internal/metrics"
 	"github.com/gsalomao/maxmq/internal/mqtt"
 	"github.com/gsalomao/maxmq/internal/snowflake"
 	"github.com/mattn/go-colorable"
@@ -137,11 +138,23 @@ func runServer(ctx context.Context, c config.Config, confFileFound, profileEnabl
 
 	var wg sync.WaitGroup
 
+	if c.MetricsEnabled {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			err := runMetricsServer(ctx, c, log)
+			if err != nil {
+				bsLog.Fatal().Err(err).Msg("Failed to run metrics server")
+			}
+		}()
+	}
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
-		err = runMQTTServer(ctx, c, log)
+		err := runMQTTServer(ctx, c, log)
 		if err != nil {
 			bsLog.Fatal().Err(err).Msg("Failed to run MQTT server")
 		}
@@ -167,8 +180,31 @@ func runServer(ctx context.Context, c config.Config, confFileFound, profileEnabl
 	}
 }
 
+func runMetricsServer(ctx context.Context, c config.Config, log *logger.Logger) error {
+	conf := metrics.Configuration{
+		Address:   c.MetricsAddress,
+		Path:      c.MetricsPath,
+		Profiling: c.MetricsProfiling,
+	}
+
+	srv, err := metrics.NewServer(conf, log)
+	if err != nil {
+		return err
+	}
+
+	err = srv.Start()
+	if err != nil {
+		return err
+	}
+
+	<-ctx.Done()
+
+	srv.Stop()
+	return nil
+}
+
 func runMQTTServer(ctx context.Context, c config.Config, log *logger.Logger) error {
-	mqttConf := &mqtt.Config{
+	conf := &mqtt.Config{
 		TCPAddress:                    c.MQTTTCPAddress,
 		BufferSize:                    c.MQTTBufferSize,
 		MaxPacketSize:                 c.MQTTMaxPacketSize,
@@ -188,7 +224,7 @@ func runMQTTServer(ctx context.Context, c config.Config, log *logger.Logger) err
 	}
 
 	srv, _ := mqtt.NewServer(
-		mqtt.WithConfig(mqttConf),
+		mqtt.WithConfig(conf),
 		mqtt.WithLogger(log.WithPrefix("mqtt")),
 		mqtt.WithMachineID(c.MachineID),
 	)

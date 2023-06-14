@@ -17,6 +17,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"io"
 	"os"
 	"sync"
 	"testing"
@@ -42,8 +43,7 @@ func TestStartNewLogger(t *testing.T) {
 
 func TestStartRunServer(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	out := bytes.NewBufferString("")
-	log := logger.New(out, nil, logger.Pretty)
+	log := logger.New(io.Discard, nil, logger.Pretty)
 
 	var wg sync.WaitGroup
 	starting := make(chan struct{})
