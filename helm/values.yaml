@@ -37,7 +37,7 @@ service:
   # Service annotations
   annotations: {}
 
-# MaxMQ configuration stored in /etc/maxmq.conf
+# MaxMQ configuration stored in the config file
 maxmqConfig: {}
 
 podAnnotations: {}

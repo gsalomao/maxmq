@@ -1,4 +1,4 @@
-# Copyright 2022-2023 The MaxMQ Authors
+# Copyright 2023 The MaxMQ Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,31 +13,10 @@
 # limitations under the License.
 
 # Build artifacts
+build/
 bin/
-dist/
 coverage/
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-
-# Test binary, built with `go test -c`
-*.test
-
-# Output of the go coverage tool
-*.out
-
-# Go workspace file
-go.work
 
 # IDEs
 .vscode
 .idea
-
-# Others
-/maxmq.conf
-/prometheus.yml
-/data
-*.prof
-.DS_Store

@@ -15,5 +15,4 @@
 
 set -e
 make inspect
-make unit
-make system
+make test

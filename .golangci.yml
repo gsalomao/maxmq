@@ -1,0 +1,273 @@
+# Copyright 2023 The MaxMQ Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+run:
+  timeout: 10m
+
+linters:
+  disable-all: true
+  enable:
+    - asasalint # checks for pass []any as any in variadic func(...any).
+    - asciicheck # checks that your code does not contain non-ASCII identifiers.
+    - bidichk # checks for dangerous unicode character sequences.
+    - bodyclose # checks whether HTTP response body is closed successfully.
+    - contextcheck # checks whether the function uses a non-inherited context.
+    - decorder # checks for declaration order and count of types, constants, variables and functions.
+    - dogsled # checks for assignments with too many blank identifiers (e.g. x, _, _, _, := f()).
+    - dupl # checks for duplicate code.
+    - dupword # checks for duplicate words in the source code.
+    - durationcheck # checks for two durations multiplied together.
+    - errcheck # checks for unchecked errors in Go code.
+    - errchkjson # checks types passed to the json encoding functions.
+    - errname # checks that sentinel errors are prefixed with the Err and error types are suffixed with the Error.
+    - errorlint # checks for code that will cause problems with the error wrapping scheme introduced in Go 1.13.
+    - exportloopref # checks for pointers to enclosing loop variables.
+    - gci # checks for Go package import order and makes it always deterministic.
+    - gocheckcompilerdirectives # checks that go compiler directive comments (//go:) are valid.
+    - gocognit # checks the cognitive complexity of functions.
+    - goconst # checks for repeated strings that could be replaced by a constant.
+    - gocritic # checks for bugs, performance and style issues.
+    - gocyclo # checks the cyclomatic complexity of functions.
+    - godot # check if comments end in a period.
+    - gofmt # checks whether code was gofmt-ed.
+    - gofumpt # checks whether code was gofumpt-ed.
+    - goheader # checks is file header matches to pattern.
+    - goimports # checks for import statements are formatted according to the 'goimport' command.
+    - goprintffuncname # checks that printf-like functions are named with f at the end.
+    - gosec # checks source code for security problems.
+    - gosimple # checks for code simplification.
+    - govet # checks for suspicious constructs.
+    - grouper # checks expression groups.
+    - ineffassign # checks when assignments to existing variables are not used.
+    - interfacebloat # checks the number of methods inside an interface.
+    - lll # checks for long lines.
+    - makezero # checks for slice declarations with non-zero initial length.
+    - mirror # checks for wrong mirror patterns of bytes/strings usage.
+    - misspell # checks for commonly misspelled English words in comments.
+    - musttag # checks for field tags in (un)marshaled structs.
+    - nakedret # checks for naked returns in functions greater than a specified function length.
+    - nilerr # checks for code that returns nil even if it checks that the error is not nil.
+    - nolintlint # checks for ill-formed or insufficient nolint directives.
+    - prealloc # checks for slice declarations that could potentially be pre-allocated.
+    - predeclared # checks for code that shadows one of Go's predeclared identifiers.
+    - reassign # checks that package variables are not reassigned.
+    - revive # drop-in replacement of golint.
+    - staticcheck # set of rules from staticcheck.
+    - tagalign # checks that struct tags are well aligned.
+    - tenv # checks for os.Setenv instead of t.Setenv.
+    - thelper # checks for Go test helpers without t.Helper() call and checks the consistency of test helpers.
+    - tparallel # checks for inappropriate usage of t.Parallel() method in your Go test codes.
+    - typecheck # parses and type-checks Go code.
+    - unconvert # checks for unnecessary type conversions.
+    - unparam # checks for unused function parameters.
+    - unused # checks Go code for unused constants, variables, functions and types.
+    - usestdlibvars # checks for possibility to use variables/constants from the Go standard library.
+    - wastedassign # checks for wasted assignment statements.
+    - whitespace # checks for unnecessary newlines at the start and end of functions, if, for, etc.
+
+linters-settings:
+  dupl:
+    threshold: 100
+  gocognit:
+    min-complexity: 20
+  gocyclo:
+    min-complexity: 15
+  gocritic:
+    enabled-checks:
+      - appendAssign
+      - appendCombine
+      - argOrder
+      - assignOp
+      - badCall
+      - badCond
+      - badLock
+      - badRegexp
+      - badSorting
+      - boolExprSimplify
+      - builtinShadow
+      - builtinShadowDecl
+      - captLocal
+      - caseOrder
+      - codegenComment
+      - commentFormatting
+      - commentedOutCode
+      - commentedOutImport
+      - defaultCaseOrder
+      - deferInLoop
+      - deferUnlambda
+      - deprecatedComment
+      - docStub
+      - dupArg
+      - dupBranchBody
+      - dupCase
+      - dupImport
+      - dupSubExpr
+      - dynamicFmtString
+      - elseif
+      - emptyDecl
+      - emptyFallthrough
+      - emptyStringTest
+      - equalFold
+      - evalOrder
+      - exitAfterDefer
+      - exposedSyncMutex
+      - externalErrorReassign
+      - flagDeref
+      - flagName
+      - hexLiteral
+      - httpNoBody
+      - hugeParam
+      - ifElseChain
+      - importShadow
+      - indexAlloc
+      - initClause
+      - mapKey
+      - methodExprCall
+      - nestingReduce
+      - newDeref
+      - nilValReturn
+      - octalLiteral
+      - offBy1
+      - paramTypeCombine
+      - preferDecodeRune
+      - preferFilepathJoin
+      - preferFprint
+      - preferStringWriter
+      - preferWriteByte
+      - ptrToRefParam
+      - rangeExprCopy
+      - rangeValCopy
+      - redundantSprint
+      - regexpMust
+      - regexpPattern
+      - regexpSimplify
+      - returnAfterHttpError
+      - ruleguard
+      - singleCaseSwitch
+      - sliceClear
+      - sloppyLen
+      - sloppyReassign
+      - sloppyTypeAssert
+      - sortSlice
+      - sprintfQuotedString
+      - stringConcatSimplify
+      - stringXbytes
+      - stringsCompare
+      - switchTrue
+      - syncMapLoadAndDelete
+      - timeCmpSimplify
+      - timeExprSimplify
+      - tooManyResultsChecker
+      - truncateCmp
+      - typeAssertChain
+      - typeDefFirst
+      - typeSwitchVar
+      - typeUnparen
+      - uncheckedInlineErr
+      - underef
+      - unlabelStmt
+      - unlambda
+      - unnamedResult
+      - unnecessaryBlock
+      - unnecessaryDefer
+      - unslice
+      - valSwap
+      - weakCond
+      - wrapperFunc
+      - yodaStyleExpr
+  godot:
+    scope: all
+    capital: true
+  gofmt:
+    rewrite-rules:
+      - pattern: interface{}
+        replacement: any
+      - pattern: a[b:len(a)]
+        replacement: a[b:]
+  goheader:
+    values:
+      const:
+        author: The MaxMQ Authors
+    template: |-
+      Copyright {{ YEAR }} {{ AUTHOR }}
+
+      Licensed under the Apache License, Version 2.0 (the "License");
+      you may not use this file except in compliance with the License.
+      You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+      Unless required by applicable law or agreed to in writing, software
+      distributed under the License is distributed on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+      See the License for the specific language governing permissions and
+      limitations under the License.
+  lll:
+    line-length: 120
+  nakedret:
+    max-func-lines: 0
+  revive:
+    severity: error
+    rules:
+      - name: blank-imports
+      - name: context-keys-type
+      - name: time-naming
+      - name: var-declaration
+      - name: unexported-return
+      - name: errorf
+      - name: context-as-argument
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: increment-decrement
+      - name: var-naming
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: indent-error-flow
+      - name: superfluous-else
+      - name: modifies-parameter
+      - name: unreachable-code
+      - name: struct-tag
+      - name: constant-logical-expr
+      - name: bool-literal-in-expr
+      - name: redefines-builtin-id
+      - name: imports-blacklist
+      - name: range-val-in-closure
+      - name: range-val-address
+      - name: waitgroup-by-value
+      - name: atomic
+      - name: call-to-gc
+      - name: duplicated-imports
+      - name: string-of-int
+      - name: defer
+        arguments:
+          - - call-chain
+      - name: unconditional-recursion
+      - name: identical-branches
+  tenv:
+    all: true
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - dupl
+        - gocognit
+    - path: _test\.go
+      text: "G404:" # Ignore weak random number generator lint.
+      linters:
+        - gosec

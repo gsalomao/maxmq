@@ -1,4 +1,4 @@
-// Copyright 2022-2023 The MaxMQ Authors
+// Copyright 2023 The MaxMQ Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,16 +14,5 @@
 
 package main
 
-import (
-	"os"
-
-	"github.com/gsalomao/maxmq/internal/cli"
-)
-
 func main() {
-	c := cli.New(os.Stdout, os.Args[1:])
-	err := c.Run()
-	if err != nil {
-		os.Exit(1)
-	}
 }
