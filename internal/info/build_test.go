@@ -12,21 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package info_test
 
 import (
-	"context"
-	"os"
+	"runtime"
+	"testing"
 
-	"github.com/gsalomao/maxmq/internal/cli"
+	"github.com/gsalomao/maxmq/internal/info"
+	"github.com/stretchr/testify/assert"
 )
 
-func main() {
-	c := cli.New("MaxMQ",
-		"MaxMQ is a Cloud-Native and High-Performance MQTT Broker for IoT")
+func TestGetBuild(t *testing.T) {
+	build := info.GetBuild()
+	assert.Equal(t, runtime.Version(), build.GoVersion)
+}
 
-	err := c.Run(context.Background(), os.Stdout, os.Args[1:])
-	if err != nil {
-		os.Exit(1)
-	}
+func TestBuildShortVersion(t *testing.T) {
+	build := info.GetBuild()
+	assert.NotEmpty(t, build.ShortVersion())
+}
+
+func TestBuildLongVersion(t *testing.T) {
+	build := info.GetBuild()
+	assert.NotEmpty(t, build.LongVersion())
 }

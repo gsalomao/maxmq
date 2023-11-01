@@ -32,9 +32,15 @@ REVISION        = $(shell git rev-parse HEAD)
 BUILD_TIME      = $(shell date -u '+%Y-%m-%d %H:%M:%S')
 DISTRIBUTION    = "OSS"
 
+LDFLAGS ="\
+	-X 'github.com/gsalomao/maxmq/internal/info.version=${VERSION}' \
+	-X 'github.com/gsalomao/maxmq/internal/info.revision=${REVISION}' \
+	-X 'github.com/gsalomao/maxmq/internal/info.buildTime=${BUILD_TIME}' \
+	-X 'github.com/gsalomao/maxmq/internal/info.distribution=${DISTRIBUTION}' \
+	"
+
 .PHONY: all
 all: help
-
 
 ## Project
 .PHONY: init
@@ -53,7 +59,7 @@ fmt: ## Format source code
 build: ## Build server
 	$(call print_task,"Building server")
 	@mkdir -p ${BUILD_DIR}
-	@go build -o ${BUILD_DIR}/$(NAME) $(MAIN_FILE)
+	@go build -o ${BUILD_DIR}/$(NAME) -ldflags ${LDFLAGS} $(MAIN_FILE)
 
 .PHONY: image
 image: ## Build Docker image
@@ -116,8 +122,8 @@ coverage-html: coverage ## Open the coverage report in the browser
 inspect: vet lint complexity security ## Inspect source code
 
 .PHONY: vet
-vet: ## Examine source code
-	$(call print_task,"Examining source code")
+vet: ## Run vet command
+	$(call print_task,"Running vet command")
 	@go vet ./...
 
 .PHONY: lint
