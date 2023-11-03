@@ -1,0 +1,10 @@
+mockname: "{{.InterfaceName}}"
+filename: "{{.InterfaceNameSnake}}.go"
+dir: "{{.InterfaceDir}}/mocks"
+outpkg: "mocks"
+with-expecter: true
+
+packages:
+  github.com/gsalomao/maxmq/internal/logger:
+    interfaces:
+      LogIDGenerator:
