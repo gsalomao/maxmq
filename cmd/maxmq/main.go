@@ -18,12 +18,15 @@ import (
 	"context"
 	"os"
 
+	"github.com/gsalomao/maxmq/cmd/maxmq/command"
 	"github.com/gsalomao/maxmq/internal/cli"
 )
 
 func main() {
 	c := cli.New("MaxMQ",
-		"MaxMQ is a Cloud-Native and High-Performance MQTT Broker for IoT")
+		"MaxMQ is a Cloud-Native and High-Performance MQTT Broker for IoT.")
+
+	c.AddCommand(command.NewStart())
 
 	err := c.Run(context.Background(), os.Stdout, os.Args[1:])
 	if err != nil {

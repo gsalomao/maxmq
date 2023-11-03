@@ -55,6 +55,11 @@ func New(name, description string) CLI {
 	return c
 }
 
+// AddCommand adds a command to the CLI.
+func (c CLI) AddCommand(cmd *cobra.Command) {
+	c.rootCmd.AddCommand(cmd)
+}
+
 // Run executes the command line interface.
 func (c CLI) Run(ctx context.Context, w io.Writer, args []string) error {
 	c.rootCmd.SetOut(w)
