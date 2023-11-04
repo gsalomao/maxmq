@@ -23,7 +23,7 @@ import (
 )
 
 func main() {
-	c := cli.New("MaxMQ",
+	c := cli.New("maxmq",
 		"MaxMQ is a Cloud-Native and High-Performance MQTT Broker for IoT.")
 
 	c.AddCommand(command.NewStart())
