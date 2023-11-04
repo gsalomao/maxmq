@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sync/atomic"
@@ -198,6 +199,18 @@ func (f Format) String() string {
 		return "pretty"
 	default:
 		return "invalid"
+	}
+}
+
+// ParseDestination returns the io.Writer for the given destination.
+func ParseDestination(str string) (io.Writer, error) {
+	switch str {
+	case "stdout", "Stdout", "STDOUT":
+		return os.Stdout, nil
+	case "stderr", "Stderr", "STDERR":
+		return os.Stderr, nil
+	default:
+		return nil, fmt.Errorf("invalid log destination")
 	}
 }
 

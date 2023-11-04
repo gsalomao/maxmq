@@ -18,6 +18,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
+	"os"
 	"testing"
 	"time"
 
@@ -212,6 +214,33 @@ func TestLoggerSetFormat(t *testing.T) {
 	log.SetFormat(logger.FormatText)
 	log.Info(context.Background(), "Hello")
 	assert.Contains(t, out.String(), "msg=Hello")
+}
+
+func TestLoggerParseDestination(t *testing.T) {
+	testCases := []struct {
+		str  string
+		dest io.Writer
+	}{
+		{"stdout", os.Stdout},
+		{"Stdout", os.Stdout},
+		{"STDOUT", os.Stdout},
+		{"stderr", os.Stderr},
+		{"Stderr", os.Stderr},
+		{"STDERR", os.Stderr},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.str, func(t *testing.T) {
+			d, err := logger.ParseDestination(tc.str)
+			require.NoError(t, err)
+			assert.Equal(t, tc.dest, d)
+		})
+	}
+}
+
+func TestLoggerParseDestinationError(t *testing.T) {
+	_, err := logger.ParseDestination("invalid")
+	assert.Error(t, err)
 }
 
 func TestLoggerContextNoAttr(t *testing.T) {
