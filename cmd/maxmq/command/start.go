@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
+	"runtime/pprof"
 	"syscall"
 
 	"github.com/gsalomao/maxmq/internal/config"
@@ -31,22 +33,29 @@ import (
 
 // NewStart returns a command to start the server.
 func NewStart() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "start",
 		Short: "Start server",
 		Long:  "Start the MaxMQ server.",
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return startServer(cmd.Context(), cmd.Flags())
+		Run: func(cmd *cobra.Command, _ []string) {
+			startServer(cmd.Context(), cmd.Flags())
 		},
 	}
+
+	flags := cmd.PersistentFlags()
+	flags.Bool("debug", false, "Enable debug logs")
+	flags.Bool("profile", false, "Enable profiling")
+
+	return cmd
 }
 
-func startServer(ctx context.Context, flags *pflag.FlagSet) error {
+func startServer(ctx context.Context, flags *pflag.FlagSet) {
 	conf := config.DefaultConfig
 
 	confFileFound, err := loadConfig(&conf)
 	if err != nil {
-		return err
+		fmt.Printf("Failed to load config: %s", err.Error())
+		os.Exit(1)
 	}
 
 	ctx = logger.Context(ctx, logger.Int("machine_id", conf.MachineID))
@@ -93,16 +102,8 @@ func startServer(ctx context.Context, flags *pflag.FlagSet) error {
 		}
 	})
 
-	log.Debug(ctx, "Starting server")
-
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
-
-	<-sigs
-	fmt.Println()
-
-	log.Debug(ctx, "Stopping server")
-	return nil
+	profile, _ := flags.GetBool("profile")
+	runServer(ctx, log, profile)
 }
 
 func loadConfig(conf *config.Config) (bool, error) {
@@ -142,4 +143,54 @@ func newLogger(conf *config.Config, flags *pflag.FlagSet) *logger.Logger {
 		Format:         logFormat,
 		LogIDGenerator: snowflake.New(conf.MachineID),
 	})
+}
+
+func runServer(ctx context.Context, log *logger.Logger, profile bool) {
+	var err error
+	var cpu *os.File
+
+	if profile {
+		cpu, err = os.Create("cpu.prof")
+		if err != nil {
+			log.Error(ctx, "Failed to create CPU profile file", logger.Err(err))
+			os.Exit(1)
+		}
+
+		if err = pprof.StartCPUProfile(cpu); err != nil {
+			log.Error(ctx, "Failed to start CPU profile", logger.Err(err))
+			os.Exit(1)
+		}
+	}
+
+	defer func() {
+		if profile {
+			var heap *os.File
+			log.Debug(ctx, "Saving CPU and memory profiles")
+
+			heap, err = os.Create("heap.prof")
+			if err != nil {
+				log.Error(ctx, "Failed to create Heap profile file", logger.Err(err))
+				os.Exit(1)
+			}
+
+			runtime.GC()
+			if err = pprof.WriteHeapProfile(heap); err != nil {
+				log.Error(ctx, "Failed to save Heap profile", logger.Err(err))
+				os.Exit(1)
+			}
+
+			pprof.StopCPUProfile()
+			_ = heap.Close()
+			_ = cpu.Close()
+		}
+	}()
+
+	log.Debug(ctx, "Starting server")
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+
+	<-sigs
+	fmt.Println()
+	log.Debug(ctx, "Stopping server")
 }

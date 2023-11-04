@@ -52,8 +52,6 @@ func New(name, description string) CLI {
 		},
 	})
 
-	c.rootCmd.PersistentFlags().Bool("debug", false, "Enable debug logs")
-
 	return c
 }
 
