@@ -295,6 +295,11 @@ func New(out io.Writer, opts *Options) *Logger {
 	return log
 }
 
+// StdLog returns a slog.Logger from the current logger.
+func (l *Logger) StdLog(attrs ...Attr) *slog.Logger {
+	return slog.New(&stdLogWrapper{log: l, attrs: attrs})
+}
+
 // Debug creates a log with debug level.
 func (l *Logger) Debug(ctx context.Context, msg string, attrs ...Attr) {
 	l.log(ctx, LevelDebug, msg, attrs...)
@@ -325,7 +330,7 @@ func (l *Logger) SetFormat(f Format) {
 	l.format.Store(int64(f))
 }
 
-func (l *Logger) log(ctx context.Context, lvl Level, msg string, attrs ...Attr) {
+func (l *Logger) handler() slog.Handler {
 	format := Format(l.format.Load())
 	handler := l.json
 
@@ -334,6 +339,12 @@ func (l *Logger) log(ctx context.Context, lvl Level, msg string, attrs ...Attr) 
 	} else if format == FormatText {
 		handler = l.text
 	}
+
+	return handler
+}
+
+func (l *Logger) log(ctx context.Context, lvl Level, msg string, attrs ...Attr) {
+	handler := l.handler()
 
 	if !handler.Enabled(ctx, lvl) {
 		return
@@ -373,4 +384,39 @@ func Context(ctx context.Context, attrs ...Attr) context.Context {
 	}
 
 	return context.WithValue(ctx, ctxKeyAttrs{}, attrs)
+}
+
+// Attrs returns the existing attributes from the provided context.
+//
+// If the context does not have any attribute, it returns nil.
+func Attrs(ctx context.Context) []Attr {
+	attrs := ctx.Value(ctxKeyAttrs{})
+	if attrs == nil {
+		return nil
+	}
+	return attrs.([]Attr)
+}
+
+type stdLogWrapper struct {
+	log   *Logger
+	attrs []Attr
+}
+
+func (s stdLogWrapper) Enabled(ctx context.Context, level slog.Level) bool {
+	return s.log.handler().Enabled(ctx, level)
+}
+
+func (s stdLogWrapper) Handle(ctx context.Context, record slog.Record) error { //nolint:gocritic
+	if len(s.attrs) > 0 {
+		record.AddAttrs(s.attrs...)
+	}
+	return s.log.handler().Handle(ctx, record)
+}
+
+func (s stdLogWrapper) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return s.log.handler().WithAttrs(attrs)
+}
+
+func (s stdLogWrapper) WithGroup(name string) slog.Handler {
+	return s.log.handler().WithGroup(name)
 }

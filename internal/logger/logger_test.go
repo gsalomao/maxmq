@@ -74,6 +74,25 @@ func TestLoggerLogWithIDGenerator(t *testing.T) {
 	assert.Contains(t, out.String(), "log_id=1")
 }
 
+func TestLoggerLogStdLog(t *testing.T) {
+	out := bytes.NewBufferString("")
+	log := logger.New(out, &logger.Options{Level: logger.LevelDebug}).StdLog()
+	msg := gofakeit.Phrase()
+
+	log.Debug(msg)
+	assert.Contains(t, out.String(), logger.LevelDebug.String())
+	assert.Contains(t, out.String(), msg)
+}
+
+func TestLoggerLogStdLogWithAttrs(t *testing.T) {
+	out := bytes.NewBufferString("")
+	log := logger.New(out, &logger.Options{Format: logger.FormatText}).StdLog(logger.Str("a", "b"))
+	msg := gofakeit.Phrase()
+
+	log.Info(msg)
+	assert.Contains(t, out.String(), "a=b")
+}
+
 func TestLoggerAttr(t *testing.T) {
 	out := bytes.NewBufferString("")
 	log := logger.New(out, &logger.Options{Format: logger.FormatText})
@@ -270,6 +289,18 @@ func TestLoggerContextWithExistingAttr(t *testing.T) {
 	log.Info(ctx, gofakeit.Phrase())
 	assert.Contains(t, out.String(), "a=1")
 	assert.Contains(t, out.String(), "b=2")
+}
+
+func TestLoggerAttrsFromContext(t *testing.T) {
+	ctx := logger.Context(context.Background(), logger.Str("a", "1"))
+	attrs := logger.Attrs(ctx)
+	assert.Contains(t, attrs, logger.Str("a", "1"))
+}
+
+func TestLoggerAttrsFromEmptyContext(t *testing.T) {
+	ctx := context.Background()
+	attrs := logger.Attrs(ctx)
+	assert.Empty(t, attrs)
 }
 
 func BenchmarkLoggerInfo(b *testing.B) {
