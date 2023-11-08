@@ -18,10 +18,12 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/fsnotify/fsnotify"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
+	"github.com/go-ozzo/ozzo-validation/v4/is"
 	"github.com/spf13/viper"
 )
 
@@ -34,6 +36,10 @@ var DefaultConfig = Config{
 	LogFormat:      "pretty",
 	LogDestination: "stdout",
 	MachineID:      0,
+	MetricsEnabled: true,
+	MetricsHost:    "localhost",
+	MetricsPort:    8888,
+	MetricsPath:    "/metrics",
 }
 
 func init() {
@@ -58,10 +64,25 @@ type Config struct {
 
 	// MachineID sets the machine identifier.
 	MachineID int `json:"machine_id" mapstructure:"machine_id"`
+
+	// MetricsEnabled indicates whether the server exports metrics or not.
+	MetricsEnabled bool `json:"metrics_enabled" mapstructure:"metrics_enabled"`
+
+	// MetricsHost indicates the host address where the Prometheus metrics are exported.
+	MetricsHost string `json:"metrics_host" mapstructure:"metrics_host"`
+
+	// MetricsPort indicates the port where the Prometheus metrics are exported.
+	MetricsPort int `json:"metrics_port" mapstructure:"metrics_port"`
+
+	// MetricsPath indicates the path where the metrics are exported.
+	MetricsPath string `json:"metrics_path" mapstructure:"metrics_path"`
+
+	// MetricsProfiling indicates whether the profiling metrics are exported or not.
+	MetricsProfiling bool `json:"metrics_profiling" mapstructure:"metrics_profiling"`
 }
 
-func (c Config) Validate() error {
-	err := validation.ValidateStruct(&c,
+func (c *Config) Validate() error {
+	err := validation.ValidateStruct(c,
 		validation.Field(&c.LogLevel,
 			validation.Required.Error(errorMessage("required")),
 			validation.In("debug", "Debug", "DEBUG", "info", "Info", "INFO",
@@ -80,6 +101,9 @@ func (c Config) Validate() error {
 				Error(errorMessage("invalid")),
 		),
 		validation.Field(&c.MachineID, validation.Max(1023)),
+		validation.Field(&c.MetricsHost, is.Host),
+		validation.Field(&c.MetricsPort, validation.Min(1024), validation.Max(65535)),
+		validation.Field(&c.MetricsPath, validation.Match(regexp.MustCompile(`^/\w+`))),
 	)
 
 	var vErr validation.Errors

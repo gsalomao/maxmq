@@ -22,10 +22,12 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/pprof"
+	"sync"
 	"syscall"
 
 	"github.com/gsalomao/maxmq/internal/config"
 	"github.com/gsalomao/maxmq/internal/logger"
+	"github.com/gsalomao/maxmq/internal/metric"
 	"github.com/gsalomao/maxmq/internal/snowflake"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -51,6 +53,7 @@ func NewStart() *cobra.Command {
 
 func startServer(ctx context.Context, flags *pflag.FlagSet) {
 	conf := config.DefaultConfig
+	profile, _ := flags.GetBool("profile")
 
 	confFileFound, err := loadConfig(&conf)
 	if err != nil {
@@ -67,8 +70,65 @@ func startServer(ctx context.Context, flags *pflag.FlagSet) {
 		log.Info(ctx, "No config file found")
 	}
 
+	var cpu *os.File
+	if profile {
+		cpu, err = os.Create("cpu.prof")
+		if err != nil {
+			log.Error(ctx, "Failed to create CPU profile file", logger.Err(err))
+			os.Exit(1)
+		}
+
+		if err = pprof.StartCPUProfile(cpu); err != nil {
+			log.Error(ctx, "Failed to start CPU profile", logger.Err(err))
+			os.Exit(1)
+		}
+	}
+	defer func() {
+		if profile {
+			var heap *os.File
+			log.Debug(ctx, "Saving CPU and memory profiles")
+
+			heap, err = os.Create("heap.prof")
+			if err != nil {
+				log.Error(ctx, "Failed to create Heap profile file", logger.Err(err))
+				os.Exit(1)
+			}
+
+			runtime.GC()
+			if err = pprof.WriteHeapProfile(heap); err != nil {
+				log.Error(ctx, "Failed to save Heap profile", logger.Err(err))
+				os.Exit(1)
+			}
+
+			pprof.StopCPUProfile()
+			_ = heap.Close()
+			_ = cpu.Close()
+		}
+	}()
+
+	runServer(ctx, log, &conf)
+}
+
+func runServer(ctx context.Context, log *logger.Logger, conf *config.Config) {
+	var (
+		err     error
+		metrics *metric.Server
+		wg      sync.WaitGroup
+	)
+
+	defer func() {
+		if metrics != nil {
+			log.Debug(ctx, "Closing metrics server")
+
+			err = metrics.Close()
+			if err != nil {
+				log.Error(ctx, "Failed to close metrics server", logger.Err(err))
+			}
+		}
+	}()
+
 	config.Watch(func() {
-		c := conf
+		c := *conf
 		log.Info(ctx, "Config file changed")
 
 		if found, err := loadConfig(&c); !found {
@@ -102,8 +162,44 @@ func startServer(ctx context.Context, flags *pflag.FlagSet) {
 		}
 	})
 
-	profile, _ := flags.GetBool("profile")
-	runServer(ctx, log, profile)
+	log.Debug(ctx, "Starting server")
+
+	if conf.MetricsEnabled {
+		metrics = metric.NewServer(log,
+			metric.WithAddress(fmt.Sprintf("%s:%v", conf.MetricsHost, conf.MetricsPort)),
+			metric.WithPath(conf.MetricsPath),
+			metric.WithProfile(conf.MetricsProfiling),
+		)
+
+		serveMetricsServer(ctx, log, metrics, &wg)
+	}
+
+	waitSignal()
+	log.Debug(ctx, "Stopping server")
+
+	if metrics != nil {
+		log.Debug(ctx, "Shutting down metrics server")
+
+		// TODO: Create a new context for graceful shutdown.
+		if err = metrics.Shutdown(ctx); err != nil {
+			log.Error(ctx, "Failed to shutdown metrics server", logger.Err(err))
+			return
+		}
+	}
+
+	wg.Wait()
+}
+
+func serveMetricsServer(ctx context.Context, log *logger.Logger, metrics *metric.Server, wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		err := metrics.Serve(ctx)
+		if err != nil {
+			log.Error(ctx, "Failed to run metrics server", logger.Err(err))
+		}
+	}()
 }
 
 func loadConfig(conf *config.Config) (bool, error) {
@@ -145,52 +241,10 @@ func newLogger(conf *config.Config, flags *pflag.FlagSet) *logger.Logger {
 	})
 }
 
-func runServer(ctx context.Context, log *logger.Logger, profile bool) {
-	var err error
-	var cpu *os.File
-
-	if profile {
-		cpu, err = os.Create("cpu.prof")
-		if err != nil {
-			log.Error(ctx, "Failed to create CPU profile file", logger.Err(err))
-			os.Exit(1)
-		}
-
-		if err = pprof.StartCPUProfile(cpu); err != nil {
-			log.Error(ctx, "Failed to start CPU profile", logger.Err(err))
-			os.Exit(1)
-		}
-	}
-
-	defer func() {
-		if profile {
-			var heap *os.File
-			log.Debug(ctx, "Saving CPU and memory profiles")
-
-			heap, err = os.Create("heap.prof")
-			if err != nil {
-				log.Error(ctx, "Failed to create Heap profile file", logger.Err(err))
-				os.Exit(1)
-			}
-
-			runtime.GC()
-			if err = pprof.WriteHeapProfile(heap); err != nil {
-				log.Error(ctx, "Failed to save Heap profile", logger.Err(err))
-				os.Exit(1)
-			}
-
-			pprof.StopCPUProfile()
-			_ = heap.Close()
-			_ = cpu.Close()
-		}
-	}()
-
-	log.Debug(ctx, "Starting server")
-
+func waitSignal() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
 
 	<-sigs
 	fmt.Println()
-	log.Debug(ctx, "Stopping server")
 }
