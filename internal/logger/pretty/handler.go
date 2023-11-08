@@ -29,7 +29,7 @@ import (
 
 const (
 	reset  = "\x1b[0m"
-	faint  = "\033[2m"
+	faint  = "\x1b[2m"
 	red    = "\x1b[31m"
 	green  = "\x1b[32m"
 	yellow = "\x1b[33m"
@@ -222,11 +222,9 @@ func (h *Handler) appendTime(buf *buffer, t time.Time) {
 }
 
 func (h *Handler) appendLevel(buf *buffer, level slog.Level) {
-	_, _ = buf.WriteString("| ")
 	_, _ = buf.WriteString(levelColor[level])
 	_, _ = fmt.Fprintf(buf, "%-5s", level.String())
 	_, _ = buf.WriteString(reset)
-	_, _ = buf.WriteString(" |")
 }
 
 func (h *Handler) appendMessage(buf *buffer, msg string) {
