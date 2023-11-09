@@ -40,7 +40,36 @@ func NewStart() *cobra.Command {
 		Short: "Start server",
 		Long:  "Start the MaxMQ server.",
 		Run: func(cmd *cobra.Command, _ []string) {
-			startServer(cmd.Context(), cmd.Flags())
+			var app application
+
+			confFileFound, err := loadConfig(&app.conf)
+			if err != nil {
+				fmt.Printf("Failed to load config: %s", err.Error())
+				os.Exit(1)
+			}
+
+			flags := cmd.Flags()
+			ctx := logger.Context(cmd.Context(), logger.Int("machine_id", app.conf.MachineID))
+
+			log := newLogger(&app.conf, flags)
+			app.log = log
+			app.profile, _ = flags.GetBool("profile")
+
+			if confFileFound {
+				log.Info(ctx, "Config file loaded with success")
+			} else {
+				log.Info(ctx, "No config file found")
+			}
+
+			app.watchConfig(ctx)
+
+			log.Debug(ctx, "Starting server")
+			if err = app.run(ctx); err != nil {
+				log.Error(ctx, "Failed to run server", logger.Err(err))
+				os.Exit(1)
+			}
+
+			log.Info(ctx, "Server stopped with success")
 		},
 	}
 
@@ -51,53 +80,81 @@ func NewStart() *cobra.Command {
 	return cmd
 }
 
-func startServer(ctx context.Context, flags *pflag.FlagSet) {
-	conf := config.DefaultConfig
-	profile, _ := flags.GetBool("profile")
+type application struct {
+	log     *logger.Logger
+	metrics *metric.Server
+	conf    config.Config
+	wg      sync.WaitGroup
+	profile bool
+}
 
-	confFileFound, err := loadConfig(&conf)
-	if err != nil {
-		fmt.Printf("Failed to load config: %s", err.Error())
-		os.Exit(1)
-	}
+func (a *application) watchConfig(ctx context.Context) {
+	config.Watch(func() {
+		c := a.conf
+		a.log.Info(ctx, "Config file changed")
 
-	ctx = logger.Context(ctx, logger.Int("machine_id", conf.MachineID))
-	log := newLogger(&conf, flags)
+		if found, err := loadConfig(&c); !found {
+			a.log.Warn(ctx, "Config file not found")
+		} else if err != nil {
+			a.log.Warn(ctx, "Failed to load config file", logger.Err(err))
+			return
+		}
 
-	if confFileFound {
-		log.Info(ctx, "Config file loaded with success")
-	} else {
-		log.Info(ctx, "No config file found")
-	}
+		if c.LogLevel != a.conf.LogLevel {
+			lvl, _ := logger.ParseLevel(c.LogLevel)
+			a.log.SetLevel(lvl)
+			a.log.Debug(ctx, "Log level updated",
+				logger.Str("old", a.conf.LogLevel), logger.Str("new", c.LogLevel),
+			)
+			a.conf.LogLevel = c.LogLevel
+		}
+		if c.LogFormat != a.conf.LogFormat {
+			f, _ := logger.ParseFormat(c.LogFormat)
+			a.log.SetFormat(f)
+			a.log.Debug(ctx, "Log format updated",
+				logger.Str("old", a.conf.LogFormat), logger.Str("new", c.LogFormat),
+			)
+			a.conf.LogFormat = c.LogFormat
+		}
+		if c.LogDestination != a.conf.LogDestination {
+			a.log.Warn(ctx, "Log destination cannot be changed at runtime")
+		}
+		if c.MachineID != a.conf.MachineID {
+			a.log.Warn(ctx, "Machine ID cannot be changed at runtime")
+		}
+	})
+}
 
-	var cpu *os.File
-	if profile {
+func (a *application) run(ctx context.Context) error {
+	var (
+		cpu *os.File
+		err error
+	)
+
+	if a.profile {
 		cpu, err = os.Create("cpu.prof")
 		if err != nil {
-			log.Error(ctx, "Failed to create CPU profile file", logger.Err(err))
-			os.Exit(1)
+			return fmt.Errorf("failed to create CPU profile: %w", err)
 		}
 
 		if err = pprof.StartCPUProfile(cpu); err != nil {
-			log.Error(ctx, "Failed to start CPU profile", logger.Err(err))
-			os.Exit(1)
+			return fmt.Errorf("failed to start CPU profile: %w", err)
 		}
 	}
 	defer func() {
-		if profile {
+		if a.profile {
 			var heap *os.File
-			log.Debug(ctx, "Saving CPU and memory profiles")
+			a.log.Debug(ctx, "Saving CPU and memory profiles")
 
 			heap, err = os.Create("heap.prof")
 			if err != nil {
-				log.Error(ctx, "Failed to create Heap profile file", logger.Err(err))
-				os.Exit(1)
+				a.log.Error(ctx, "Failed to create heap profile file", logger.Err(err))
+				return
 			}
 
 			runtime.GC()
 			if err = pprof.WriteHeapProfile(heap); err != nil {
-				log.Error(ctx, "Failed to save Heap profile", logger.Err(err))
-				os.Exit(1)
+				a.log.Error(ctx, "Failed to save heap profile", logger.Err(err))
 			}
 
 			pprof.StopCPUProfile()
@@ -106,100 +163,47 @@ func startServer(ctx context.Context, flags *pflag.FlagSet) {
 		}
 	}()
 
-	runServer(ctx, log, &conf)
-}
-
-func runServer(ctx context.Context, log *logger.Logger, conf *config.Config) {
-	var (
-		err     error
-		metrics *metric.Server
-		wg      sync.WaitGroup
-	)
-
-	defer func() {
-		if metrics != nil {
-			log.Debug(ctx, "Closing metrics server")
-
-			err = metrics.Close()
-			if err != nil {
-				log.Error(ctx, "Failed to close metrics server", logger.Err(err))
-			}
-		}
-	}()
-
-	config.Watch(func() {
-		c := *conf
-		log.Info(ctx, "Config file changed")
-
-		if found, err := loadConfig(&c); !found {
-			log.Warn(ctx, "Config file not found")
-		} else if err != nil {
-			log.Warn(ctx, "Failed to load config file", logger.Err(err))
-			return
-		}
-
-		if c.LogLevel != conf.LogLevel {
-			lvl, _ := logger.ParseLevel(c.LogLevel)
-			log.SetLevel(lvl)
-			log.Debug(ctx, "Log level updated",
-				logger.Str("old", conf.LogLevel), logger.Str("new", c.LogLevel),
-			)
-			conf.LogLevel = c.LogLevel
-		}
-		if c.LogFormat != conf.LogFormat {
-			f, _ := logger.ParseFormat(c.LogFormat)
-			log.SetFormat(f)
-			log.Debug(ctx, "Log format updated",
-				logger.Str("old", conf.LogFormat), logger.Str("new", c.LogFormat),
-			)
-			conf.LogFormat = c.LogFormat
-		}
-		if c.LogDestination != conf.LogDestination {
-			log.Warn(ctx, "Log destination cannot be changed at runtime")
-		}
-		if c.MachineID != conf.MachineID {
-			log.Warn(ctx, "Machine ID cannot be changed at runtime")
-		}
-	})
-
-	log.Debug(ctx, "Starting server")
-
-	if conf.MetricsEnabled {
-		metrics = metric.NewServer(log,
-			metric.WithAddress(fmt.Sprintf("%s:%v", conf.MetricsHost, conf.MetricsPort)),
-			metric.WithPath(conf.MetricsPath),
-			metric.WithProfile(conf.MetricsProfiling),
-		)
-
-		serveMetricsServer(ctx, log, metrics, &wg)
+	if a.conf.MetricsEnabled {
+		a.startMetricsServer(ctx)
 	}
 
 	waitSignal()
-	log.Debug(ctx, "Stopping server")
+	a.log.Debug(ctx, "Stopping server")
 
-	if metrics != nil {
-		log.Debug(ctx, "Shutting down metrics server")
-
-		// TODO: Create a new context for graceful shutdown.
-		if err = metrics.Shutdown(ctx); err != nil {
-			log.Error(ctx, "Failed to shutdown metrics server", logger.Err(err))
-			return
-		}
+	if a.conf.MetricsEnabled {
+		a.stopMetricsServer(ctx)
 	}
 
-	wg.Wait()
+	a.wg.Wait()
+	return nil
 }
 
-func serveMetricsServer(ctx context.Context, log *logger.Logger, metrics *metric.Server, wg *sync.WaitGroup) {
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+func (a *application) startMetricsServer(ctx context.Context) {
+	a.metrics = metric.NewServer(a.log,
+		metric.WithAddress(fmt.Sprintf("%s:%v", a.conf.MetricsHost, a.conf.MetricsPort)),
+		metric.WithPath(a.conf.MetricsPath),
+		metric.WithProfile(a.conf.MetricsProfiling),
+	)
 
-		err := metrics.Serve(ctx)
+	a.wg.Add(1)
+	go func() {
+		defer a.wg.Done()
+
+		err := a.metrics.Serve(ctx)
 		if err != nil {
-			log.Error(ctx, "Failed to run metrics server", logger.Err(err))
+			a.log.Error(ctx, "Failed to run metrics server", logger.Err(err))
 		}
 	}()
+}
+
+func (a *application) stopMetricsServer(ctx context.Context) {
+	a.log.Debug(ctx, "Shutting down metrics server")
+
+	// TODO: Create a new context for graceful shutdown.
+	if err := a.metrics.Shutdown(ctx); err != nil {
+		a.log.Error(ctx, "Failed to shutdown metrics server", logger.Err(err))
+		return
+	}
 }
 
 func loadConfig(conf *config.Config) (bool, error) {
