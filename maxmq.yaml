@@ -27,7 +27,7 @@ log_level: debug
 ## Env: MAXMQ_LOG_FORMAT
 ##
 ## Acceptable values:
-##   - one of: json, text, pretty
+##   - one of: json, text, pretty, pretty-no-colors
 log_format: pretty
 
 ## Set the log destination.

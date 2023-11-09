@@ -91,8 +91,8 @@ func (c *Config) Validate() error {
 		),
 		validation.Field(&c.LogFormat,
 			validation.Required.Error(errorMessage("required")),
-			validation.In("json", "Json", "JSON", "text", "Text", "TEXT",
-				"pretty", "Pretty", "PRETTY").
+			validation.In("json", "Json", "JSON", "text", "Text", "TEXT", "pretty", "Pretty",
+				"PRETTY", "pretty-no-colors", "Pretty-No-Colors", "PRETTY-NO-COLORS").
 				Error(errorMessage("invalid")),
 		),
 		validation.Field(&c.LogDestination,

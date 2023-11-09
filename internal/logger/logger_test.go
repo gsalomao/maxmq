@@ -169,7 +169,7 @@ func TestLoggerParseLevelError(t *testing.T) {
 
 func TestLoggerSetLevel(t *testing.T) {
 	out := bytes.NewBufferString("")
-	log := logger.New(out, &logger.Options{Format: logger.FormatPretty})
+	log := logger.New(out, &logger.Options{Format: logger.FormatPrettyNoColors})
 	msg := gofakeit.Phrase()
 
 	log.SetLevel(logger.LevelWarn)
@@ -191,6 +191,9 @@ func TestLoggerParseFormat(t *testing.T) {
 		{"pretty", logger.FormatPretty},
 		{"Pretty", logger.FormatPretty},
 		{"PRETTY", logger.FormatPretty},
+		{"pretty-no-colors", logger.FormatPrettyNoColors},
+		{"Pretty-No-Colors", logger.FormatPrettyNoColors},
+		{"PRETTY-NO-COLORS", logger.FormatPrettyNoColors},
 	}
 
 	for _, tc := range testCases {
@@ -215,6 +218,7 @@ func TestLoggerFormatString(t *testing.T) {
 		{logger.FormatJSON, "json"},
 		{logger.FormatText, "text"},
 		{logger.FormatPretty, "pretty"},
+		{logger.FormatPrettyNoColors, "pretty-no-colors"},
 		{logger.Format(10), "invalid"},
 	}
 

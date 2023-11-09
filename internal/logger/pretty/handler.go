@@ -58,6 +58,9 @@ type Options struct {
 
 	// AddSource adds caller information.
 	AddSource bool
+
+	// NoColors disables the colors.
+	NoColors bool
 }
 
 // Handler is a log handler which writes log message in a human-friendly and pretty format.
@@ -71,6 +74,7 @@ type Handler struct {
 	groupPrefix string
 	groups      []string
 	addSource   bool
+	noColors    bool
 }
 
 // NewHandler creates a Handler that writes to w, using the given options.
@@ -87,6 +91,7 @@ func NewHandler(out io.Writer, opts *Options) *Handler {
 
 	h.replaceAttr = opts.ReplaceAttr
 	h.addSource = opts.AddSource
+	h.noColors = opts.NoColors
 
 	if opts.Level != nil {
 		h.level = opts.Level
@@ -216,33 +221,33 @@ func (h *Handler) WithGroup(name string) slog.Handler {
 }
 
 func (h *Handler) appendTime(buf *buffer, t time.Time) {
-	_, _ = buf.WriteString(faint)
+	h.appendColor(buf, faint)
 	*buf = t.AppendFormat(*buf, h.timeFormat)
-	_, _ = buf.WriteString(reset)
+	h.appendColor(buf, reset)
 }
 
 func (h *Handler) appendLevel(buf *buffer, level slog.Level) {
-	_, _ = buf.WriteString(levelColor[level])
+	h.appendColor(buf, levelColor[level])
 	_, _ = fmt.Fprintf(buf, "%-5s", level.String())
-	_, _ = buf.WriteString(reset)
+	h.appendColor(buf, reset)
 }
 
 func (h *Handler) appendMessage(buf *buffer, msg string) {
-	_, _ = buf.WriteString(cyan)
+	h.appendColor(buf, cyan)
 	_, _ = buf.WriteString(msg)
-	_, _ = buf.WriteString(reset)
+	h.appendColor(buf, reset)
 }
 
 func (h *Handler) appendKey(buf *buffer, key, groups string) {
-	_, _ = buf.WriteString(gray)
+	h.appendColor(buf, gray)
 	appendString(buf, groups+key, true)
 
 	_ = buf.WriteByte('=')
-	_, _ = buf.WriteString(reset)
+	h.appendColor(buf, reset)
 }
 
 func (h *Handler) appendValue(buf *buffer, v slog.Value, quote bool) {
-	_, _ = buf.WriteString(gray)
+	h.appendColor(buf, gray)
 
 	switch v.Kind() {
 	case slog.KindString:
@@ -263,7 +268,7 @@ func (h *Handler) appendValue(buf *buffer, v slog.Value, quote bool) {
 		h.appendAny(buf, v.Any(), quote)
 	}
 
-	_, _ = buf.WriteString(reset)
+	h.appendColor(buf, reset)
 }
 
 func (h *Handler) appendAny(buf *buffer, v any, quote bool) {
@@ -284,13 +289,13 @@ func (h *Handler) appendAny(buf *buffer, v any, quote bool) {
 }
 
 func (h *Handler) appendSource(buf *buffer, src *slog.Source) {
-	_, _ = buf.WriteString(gray)
+	h.appendColor(buf, gray)
 
 	_, _ = buf.WriteString(src.File)
 	_ = buf.WriteByte(':')
 	_, _ = buf.WriteString(strconv.Itoa(src.Line))
 
-	_, _ = buf.WriteString(reset)
+	h.appendColor(buf, reset)
 }
 
 func (h *Handler) appendAttr(buf *buffer, attr slog.Attr, groupsPrefix string, groups []string) {
@@ -318,6 +323,13 @@ func (h *Handler) appendAttr(buf *buffer, attr slog.Attr, groupsPrefix string, g
 		h.appendValue(buf, attr.Value, true)
 		_ = buf.WriteByte(' ')
 	}
+}
+
+func (h *Handler) appendColor(buf *buffer, color string) {
+	if h.noColors {
+		return
+	}
+	_, _ = buf.WriteString(color)
 }
 
 func appendString(buf *buffer, str string, quote bool) {

@@ -168,6 +168,9 @@ const (
 
 	// FormatPretty represents a human-friendly and pretty log format.
 	FormatPretty
+
+	// FormatPrettyNoColors represents a human-friendly and pretty log format without colors.
+	FormatPrettyNoColors
 )
 
 // Format represents the log format to be generated.
@@ -183,6 +186,8 @@ func ParseFormat(str string) (Format, error) {
 		return FormatText, nil
 	case "pretty", "Pretty", "PRETTY":
 		return FormatPretty, nil
+	case "pretty-no-colors", "Pretty-No-Colors", "PRETTY-NO-COLORS":
+		return FormatPrettyNoColors, nil
 	default:
 		return FormatJSON, errors.New("invalid log format")
 	}
@@ -197,6 +202,8 @@ func (f Format) String() string {
 		return "text"
 	case FormatPretty:
 		return "pretty"
+	case FormatPrettyNoColors:
+		return "pretty-no-colors"
 	default:
 		return "invalid"
 	}
@@ -241,9 +248,10 @@ type Logger struct {
 	idGen  LogIDGenerator
 	format atomic.Int64
 
-	json   slog.Handler
-	text   slog.Handler
-	pretty slog.Handler
+	json           slog.Handler
+	text           slog.Handler
+	pretty         slog.Handler
+	prettyNoColors slog.Handler
 }
 
 // New creates a new Logger which writes log message into out.
@@ -289,6 +297,13 @@ func New(out io.Writer, opts *Options) *Logger {
 		Level:       &log.level,
 		ReplaceAttr: replaceAttrs,
 		AddSource:   true,
+		NoColors:    false,
+	})
+	log.prettyNoColors = pretty.NewHandler(out, &pretty.Options{
+		Level:       &log.level,
+		ReplaceAttr: replaceAttrs,
+		AddSource:   true,
+		NoColors:    true,
 	})
 
 	log.format.Store(int64(format))
@@ -332,15 +347,17 @@ func (l *Logger) SetFormat(f Format) {
 
 func (l *Logger) handler() slog.Handler {
 	format := Format(l.format.Load())
-	handler := l.json
 
-	if format == FormatPretty {
-		handler = l.pretty
-	} else if format == FormatText {
-		handler = l.text
+	switch format {
+	case FormatPretty:
+		return l.pretty
+	case FormatPrettyNoColors:
+		return l.prettyNoColors
+	case FormatText:
+		return l.text
+	default:
+		return l.json
 	}
-
-	return handler
 }
 
 func (l *Logger) log(ctx context.Context, lvl Level, msg string, attrs ...Attr) {
