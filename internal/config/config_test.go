@@ -42,6 +42,8 @@ func TestConfigValidateError(t *testing.T) {
 		{"log_destination is required", "log_destination", ""},
 		{"log_destination is invalid", "log_destination", "invalid"},
 		{"machine_id must be no greater than 1023", "machine_id", 1024},
+		{"shutdown_timeout_sec must be no less than 1", "shutdown_timeout_sec", 0},
+		{"shutdown_timeout_sec must be no greater than 3600", "shutdown_timeout_sec", 3601},
 		{"metrics_host must be a valid IP address or DNS name", "metrics_host", "host@"},
 		{"metrics_port must be no less than 1024", "metrics_port", 1023},
 		{"metrics_port must be no greater than 65535", "metrics_port", 65536},

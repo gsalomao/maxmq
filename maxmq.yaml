@@ -48,6 +48,14 @@ log_destination: stdout
 ##   - an integer from 0 to 1023
 machine_id: 0
 
+## Time allowed to wait for graceful shutdown in seconds.
+##
+## Default: 3
+##
+## Acceptable values:
+##   - an integer from 1 to 3600 (1 hour)
+shutdown_timeout_sec: 3
+
 ## Set whether the server exports metrics or not. The metrics are exported using Prometheus.
 ##
 ## Default: true (enabled)

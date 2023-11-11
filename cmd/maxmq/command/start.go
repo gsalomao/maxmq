@@ -24,6 +24,7 @@ import (
 	"runtime/pprof"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/gsalomao/maxmq/internal/config"
 	"github.com/gsalomao/maxmq/internal/logger"
@@ -40,7 +41,7 @@ func NewStart() *cobra.Command {
 		Short: "Start server",
 		Long:  "Start the MaxMQ server.",
 		Run: func(cmd *cobra.Command, _ []string) {
-			var app application
+			app := application{conf: config.DefaultConfig}
 
 			confFileFound, err := loadConfig(&app.conf)
 			if err != nil {
@@ -85,11 +86,15 @@ type application struct {
 	metrics *metric.Server
 	conf    config.Config
 	wg      sync.WaitGroup
+	mu      sync.RWMutex
 	profile bool
 }
 
 func (a *application) watchConfig(ctx context.Context) {
 	config.Watch(func() {
+		a.mu.Lock()
+		defer a.mu.Unlock()
+
 		c := a.conf
 		a.log.Info(ctx, "Config file changed")
 
@@ -121,6 +126,13 @@ func (a *application) watchConfig(ctx context.Context) {
 		}
 		if c.MachineID != a.conf.MachineID {
 			a.log.Warn(ctx, "Machine ID cannot be changed at runtime")
+		}
+		if c.ShutdownTimeoutSec != a.conf.ShutdownTimeoutSec {
+			a.log.Debug(ctx, "Shutdown timeout updated",
+				logger.Int("old", a.conf.ShutdownTimeoutSec),
+				logger.Int("new", c.ShutdownTimeoutSec),
+			)
+			a.conf.ShutdownTimeoutSec = c.ShutdownTimeoutSec
 		}
 	})
 }
@@ -163,18 +175,32 @@ func (a *application) run(ctx context.Context) error {
 		}
 	}()
 
-	if a.conf.MetricsEnabled {
+	a.mu.RLock()
+	metricsEnabled := a.conf.MetricsEnabled
+	a.mu.RUnlock()
+
+	if metricsEnabled {
 		a.startMetricsServer(ctx)
 	}
 
 	waitSignal()
 	a.log.Debug(ctx, "Stopping server")
 
-	if a.conf.MetricsEnabled {
-		a.stopMetricsServer(ctx)
+	a.mu.RLock()
+	shutdownTimeout := time.Duration(a.conf.ShutdownTimeoutSec) * time.Second
+	a.mu.RUnlock()
+
+	sdCtx, cancelSdCtx := context.WithTimeout(ctx, shutdownTimeout)
+	defer cancelSdCtx()
+
+	if metricsEnabled {
+		a.stopMetricsServer(sdCtx)
 	}
 
-	a.wg.Wait()
+	if sdCtx.Err() == nil {
+		a.wg.Wait()
+	}
+
 	return nil
 }
 
@@ -199,7 +225,6 @@ func (a *application) startMetricsServer(ctx context.Context) {
 func (a *application) stopMetricsServer(ctx context.Context) {
 	a.log.Debug(ctx, "Shutting down metrics server")
 
-	// TODO: Create a new context for graceful shutdown.
 	if err := a.metrics.Shutdown(ctx); err != nil {
 		a.log.Error(ctx, "Failed to shutdown metrics server", logger.Err(err))
 		return

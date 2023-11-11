@@ -32,14 +32,15 @@ var ErrConfigFileNotFound = errors.New("config file not found")
 
 // DefaultConfig contains the default configuration.
 var DefaultConfig = Config{
-	LogLevel:       "info",
-	LogFormat:      "pretty",
-	LogDestination: "stdout",
-	MachineID:      0,
-	MetricsEnabled: true,
-	MetricsHost:    "localhost",
-	MetricsPort:    8888,
-	MetricsPath:    "/metrics",
+	LogLevel:           "info",
+	LogFormat:          "pretty",
+	LogDestination:     "stdout",
+	MachineID:          0,
+	ShutdownTimeoutSec: 3,
+	MetricsEnabled:     true,
+	MetricsHost:        "localhost",
+	MetricsPort:        8888,
+	MetricsPath:        "/metrics",
 }
 
 func init() {
@@ -64,6 +65,9 @@ type Config struct {
 
 	// MachineID sets the machine identifier.
 	MachineID int `json:"machine_id" mapstructure:"machine_id"`
+
+	// ShutdownTimeoutSec defines the time allowed to wait for graceful shutdown in seconds.
+	ShutdownTimeoutSec int `json:"shutdown_timeout_sec" mapstructure:"shutdown_timeout_sec"`
 
 	// MetricsEnabled indicates whether the server exports metrics or not.
 	MetricsEnabled bool `json:"metrics_enabled" mapstructure:"metrics_enabled"`
@@ -101,6 +105,10 @@ func (c *Config) Validate() error {
 				Error(errorMessage("invalid")),
 		),
 		validation.Field(&c.MachineID, validation.Max(1023)),
+		validation.Field(&c.ShutdownTimeoutSec,
+			validation.Required.Error("must be no less than 1"),
+			validation.Max(3600),
+		),
 		validation.Field(&c.MetricsHost, is.Host),
 		validation.Field(&c.MetricsPort, validation.Min(1024), validation.Max(65535)),
 		validation.Field(&c.MetricsPath, validation.Match(regexp.MustCompile(`^/\w+`))),
