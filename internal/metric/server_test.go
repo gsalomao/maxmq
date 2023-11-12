@@ -28,7 +28,7 @@ import (
 func TestServerNewServer(t *testing.T) {
 	log := logger.New(io.Discard, nil)
 
-	srv := metric.NewServer(log)
+	srv := metric.NewServer(context.Background(), log)
 	assert.NotNil(t, srv)
 
 	_ = srv.Close()
@@ -37,7 +37,7 @@ func TestServerNewServer(t *testing.T) {
 func TestServerNewServerWithOptions(t *testing.T) {
 	log := logger.New(io.Discard, nil)
 
-	srv := metric.NewServer(log,
+	srv := metric.NewServer(context.Background(), log,
 		metric.WithAddress(":8888"),
 		metric.WithPath("/metrics"),
 		metric.WithProfile(true),
@@ -50,7 +50,7 @@ func TestServerNewServerWithOptions(t *testing.T) {
 func TestServerServe(t *testing.T) {
 	log := logger.New(io.Discard, nil)
 
-	srv := metric.NewServer(log)
+	srv := metric.NewServer(context.Background(), log)
 	require.NotNil(t, srv)
 	defer func() { _ = srv.Close() }()
 
@@ -62,7 +62,7 @@ func TestServerServe(t *testing.T) {
 		defer close(done)
 
 		close(ready)
-		err = srv.Serve(context.Background())
+		err = srv.Serve()
 	}()
 
 	<-ready
@@ -75,9 +75,9 @@ func TestServerServe(t *testing.T) {
 func TestServerServeInvalidAddress(t *testing.T) {
 	log := logger.New(io.Discard, nil)
 
-	srv := metric.NewServer(log, metric.WithAddress("."))
+	srv := metric.NewServer(context.Background(), log, metric.WithAddress("."))
 	require.NotNil(t, srv)
 
-	err := srv.Serve(context.Background())
+	err := srv.Serve()
 	require.Error(t, err)
 }

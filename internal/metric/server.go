@@ -33,21 +33,26 @@ const (
 
 // Server represents an HTTP server responsible for exporting metrics.
 type Server struct {
-	address string
-	path    string
-	profile bool
-	mux     *http.ServeMux
-	srv     *http.Server
-	log     *logger.Logger
+	address   string
+	path      string
+	profile   bool
+	mux       *http.ServeMux
+	srv       *http.Server
+	log       *logger.Logger
+	ctx       context.Context
+	cancelCtx context.CancelFunc
 }
 
 // NewServer creates a metrics Server instance.
-func NewServer(log *logger.Logger, opts ...Option) *Server {
+func NewServer(ctx context.Context, log *logger.Logger, opts ...Option) *Server {
+	ctx, cancel := context.WithCancel(ctx)
 	s := Server{
-		address: DefaultAddress,
-		path:    DefaultPath,
-		mux:     http.NewServeMux(),
-		log:     log,
+		address:   DefaultAddress,
+		path:      DefaultPath,
+		mux:       http.NewServeMux(),
+		log:       log,
+		ctx:       ctx,
+		cancelCtx: cancel,
 	}
 
 	for _, opt := range opts {
@@ -74,17 +79,21 @@ func NewServer(log *logger.Logger, opts ...Option) *Server {
 }
 
 // Serve starts the server.
-func (s *Server) Serve(ctx context.Context) error {
+func (s *Server) Serve() error {
+	if s.ctx.Err() != nil {
+		return s.ctx.Err()
+	}
+
 	lsn, err := net.Listen("tcp", s.srv.Addr)
 	if err != nil {
-		s.log.Error(ctx, "Failed to start listener",
+		s.log.Error(s.ctx, "Failed to start listener",
 			logger.Str("address", s.address),
 			logger.Str("path", s.path),
 		)
 		return err
 	}
 
-	s.log.Info(ctx, "Metrics server listening on "+lsn.Addr().String(),
+	s.log.Info(s.ctx, "Metrics server listening on "+lsn.Addr().String(),
 		logger.Str("address", s.address),
 		logger.Str("path", s.path),
 	)
@@ -100,16 +109,18 @@ func (s *Server) Serve(ctx context.Context) error {
 		return err
 	}
 
-	s.log.Debug(ctx, "Metrics server stopped with success")
+	s.log.Debug(s.ctx, "Metrics server stopped with success")
 	return nil
 }
 
 // Shutdown gracefully shuts down the server without interrupting any active connections.
 func (s *Server) Shutdown(ctx context.Context) error {
+	s.cancelCtx()
 	return s.srv.Shutdown(ctx)
 }
 
 // Close immediately closes all active listeners and any connections.
 func (s *Server) Close() error {
+	s.cancelCtx()
 	return s.srv.Close()
 }

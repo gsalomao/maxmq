@@ -205,7 +205,7 @@ func (a *application) run(ctx context.Context) error {
 }
 
 func (a *application) startMetricsServer(ctx context.Context) {
-	a.metrics = metric.NewServer(a.log,
+	a.metrics = metric.NewServer(ctx, a.log,
 		metric.WithAddress(fmt.Sprintf("%s:%v", a.conf.MetricsHost, a.conf.MetricsPort)),
 		metric.WithPath(a.conf.MetricsPath),
 		metric.WithProfile(a.conf.MetricsProfiling),
@@ -215,7 +215,7 @@ func (a *application) startMetricsServer(ctx context.Context) {
 	go func() {
 		defer a.wg.Done()
 
-		err := a.metrics.Serve(ctx)
+		err := a.metrics.Serve()
 		if err != nil {
 			a.log.Error(ctx, "Failed to run metrics server", logger.Err(err))
 		}
