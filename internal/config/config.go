@@ -83,6 +83,8 @@ type Config struct {
 
 	// MetricsProfiling indicates whether the profiling metrics are exported or not.
 	MetricsProfiling bool `json:"metrics_profiling" mapstructure:"metrics_profiling"`
+
+	Listeners map[string]Listener `json:"listeners" mapstructure:"listeners"`
 }
 
 func (c *Config) Validate() error {
@@ -112,7 +114,29 @@ func (c *Config) Validate() error {
 		validation.Field(&c.MetricsHost, is.Host),
 		validation.Field(&c.MetricsPort, validation.Min(1024), validation.Max(65535)),
 		validation.Field(&c.MetricsPath, validation.Match(regexp.MustCompile(`^/\w+`))),
+		validation.Field(&c.Listeners),
 	)
+
+	var vErr validation.Errors
+	if !errors.As(err, &vErr) {
+		return err
+	}
+
+	for f, e := range vErr {
+		return fmt.Errorf("%s %s", f, e.Error())
+	}
+
+	return nil
+}
+
+type Listener struct {
+	Host     string `json:"host" mapstructure:"host"`
+	Port     string `json:"port" mapstructure:"port"`
+	Protocol string `json:"protocol" mapstructure:"protocol"`
+}
+
+func (l *Listener) Validate() error {
+	err := validation.ValidateStruct(l)
 
 	var vErr validation.Errors
 	if !errors.As(err, &vErr) {

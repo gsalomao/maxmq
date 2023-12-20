@@ -48,6 +48,8 @@ func TestConfigValidateError(t *testing.T) {
 		{"metrics_port must be no less than 1024", "metrics_port", 1023},
 		{"metrics_port must be no greater than 65535", "metrics_port", 65536},
 		{"metrics_path must be in a valid format", "metrics_path", "metrics"},
+		{"listeners.tcp.host must be a valid IP address or DNS name", "listeners",
+			map[string]any{"tcp": map[string]any{"host": "host@"}}},
 	}
 
 	for _, tc := range testCases {

@@ -27,8 +27,10 @@ import (
 	"time"
 
 	"github.com/gsalomao/maxmq/internal/config"
+	"github.com/gsalomao/maxmq/internal/listener"
 	"github.com/gsalomao/maxmq/internal/logger"
 	"github.com/gsalomao/maxmq/internal/metric"
+	"github.com/gsalomao/maxmq/internal/mqtt"
 	"github.com/gsalomao/maxmq/internal/snowflake"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -84,6 +86,7 @@ func NewStart() *cobra.Command {
 type application struct {
 	log     *logger.Logger
 	metrics *metric.Server
+	mqtt    *mqtt.Server
 	conf    config.Config
 	wg      sync.WaitGroup
 	mu      sync.RWMutex
@@ -183,6 +186,8 @@ func (a *application) run(ctx context.Context) error {
 		a.startMetricsServer(ctx)
 	}
 
+	a.startMQTTServer(ctx)
+
 	waitSignal()
 	a.log.Debug(ctx, "Stopping server")
 
@@ -192,6 +197,8 @@ func (a *application) run(ctx context.Context) error {
 
 	sdCtx, cancelSdCtx := context.WithTimeout(ctx, shutdownTimeout)
 	defer cancelSdCtx()
+
+	a.stopMQTTServer(sdCtx)
 
 	if metricsEnabled {
 		a.stopMetricsServer(sdCtx)
@@ -227,6 +234,30 @@ func (a *application) stopMetricsServer(ctx context.Context) {
 
 	if err := a.metrics.Shutdown(ctx); err != nil {
 		a.log.Error(ctx, "Failed to shutdown metrics server", logger.Err(err))
+		return
+	}
+}
+
+func (a *application) startMQTTServer(ctx context.Context) {
+	a.mqtt = mqtt.NewServer(ctx, a.log)
+	_ = a.mqtt.AddListener(listener.NewTCP("tcp", ":1883", nil))
+
+	a.wg.Add(1)
+	go func() {
+		defer a.wg.Done()
+
+		err := a.mqtt.Serve()
+		if err != nil {
+			a.log.Error(ctx, "Failed to run MQTT server", logger.Err(err))
+		}
+	}()
+}
+
+func (a *application) stopMQTTServer(ctx context.Context) {
+	a.log.Debug(ctx, "Shutting down MQTT server")
+
+	if err := a.mqtt.Shutdown(ctx); err != nil {
+		a.log.Error(ctx, "Failed to shutdown MQTT server", logger.Err(err))
 		return
 	}
 }

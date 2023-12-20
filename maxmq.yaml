@@ -100,3 +100,20 @@ metrics_path: "/metrics"
 ## Acceptable values:
 ##   - a boolean (true or false)
 metrics_profiling: false
+
+## Define the listeners.
+##
+## This parameter is a map with all listeners. A listener is composed of:
+##   - name (optional). If not present, the map's key is used as the listener name.
+##   - host (optional). If not present, the localhost is used.
+##   - port (optional). If not present, the 1883 is used.
+##   - protocol (optional). If not present, the tcp is used. Valid values: tcp, tls, ws, wss.
+##
+## A listener can be defined using environment variables, as example:
+##   - MAXMQ_LISTENERS.HOST
+##   - MAXMQ_LISTENERS.TCP.PORT
+##   - MAXMQ_LISTENERS.TCP.PROTOCOL
+listeners:
+  - host: localhost
+    port: 1883
+    protocol: tcp

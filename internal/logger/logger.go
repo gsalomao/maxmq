@@ -315,24 +315,39 @@ func (l *Logger) StdLog(attrs ...Attr) *slog.Logger {
 	return slog.New(&stdLogWrapper{log: l, attrs: attrs})
 }
 
+// Log creates a log record with the provided level.
+func (l *Logger) Log(ctx context.Context, level Level, msg string, attrs ...Attr) {
+	var pcs [1]uintptr
+	runtime.Callers(3, pcs[:])
+
+	if l.idGen != nil {
+		attrs = append(attrs, Uint64("log_id", l.idGen.NextID()))
+	}
+
+	r := slog.NewRecord(time.Now(), level, msg, pcs[0])
+	r.AddAttrs(attrs...)
+
+	_ = l.Handle(ctx, r)
+}
+
 // Debug creates a log with debug level.
 func (l *Logger) Debug(ctx context.Context, msg string, attrs ...Attr) {
-	l.log(ctx, LevelDebug, msg, attrs...)
+	l.Log(ctx, LevelDebug, msg, attrs...)
 }
 
 // Info starts a new message with info level.
 func (l *Logger) Info(ctx context.Context, msg string, attrs ...Attr) {
-	l.log(ctx, LevelInfo, msg, attrs...)
+	l.Log(ctx, LevelInfo, msg, attrs...)
 }
 
 // Warn starts a new message with warn level.
 func (l *Logger) Warn(ctx context.Context, msg string, attrs ...Attr) {
-	l.log(ctx, LevelWarn, msg, attrs...)
+	l.Log(ctx, LevelWarn, msg, attrs...)
 }
 
 // Error starts a new message with error level.
 func (l *Logger) Error(ctx context.Context, msg string, attrs ...Attr) {
-	l.log(ctx, LevelError, msg, attrs...)
+	l.Log(ctx, LevelError, msg, attrs...)
 }
 
 // SetLevel sets the minimum accepted level to the logger.
@@ -345,7 +360,7 @@ func (l *Logger) SetFormat(f Format) {
 	l.format.Store(int64(f))
 }
 
-func (l *Logger) handler() slog.Handler {
+func (l *Logger) Handler() slog.Handler {
 	format := Format(l.format.Load())
 
 	switch format {
@@ -360,29 +375,19 @@ func (l *Logger) handler() slog.Handler {
 	}
 }
 
-func (l *Logger) log(ctx context.Context, lvl Level, msg string, attrs ...Attr) {
-	handler := l.handler()
-
-	if !handler.Enabled(ctx, lvl) {
-		return
-	}
+func (l *Logger) Handle(ctx context.Context, record slog.Record) error {
+	handler := l.Handler()
 
 	ctxAttrs := ctx.Value(ctxKeyAttrs{})
 	if ctxAttrs != nil {
-		attrs = append(attrs, ctxAttrs.([]Attr)...)
+		record.AddAttrs(ctxAttrs.([]Attr)...)
 	}
-
-	var pcs [1]uintptr
-	runtime.Callers(3, pcs[:])
 
 	if l.idGen != nil {
-		attrs = append(attrs, Uint64("log_id", l.idGen.NextID()))
+		record.AddAttrs(Uint64("log_id", l.idGen.NextID()))
 	}
 
-	r := slog.NewRecord(time.Now(), lvl, msg, pcs[0])
-	r.AddAttrs(attrs...)
-
-	_ = handler.Handle(ctx, r)
+	return handler.Handle(ctx, record)
 }
 
 type ctxKeyAttrs struct{}
@@ -420,20 +425,20 @@ type stdLogWrapper struct {
 }
 
 func (s stdLogWrapper) Enabled(ctx context.Context, level slog.Level) bool {
-	return s.log.handler().Enabled(ctx, level)
+	return s.log.Handler().Enabled(ctx, level)
 }
 
 func (s stdLogWrapper) Handle(ctx context.Context, record slog.Record) error { //nolint:gocritic
 	if len(s.attrs) > 0 {
 		record.AddAttrs(s.attrs...)
 	}
-	return s.log.handler().Handle(ctx, record)
+	return s.log.Handle(ctx, record)
 }
 
 func (s stdLogWrapper) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return s.log.handler().WithAttrs(attrs)
+	return s.log.Handler().WithAttrs(attrs)
 }
 
 func (s stdLogWrapper) WithGroup(name string) slog.Handler {
-	return s.log.handler().WithGroup(name)
+	return s.log.Handler().WithGroup(name)
 }
